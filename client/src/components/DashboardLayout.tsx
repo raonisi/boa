@@ -34,6 +34,7 @@ import {
   Home,
   LogOut,
   Settings,
+  Upload,
   Users,
   UserSquare2,
 } from "lucide-react";
@@ -53,6 +54,7 @@ type NavItem = {
 const menuItems: NavItem[] = [
   { icon: Home, label: "대시보드", path: "/" },
   { icon: Users, label: "고객 DB", path: "/customers" },
+  { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", roles: ["branch_admin"] },
   { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin"] }, // 부지점장도 접근 가능
   { icon: FileText, label: "계약관리", path: "/contracts" },
   { icon: BarChart3, label: "실적관리", path: "/performance" },

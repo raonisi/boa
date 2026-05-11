@@ -23,7 +23,9 @@ import {
   settings,
   statusHistory,
   teams,
+  Team,
   users,
+  User,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -748,4 +750,325 @@ export async function getPerformanceStats(filter: {
     activeContracts: activeContracts.length,
     canceledContracts: canceledContracts.length,
   };
+}
+
+
+// ─── Bulk Import Helpers ─────────────────────────────────────────────────────
+/** 연락처 정규화 (숫자만 추출) */
+export function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
+/** 금지 컬럼 감지 */
+export function detectForbiddenColumns(headers: string[]): string[] {
+  const forbiddenPatterns = [
+    /주민등록번호|주민번호|ssn|resident|identification/i,
+    /증권번호|policy|증권/i,
+    /신분증|id.?number|identification/i,
+    /병력|medical|health.?history/i,
+    /계좌번호|account.?number|bank/i,
+    /카드번호|card.?number|credit/i,
+  ];
+  return headers.filter((h) =>
+    forbiddenPatterns.some((pattern) => pattern.test(h))
+  );
+}
+
+/** 동명이인 검증 (정확히 1명과 매칭되어야 함) */
+export async function findUserByNameUnique(
+  name: string,
+  role?: "sub_branch_admin" | "team_leader" | "member"
+): Promise<{ user: User | undefined; isDuplicate: boolean }> {
+  const db = await getDb();
+  if (!db) return { user: undefined, isDuplicate: false };
+
+  const conditions: ReturnType<typeof eq>[] = [
+    eq(users.name, name),
+    eq(users.accountStatus, "active"),
+  ];
+  if (role) conditions.push(eq(users.role, role));
+
+  const results = await db
+    .select()
+    .from(users)
+    .where(and(...conditions));
+
+  if (results.length === 0) return { user: undefined, isDuplicate: false };
+  if (results.length === 1) return { user: results[0], isDuplicate: false };
+  return { user: undefined, isDuplicate: true };
+}
+
+/** 팀 이름으로 팀 조회 (부지점장 ID 기반 필터링) */
+export async function findTeamByNameAndSubBranch(
+  teamName: string,
+  subBranchAdminId: number
+): Promise<Team | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const results = await db
+    .select()
+    .from(teams)
+    .where(
+      and(
+        eq(teams.name, teamName),
+        eq(teams.subBranchAdminId, subBranchAdminId),
+        eq(teams.isActive, true)
+      )
+    )
+    .limit(1);
+
+  return results[0];
+}
+
+/** 일괄 업로드 데이터 검증 */
+export interface BulkImportRow {
+  name?: string;
+  phone?: string;
+  birthDate?: string;
+  gender?: string;
+  region?: string;
+  expectedPremium?: string;
+  availableTime?: string;
+  source?: string;
+  consultStatus?: string;
+  memo?: string;
+  subBranchAdminName?: string;
+  teamName?: string;
+  agentName?: string;
+}
+
+export interface BulkImportValidationResult {
+  rowIndex: number;
+  isValid: boolean;
+  errors: string[];
+  normalizedPhone?: string;
+  agentId?: number;
+  subBranchAdminId?: number;
+  teamId?: number;
+  assignmentStatus?: "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent";
+}
+
+export async function validateBulkImportRow(
+  row: BulkImportRow,
+  rowIndex: number,
+  existingPhones: Set<string>,
+  filePhones: Set<string>
+): Promise<BulkImportValidationResult> {
+  const errors: string[] = [];
+  let normalizedPhone: string | undefined;
+  let agentId: number | undefined;
+  let subBranchAdminId: number | undefined;
+  let teamId: number | undefined;
+  let assignmentStatus: "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent" = "unassigned";
+
+  // 필수값 검증
+  if (!row.name || row.name.trim() === "") {
+    errors.push("이름이 필수입니다.");
+  }
+  if (!row.phone || row.phone.trim() === "") {
+    errors.push("연락처가 필수입니다.");
+  } else {
+    normalizedPhone = normalizePhone(row.phone);
+    if (normalizedPhone.length < 10) {
+      errors.push("연락처 형식이 올바르지 않습니다. (최소 10자리)");
+    } else {
+      // 파일 내부 중복 검증
+      if (filePhones.has(normalizedPhone)) {
+        errors.push(`연락처가 파일 내에서 중복됩니다. (${row.phone})`);
+      } else {
+        filePhones.add(normalizedPhone);
+      }
+
+      // 기존 DB 중복 검증
+      if (existingPhones.has(normalizedPhone)) {
+        errors.push(`연락처가 기존 DB에 존재합니다. (${row.phone})`);
+      }
+    }
+  }
+
+  // 생년월일 형식 검증
+  if (row.birthDate && row.birthDate.trim() !== "") {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(row.birthDate)) {
+      errors.push(`생년월일 형식이 올바르지 않습니다. (YYYY-MM-DD 형식 필수)`);
+    }
+  }
+
+  // 예상보험료 숫자 검증
+  if (row.expectedPremium && row.expectedPremium.trim() !== "") {
+    if (isNaN(Number(row.expectedPremium))) {
+      errors.push("예상보험료는 숫자여야 합니다.");
+    }
+  }
+
+  // 성별 값 검증
+  if (row.gender && row.gender.trim() !== "") {
+    const validGenders = ["남", "여", "기타", "male", "female", "other"];
+    if (!validGenders.includes(row.gender)) {
+      errors.push(`성별 값이 올바르지 않습니다. (${row.gender})`);
+    }
+  }
+
+  // 상담상태 값 검증
+  if (row.consultStatus && row.consultStatus.trim() !== "") {
+    const validStatuses = [
+      "미상담",
+      "부재",
+      "통화완료",
+      "상담예정",
+      "설계중",
+      "계약",
+      "보류",
+      "거절",
+      "해지관리",
+      "재상담필요",
+    ];
+    if (!validStatuses.includes(row.consultStatus)) {
+      errors.push(`상담상태 값이 올바르지 않습니다. (${row.consultStatus})`);
+    }
+  }
+
+  // 조직 정합성 검증 (부지점장, 팀, 담당자)
+  if (row.subBranchAdminName && row.subBranchAdminName.trim() !== "") {
+    const { user, isDuplicate } = await findUserByNameUnique(
+      row.subBranchAdminName,
+      "sub_branch_admin"
+    );
+    if (isDuplicate) {
+      errors.push(
+        `부지점장 이름이 2명 이상과 일치합니다. 고유 식별값을 입력해주세요. (${row.subBranchAdminName})`
+      );
+    } else if (!user) {
+      errors.push(
+        `부지점장을 찾을 수 없습니다. (${row.subBranchAdminName})`
+      );
+    } else {
+      subBranchAdminId = user.id;
+    }
+  }
+
+  if (row.teamName && row.teamName.trim() !== "") {
+    if (!subBranchAdminId) {
+      errors.push("팀을 지정하려면 부지점장이 필요합니다.");
+    } else {
+      const team = await findTeamByNameAndSubBranch(row.teamName, subBranchAdminId);
+      if (!team) {
+        errors.push(
+          `팀을 찾을 수 없습니다. (${row.teamName})`
+        );
+      } else {
+        teamId = team.id;
+      }
+    }
+  }
+
+  if (row.agentName && row.agentName.trim() !== "") {
+    const { user, isDuplicate } = await findUserByNameUnique(
+      row.agentName,
+      "member"
+    );
+    if (isDuplicate) {
+      errors.push(
+        `담당자 이름이 2명 이상과 일치합니다. 고유 식별값을 입력해주세요. (${row.agentName})`
+      );
+    } else if (!user) {
+      errors.push(
+        `담당자를 찾을 수 없습니다. (${row.agentName})`
+      );
+    } else {
+      agentId = user.id;
+      // 담당자의 subBranchAdminId/teamId 자동 적용
+      if (!subBranchAdminId && user.subBranchAdminId) {
+        subBranchAdminId = user.subBranchAdminId;
+      }
+      if (!teamId && user.teamId) {
+        teamId = user.teamId;
+      }
+    }
+  }
+
+  // assignmentStatus 계산
+  if (agentId) {
+    assignmentStatus = "assigned_to_agent";
+  } else if (subBranchAdminId) {
+    assignmentStatus = "assigned_to_sub_branch";
+  }
+
+  return {
+    rowIndex,
+    isValid: errors.length === 0,
+    errors,
+    normalizedPhone,
+    agentId,
+    subBranchAdminId,
+    teamId,
+    assignmentStatus,
+  };
+}
+
+/** 기존 DB의 모든 활성 고객 연락처 조회 */
+export async function getAllActiveCustomerPhones(): Promise<Set<string>> {
+  const db = await getDb();
+  if (!db) return new Set();
+
+  const results = await db
+    .select({ phone: customers.phone })
+    .from(customers)
+    .where(eq(customers.isActive, true));
+
+  const phoneSet = new Set<string>();
+  results.forEach((r) => {
+    if (r.phone) {
+      phoneSet.add(normalizePhone(r.phone));
+    }
+  });
+  return phoneSet;
+}
+
+/** 일괄 고객 생성 */
+export async function bulkCreateCustomers(
+  rows: Array<{
+    name: string;
+    phone?: string;
+    birthDate?: Date;
+    gender?: "male" | "female" | "other";
+    region?: string;
+    expectedPremium?: number;
+    availableTime?: string;
+    source?: string;
+    consultStatus: string;
+    memo?: string;
+    agentId?: number;
+    subBranchAdminId?: number;
+    assignedTeamId?: number;
+    assignmentStatus: "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent";
+    createdBy: number;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const insertData = rows.map((row) => ({
+    name: row.name,
+    phone: row.phone,
+    birthDate: row.birthDate,
+    gender: row.gender,
+    region: row.region,
+    expectedPremium: row.expectedPremium,
+    availableTime: row.availableTime,
+    source: row.source,
+    consultStatus: row.consultStatus as any,
+    memo: row.memo,
+    agentId: row.agentId,
+    subBranchAdminId: row.subBranchAdminId,
+    assignedTeamId: row.assignedTeamId,
+    assignmentStatus: row.assignmentStatus,
+    createdBy: row.createdBy,
+    isActive: true,
+    assignedAt: row.agentId ? new Date() : undefined,
+  }));
+
+  const result = await db.insert(customers).values(insertData);
+  return result;
 }

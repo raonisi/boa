@@ -12,6 +12,7 @@ import Dashboard from "./pages/Dashboard";
 import CustomerList from "./pages/CustomerList";
 import CustomerDetail from "./pages/CustomerDetail";
 import CustomerAssign from "./pages/CustomerAssign";
+import CustomerBulkImport from "./pages/CustomerBulkImport";
 import ContractList from "./pages/ContractList";
 import Performance from "./pages/Performance";
 import Notifications from "./pages/Notifications";
@@ -86,6 +87,13 @@ function Router() {
           <SubBranchAdminOrAboveGuard>
             <CustomerAssign />
           </SubBranchAdminOrAboveGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/customers/bulk-import">
+        <AuthGuard>
+          <AdminGuard>
+            <CustomerBulkImport />
+          </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/:id">

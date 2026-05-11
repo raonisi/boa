@@ -210,3 +210,44 @@
 ### 중간 우선순위 2건
 - [x] getUserByEmail trim 추가 (email.trim().toLowerCase())
 - [x] USER_ROLE_CHANGED, TEAM_LEADER_ASSIGNED 로그 before/after 보강 (previousRole/newRole, previousTeamLeaderId/newTeamLeaderId)
+
+## 10차 수정 작업 (고객 DB 일괄 업로드 기능)
+
+### 1단계: 서버 라우터 구현 ✅ 완료
+- [x] customers.previewImport 라우터 (CSV 검증, 중복 확인, 조직 정합성)
+- [x] customers.bulkImport 라우터 (최종 검증 + DB 저장 + 로그 기록)
+- [x] customers.downloadImportTemplate 라우터 (CSV 양식 다운로드)
+- [x] 연락처 normalize 함수 (숫자만 추출)
+- [x] 금지 컬럼 감지 로직 (주민번호, 증권번호 등)
+- [x] 파일 내부 중복 검증 (normalizedPhone 기준)
+- [x] 기존 DB 중복 검증 (normalizedPhone 기준)
+- [x] 부지점장·팀·담당자 이름 기반 매핑 (동명이인 처리)
+- [x] assignmentStatus 자동 계산 로직
+- [x] importBatchId 생성 및 로그 기록
+
+### 2단계: 프론트 UI 구현 ✅ 완료
+- [x] CustomerBulkImport.tsx 신규 생성 (파일 선택, 미리보기, 검증, 등록)
+- [x] 파일 드래그앤드롭 UI
+- [x] 미리보기 테이블 (행별 오류 표시)
+- [x] 요약 통계 (총/정상/오류/중복 행 수)
+- [x] 최종 등록 확인 모달
+- [x] 결과 화면 (성공/실패/중복 통계)
+- [x] 오류 행 목록 다운로드 기능
+
+### 3단계: 메뉴 및 라우트 추가 ✅ 완료
+- [x] DashboardLayout.tsx에 "고객 일괄 등록" 메뉴 추가 (branch_admin만)
+- [x] App.tsx에 /customers/bulk-import 라우트 추가 (AdminGuard)
+
+### 4단계: 테스트 ✅ 완료
+- [x] customers.previewImport 단위 테스트 (검증, 중복, 조직)
+- [x] customers.bulkImport 단위 테스트 (저장, 로그, 재검증)
+- [x] 연락처 normalize 테스트
+- [x] 동명이인 처리 테스트
+- [x] 회귀 테스트 (기존 customers.create, 알림 필터 등)
+
+### 5단계: 최종 검수 ✅ 완료
+- [x] 권한 테스트 (branch_admin만 접근)
+- [x] 파일 검증 테스트 (CSV, 크기, 컬럼)
+- [x] 데이터 검증 테스트 (필수값, 형식, 중복)
+- [x] 조직 정합성 테스트 (부지점장, 팀, 담당자)
+- [x] 체크포인트 저장
