@@ -39,3 +39,41 @@
 - [x] RBAC 권한 테스트 (admin/manager/agent/inactive)
 - [x] auth.logout 테스트
 - [x] 전체 12개 테스트 통과
+
+## 2차 고도화 작업
+
+### DB 스키마 확장
+- [x] customers 테이블: is_active, deleted_at, assigned_team_id 컬럼 추가
+- [x] contracts 테이블: is_active, deleted_at, owner_user_id 컬럼 추가
+- [x] schedules 테이블: is_active, deleted_at, description, team_id, completed_at, reminder 플래그 컬럼 추가
+- [x] consultations 테이블: is_active, deleted_at 컬럼 추가
+- [x] status_history 테이블 신규 생성 (고객 상담상태 변경 이력)
+- [x] consent_logs 테이블 신규 생성 (동의 이력)
+- [x] reminders 테이블 신규 생성 (알림 due_at, 중복 방지 unique 키)
+
+### 알림 자동 생성 로직
+- [x] 계약 등록 시 90/180/365일 알림 자동 생성 (중복 방지)
+- [x] 고객 배정 시 생일 알림 자동 생성
+- [x] 배정 후 3일 미상담 알림 (서버 로직)
+- [x] 상담기록 next_follow_up_at 입력 시 재상담 알림 생성
+- [x] 납입상태 미납/실효/해지 변경 시 알림 생성
+- [x] 일정 등록 시 하루 전/당일/1시간 전 알림 생성 (reminder 플래그 기반)
+
+### 활동 로그 강화
+- [x] 고객 조회 로그 기록
+- [x] 담당자 변경 로그 기록
+- [x] 상담기록 수정 로그
+- [x] 일정 취소/완료 로그
+- [x] 퇴사자 차단 로그
+
+### 고객 상세 화면 개선
+- [x] 상태 변경 이력 탭 추가 (status_history)
+- [x] 동의 이력 표시 (consent_logs)
+- [x] 담당자 변경 기능 (관리자/팀장)
+- [x] soft delete 처리 (고객 비활성화)
+
+### 모바일 UI 개선
+- [x] 고객 목록 모바일 카드 뷰
+- [x] 빠른 상담상태 변경 버튼 (모바일)
+- [x] 하단 네비게이션 바 (모바일)
+- [x] 전화 연결 버튼 강조

@@ -1,3 +1,4 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -8,24 +9,25 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Phone, Plus } from "lucide-react";
+import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 export default function CustomerDetail({ id }: { id: number }) {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
+  const [showChangeAgentModal, setShowChangeAgentModal] = useState(false);
 
+  const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
   const { data: consultations, refetch: refetchConsult } = trpc.consultations.list.useQuery({ customerId: id });
   const { data: contracts, refetch: refetchContracts } = trpc.contracts.listByCustomer.useQuery({ customerId: id });
+  const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery({ customerId: id });
+  const { data: consentLogsData } = trpc.customers.consentLogs.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
-
-  const updateMutation = trpc.customers.update.useMutation({
-    onSuccess: () => { toast.success("저장되었습니다."); refetchCustomer(); },
-  });
 
   const createConsultMutation = trpc.consultations.create.useMutation({
     onSuccess: () => { toast.success("상담기록이 저장되었습니다."); setShowConsultModal(false); refetchConsult(); refetchCustomer(); },
@@ -33,6 +35,15 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const createContractMutation = trpc.contracts.create.useMutation({
     onSuccess: () => { toast.success("계약이 등록되었습니다."); setShowContractModal(false); refetchContracts(); },
+  });
+
+  const changeAgentMutation = trpc.customers.changeAgent.useMutation({
+    onSuccess: () => { toast.success("담당자가 변경되었습니다."); setShowChangeAgentModal(false); refetchCustomer(); },
+  });
+
+  const deactivateMutation = trpc.customers.deactivate.useMutation({
+    onSuccess: () => { toast.success("고객이 비활성화되었습니다."); setLocation("/customers"); },
+    onError: () => toast.error("비활성화에 실패했습니다."),
   });
 
   if (!customer) return (
@@ -43,37 +54,63 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const agentName = users?.find((u) => u.id === customer.agentId)?.name ?? "-";
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
+  const canChangeAgent = user?.role === "admin" || user?.role === "manager";
 
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <div className="flex items-center gap-3">
+        {/* Header */}
+        <div className="flex items-center gap-3 flex-wrap">
           <Button variant="ghost" size="sm" onClick={() => setLocation("/customers")}>
             <ArrowLeft className="h-4 w-4 mr-1" /> 목록
           </Button>
-          <div>
-            <h1 className="text-xl font-bold">{customer.name}</h1>
-            <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl font-bold">{customer.name}</h1>
               <StatusBadge status={customer.consultStatus} />
-              <span className="text-xs text-muted-foreground">담당: {agentName}</span>
+              {!customer.isActive && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">비활성</span>
+              )}
             </div>
+            <p className="text-xs text-muted-foreground mt-0.5">담당: {agentName}</p>
           </div>
-          <div className="ml-auto flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {customer.phone && (
               <a href={`tel:${customer.phone}`}>
-                <Button variant="outline" size="sm">
-                  <Phone className="h-4 w-4 mr-1" /> 전화
+                <Button variant="outline" size="sm" className="h-8">
+                  <Phone className="h-3.5 w-3.5 mr-1" /> 전화
                 </Button>
               </a>
+            )}
+            {canChangeAgent && (
+              <Button variant="outline" size="sm" className="h-8" onClick={() => setShowChangeAgentModal(true)}>
+                <UserCog className="h-3.5 w-3.5 mr-1" /> 담당자 변경
+              </Button>
+            )}
+            {canChangeAgent && customer.isActive && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => {
+                  if (confirm("이 고객을 비활성화하시겠습니까? 데이터는 보존됩니다.")) {
+                    deactivateMutation.mutate({ id });
+                  }
+                }}
+              >
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 비활성화
+              </Button>
             )}
           </div>
         </div>
 
         <Tabs defaultValue="info">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="info">기본정보</TabsTrigger>
             <TabsTrigger value="consult">상담기록 ({consultations?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="contract">계약정보 ({contracts?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="history">상태이력 ({statusHistoryData?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="consent">동의이력</TabsTrigger>
           </TabsList>
 
           {/* 기본정보 */}
@@ -91,8 +128,8 @@ export default function CustomerDetail({ id }: { id: number }) {
                     { label: "통화가능시간", value: customer.availableTime ?? "-" },
                     { label: "유입경로", value: customer.source ?? "-" },
                     { label: "배정일", value: customer.assignedAt ? new Date(customer.assignedAt).toLocaleDateString("ko-KR") : "-" },
-                    { label: "개인정보 동의", value: customer.privacyConsent ? "동의" : "미동의" },
-                    { label: "마케팅 수신 동의", value: customer.marketingConsent ? "동의" : "미동의" },
+                    { label: "개인정보 동의", value: customer.privacyConsent ? "✓ 동의" : "✗ 미동의" },
+                    { label: "마케팅 수신 동의", value: customer.marketingConsent ? "✓ 동의" : "✗ 미동의" },
                     { label: "담당자", value: agentName },
                   ].map(({ label, value }) => (
                     <div key={label}>
@@ -126,22 +163,14 @@ export default function CustomerDetail({ id }: { id: number }) {
                 (consultations ?? []).map((c) => (
                   <Card key={c.id}>
                     <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <StatusBadge status={c.status} />
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(c.createdAt).toLocaleString("ko-KR")}
-                            </span>
-                          </div>
-                          <p className="text-sm whitespace-pre-wrap">{c.content ?? "(내용 없음)"}</p>
-                          {c.nextContactAt && (
-                            <p className="text-xs text-primary mt-2">
-                              재상담 예정: {new Date(c.nextContactAt).toLocaleString("ko-KR")}
-                            </p>
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <StatusBadge status={c.status} />
+                        <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString("ko-KR")}</span>
                       </div>
+                      <p className="text-sm whitespace-pre-wrap">{c.content ?? "(내용 없음)"}</p>
+                      {c.nextContactAt && (
+                        <p className="text-xs text-primary mt-2">재상담 예정: {new Date(c.nextContactAt).toLocaleString("ko-KR")}</p>
+                      )}
                     </CardContent>
                   </Card>
                 ))
@@ -180,6 +209,67 @@ export default function CustomerDetail({ id }: { id: number }) {
               )}
             </div>
           </TabsContent>
+
+          {/* 상태 변경 이력 */}
+          <TabsContent value="history">
+            <Card>
+              <CardContent className="p-0">
+                {(statusHistoryData ?? []).length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">상태 변경 이력이 없습니다.</div>
+                ) : (
+                  <div className="divide-y">
+                    {(statusHistoryData ?? []).map((h) => {
+                      const changedByName = users?.find((u) => u.id === h.changedBy)?.name ?? `#${h.changedBy}`;
+                      return (
+                        <div key={h.id} className="flex items-center gap-3 p-3 text-sm">
+                          <div className="text-xs text-muted-foreground w-32 shrink-0">
+                            {new Date(h.createdAt).toLocaleString("ko-KR")}
+                          </div>
+                          <div className="flex items-center gap-2 flex-1">
+                            {h.previousStatus && <StatusBadge status={h.previousStatus} />}
+                            <span className="text-muted-foreground">→</span>
+                            <StatusBadge status={h.newStatus} />
+                          </div>
+                          <div className="text-xs text-muted-foreground">{changedByName}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 동의 이력 */}
+          <TabsContent value="consent">
+            <Card>
+              <CardContent className="p-0">
+                {(consentLogsData ?? []).length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">동의 변경 이력이 없습니다.</div>
+                ) : (
+                  <div className="divide-y">
+                    {(consentLogsData ?? []).map((l) => {
+                      const changedByName = users?.find((u) => u.id === l.changedBy)?.name ?? `#${l.changedBy}`;
+                      return (
+                        <div key={l.id} className="flex items-center gap-3 p-3 text-sm">
+                          <div className="text-xs text-muted-foreground w-32 shrink-0">
+                            {new Date(l.createdAt).toLocaleString("ko-KR")}
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-medium">{l.consentType === "privacy" ? "개인정보 동의" : "마케팅 수신 동의"}</span>
+                            <span className="text-muted-foreground ml-2">
+                              {l.previousValue ? "동의" : "미동의"} → {l.newValue ? "동의" : "미동의"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">{changedByName}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -199,13 +289,33 @@ export default function CustomerDetail({ id }: { id: number }) {
         onSubmit={(data) => createContractMutation.mutate({ ...data, customerId: id })}
         loading={createContractMutation.isPending}
       />
+
+      {/* 담당자 변경 모달 */}
+      {showChangeAgentModal && (
+        <Dialog open={true} onOpenChange={() => setShowChangeAgentModal(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>담당자 변경 - {customer.name}</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">현재 담당자: <strong>{agentName}</strong></p>
+              <Select onValueChange={(v) => changeAgentMutation.mutate({ customerId: id, newAgentId: Number(v) })}>
+                <SelectTrigger className="h-9"><SelectValue placeholder="새 담당자 선택" /></SelectTrigger>
+                <SelectContent>
+                  {(users ?? []).filter((u) => u.role !== "inactive" && u.id !== customer.agentId).map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role === "manager" ? "팀장" : "팀원"})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowChangeAgentModal(false)}>취소</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </DashboardLayout>
   );
 }
 
 function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
-  open: boolean; onClose: () => void;
-  onSubmit: (data: any) => void; loading: boolean; currentStatus: string;
+  open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean; currentStatus: string;
 }) {
   const [form, setForm] = useState({ status: currentStatus, content: "", nextContactAt: "" });
   return (
@@ -216,22 +326,13 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
           <div>
             <Label className="text-xs">상담상태</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-              <SelectTrigger className="h-9 mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-              </SelectContent>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>{CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label className="text-xs">상담내용</Label>
-            <textarea
-              value={form.content}
-              onChange={(e) => setForm({ ...form, content: e.target.value })}
-              className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24"
-              placeholder="상담 내용을 입력하세요..."
-            />
+            <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24" placeholder="상담 내용을 입력하세요..." />
           </div>
           <div>
             <Label className="text-xs">재상담 예정일</Label>
@@ -239,9 +340,7 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading} onClick={() => onSubmit(form)}>
-              {loading ? "저장 중..." : "저장"}
-            </Button>
+            <Button size="sm" disabled={loading} onClick={() => onSubmit(form)}>{loading ? "저장 중..." : "저장"}</Button>
           </div>
         </div>
       </DialogContent>
@@ -271,18 +370,14 @@ function ContractModal({ open, onClose, onSubmit, loading }: {
               <Label className="text-xs">납입상태</Label>
               <Select value={form.paymentStatus} onValueChange={(v) => setForm({ ...form, paymentStatus: v })}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["정상","미납","실효","해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{["정상","미납","실효","해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">계약상태</Label>
               <Select value={form.contractStatus} onValueChange={(v) => setForm({ ...form, contractStatus: v })}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["청약","성립","철회","유지","해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
+                <SelectContent>{["청약","성립","철회","유지","해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>

@@ -1,19 +1,22 @@
-import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, lte, or, sql, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
+  consentLogs,
   consultations,
   contracts,
   customers,
   InsertActivityLog,
+  InsertConsentLog,
   InsertConsultation,
   InsertContract,
   InsertCustomer,
   InsertNotification,
   InsertSchedule,
-  InsertUser,
+  InsertStatusHistory,
   notifications,
   schedules,
+  statusHistory,
   teams,
   users,
 } from "../drizzle/schema";
@@ -34,12 +37,12 @@ export async function getDb() {
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
-export async function upsertUser(user: InsertUser): Promise<void> {
+export async function upsertUser(user: typeof users.$inferInsert): Promise<void> {
   if (!user.openId) throw new Error("User openId is required for upsert");
   const db = await getDb();
   if (!db) return;
 
-  const values: InsertUser = { openId: user.openId };
+  const values: typeof users.$inferInsert = { openId: user.openId };
   const updateSet: Record<string, unknown> = {};
 
   const textFields = ["name", "email", "loginMethod"] as const;
@@ -119,11 +122,18 @@ export async function getCustomers(filter: {
   teamId?: number;
   unassigned?: boolean;
   status?: string;
+  includeInactive?: boolean;
 }) {
   const db = await getDb();
   if (!db) return [];
 
   const conditions = [];
+
+  // Soft delete: 기본적으로 활성 고객만
+  if (!filter.includeInactive) {
+    conditions.push(eq(customers.isActive, true));
+  }
+
   if (filter.agentId !== undefined) {
     conditions.push(eq(customers.agentId, filter.agentId));
   } else if (filter.unassigned) {
@@ -135,9 +145,7 @@ export async function getCustomers(filter: {
       .where(eq(users.teamId, filter.teamId));
     const agentIds = teamAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    conditions.push(
-      or(...agentIds.map((id) => eq(customers.agentId, id)))
-    );
+    conditions.push(or(...agentIds.map((id) => eq(customers.agentId, id))));
   }
   if (filter.status) {
     conditions.push(eq(customers.consultStatus, filter.status as any));
@@ -160,7 +168,7 @@ export async function getCustomerById(id: number) {
 export async function createCustomer(data: InsertCustomer) {
   const db = await getDb();
   if (!db) return;
-  await db.insert(customers).values(data);
+  await db.insert(customers).values({ ...data, isActive: true });
 }
 
 export async function updateCustomer(id: number, data: Partial<InsertCustomer>) {
@@ -169,13 +177,53 @@ export async function updateCustomer(id: number, data: Partial<InsertCustomer>) 
   await db.update(customers).set(data).where(eq(customers.id, id));
 }
 
-export async function assignCustomer(customerId: number, agentId: number) {
+export async function softDeleteCustomer(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(customers).set({ isActive: false, deletedAt: new Date() }).where(eq(customers.id, id));
+}
+
+export async function assignCustomer(customerId: number, agentId: number, teamId?: number) {
   const db = await getDb();
   if (!db) return;
   await db
     .update(customers)
-    .set({ agentId, assignedAt: new Date() })
+    .set({ agentId, assignedTeamId: teamId ?? null, assignedAt: new Date() })
     .where(eq(customers.id, customerId));
+}
+
+// ─── Status History ────────────────────────────────────────────────────────────
+export async function createStatusHistory(data: InsertStatusHistory) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(statusHistory).values(data);
+}
+
+export async function getStatusHistory(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(statusHistory)
+    .where(eq(statusHistory.customerId, customerId))
+    .orderBy(desc(statusHistory.createdAt));
+}
+
+// ─── Consent Logs ─────────────────────────────────────────────────────────────
+export async function createConsentLog(data: InsertConsentLog) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(consentLogs).values(data);
+}
+
+export async function getConsentLogs(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(consentLogs)
+    .where(eq(consentLogs.customerId, customerId))
+    .orderBy(desc(consentLogs.createdAt));
 }
 
 // ─── Consultations ────────────────────────────────────────────────────────────
@@ -185,14 +233,14 @@ export async function getConsultationsByCustomer(customerId: number) {
   return db
     .select()
     .from(consultations)
-    .where(eq(consultations.customerId, customerId))
+    .where(and(eq(consultations.customerId, customerId), eq(consultations.isActive, true)))
     .orderBy(desc(consultations.createdAt));
 }
 
 export async function createConsultation(data: InsertConsultation) {
   const db = await getDb();
   if (!db) return;
-  await db.insert(consultations).values(data);
+  await db.insert(consultations).values({ ...data, isActive: true });
   // Update customer status
   await db
     .update(customers)
@@ -207,7 +255,7 @@ export async function getContractsByCustomer(customerId: number) {
   return db
     .select()
     .from(contracts)
-    .where(eq(contracts.customerId, customerId))
+    .where(and(eq(contracts.customerId, customerId), eq(contracts.isActive, true)))
     .orderBy(desc(contracts.createdAt));
 }
 
@@ -215,30 +263,26 @@ export async function getAllContracts(filter: { agentId?: number; teamId?: numbe
   const db = await getDb();
   if (!db) return [];
 
-  const conditions = [];
+  const baseCondition = eq(contracts.isActive, true);
   if (filter.agentId !== undefined) {
-    conditions.push(eq(contracts.agentId, filter.agentId));
+    return db.select().from(contracts)
+      .where(and(baseCondition, eq(contracts.agentId, filter.agentId)))
+      .orderBy(desc(contracts.createdAt));
   } else if (filter.teamId !== undefined) {
-    const teamAgents = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.teamId, filter.teamId));
+    const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
     const agentIds = teamAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    conditions.push(or(...agentIds.map((id) => eq(contracts.agentId, id))));
+    return db.select().from(contracts)
+      .where(and(baseCondition, or(...agentIds.map((id) => eq(contracts.agentId, id)))))
+      .orderBy(desc(contracts.createdAt));
   }
-
-  return db
-    .select()
-    .from(contracts)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(contracts.createdAt));
+  return db.select().from(contracts).where(baseCondition).orderBy(desc(contracts.createdAt));
 }
 
 export async function createContract(data: InsertContract) {
   const db = await getDb();
   if (!db) return;
-  await db.insert(contracts).values(data);
+  await db.insert(contracts).values({ ...data, isActive: true });
 }
 
 export async function updateContract(id: number, data: Partial<InsertContract>) {
@@ -247,35 +291,38 @@ export async function updateContract(id: number, data: Partial<InsertContract>) 
   await db.update(contracts).set(data).where(eq(contracts.id, id));
 }
 
+export async function getContractById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(contracts).where(eq(contracts.id, id)).limit(1);
+  return result[0];
+}
+
 // ─── Schedules ────────────────────────────────────────────────────────────────
 export async function getSchedules(filter: { userId?: number; teamId?: number }) {
   const db = await getDb();
   if (!db) return [];
 
-  const conditions = [];
+  const baseCondition = eq(schedules.isActive, true);
   if (filter.userId !== undefined) {
-    conditions.push(eq(schedules.userId, filter.userId));
+    return db.select().from(schedules)
+      .where(and(baseCondition, eq(schedules.userId, filter.userId)))
+      .orderBy(schedules.startTime);
   } else if (filter.teamId !== undefined) {
-    const teamAgents = await db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.teamId, filter.teamId));
+    const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
     const agentIds = teamAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    conditions.push(or(...agentIds.map((id) => eq(schedules.userId, id))));
+    return db.select().from(schedules)
+      .where(and(baseCondition, or(...agentIds.map((id) => eq(schedules.userId, id)))))
+      .orderBy(schedules.startTime);
   }
-
-  return db
-    .select()
-    .from(schedules)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(schedules.startTime);
+  return db.select().from(schedules).where(baseCondition).orderBy(schedules.startTime);
 }
 
 export async function createSchedule(data: InsertSchedule) {
   const db = await getDb();
   if (!db) return;
-  await db.insert(schedules).values(data);
+  await db.insert(schedules).values({ ...data, isActive: true });
 }
 
 export async function updateSchedule(id: number, data: Partial<InsertSchedule>) {
@@ -284,10 +331,16 @@ export async function updateSchedule(id: number, data: Partial<InsertSchedule>) 
   await db.update(schedules).set(data).where(eq(schedules.id, id));
 }
 
-export async function deleteSchedule(id: number) {
+export async function softDeleteSchedule(id: number) {
   const db = await getDb();
   if (!db) return;
-  await db.delete(schedules).where(eq(schedules.id, id));
+  await db.update(schedules).set({ isActive: false, deletedAt: new Date(), status: "취소" }).where(eq(schedules.id, id));
+}
+
+export async function completeSchedule(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(schedules).set({ status: "완료", completedAt: new Date() }).where(eq(schedules.id, id));
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
@@ -327,10 +380,7 @@ export async function markNotificationRead(id: number) {
 export async function markAllNotificationsRead(userId: number) {
   const db = await getDb();
   if (!db) return;
-  await db
-    .update(notifications)
-    .set({ isRead: true })
-    .where(eq(notifications.userId, userId));
+  await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
 }
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────
@@ -358,15 +408,18 @@ export async function getPerformanceStats(filter: { agentId?: number; teamId?: n
   let customerList: typeof customers.$inferSelect[] = [];
   let contractList: typeof contracts.$inferSelect[] = [];
 
+  const activeCondition = eq(customers.isActive, true);
+  const activeContractCondition = eq(contracts.isActive, true);
+
   if (filter.agentId !== undefined) {
     customerList = await db
       .select()
       .from(customers)
-      .where(eq(customers.agentId, filter.agentId));
+      .where(and(eq(customers.agentId, filter.agentId), activeCondition));
     contractList = await db
       .select()
       .from(contracts)
-      .where(eq(contracts.agentId, filter.agentId));
+      .where(and(eq(contracts.agentId, filter.agentId), activeContractCondition));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db
       .select({ id: users.id })
@@ -377,15 +430,15 @@ export async function getPerformanceStats(filter: { agentId?: number; teamId?: n
       customerList = await db
         .select()
         .from(customers)
-        .where(or(...agentIds.map((id) => eq(customers.agentId, id))));
+        .where(and(or(...agentIds.map((id) => eq(customers.agentId, id))), activeCondition));
       contractList = await db
         .select()
         .from(contracts)
-        .where(or(...agentIds.map((id) => eq(contracts.agentId, id))));
+        .where(and(or(...agentIds.map((id) => eq(contracts.agentId, id))), activeContractCondition));
     }
   } else {
-    customerList = await db.select().from(customers);
-    contractList = await db.select().from(contracts);
+    customerList = await db.select().from(customers).where(activeCondition);
+    contractList = await db.select().from(contracts).where(activeContractCondition);
   }
 
   const total = customerList.length;

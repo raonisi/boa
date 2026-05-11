@@ -6,9 +6,8 @@ import {
   timestamp,
   varchar,
   boolean,
-  decimal,
   date,
-  bigint,
+  unique,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -49,23 +48,22 @@ export const customers = mysqlTable("customers", {
   expectedPremium: int("expectedPremium"),
   availableTime: varchar("availableTime", { length: 100 }),
   source: varchar("source", { length: 100 }),
+  // 담당자 및 팀
   agentId: int("agentId"),
+  assignedTeamId: int("assignedTeamId"),
   assignedAt: timestamp("assignedAt"),
+  // 상담 상태
+  consultStatus: mysqlEnum("consultStatus", [
+    "미상담", "부재", "통화완료", "상담예정", "설계중",
+    "계약", "보류", "거절", "해지관리", "재상담필요",
+  ]).default("미상담").notNull(),
+  memo: text("memo"),
+  // 동의 여부
   privacyConsent: boolean("privacyConsent").default(false),
   marketingConsent: boolean("marketingConsent").default(false),
-  memo: text("memo"),
-  consultStatus: mysqlEnum("consultStatus", [
-    "미상담",
-    "부재",
-    "통화완료",
-    "상담예정",
-    "설계중",
-    "계약",
-    "보류",
-    "거절",
-    "해지관리",
-    "재상담필요",
-  ]).default("미상담").notNull(),
+  // Soft delete
+  isActive: boolean("isActive").default(true).notNull(),
+  deletedAt: timestamp("deletedAt"),
   createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -74,25 +72,48 @@ export const customers = mysqlTable("customers", {
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 
+// ─── Status History (고객 상담상태 변경 이력) ────────────────────────────────
+export const statusHistory = mysqlTable("status_history", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  changedBy: int("changedBy").notNull(),
+  previousStatus: varchar("previousStatus", { length: 50 }),
+  newStatus: varchar("newStatus", { length: 50 }).notNull(),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type StatusHistory = typeof statusHistory.$inferSelect;
+export type InsertStatusHistory = typeof statusHistory.$inferInsert;
+
+// ─── Consent Logs (동의 이력) ─────────────────────────────────────────────────
+export const consentLogs = mysqlTable("consent_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  changedBy: int("changedBy").notNull(),
+  consentType: mysqlEnum("consentType", ["privacy", "marketing"]).notNull(),
+  previousValue: boolean("previousValue"),
+  newValue: boolean("newValue").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ConsentLog = typeof consentLogs.$inferSelect;
+export type InsertConsentLog = typeof consentLogs.$inferInsert;
+
 // ─── Consultations ────────────────────────────────────────────────────────────
 export const consultations = mysqlTable("consultations", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
   agentId: int("agentId").notNull(),
   status: mysqlEnum("status", [
-    "미상담",
-    "부재",
-    "통화완료",
-    "상담예정",
-    "설계중",
-    "계약",
-    "보류",
-    "거절",
-    "해지관리",
-    "재상담필요",
+    "미상담", "부재", "통화완료", "상담예정", "설계중",
+    "계약", "보류", "거절", "해지관리", "재상담필요",
   ]).notNull(),
   content: text("content"),
   nextContactAt: timestamp("nextContactAt"),
+  // Soft delete
+  isActive: boolean("isActive").default(true).notNull(),
+  deletedAt: timestamp("deletedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -113,6 +134,10 @@ export const contracts = mysqlTable("contracts", {
   paymentStatus: mysqlEnum("paymentStatus", ["정상", "미납", "실효", "해지"]).default("정상"),
   contractStatus: mysqlEnum("contractStatus", ["청약", "성립", "철회", "유지", "해지"]).default("청약"),
   memo: text("memo"),
+  // Soft delete
+  isActive: boolean("isActive").default(true).notNull(),
+  deletedAt: timestamp("deletedAt"),
+  createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -124,23 +149,26 @@ export type InsertContract = typeof contracts.$inferInsert;
 export const schedules = mysqlTable("schedules", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
+  teamId: int("teamId"),
   title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
   type: mysqlEnum("type", [
-    "고객상담",
-    "재통화",
-    "계약예정",
-    "보장분석",
-    "해지방어",
-    "팀회의",
-    "교육",
-    "외근",
-    "휴무",
-    "기타",
+    "고객상담", "재통화", "계약예정", "보장분석", "해지방어",
+    "팀회의", "교육", "외근", "휴무", "기타",
   ]).default("기타").notNull(),
   status: mysqlEnum("status", ["예정", "완료", "취소", "변경", "노쇼", "보류"]).default("예정").notNull(),
   startTime: timestamp("startTime").notNull(),
   endTime: timestamp("endTime"),
+  completedAt: timestamp("completedAt"),
   memo: text("memo"),
+  // 알림 플래그
+  reminderDayBefore: boolean("reminderDayBefore").default(true),
+  reminderSameDay: boolean("reminderSameDay").default(true),
+  reminderOneHourBefore: boolean("reminderOneHourBefore").default(true),
+  // Soft delete
+  isActive: boolean("isActive").default(true).notNull(),
+  deletedAt: timestamp("deletedAt"),
+  createdBy: int("createdBy"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -148,31 +176,62 @@ export const schedules = mysqlTable("schedules", {
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
 
-// ─── Notifications ────────────────────────────────────────────────────────────
-export const notifications = mysqlTable("notifications", {
+// ─── Reminders (알림 - 중복 방지 unique 키 포함) ─────────────────────────────
+export const reminders = mysqlTable("reminders", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   type: mysqlEnum("type", [
-    "contract_90",
-    "contract_180",
-    "contract_365",
+    "contract_90", "contract_180", "contract_365",
     "birthday",
-    "uncontacted_3days",
-    "long_unmanaged_90",
-    "reconsult",
-    "unpaid_lapse",
-    "schedule_1day",
-    "schedule_today",
-    "schedule_1hour",
-    "schedule_incomplete",
+    "uncontacted_3days", "long_unmanaged_90",
+    "reconsult", "unpaid_lapse",
+    "schedule_1day", "schedule_today", "schedule_1hour", "schedule_incomplete",
   ]).notNull(),
   title: varchar("title", { length: 200 }).notNull(),
   message: text("message").notNull(),
   relatedType: varchar("relatedType", { length: 50 }),
   relatedId: int("relatedId"),
+  dueAt: timestamp("dueAt"),
+  isRead: boolean("isRead").default(false).notNull(),
+  isSent: boolean("isSent").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+},
+(table) => ({
+  // 중복 방지: 같은 사용자, 같은 유형, 같은 대상, 같은 due_at
+  uniqueReminder: unique("uq_reminder").on(
+    table.userId, table.type, table.relatedType, table.relatedId, table.dueAt
+  ),
+}));
+
+export type Reminder = typeof reminders.$inferSelect;
+export type InsertReminder = typeof reminders.$inferInsert;
+
+// ─── Notifications (기존 - 실시간 인앱 알림) ──────────────────────────────────
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", [
+    "contract_90", "contract_180", "contract_365",
+    "birthday",
+    "uncontacted_3days", "long_unmanaged_90",
+    "reconsult", "unpaid_lapse",
+    "schedule_1day", "schedule_today", "schedule_1hour", "schedule_incomplete",
+    "customer_assigned", "general",
+  ]).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  message: text("message").notNull(),
+  relatedType: varchar("relatedType", { length: 50 }),
+  relatedId: int("relatedId"),
+  dueAt: timestamp("dueAt"),
   isRead: boolean("isRead").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-});
+},
+(table) => ({
+  // 중복 방지
+  uniqueNotif: unique("uq_notification").on(
+    table.userId, table.type, table.relatedType, table.relatedId, table.dueAt
+  ),
+}));
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
@@ -186,6 +245,7 @@ export const activityLogs = mysqlTable("activity_logs", {
   targetId: int("targetId"),
   details: text("details"),
   ipAddress: varchar("ipAddress", { length: 50 }),
+  userAgent: varchar("userAgent", { length: 300 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

@@ -37,6 +37,7 @@ import {
   Users,
   UserSquare2,
 } from "lucide-react";
+import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
@@ -258,9 +259,10 @@ function DashboardLayoutContent({
             ) : null}
           </button>
         </header>
-        <main className="flex-1 p-4 md:p-6 bg-background min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 p-4 md:p-6 bg-background min-h-[calc(100vh-3.5rem)] pb-20 md:pb-6">
           {children}
         </main>
+        <MobileNav />
       </SidebarInset>
     </>
   );
