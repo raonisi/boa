@@ -53,7 +53,10 @@ export default function ContractList() {
         <div>
           <h1 className="text-2xl font-bold">계약관리</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            총 {filtered.length}건 · 유지계약 월납보험료 합계: {totalPremium.toLocaleString()}원
+            {user?.role === "sub_branch_admin" ? "부지점장 산하 계약관리" :
+             user?.role === "team_leader" ? "본인 팀 계약관리" :
+             user?.role === "member" ? "내 계약관리" : "전체 계약관리"}
+            {" · "}{filtered.length}건 · 유지계약 월납보험료 합계: {totalPremium.toLocaleString()}월
           </p>
         </div>
 

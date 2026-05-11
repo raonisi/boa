@@ -155,3 +155,17 @@
 - [x] DB 배정 로그 분리 (DB_ASSIGNED_BY_BRANCH_ADMIN, DB_ASSIGNED_BY_SUB_BRANCH_ADMIN, ASSIGNMENT_HISTORY_CREATED)
 - [x] 모바일 미완료 일정 섹션 (Calendar.tsx 모바일 뷰)
 - [x] 고객 목록 배정일 날짜 범위 필터 (CustomerList.tsx + DB 쿼리)
+
+## 6차 수정 작업 (v4 검수 기반)
+
+### 치명 문제 2건
+- [x] TeamManagement 계층 구조 추가 (부지점장→팀→팀장→팀원 + 미배정 섹션)
+- [x] 지점장 조직 배치 UI (팀장·팀원을 부지점장 산하로 배치/이동)
+
+### 높은 우선순위 6건
+- [x] UserManagement subBranchAdminId 배치 UI (팀장·팀원만 대상, 팀 불일치 시 팀 해제 후 처리)
+- [x] Settings 항목 수정(edit) 기능 + settings.update 라우터 + DB 기반
+- [x] 실적 월 선택 필터 (Performance.tsx type="month" + dateFrom/dateTo 자동 변환)
+- [x] 로그 보완 (CUSTOMER_REASSIGNED, USER_MOVED_TO_ANOTHER_SUB_BRANCH, USER_MOVED_TO_ANOTHER_TEAM, MEMBER_ASSIGNED_TO_TEAM)
+- [x] 부지점장 전용 화면 권한 범위 문구 추가 (고객관리, 계약관리 상단)
+- [x] 불일치 방지 (팀 이동 시 users.subBranchAdminId 자동 동기화, 부지점장 변경 시 팀 해제 후 처리)

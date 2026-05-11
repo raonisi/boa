@@ -49,6 +49,14 @@ export default function Settings() {
     onError: () => toast.error("상태 변경에 실패했습니다."),
   });
 
+  const updateMutation = trpc.settings.update.useMutation({
+    onSuccess: () => { toast.success("수정되었습니다."); utils.settings.list.invalidate(); setEditItem(null); },
+    onError: () => toast.error("수정에 실패했습니다."),
+  });
+
+  const [editItem, setEditItem] = useState<{ id: number; value: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+
   return (
     <DashboardLayout>
       <div className="space-y-4">
@@ -89,6 +97,15 @@ export default function Settings() {
                             <span className={`text-sm ${!s.isActive ? "text-muted-foreground line-through" : ""}`}>{s.value}</span>
                             {!s.isActive && <span className="text-xs text-muted-foreground">(비활성)</span>}
                           </div>
+                          <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-blue-600"
+                            onClick={() => { setEditItem({ id: s.id, value: s.value }); setEditValue(s.value); }}
+                          >
+                            수정
+                          </Button>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -97,6 +114,7 @@ export default function Settings() {
                           >
                             {s.isActive ? "비활성화" : "활성화"}
                           </Button>
+                        </div>
                         </div>
                       ))}
                     </div>
@@ -107,6 +125,34 @@ export default function Settings() {
           ))}
         </Tabs>
       </div>
+
+      {/* 항목 수정 모달 */}
+      {editItem && (
+        <Dialog open={true} onOpenChange={() => setEditItem(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>{categoryLabels[activeTab]} 항목 수정</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">항목 이름</Label>
+                <Input
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  className="h-9 mt-1"
+                  onKeyDown={(e) => { if (e.key === "Enter" && editValue && editItem) updateMutation.mutate({ id: editItem.id, value: editValue }); }}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEditItem(null)}>취소</Button>
+                <Button size="sm" disabled={!editValue || updateMutation.isPending} onClick={() => editItem && updateMutation.mutate({ id: editItem.id, value: editValue })}>
+                  {updateMutation.isPending ? "저장 중..." : "저장"}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* 항목 추가 모달 */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>

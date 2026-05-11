@@ -511,6 +511,12 @@ export async function toggleSetting(id: number, isActive: boolean) {
   await db.update(settings).set({ isActive }).where(eq(settings.id, id));
 }
 
+export async function updateSetting(id: number, value: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(settings).set({ value }).where(eq(settings.id, id));
+}
+
 // ─── Activity Logs ────────────────────────────────────────────────────────────
 export async function createActivityLog(data: InsertActivityLog) {
   const db = await getDb();

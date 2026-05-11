@@ -57,10 +57,31 @@ export default function UserManagement() {
     onSuccess: () => { toast.success("팀이 변경되었습니다."); utils.users.list.invalidate(); },
   });
 
+  const updateSubBranchMutation = trpc.users.updateSubBranchAdmin.useMutation({
+    onSuccess: () => { toast.success("소속 부지점장이 변경되었습니다."); utils.users.list.invalidate(); },
+    onError: () => toast.error("변경에 실패했습니다."),
+  });
+
   const handleBlock = (userId: number) => {
     if (confirm("이 사용자를 퇴사 처리하시겠습니까? 즉시 접근이 차단됩니다.")) {
       updateAccountStatusMutation.mutate({ userId, accountStatus: "inactive" });
     }
+  };
+
+  // 부지점장 목록 (active 상태만)
+  const subBranchAdmins = (users ?? []).filter((u) => u.role === "sub_branch_admin" && (u as any).accountStatus === "active");
+
+  const handleSubBranchChange = (userId: number, currentTeamId: number | null, newSubBranchAdminId: string) => {
+    const newId = newSubBranchAdminId === "none" ? null : Number(newSubBranchAdminId);
+    // 조건 2: teamId가 있으면 팀의 subBranchAdminId와 일치해야 함
+    if (currentTeamId && newId !== null) {
+      const team = (teams ?? []).find((t) => t.id === currentTeamId);
+      if (team && (team as any).subBranchAdminId !== newId) {
+        if (!confirm(`이 사용자는 현재 팀(${team.name})에 소속되어 있습니다.\n부지점장 산하를 변경하면 팀 소속이 해제됩니다.\n계속하시겠습니까?`)) return;
+        updateTeamMutation.mutate({ userId, teamId: null });
+      }
+    }
+    updateSubBranchMutation.mutate({ userId, subBranchAdminId: newId });
   };
 
   return (
@@ -82,9 +103,9 @@ export default function UserManagement() {
                     <TableHead>역할</TableHead>
                     <TableHead>계정 상태</TableHead>
                     <TableHead>팀</TableHead>
+                    <TableHead>소속 부지점장</TableHead>
                     <TableHead>가입일</TableHead>
-                    <TableHead>최근 로그인</TableHead>
-                    <TableHead className="w-24">관리</TableHead>
+                    <TableHead className="w-16">관리</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -95,7 +116,9 @@ export default function UserManagement() {
                   ) : (
                     (users ?? []).map((u) => {
                       const team = teams?.find((t) => t.id === u.teamId);
+                      const sba = (users ?? []).find((s) => s.id === (u as any).subBranchAdminId);
                       const isInactive = (u as any).accountStatus !== "active";
+                      const canAssignSubBranch = u.role === "team_leader" || u.role === "member";
                       return (
                         <TableRow key={u.id} className={isInactive ? "opacity-50" : ""}>
                           <TableCell className="font-medium">{u.name ?? "-"}</TableCell>
@@ -126,11 +149,28 @@ export default function UserManagement() {
                               </SelectContent>
                             </Select>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {new Date(u.createdAt).toLocaleDateString("ko-KR")}
+                          <TableCell>
+                            {canAssignSubBranch ? (
+                              <Select
+                                value={String((u as any).subBranchAdminId ?? "none")}
+                                onValueChange={(v) => handleSubBranchChange(u.id, u.teamId, v)}
+                              >
+                                <SelectTrigger className="h-7 text-xs w-28">
+                                  <SelectValue placeholder="미배정" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">미배정</SelectItem>
+                                  {subBranchAdmins.map((s) => (
+                                    <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">{sba?.name ?? "-"}</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {new Date(u.lastSignedIn).toLocaleDateString("ko-KR")}
+                            {new Date(u.createdAt).toLocaleDateString("ko-KR")}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">

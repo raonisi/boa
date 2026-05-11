@@ -38,20 +38,29 @@ export default function Performance() {
   const [companyFilter, setCompanyFilter] = useState("");
   const [regionFilter, setRegionFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [monthFilter, setMonthFilter] = useState(""); // YYYY-MM 형식
 
   const { data: users } = trpc.users.list.useQuery();
   const { data: teams } = trpc.users.teams.useQuery();
 
+  // 월 선택 시 dateFrom/dateTo 자동 변환
+  const effectiveDateFrom = monthFilter ? `${monthFilter}-01` : (dateFrom || undefined);
+  const effectiveDateTo = monthFilter ? (() => {
+    const [y, m] = monthFilter.split("-").map(Number);
+    const lastDay = new Date(y, m, 0).getDate();
+    return `${monthFilter}-${String(lastDay).padStart(2, "0")}`;
+  })() : (dateTo || undefined);
+
   const statsInput = useMemo(() => ({
-    dateFrom: dateFrom || undefined,
-    dateTo: dateTo || undefined,
+    dateFrom: effectiveDateFrom,
+    dateTo: effectiveDateTo,
     agentIdFilter: agentIdFilter !== "all" ? Number(agentIdFilter) : undefined,
     teamIdFilter: teamIdFilter !== "all" ? Number(teamIdFilter) : undefined,
     productGroup: productGroupFilter || undefined,
     company: companyFilter || undefined,
     region: regionFilter || undefined,
     source: sourceFilter || undefined,
-  }), [dateFrom, dateTo, agentIdFilter, teamIdFilter, productGroupFilter, companyFilter, regionFilter, sourceFilter]);
+  }), [effectiveDateFrom, effectiveDateTo, agentIdFilter, teamIdFilter, productGroupFilter, companyFilter, regionFilter, sourceFilter]);
 
   const { data: stats } = trpc.performance.stats.useQuery(statsInput);
 
@@ -92,12 +101,16 @@ export default function Performance() {
           <CardContent className="p-3">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
+                <Label className="text-xs">월 선택</Label>
+                <Input type="month" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setDateFrom(""); setDateTo(""); }} className="h-8 mt-1" />
+              </div>
+              <div>
                 <Label className="text-xs">시작일</Label>
-                <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-8 mt-1" />
+                <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setMonthFilter(""); }} className="h-8 mt-1" />
               </div>
               <div>
                 <Label className="text-xs">종료일</Label>
-                <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 mt-1" />
+                <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setMonthFilter(""); }} className="h-8 mt-1" />
               </div>
               {(user?.role === "branch_admin" || user?.role === "sub_branch_admin" || user?.role === "team_leader") && (
                 <>

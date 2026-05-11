@@ -73,7 +73,12 @@ export default function CustomerList() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">고객 DB 관리</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">총 {filtered.length}명</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {user?.role === "sub_branch_admin" ? "부지점장 산하 고객 관리" :
+               user?.role === "team_leader" ? "본인 팀 고객 관리" :
+               user?.role === "member" ? "내 고객 관리" : "전체 고객 관리"}
+              {" · "}열 {filtered.length}명
+            </p>
           </div>
           <div className="flex gap-2">
             {user?.role === "branch_admin" && (

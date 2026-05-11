@@ -59,6 +59,7 @@ import {
   getSettings,
   createSetting,
   toggleSetting,
+  updateSetting,
 } from "./db";
 import {
   cancelPendingNotifications,
@@ -176,7 +177,13 @@ export const appRouter = router({
     updateTeam: branchAdminProcedure
       .input(z.object({ userId: z.number(), teamId: z.number().nullable() }))
       .mutation(async ({ ctx, input }) => {
+        const existingUserForTeam = await getUserById(input.userId);
+        const previousTeamId = existingUserForTeam?.teamId ?? null;
         await updateUserTeam(input.userId, input.teamId);
+        // 로그 분기: 최초 배치 vs 팀 이동
+        const teamLogAction = previousTeamId === null ? "MEMBER_ASSIGNED_TO_TEAM" : "USER_MOVED_TO_ANOTHER_TEAM";
+        await log(ctx.user.id, teamLogAction, "user", input.userId,
+          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousTeamId, newTeamId: input.teamId, previousSubBranchAdminId: existingUserForTeam?.subBranchAdminId }));
         await log(ctx.user.id, "USER_TEAM_CHANGED", "user", input.userId, `teamId=${input.teamId}`);
         return { success: true };
       }),
@@ -185,7 +192,11 @@ export const appRouter = router({
       .input(z.object({ userId: z.number(), subBranchAdminId: z.number().nullable() }))
       .mutation(async ({ ctx, input }) => {
         await updateUserSubBranchAdmin(input.userId, input.subBranchAdminId);
-        await log(ctx.user.id, "SUB_BRANCH_ADMIN_ASSIGNED", "user", input.userId, `subBranchAdminId=${input.subBranchAdminId}`);
+        const existingUser = await getUserById(input.userId);
+        await log(ctx.user.id, "SUB_BRANCH_ADMIN_ASSIGNED", "user", input.userId,
+          JSON.stringify({ before: { subBranchAdminId: existingUser?.subBranchAdminId }, after: { subBranchAdminId: input.subBranchAdminId } }));
+        await log(ctx.user.id, "USER_MOVED_TO_ANOTHER_SUB_BRANCH", "user", input.userId,
+          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousSubBranchAdminId: existingUser?.subBranchAdminId, newSubBranchAdminId: input.subBranchAdminId }));
         return { success: true };
       }),
 
@@ -437,7 +448,10 @@ export const appRouter = router({
           assignedBy: ctx.user.id,
           assignmentType: "reassignment",
         });
-        await log(ctx.user.id, "AGENT_CHANGED", "customer", input.customerId, JSON.stringify({ before: { agentId: existing.agentId }, after: { agentId: input.newAgentId } }));
+        const prevAgentId = existing.agentId ?? null;
+        await log(ctx.user.id, "AGENT_CHANGED", "customer", input.customerId, JSON.stringify({ before: { agentId: prevAgentId }, after: { agentId: input.newAgentId } }));
+        await log(ctx.user.id, "CUSTOMER_REASSIGNED", "customer", input.customerId,
+          JSON.stringify({ actor: ctx.user.id, customerId: input.customerId, previousAgentId: prevAgentId, newAgentId: input.newAgentId }));
         return { success: true };
       }),
 
@@ -857,6 +871,13 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         await toggleSetting(input.id, input.isActive);
         await log(ctx.user.id, "SETTINGS_UPDATED", "settings", input.id, `isActive=${input.isActive}`);
+        return { success: true };
+      }),
+    update: branchAdminProcedure
+      .input(z.object({ id: z.number(), value: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        await updateSetting(input.id, input.value);
+        await log(ctx.user.id, "MASTER_DATA_UPDATED", "settings", input.id, `value=${input.value}`);
         return { success: true };
       }),
   }),
