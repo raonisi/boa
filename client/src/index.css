@@ -43,7 +43,7 @@
 }
 
 :root {
-  --primary: var(--color-blue-700);
+  --primary: oklch(0.32 0.1 240);
   --primary-foreground: var(--color-blue-50);
   --sidebar-primary: var(--color-blue-600);
   --sidebar-primary-foreground: var(--color-blue-50);
@@ -70,12 +70,12 @@
   --border: oklch(0.92 0.004 286.32);
   --input: oklch(0.92 0.004 286.32);
   --ring: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.235 0.015 65);
-  --sidebar-accent: oklch(0.967 0.001 286.375);
-  --sidebar-accent-foreground: oklch(0.141 0.005 285.823);
-  --sidebar-border: oklch(0.92 0.004 286.32);
-  --sidebar-ring: oklch(0.623 0.214 259.815);
+  --sidebar: oklch(0.20 0.04 240);
+  --sidebar-foreground: oklch(0.92 0.01 240);
+  --sidebar-accent: oklch(0.28 0.05 240);
+  --sidebar-accent-foreground: oklch(0.92 0.01 240);
+  --sidebar-border: oklch(0.28 0.04 240);
+  --sidebar-ring: oklch(0.55 0.12 200);
 }
 
 .dark {
@@ -118,8 +118,20 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
   }
+  /* Status badge colors */
+  .status-badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
+  .status-미상담 { @apply bg-gray-100 text-gray-700; }
+  .status-부재 { @apply bg-orange-100 text-orange-700; }
+  .status-통화완료 { @apply bg-blue-100 text-blue-700; }
+  .status-상담예정 { @apply bg-purple-100 text-purple-700; }
+  .status-설계중 { @apply bg-indigo-100 text-indigo-700; }
+  .status-계약 { @apply bg-green-100 text-green-700; }
+  .status-보류 { @apply bg-yellow-100 text-yellow-700; }
+  .status-거절 { @apply bg-red-100 text-red-700; }
+  .status-해지관리 { @apply bg-rose-100 text-rose-700; }
+  .status-재상담필요 { @apply bg-teal-100 text-teal-700; }
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),

@@ -1,35 +1,128 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
+import { useAuth } from "./_core/hooks/useAuth";
+import { getLoginUrl } from "./const";
+import { Loader2 } from "lucide-react";
+
+// Pages
+import Dashboard from "./pages/Dashboard";
+import CustomerList from "./pages/CustomerList";
+import CustomerDetail from "./pages/CustomerDetail";
+import CustomerAssign from "./pages/CustomerAssign";
+import ContractList from "./pages/ContractList";
+import Performance from "./pages/Performance";
+import Notifications from "./pages/Notifications";
+import Calendar from "./pages/Calendar";
+import UserManagement from "./pages/UserManagement";
+import ActivityLog from "./pages/ActivityLog";
+import Blocked from "./pages/Blocked";
+import NotFound from "./pages/NotFound";
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">로딩 중...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    window.location.href = getLoginUrl();
+    return null;
+  }
+
+  if (user.role === "inactive") {
+    return <Blocked />;
+  }
+
+  return <>{children}</>;
+}
+
+function AdminGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || user.role !== "admin") return <Redirect to="/" />;
+  return <>{children}</>;
+}
 
 function Router() {
-  // make sure to consider if you need authentication for certain routes
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/404"} component={NotFound} />
-      {/* Final fallback route */}
+      <Route path="/">
+        <AuthGuard>
+          <Dashboard />
+        </AuthGuard>
+      </Route>
+      <Route path="/customers">
+        <AuthGuard>
+          <CustomerList />
+        </AuthGuard>
+      </Route>
+      <Route path="/customers/assign">
+        <AuthGuard>
+          <AdminGuard>
+            <CustomerAssign />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/customers/:id">
+        {(params) => (
+          <AuthGuard>
+            <CustomerDetail id={Number(params.id)} />
+          </AuthGuard>
+        )}
+      </Route>
+      <Route path="/contracts">
+        <AuthGuard>
+          <ContractList />
+        </AuthGuard>
+      </Route>
+      <Route path="/performance">
+        <AuthGuard>
+          <Performance />
+        </AuthGuard>
+      </Route>
+      <Route path="/notifications">
+        <AuthGuard>
+          <Notifications />
+        </AuthGuard>
+      </Route>
+      <Route path="/calendar">
+        <AuthGuard>
+          <Calendar />
+        </AuthGuard>
+      </Route>
+      <Route path="/users">
+        <AuthGuard>
+          <AdminGuard>
+            <UserManagement />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/logs">
+        <AuthGuard>
+          <AdminGuard>
+            <ActivityLog />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );
 }
 
-// NOTE: About Theme
-// - First choose a default theme according to your design style (dark or light bg), than change color palette in index.css
-//   to keep consistent foreground/background color across components
-// - If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook
-
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider
-        defaultTheme="light"
-        // switchable
-      >
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster />
           <Router />

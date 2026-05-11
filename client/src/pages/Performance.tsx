@@ -1,0 +1,169 @@
+import { useAuth } from "@/_core/hooks/useAuth";
+import DashboardLayout from "@/components/DashboardLayout";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { trpc } from "@/lib/trpc";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
+
+const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#06b6d4", "#f97316", "#84cc16", "#ec4899", "#6b7280"];
+
+function StatCard({ title, value, suffix = "", highlight = false }: {
+  title: string; value: number | string | undefined; suffix?: string; highlight?: boolean;
+}) {
+  return (
+    <Card className={highlight ? "border-primary" : ""}>
+      <CardContent className="p-4">
+        <p className="text-xs text-muted-foreground">{title}</p>
+        <p className={`text-2xl font-bold mt-1 ${highlight ? "text-primary" : ""}`}>
+          {value ?? 0}
+          {suffix && <span className="text-sm font-normal text-muted-foreground ml-1">{suffix}</span>}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function Performance() {
+  const { user } = useAuth();
+  const { data: stats } = trpc.performance.stats.useQuery();
+
+  const barData = [
+    { name: "미상담", value: stats?.uncontacted ?? 0 },
+    { name: "부재", value: stats?.absent ?? 0 },
+    { name: "통화완료", value: stats?.called ?? 0 },
+    { name: "상담예정", value: stats?.scheduled ?? 0 },
+    { name: "설계중", value: stats?.designing ?? 0 },
+    { name: "계약", value: stats?.contracted ?? 0 },
+  ];
+
+  const pieData = [
+    { name: "유지계약", value: stats?.activeContracts ?? 0 },
+    { name: "해지·실효", value: stats?.canceledContracts ?? 0 },
+  ];
+
+  const rateData = [
+    { name: "상담률", value: stats?.consultRate ?? 0 },
+    { name: "계약률", value: stats?.contractRate ?? 0 },
+    { name: "부재율", value: stats?.absentRate ?? 0 },
+    { name: "보류·거절", value: stats?.heldRejectedRate ?? 0 },
+  ];
+
+  const roleTitle = user?.role === "admin" ? "전체" : user?.role === "manager" ? "팀" : "내";
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">실적관리</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{roleTitle} 실적 현황</p>
+        </div>
+
+        {/* 핵심 지표 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard title="배정 DB 수" value={stats?.assigned} highlight />
+          <StatCard title="계약건수" value={stats?.contracted} highlight />
+          <StatCard title="월납보험료 합계" value={stats?.monthlyPremiumSum?.toLocaleString()} suffix="원" highlight />
+          <StatCard title="유지계약 수" value={stats?.activeContracts} highlight />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard title="미상담 수" value={stats?.uncontacted} />
+          <StatCard title="부재 수" value={stats?.absent} />
+          <StatCard title="통화완료 수" value={stats?.called} />
+          <StatCard title="상담예정 수" value={stats?.scheduled} />
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard title="설계중 수" value={stats?.designing} />
+          <StatCard title="해지·실효 수" value={stats?.canceledContracts} />
+          <StatCard title="상담률" value={stats?.consultRate} suffix="%" />
+          <StatCard title="계약률" value={stats?.contractRate} suffix="%" />
+        </div>
+
+        {/* 차트 */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">상담상태별 현황</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={barData} margin={{ top: 0, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} />
+                  <Tooltip />
+                  <Bar dataKey="value" name="건수" radius={[4, 4, 0, 0]}>
+                    {barData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">계약 유지/해지 현황</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                    labelLine={false}
+                  >
+                    {pieData.map((_, i) => (
+                      <Cell key={i} fill={i === 0 ? "#10b981" : "#ef4444"} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">비율 지표 (%)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={rateData} layout="vertical" margin={{ top: 0, right: 30, left: 20, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} unit="%" />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={60} />
+                <Tooltip formatter={(v) => `${v}%`} />
+                <Bar dataKey="value" name="비율" radius={[0, 4, 4, 0]}>
+                  {rateData.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+    </DashboardLayout>
+  );
+}
