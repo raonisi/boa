@@ -258,7 +258,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
   const defaultStart = defaultDate ? format(defaultDate, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'09:00");
   const [form, setForm] = useState({
     title: "", type: "기타" as string, status: "예정" as string,
-    startTime: defaultStart, endTime: "", memo: "", targetUserId: "",
+    startTime: defaultStart, endTime: "", memo: "", targetUserId: "self",
   });
 
   return (
@@ -302,7 +302,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
               <Select value={form.targetUserId} onValueChange={(v) => setForm({ ...form, targetUserId: v })}>
                 <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="본인 일정" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">본인 일정</SelectItem>
+                  <SelectItem value="self">본인 일정</SelectItem>
                   {users.filter((u) => u.role !== "inactive").map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
                   ))}
@@ -320,7 +320,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
               title: form.title, type: form.type, status: form.status,
               startTime: form.startTime, endTime: form.endTime || undefined,
               memo: form.memo || undefined,
-              targetUserId: form.targetUserId ? Number(form.targetUserId) : undefined,
+              targetUserId: form.targetUserId && form.targetUserId !== "self" ? Number(form.targetUserId) : undefined,
             })}>
               {loading ? "저장 중..." : "저장"}
             </Button>

@@ -89,14 +89,14 @@ export default function UserManagement() {
                           </TableCell>
                           <TableCell>
                             <Select
-                              value={String(u.teamId ?? "")}
-                              onValueChange={(v) => updateTeamMutation.mutate({ userId: u.id, teamId: v ? Number(v) : null })}
+                              value={String(u.teamId ?? "none")}
+                              onValueChange={(v) => updateTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}
                             >
                               <SelectTrigger className="h-7 text-xs w-28">
                                 <SelectValue placeholder="팀 없음" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">팀 없음</SelectItem>
+                                <SelectItem value="none">팀 없음</SelectItem>
                                 {(teams ?? []).map((t) => (
                                   <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>
                                 ))}
