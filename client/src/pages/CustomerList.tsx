@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, ChevronRight } from "lucide-react";
+import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -20,6 +20,10 @@ export default function CustomerList() {
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [regionFilter, setRegionFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [agentFilter, setAgentFilter] = useState<string>("all");
+  const [showFilters, setShowFilters] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const isMobile = useIsMobile();
 
@@ -27,18 +31,35 @@ export default function CustomerList() {
   const { data: customers, refetch } = trpc.customers.list.useQuery({
     status: statusFilter === "all" ? undefined : statusFilter,
   });
+  const { data: allUsers } = trpc.users.list.useQuery();
 
   const createMutation = trpc.customers.create.useMutation({
     onSuccess: () => { toast.success("고객이 등록되었습니다."); setShowCreate(false); refetch(); },
+    onError: (err) => toast.error(err.message || "등록에 실패했습니다."),
   });
 
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => { toast.success("상태가 변경되었습니다."); utils.customers.list.invalidate(); },
   });
 
-  const filtered = customers?.filter((c) =>
-    c.name.includes(search) || (c.phone ?? "").includes(search)
-  ) ?? [];
+  const agents = (allUsers ?? []).filter((u) => u.role !== "inactive");
+
+  const filtered = (customers ?? []).filter((c) => {
+    const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
+    const matchRegion = !regionFilter || (c.region ?? "").includes(regionFilter);
+    const matchSource = !sourceFilter || (c.source ?? "").includes(sourceFilter);
+    const matchAgent = agentFilter === "all" || String(c.agentId) === agentFilter;
+    return matchSearch && matchRegion && matchSource && matchAgent;
+  });
+
+  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || agentFilter !== "all";
+
+  const clearFilters = () => {
+    setStatusFilter("all");
+    setRegionFilter("");
+    setSourceFilter("");
+    setAgentFilter("all");
+  };
 
   return (
     <DashboardLayout>
@@ -62,26 +83,56 @@ export default function CustomerList() {
           </div>
         </div>
 
-        {/* Filters */}
+        {/* 검색 및 필터 */}
         <Card>
-          <CardContent className="p-3">
-            <div className="flex flex-col sm:flex-row gap-2">
+          <CardContent className="p-3 space-y-2">
+            <div className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="이름 또는 연락처 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9" />
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-36 h-9"><SelectValue placeholder="상담상태" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 상태</SelectItem>
-                  {CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Button
+                variant={hasActiveFilters ? "default" : "outline"}
+                size="sm"
+                className="h-9 shrink-0"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter className="h-4 w-4 mr-1" />
+                필터{hasActiveFilters ? " ●" : ""}
+              </Button>
+              {hasActiveFilters && (
+                <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
+
+            {showFilters && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="상담상태" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 상태</SelectItem>
+                    {CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-8 text-xs" />
+                <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-8 text-xs" />
+                {(user?.role === "admin" || user?.role === "manager") && (
+                  <Select value={agentFilter} onValueChange={setAgentFilter}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">전체 담당자</SelectItem>
+                      {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Mobile Card View */}
+        {/* 모바일 카드 뷰 */}
         {isMobile ? (
           <div className="space-y-2">
             {filtered.length === 0 ? (
@@ -98,11 +149,7 @@ export default function CustomerList() {
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           {c.phone && (
-                            <a
-                              href={`tel:${c.phone}`}
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex items-center gap-1 text-primary text-xs font-medium"
-                            >
+                            <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-primary text-xs font-medium">
                               <Phone className="h-3 w-3" /> {c.phone}
                             </a>
                           )}
@@ -111,7 +158,6 @@ export default function CustomerList() {
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
-                    {/* 빠른 상태 변경 버튼 (모바일) */}
                     <div className="flex gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                       {["부재", "통화완료", "상담예정"].map((s) => (
                         <button
@@ -129,7 +175,7 @@ export default function CustomerList() {
             )}
           </div>
         ) : (
-          /* Desktop Table View */
+          /* 데스크톱 테이블 뷰 */
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
@@ -183,7 +229,7 @@ export default function CustomerList() {
         )}
       </div>
 
-      {/* Create Customer Modal */}
+      {/* 고객 등록 모달 */}
       <CreateCustomerModal
         open={showCreate}
         onClose={() => setShowCreate(false)}

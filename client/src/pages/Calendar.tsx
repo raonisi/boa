@@ -1,24 +1,16 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, SCHEDULE_TYPES, SCHEDULE_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { useIsMobile } from "@/hooks/useMobile";
 import {
-  addDays,
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  endOfWeek,
-  format,
-  isSameDay,
-  isSameMonth,
-  startOfMonth,
-  startOfWeek,
-  subMonths,
+  addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek,
+  format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
@@ -46,6 +38,7 @@ export default function Calendar() {
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
   const { data: schedules } = trpc.schedules.list.useQuery();
@@ -76,24 +69,106 @@ export default function Calendar() {
     ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), "M월 d일")} ~ ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), "M월 d일")}`
     : format(currentDate, "yyyy년 M월 d일 (EEE)", { locale: ko });
 
-  // Month view days
   const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
   const calStart = startOfWeek(monthStart, { weekStartsOn: 0 });
-  const calEnd = endOfWeek(monthEnd, { weekStartsOn: 0 });
+  const calEnd = endOfWeek(endOfMonth(currentDate), { weekStartsOn: 0 });
   const calDays = eachDayOfInterval({ start: calStart, end: calEnd });
 
-  // Week view days
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // 모바일: 오늘 일정 + 이번 주 일정
+  const today = new Date();
+  const todaySchedules = getSchedulesForDay(today);
+  const thisWeekSchedules = (schedules ?? []).filter((s) => {
+    const d = new Date(s.startTime);
+    const wStart = startOfWeek(today, { weekStartsOn: 1 });
+    const wEnd = endOfWeek(today, { weekStartsOn: 1 });
+    return d >= wStart && d <= wEnd;
+  }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  if (isMobile) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold">일정 캘린더</h1>
+            <Button size="sm" onClick={() => { setSelectedDate(new Date()); setShowModal(true); }}>
+              <Plus className="h-4 w-4 mr-1" /> 일정 추가
+            </Button>
+          </div>
+
+          {/* 오늘 일정 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">오늘 일정 ({todaySchedules.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {todaySchedules.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">오늘 일정이 없습니다.</p>
+              ) : (
+                todaySchedules.map((s) => (
+                  <div
+                    key={s.id}
+                    className={`flex items-start gap-2 p-2 rounded-lg text-white cursor-pointer ${typeColors[s.type] ?? "bg-slate-400"}`}
+                    onClick={() => setSelectedSchedule(s)}
+                  >
+                    <div className="text-xs font-bold w-10 shrink-0">{format(new Date(s.startTime), "HH:mm")}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold truncate">{s.title}</p>
+                      <p className="text-xs opacity-80">{s.type} · {s.status}</p>
+                    </div>
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 이번 주 일정 */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm">이번 주 일정 ({thisWeekSchedules.length})</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {thisWeekSchedules.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2">이번 주 일정이 없습니다.</p>
+              ) : (
+                thisWeekSchedules.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-3 p-2 rounded-lg border cursor-pointer hover:bg-muted/50"
+                    onClick={() => setSelectedSchedule(s)}
+                  >
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(s.startTime), "M/d (EEE) HH:mm", { locale: ko })}
+                      </p>
+                    </div>
+                    <StatusBadge status={s.status} />
+                  </div>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* 모달들 */}
+        <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} />
+        {selectedSchedule && (
+          <ScheduleDetailModal schedule={selectedSchedule} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
+        )}
+      </DashboardLayout>
+    );
+  }
+
+  // PC 뷰
   return (
     <DashboardLayout>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">일정 캘린더</h1>
-          </div>
+          <h1 className="text-2xl font-bold">일정 캘린더</h1>
           <div className="flex items-center gap-2">
             <div className="flex rounded-lg border overflow-hidden">
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
@@ -114,18 +189,16 @@ export default function Calendar() {
 
         <Card>
           <CardContent className="p-3">
-            {/* Navigation */}
             <div className="flex items-center justify-between mb-4">
               <Button variant="ghost" size="sm" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>
               <h2 className="text-base font-semibold">{headerTitle}</h2>
               <Button variant="ghost" size="sm" onClick={() => navigate(1)}><ChevronRight className="h-4 w-4" /></Button>
             </div>
 
-            {/* Month View */}
             {viewMode === "month" && (
               <div>
                 <div className="grid grid-cols-7 mb-1">
-                  {["일", "월", "화", "수", "목", "금", "토"].map((d) => (
+                  {["일","월","화","수","목","금","토"].map((d) => (
                     <div key={d} className="text-center text-xs font-medium text-muted-foreground py-1">{d}</div>
                   ))}
                 </div>
@@ -135,27 +208,17 @@ export default function Calendar() {
                     const isToday = isSameDay(day, new Date());
                     const isCurrentMonth = isSameMonth(day, currentDate);
                     return (
-                      <div
-                        key={day.toISOString()}
-                        className={`bg-background min-h-[80px] p-1 cursor-pointer hover:bg-muted/50 transition-colors ${!isCurrentMonth ? "opacity-40" : ""}`}
-                        onClick={() => { setSelectedDate(day); setShowModal(true); }}
-                      >
+                      <div key={day.toISOString()} className={`bg-background min-h-[80px] p-1 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""}`} onClick={() => { setSelectedDate(day); setShowModal(true); }}>
                         <div className={`text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground" : ""}`}>
                           {format(day, "d")}
                         </div>
                         <div className="space-y-0.5">
                           {daySchedules.slice(0, 3).map((s) => (
-                            <div
-                              key={s.id}
-                              className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`}
-                              onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}
-                            >
+                            <div key={s.id} className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
                               {s.title}
                             </div>
                           ))}
-                          {daySchedules.length > 3 && (
-                            <div className="text-[10px] text-muted-foreground pl-1">+{daySchedules.length - 3}개</div>
-                          )}
+                          {daySchedules.length > 3 && <div className="text-[10px] text-muted-foreground pl-1">+{daySchedules.length - 3}개</div>}
                         </div>
                       </div>
                     );
@@ -164,39 +227,31 @@ export default function Calendar() {
               </div>
             )}
 
-            {/* Week View */}
             {viewMode === "week" && (
-              <div>
-                <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-                  {weekDays.map((day) => {
-                    const daySchedules = getSchedulesForDay(day);
-                    const isToday = isSameDay(day, new Date());
-                    return (
-                      <div key={day.toISOString()} className="bg-background">
-                        <div className={`text-center py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
-                          <div>{format(day, "EEE", { locale: ko })}</div>
-                          <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>{format(day, "d")}</div>
-                        </div>
-                        <div className="p-1 min-h-[200px] space-y-1 cursor-pointer" onClick={() => { setSelectedDate(day); setShowModal(true); }}>
-                          {daySchedules.map((s) => (
-                            <div
-                              key={s.id}
-                              className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`}
-                              onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}
-                            >
-                              <div className="font-medium truncate">{s.title}</div>
-                              <div className="opacity-80">{format(new Date(s.startTime), "HH:mm")}</div>
-                            </div>
-                          ))}
-                        </div>
+              <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+                {weekDays.map((day) => {
+                  const daySchedules = getSchedulesForDay(day);
+                  const isToday = isSameDay(day, new Date());
+                  return (
+                    <div key={day.toISOString()} className="bg-background">
+                      <div className={`text-center py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+                        <div>{format(day, "EEE", { locale: ko })}</div>
+                        <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>{format(day, "d")}</div>
                       </div>
-                    );
-                  })}
-                </div>
+                      <div className="p-1 min-h-[200px] space-y-1 cursor-pointer" onClick={() => { setSelectedDate(day); setShowModal(true); }}>
+                        {daySchedules.map((s) => (
+                          <div key={s.id} className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
+                            <div className="font-medium truncate">{s.title}</div>
+                            <div className="opacity-80">{format(new Date(s.startTime), "HH:mm")}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {/* Day View */}
             {viewMode === "day" && (
               <div className="space-y-2">
                 {getSchedulesForDay(currentDate).length === 0 ? (
@@ -207,11 +262,7 @@ export default function Calendar() {
                   </div>
                 ) : (
                   getSchedulesForDay(currentDate).map((s) => (
-                    <div
-                      key={s.id}
-                      className={`flex items-start gap-3 p-3 rounded-lg text-white cursor-pointer ${typeColors[s.type] ?? "bg-slate-400"}`}
-                      onClick={() => setSelectedSchedule(s)}
-                    >
+                    <div key={s.id} className={`flex items-start gap-3 p-3 rounded-lg text-white cursor-pointer ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={() => setSelectedSchedule(s)}>
                       <div className="text-sm font-bold">{format(new Date(s.startTime), "HH:mm")}</div>
                       <div className="flex-1">
                         <p className="font-semibold">{s.title}</p>
@@ -227,25 +278,9 @@ export default function Calendar() {
         </Card>
       </div>
 
-      {/* 일정 추가 모달 */}
-      <ScheduleModal
-        open={showModal}
-        onClose={() => setShowModal(false)}
-        defaultDate={selectedDate}
-        onSubmit={(data) => createMutation.mutate(data)}
-        loading={createMutation.isPending}
-        users={users}
-      />
-
-      {/* 일정 상세/수정 모달 */}
+      <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} />
       {selectedSchedule && (
-        <ScheduleDetailModal
-          schedule={selectedSchedule}
-          onClose={() => setSelectedSchedule(null)}
-          onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
-          onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })}
-          loading={deleteMutation.isPending || updateMutation.isPending}
-        />
+        <ScheduleDetailModal schedule={selectedSchedule} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
       )}
     </DashboardLayout>
   );
@@ -266,10 +301,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>일정 추가</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div>
-            <Label className="text-xs">제목 *</Label>
-            <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" />
-          </div>
+          <div><Label className="text-xs">제목 *</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">유형</Label>
@@ -287,14 +319,8 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-xs">시작 시간</Label>
-              <Input type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="h-9 mt-1" />
-            </div>
-            <div>
-              <Label className="text-xs">종료 시간</Label>
-              <Input type="datetime-local" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="h-9 mt-1" />
-            </div>
+            <div><Label className="text-xs">시작 시간</Label><Input type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="h-9 mt-1" /></div>
+            <div><Label className="text-xs">종료 시간</Label><Input type="datetime-local" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="h-9 mt-1" /></div>
           </div>
           {users && users.length > 0 && (
             <div>
@@ -310,10 +336,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
               </Select>
             </div>
           )}
-          <div>
-            <Label className="text-xs">메모</Label>
-            <textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" />
-          </div>
+          <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
             <Button size="sm" disabled={loading || !form.title} onClick={() => onSubmit({
@@ -335,10 +358,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
   schedule: any; onClose: () => void; onDelete: () => void; onUpdate: (data: any) => void; loading: boolean;
 }) {
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({
-    status: schedule.status,
-    memo: schedule.memo ?? "",
-  });
+  const [form, setForm] = useState({ status: schedule.status, memo: schedule.memo ?? "" });
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -350,16 +370,8 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
             <span>{schedule.type}</span>
             <StatusBadge status={schedule.status} />
           </div>
-          <div>
-            <p className="text-xs text-muted-foreground">시작</p>
-            <p>{new Date(schedule.startTime).toLocaleString("ko-KR")}</p>
-          </div>
-          {schedule.endTime && (
-            <div>
-              <p className="text-xs text-muted-foreground">종료</p>
-              <p>{new Date(schedule.endTime).toLocaleString("ko-KR")}</p>
-            </div>
-          )}
+          <div><p className="text-xs text-muted-foreground">시작</p><p>{new Date(schedule.startTime).toLocaleString("ko-KR")}</p></div>
+          {schedule.endTime && <div><p className="text-xs text-muted-foreground">종료</p><p>{new Date(schedule.endTime).toLocaleString("ko-KR")}</p></div>}
           {editing ? (
             <>
               <div>
@@ -369,10 +381,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
                   <SelectContent>{SCHEDULE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label className="text-xs">메모</Label>
-                <textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" />
-              </div>
+              <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
                 <Button size="sm" disabled={loading} onClick={() => onUpdate(form)}>저장</Button>
