@@ -31,30 +31,42 @@ export function registerOAuthRoutes(app: Express) {
       const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? undefined;
       const userAgent = req.headers["user-agent"] ?? undefined;
 
-      // 조건 3: 이메일 기반 사전 등록 사용자 매핑
-      // 사전 등록된 invited 레코드가 있으면 해당 레코드에 openId를 직접 연결
+      // 조건 3: 이메일 기반 사전 등록 사용자 매핑 (조건 2: normalize 기준 통일)
       if (userInfo.email) {
-        const existingByEmail = await db.getUserByEmail(userInfo.email);
-        if (
-          existingByEmail &&
-          existingByEmail.openId.startsWith("invited_") && // 사전 등록 레코드 (가짜 openId)
-          existingByEmail.accountStatus === "active" &&
-          existingByEmail.loginStatus === "invited"
-        ) {
-          // 동일 openId가 이미 다른 레코드에 연결되어 있는지 확인
-          const alreadyLinked = await db.getUserByOpenId(userInfo.openId);
-          if (!alreadyLinked) {
-            // 안전하게 기존 invited 레코드에 openId 직접 연결
-            await db.linkUserOpenId(existingByEmail.id, userInfo.openId);
-            await db.createActivityLog({
-              userId: existingByEmail.id,
-              action: "USER_OAUTH_LINKED",
-              targetType: "user",
-              targetId: existingByEmail.id,
-              details: JSON.stringify({ email: userInfo.email }),
-              ipAddress,
-              userAgent,
-            });
+        const normalizedEmail = userInfo.email.trim().toLowerCase();
+        const matchingUsers = await db.getAllUsersByEmail(normalizedEmail);
+        // 조건 3: 중복 이메일 레코드가 2개 이상이면 자동 연결 금지
+        if (matchingUsers.length > 1) {
+          await db.createActivityLog({
+            userId: 0,
+            action: "USER_OAUTH_LINK_CONFLICT",
+            targetType: "user",
+            targetId: 0,
+            details: JSON.stringify({ email: normalizedEmail, conflictCount: matchingUsers.length, reason: "duplicate_email_records" }),
+            ipAddress,
+            userAgent,
+          });
+        } else if (matchingUsers.length === 1) {
+          const existingByEmail = matchingUsers[0];
+          if (
+            existingByEmail &&
+            existingByEmail.openId.startsWith("invited_") && // 사전 등록 레코드
+            existingByEmail.accountStatus === "active" &&
+            existingByEmail.loginStatus === "invited"
+          ) {
+            const alreadyLinked = await db.getUserByOpenId(userInfo.openId);
+            if (!alreadyLinked) {
+              await db.linkUserOpenId(existingByEmail.id, userInfo.openId);
+              await db.createActivityLog({
+                userId: existingByEmail.id,
+                action: "USER_OAUTH_LINKED",
+                targetType: "user",
+                targetId: existingByEmail.id,
+                details: JSON.stringify({ email: normalizedEmail }),
+                ipAddress,
+                userAgent,
+              });
+            }
           }
         }
       }

@@ -63,8 +63,10 @@ import {
   getUsersBySubBranchAdminId,
   getUsersByTeamId,
   getUserByEmail,
+  getAllUsersByEmail,
   createUser,
   linkUserOpenId,
+  getAllNotifications,
 } from "./db";
 import {
   cancelPendingNotifications,
@@ -178,6 +180,8 @@ export const appRouter = router({
         accountStatus: z.enum(["active", "inactive", "resigned"]).default("active"),
         teamId: z.number().nullable().optional(),
         subBranchAdminId: z.number().nullable().optional(),
+        phone: z.string().optional(),
+        memo: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         // 조건 2: 이메일 중복 검증
@@ -201,10 +205,27 @@ export const appRouter = router({
           loginStatus: "invited",
           teamId: resolvedTeamId,
           subBranchAdminId: resolvedSubBranchAdminId,
+          phone: input.phone,
+          memo: input.memo,
         });
         if (!newUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "사용자 생성에 실패했습니다." });
         await log(ctx.user.id, "USER_CREATED", "user", newUser.id,
-          JSON.stringify({ actor: ctx.user.id, targetUserId: newUser.id, role: input.role, accountStatus: input.accountStatus, subBranchAdminId: resolvedSubBranchAdminId, teamId: resolvedTeamId, email: input.email }));
+          JSON.stringify({
+            actor: ctx.user.id,
+            beforeValue: null,
+            afterValue: {
+              targetUserId: newUser.id,
+              name: input.name,
+              email: input.email,
+              role: input.role,
+              accountStatus: input.accountStatus,
+              loginStatus: "invited",
+              subBranchAdminId: resolvedSubBranchAdminId,
+              teamId: resolvedTeamId,
+              phone: input.phone ?? null,
+              memo: input.memo ?? null,
+            }
+          }));
         return { success: true, userId: newUser.id };
       }),
 
@@ -222,11 +243,20 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const existingUserForTeam = await getUserById(input.userId);
         const previousTeamId = existingUserForTeam?.teamId ?? null;
+        const previousSubBranchAdminId = existingUserForTeam?.subBranchAdminId ?? null;
         await updateUserTeam(input.userId, input.teamId);
+        // 새 팀의 subBranchAdminId 조회 (자동 동기화 후)
+        const newUserState = await getUserById(input.userId);
+        const newSubBranchAdminId = newUserState?.subBranchAdminId ?? null;
         // 로그 분기: 최초 배치 vs 팀 이동
         const teamLogAction = previousTeamId === null ? "MEMBER_ASSIGNED_TO_TEAM" : "USER_MOVED_TO_ANOTHER_TEAM";
         await log(ctx.user.id, teamLogAction, "user", input.userId,
-          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousTeamId, newTeamId: input.teamId, previousSubBranchAdminId: existingUserForTeam?.subBranchAdminId }));
+          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousTeamId, newTeamId: input.teamId, previousSubBranchAdminId, newSubBranchAdminId, beforeValue: { teamId: previousTeamId, subBranchAdminId: previousSubBranchAdminId }, afterValue: { teamId: input.teamId, subBranchAdminId: newSubBranchAdminId } }));
+        // 부지점장 산하가 자동 동기화된 경우 추가 로그
+        if (previousSubBranchAdminId !== newSubBranchAdminId) {
+          await log(ctx.user.id, "USER_MOVED_TO_ANOTHER_SUB_BRANCH", "user", input.userId,
+            JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousSubBranchAdminId, newSubBranchAdminId, reason: "team_change_auto_sync", previousTeamId, newTeamId: input.teamId }));
+        }
         await log(ctx.user.id, "USER_TEAM_CHANGED", "user", input.userId, `teamId=${input.teamId}`);
         return { success: true };
       }),
@@ -835,8 +865,8 @@ export const appRouter = router({
   notifications: router({
     list: activeUserProcedure.query(async ({ ctx }) => {
       const user = ctx.user;
-      // branch_admin: 전체 알림 (userId 기반 본인 알림만 - 전체 알림은 관리자 로그에서 확인)
-      if (user.role === "branch_admin") return getNotifications(user.id);
+      // branch_admin: 전체 알림 조회 (limit 500, 기존 필터 구조 유지)
+      if (user.role === "branch_admin") return getAllNotifications(500);
       // sub_branch_admin: 본인 + 산하 팀원 알림
       if (user.role === "sub_branch_admin") {
         const subordinates = await getUsersBySubBranchAdminId(user.id);

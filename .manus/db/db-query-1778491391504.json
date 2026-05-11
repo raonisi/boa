@@ -1,0 +1,18 @@
+{
+  "query": "-- 중복 이메일 점검\nSELECT email, COUNT(*) as cnt FROM users WHERE email IS NOT NULL GROUP BY email HAVING COUNT(*) > 1;\n-- 전체 이메일 현황\nSELECT id, name, email, role, accountStatus, loginStatus FROM users ORDER BY email;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 219b9ABc6rHRdDP.root --database bXcB7zzm8DHKYgRuKh5irn --execute -- 중복 이메일 점검\nSELECT email, COUNT(*) as cnt FROM users WHERE email IS NOT NULL GROUP BY email HAVING COUNT(*) > 1;\n-- 전체 이메일 현황\nSELECT id, name, email, role, accountStatus, loginStatus FROM users ORDER BY email;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "도현 이",
+      "email": "dlehgus920530@gmail.com",
+      "role": "branch_admin",
+      "accountStatus": "active",
+      "loginStatus": "linked"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\taccountStatus\tloginStatus\n1\t도현 이\tdlehgus920530@gmail.com\tbranch_admin\tactive\tlinked\n",
+  "stderr": "",
+  "execution_time_ms": 2118
+}

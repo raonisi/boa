@@ -91,18 +91,22 @@ export async function createUser(data: {
   loginStatus?: "invited" | "linked";
   teamId?: number | null;
   subBranchAdminId?: number | null;
+  phone?: string;
+  memo?: string;
 }) {
   const db = await getDb();
   if (!db) return null;
   const result = await db.insert(users).values({
     openId: `invited_${Date.now()}_${Math.random().toString(36).slice(2)}`,
     name: data.name,
-    email: data.email.toLowerCase(),
+    email: data.email.trim().toLowerCase(),
     role: data.role,
     accountStatus: data.accountStatus ?? "active",
     loginStatus: data.loginStatus ?? "invited",
     teamId: data.teamId ?? null,
     subBranchAdminId: data.subBranchAdminId ?? null,
+    phone: data.phone ?? null,
+    memo: data.memo ?? null,
     lastSignedIn: new Date(),
   });
   const newUser = await db.select().from(users).where(eq(users.email, data.email.toLowerCase())).limit(1);
@@ -480,16 +484,29 @@ export async function completeSchedule(id: number) {
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
-export async function getNotifications(userId: number, extraUserIds?: number[]) {
+export async function getNotifications(userId: number, extraUserIds?: number[], limit = 200) {
   const db = await getDb();
   if (!db) return [];
   if (extraUserIds && extraUserIds.length > 0) {
     const allIds = [userId, ...extraUserIds];
     return db.select().from(notifications)
       .where(or(...allIds.map((id) => eq(notifications.userId, id))))
-      .orderBy(desc(notifications.createdAt)).limit(200);
+      .orderBy(desc(notifications.createdAt)).limit(limit);
   }
-  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(100);
+  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(limit);
+}
+
+export async function getAllNotifications(limit = 500) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(limit);
+}
+
+export async function getAllUsersByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const normalized = email.trim().toLowerCase();
+  return db.select().from(users).where(eq(users.email, normalized));
 }
 
 export async function getUsersBySubBranchAdminId(subBranchAdminId: number) {

@@ -190,3 +190,13 @@
 - [x] loginStatus 컨럼 추가 (invited/linked)
 - [x] 이메일 중복 검증
 - [x] USER_CREATED 로그
+
+## 8차 수정 작업 (v6 검수 기반)
+
+### 치명 문제 1건
+- [x] 지점장 알림센터 전체 알림 조회 (getAllNotifications limit 500 + 기존 필터 유지)
+
+### 높은 우선순위 3건
+- [x] updateTeam 로그 보강 (before/after 구조, 부지점장 변경 시 USER_MOVED_TO_ANOTHER_SUB_BRANCH 자동 추가)
+- [x] users 테이블 phone/memo 컨럼 추가 + users.create 라우터 확장 + CreateUserModal 연락처·메모 추가 + 민감정보 안내 문구
+- [x] 이메일 중복 처리 보강 (getAllUsersByEmail, OAuth 매핑 2개 이상 차단 + USER_OAUTH_LINK_CONFLICT 로그, unique constraint 적용 완료)

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { Plus, ShieldX, UserCog } from "lucide-react";
 import { useState } from "react";
@@ -121,6 +122,7 @@ export default function UserManagement() {
                   <TableRow>
                     <TableHead>이름</TableHead>
                     <TableHead>이메일</TableHead>
+                    <TableHead>연락처</TableHead>
                     <TableHead>역할</TableHead>
                     <TableHead>계정 상태</TableHead>
                     <TableHead>로그인 상태</TableHead>
@@ -133,7 +135,7 @@ export default function UserManagement() {
                 <TableBody>
                   {(users ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">사용자가 없습니다.</TableCell>
+                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">사용자가 없습니다.</TableCell>
                     </TableRow>
                   ) : (
                     (users ?? []).map((u) => {
@@ -146,6 +148,7 @@ export default function UserManagement() {
                         <TableRow key={u.id} className={isInactive ? "opacity-50" : ""}>
                           <TableCell className="font-medium">{u.name ?? "-"}</TableCell>
                           <TableCell className="text-xs">{u.email ?? "-"}</TableCell>
+                          <TableCell className="text-xs">{(u as any).phone ?? "-"}</TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}>
                               {roleLabels[u.role] ?? u.role}
@@ -284,13 +287,14 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
   const [form, setForm] = useState({
     name: "",
     email: "",
+    phone: "",
+    memo: "",
     role: "member" as "branch_admin" | "sub_branch_admin" | "team_leader" | "member",
     accountStatus: "active" as "active" | "inactive" | "resigned",
     teamId: "none",
     subBranchAdminId: "none",
   });
 
-  // 팀 선택 시 subBranchAdminId 자동 세팅 (조건 4)
   const handleTeamChange = (teamId: string) => {
     const team = teams.find((t) => t.id === Number(teamId));
     const autoSubBranchAdminId = team && (team as any).subBranchAdminId ? String((team as any).subBranchAdminId) : "none";
@@ -301,10 +305,12 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
   const showSubBranch = form.role === "team_leader" || form.role === "member";
 
   const handleSubmit = () => {
-    if (!form.name || !form.email) { return; }
+    if (!form.name || !form.email) return;
     onSubmit({
       name: form.name,
       email: form.email,
+      phone: form.phone || undefined,
+      memo: form.memo || undefined,
       role: form.role,
       accountStatus: form.accountStatus,
       teamId: form.teamId !== "none" ? Number(form.teamId) : null,
@@ -314,7 +320,7 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>사용자 추가</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
@@ -324,6 +330,10 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
           <div>
             <Label className="text-xs">이메일 * (로그인 시 매핑 기준)</Label>
             <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="h-9 mt-1" placeholder="user@example.com" />
+          </div>
+          <div>
+            <Label className="text-xs">연락처</Label>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="h-9 mt-1" placeholder="010-0000-0000" maxLength={20} />
           </div>
           <div>
             <Label className="text-xs">역할</Label>
@@ -361,6 +371,17 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
               </Select>
             </div>
           )}
+          <div>
+            <Label className="text-xs">메모 (선택)</Label>
+            <Textarea
+              value={form.memo}
+              onChange={(e) => setForm({ ...form, memo: e.target.value })}
+              className="mt-1 text-sm resize-none"
+              rows={2}
+              placeholder="내부 메모 (선택)"
+            />
+            <p className="text-[10px] text-muted-foreground mt-1">⚠️ 메모에는 주민번호, 민감 병력, 금융 비밀번호 등 민감정보를 입력하지 마세요.</p>
+          </div>
           <p className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
             ℹ️ 사용자는 이메일로 로그인 시 자동으로 이 계정에 연결됩니다. 로그인 전까지 "초대됨" 상태로 표시됩니다.
           </p>
