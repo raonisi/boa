@@ -42,7 +42,7 @@ export default function CustomerList() {
     onSuccess: () => { toast.success("상태가 변경되었습니다."); utils.customers.list.invalidate(); },
   });
 
-  const agents = (allUsers ?? []).filter((u) => u.role !== "inactive");
+  const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
 
   const filtered = (customers ?? []).filter((c) => {
     const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
@@ -70,7 +70,7 @@ export default function CustomerList() {
             <p className="text-sm text-muted-foreground mt-0.5">총 {filtered.length}명</p>
           </div>
           <div className="flex gap-2">
-            {user?.role === "admin" && (
+            {user?.role === "branch_admin" && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setLocation("/customers/assign")}>
                   <UserPlus className="h-4 w-4 mr-1" /> DB 배정
@@ -118,7 +118,7 @@ export default function CustomerList() {
                 </Select>
                 <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-8 text-xs" />
                 <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-8 text-xs" />
-                {(user?.role === "admin" || user?.role === "manager") && (
+                {(user?.role === "branch_admin" || user?.role === "team_leader") && (
                   <Select value={agentFilter} onValueChange={setAgentFilter}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>
                     <SelectContent>

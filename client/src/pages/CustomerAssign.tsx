@@ -24,7 +24,7 @@ export default function CustomerAssign() {
     onError: () => toast.error("배정에 실패했습니다."),
   });
 
-  const agents = users?.filter((u) => u.role === "agent" || u.role === "manager") ?? [];
+  const agents = users?.filter((u) => u.role === "member" || u.role === "team_leader") ?? [];
 
   const toggleSelect = (id: number) => {
     setSelectedCustomers((prev) =>
@@ -70,7 +70,7 @@ export default function CustomerAssign() {
                   <SelectContent>
                     {agents.map((a) => (
                       <SelectItem key={a.id} value={String(a.id)}>
-                        {a.name} ({a.role === "manager" ? "팀장" : "팀원"})
+                        {a.name} ({a.role === "team_leader" ? "팀장" : "팀원"})
                       </SelectItem>
                     ))}
                   </SelectContent>

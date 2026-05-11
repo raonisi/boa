@@ -1,0 +1,21 @@
+{
+  "query": "SELECT id, name, role, accountStatus FROM users ORDER BY id;\nSELECT COUNT(*) as branch_admin_count FROM users WHERE role='branch_admin';\nSELECT COUNT(*) as old_inactive_count FROM users WHERE role='inactive';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 219b9ABc6rHRdDP.root --database bXcB7zzm8DHKYgRuKh5irn --execute SELECT id, name, role, accountStatus FROM users ORDER BY id;\nSELECT COUNT(*) as branch_admin_count FROM users WHERE role='branch_admin';\nSELECT COUNT(*) as old_inactive_count FROM users WHERE role='inactive';",
+  "rows": [
+    {
+      "id": "1",
+      "name": "도현 이",
+      "role": "branch_admin",
+      "accountStatus": "active"
+    }
+  ],
+  "messages": [
+    "branch_admin_count",
+    "1",
+    "old_inactive_count",
+    "0"
+  ],
+  "stdout": "id\tname\trole\taccountStatus\n1\t도현 이\tbranch_admin\tactive\nbranch_admin_count\n1\nold_inactive_count\n0\n",
+  "stderr": "",
+  "execution_time_ms": 2334
+}

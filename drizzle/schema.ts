@@ -17,8 +17,14 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["admin", "manager", "agent", "inactive"]).default("agent").notNull(),
+  /** 역할: 지점장/부지점장/팀장/팀원 */
+  role: mysqlEnum("role", ["branch_admin", "sub_branch_admin", "team_leader", "member"]).default("member").notNull(),
+  /** 계정 상태: role과 분리. active가 아니면 모든 접근 차단 */
+  accountStatus: mysqlEnum("accountStatus", ["active", "inactive", "resigned"]).default("active").notNull(),
+  /** 소속 팀 ID */
   teamId: int("teamId"),
+  /** 소속 부지점장 ID (teams.subBranchAdminId와 동기화 필수) */
+  subBranchAdminId: int("subBranchAdminId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -31,7 +37,12 @@ export type InsertUser = typeof users.$inferInsert;
 export const teams = mysqlTable("teams", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 100 }).notNull(),
+  description: text("description"),
   managerId: int("managerId"),
+  /** 이 팀이 어느 부지점장 산하인지 (정본 기준값) */
+  subBranchAdminId: int("subBranchAdminId"),
+  isActive: boolean("isActive").default(true).notNull(),
+  deletedAt: timestamp("deletedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -48,20 +59,21 @@ export const customers = mysqlTable("customers", {
   expectedPremium: int("expectedPremium"),
   availableTime: varchar("availableTime", { length: 100 }),
   source: varchar("source", { length: 100 }),
-  // 담당자 및 팀
+  /** 담당 설계사 ID (agentId로 통일) */
   agentId: int("agentId"),
   assignedTeamId: int("assignedTeamId"),
   assignedAt: timestamp("assignedAt"),
-  // 상담 상태
+  /** 배분된 부지점장 ID */
+  subBranchAdminId: int("subBranchAdminId"),
+  /** DB 배정 상태 */
+  assignmentStatus: mysqlEnum("assignmentStatus", ["unassigned", "assigned_to_sub_branch", "assigned_to_agent"]).default("unassigned").notNull(),
   consultStatus: mysqlEnum("consultStatus", [
     "미상담", "부재", "통화완료", "상담예정", "설계중",
     "계약", "보류", "거절", "해지관리", "재상담필요",
   ]).default("미상담").notNull(),
   memo: text("memo"),
-  // 동의 여부
   privacyConsent: boolean("privacyConsent").default(false),
   marketingConsent: boolean("marketingConsent").default(false),
-  // Soft delete
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
   createdBy: int("createdBy"),
@@ -72,7 +84,7 @@ export const customers = mysqlTable("customers", {
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 
-// ─── Status History (고객 상담상태 변경 이력) ────────────────────────────────
+// ─── Status History ───────────────────────────────────────────────────────────
 export const statusHistory = mysqlTable("status_history", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
@@ -86,7 +98,7 @@ export const statusHistory = mysqlTable("status_history", {
 export type StatusHistory = typeof statusHistory.$inferSelect;
 export type InsertStatusHistory = typeof statusHistory.$inferInsert;
 
-// ─── Consent Logs (동의 이력) ─────────────────────────────────────────────────
+// ─── Consent Logs ─────────────────────────────────────────────────────────────
 export const consentLogs = mysqlTable("consent_logs", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
@@ -111,7 +123,6 @@ export const consultations = mysqlTable("consultations", {
   ]).notNull(),
   content: text("content"),
   nextContactAt: timestamp("nextContactAt"),
-  // Soft delete
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -125,6 +136,7 @@ export type InsertConsultation = typeof consultations.$inferInsert;
 export const contracts = mysqlTable("contracts", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
+  /** 계약 담당 설계사 ID (agentId로 통일) */
   agentId: int("agentId").notNull(),
   company: varchar("company", { length: 100 }),
   productName: varchar("productName", { length: 200 }),
@@ -134,7 +146,6 @@ export const contracts = mysqlTable("contracts", {
   paymentStatus: mysqlEnum("paymentStatus", ["정상", "미납", "실효", "해지"]).default("정상"),
   contractStatus: mysqlEnum("contractStatus", ["청약", "성립", "철회", "유지", "해지"]).default("청약"),
   memo: text("memo"),
-  // Soft delete
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
   createdBy: int("createdBy"),
@@ -161,11 +172,9 @@ export const schedules = mysqlTable("schedules", {
   endTime: timestamp("endTime"),
   completedAt: timestamp("completedAt"),
   memo: text("memo"),
-  // 알림 플래그
   reminderDayBefore: boolean("reminderDayBefore").default(true),
   reminderSameDay: boolean("reminderSameDay").default(true),
   reminderOneHourBefore: boolean("reminderOneHourBefore").default(true),
-  // Soft delete
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
   createdBy: int("createdBy"),
@@ -176,7 +185,7 @@ export const schedules = mysqlTable("schedules", {
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
 
-// ─── Reminders (알림 - 중복 방지 unique 키 포함) ─────────────────────────────
+// ─── Reminders ────────────────────────────────────────────────────────────────
 export const reminders = mysqlTable("reminders", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -197,7 +206,6 @@ export const reminders = mysqlTable("reminders", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 },
 (table) => ({
-  // 중복 방지: 같은 사용자, 같은 유형, 같은 대상, 같은 due_at
   uniqueReminder: unique("uq_reminder").on(
     table.userId, table.type, table.relatedType, table.relatedId, table.dueAt
   ),
@@ -206,7 +214,7 @@ export const reminders = mysqlTable("reminders", {
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 
-// ─── Notifications (기존 - 실시간 인앱 알림) ──────────────────────────────────
+// ─── Notifications ────────────────────────────────────────────────────────────
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -228,7 +236,6 @@ export const notifications = mysqlTable("notifications", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 },
 (table) => ({
-  // 중복 방지
   uniqueNotif: unique("uq_notification").on(
     table.userId, table.type, table.relatedType, table.relatedId, table.dueAt
   ),
@@ -237,21 +244,28 @@ export const notifications = mysqlTable("notifications", {
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
-// ─── Assignment History (배정 이력) ─────────────────────────────────────────────
+// ─── Assignment History ───────────────────────────────────────────────────────
 export const assignmentHistory = mysqlTable("assignment_history", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
+  previousSubBranchAdminId: int("previousSubBranchAdminId"),
+  newSubBranchAdminId: int("newSubBranchAdminId"),
+  previousTeamId: int("previousTeamId"),
+  newTeamId: int("newTeamId"),
   previousAgentId: int("previousAgentId"),
-  newAgentId: int("newAgentId").notNull(),
+  newAgentId: int("newAgentId"),
   assignedBy: int("assignedBy").notNull(),
-  reason: varchar("reason", { length: 200 }),
+  assignmentType: mysqlEnum("assignmentType", [
+    "branch_to_sub_branch", "sub_branch_to_agent", "branch_to_agent", "reassignment",
+  ]),
+  assignmentReason: varchar("assignmentReason", { length: 300 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type AssignmentHistory = typeof assignmentHistory.$inferSelect;
 export type InsertAssignmentHistory = typeof assignmentHistory.$inferInsert;
 
-// ─── Contract History (계약 변경 이력) ────────────────────────────────────────
+// ─── Contract History ─────────────────────────────────────────────────────────
 export const contractHistory = mysqlTable("contract_history", {
   id: int("id").autoincrement().primaryKey(),
   contractId: int("contractId").notNull(),

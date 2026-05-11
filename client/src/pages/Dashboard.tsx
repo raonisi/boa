@@ -66,7 +66,7 @@ export default function Dashboard() {
   const recentCustomers = customers?.slice(0, 5) ?? [];
 
   const roleTitle =
-    user?.role === "admin" ? "관리자" : user?.role === "manager" ? "팀장" : "팀원";
+    user?.role === "branch_admin" ? "관리자" : user?.role === "team_leader" ? "팀장" : "팀원";
 
   return (
     <DashboardLayout>

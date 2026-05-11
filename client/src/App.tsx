@@ -41,7 +41,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  if (user.role === "inactive") {
+  if ((user as any).accountStatus !== "active") {
     return <Blocked />;
   }
 
@@ -50,13 +50,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || user.role !== "admin") return <Redirect to="/" />;
+  if (!user || user.role !== "branch_admin") return <Redirect to="/" />;
   return <>{children}</>;
 }
 
 function ManagerGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || (user.role !== "admin" && user.role !== "manager")) return <Redirect to="/" />;
+  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin" && user.role !== "team_leader")) return <Redirect to="/" />;
   return <>{children}</>;
 }
 

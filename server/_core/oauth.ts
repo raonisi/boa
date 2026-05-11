@@ -43,7 +43,7 @@ export function registerOAuthRoutes(app: Express) {
 
       if (loggedInUser) {
         // 퇴사자(비활성) 서버 레벨 차단
-        if (loggedInUser.role === "inactive") {
+        if (loggedInUser.accountStatus !== "active") {
           // LOGIN_BLOCKED 로그 기록
           await db.createActivityLog({
             userId: loggedInUser.id,

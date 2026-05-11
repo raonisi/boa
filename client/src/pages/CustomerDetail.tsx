@@ -66,7 +66,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const agentName = users?.find((u) => u.id === customer.agentId)?.name ?? "-";
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
-  const canChangeAgent = user?.role === "admin" || user?.role === "manager";
+  const canChangeAgent = user?.role === "branch_admin" || user?.role === "team_leader";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
 
   return (
@@ -331,8 +331,8 @@ export default function CustomerDetail({ id }: { id: number }) {
               <Select onValueChange={(v) => changeAgentMutation.mutate({ customerId: id, newAgentId: Number(v) })}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="새 담당자 선택" /></SelectTrigger>
                 <SelectContent>
-                  {(users ?? []).filter((u) => u.role !== "inactive" && u.id !== customer.agentId).map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role === "manager" ? "팀장" : "팀원"})</SelectItem>
+                  {(users ?? []).filter((u) => ((u as any).accountStatus === "active") && u.id !== customer.agentId).map((u) => (
+                    <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role === "team_leader" ? "팀장" : "팀원"})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

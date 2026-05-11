@@ -53,14 +53,14 @@ type NavItem = {
 const menuItems: NavItem[] = [
   { icon: Home, label: "대시보드", path: "/" },
   { icon: Users, label: "고객 DB", path: "/customers" },
-  { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["admin"] },
+  { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin"] },
   { icon: FileText, label: "계약관리", path: "/contracts" },
   { icon: BarChart3, label: "실적관리", path: "/performance" },
   { icon: CalendarDays, label: "일정 캘린더", path: "/calendar" },
   { icon: Bell, label: "알림센터", path: "/notifications" },
-  { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["admin"] },
-  { icon: Users, label: "팀 관리", path: "/teams", roles: ["admin"] },
-  { icon: Activity, label: "활동 로그", path: "/logs", roles: ["admin", "manager"] },
+  { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
+  { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
+  { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
 ];
 
 const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";
@@ -69,10 +69,10 @@ const MIN_WIDTH = 180;
 const MAX_WIDTH = 300;
 
 const roleLabel: Record<string, string> = {
-  admin: "관리자",
-  manager: "팀장",
-  agent: "팀원",
-  inactive: "퇴사자",
+  branch_admin: "지점장",
+  sub_branch_admin: "부지점장",
+  team_leader: "팀장",
+  member: "팀원",
 };
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -216,7 +216,7 @@ function DashboardLayoutContent({
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.name ?? "-"}</p>
                       <p className="text-[10px] text-sidebar-foreground/60 truncate">
-                        {roleLabel[user?.role ?? "agent"]}
+                        {roleLabel[user?.role ?? "member"]}
                       </p>
                     </div>
                   )}
@@ -225,7 +225,7 @@ function DashboardLayoutContent({
               <DropdownMenuContent align="end" className="w-44">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{roleLabel[user?.role ?? "agent"]}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel[user?.role ?? "member"]}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">

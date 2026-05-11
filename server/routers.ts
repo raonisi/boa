@@ -6,6 +6,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import {
   assignCustomer,
+  assignCustomerToSubBranch,
   checkPhoneDuplicate,
   createActivityLog,
   createAssignmentHistory,
@@ -19,6 +20,8 @@ import {
   createStatusHistory,
   createTeam,
   completeSchedule,
+  deactivateContract,
+  deactivateTeam,
   softDeleteSchedule,
   softDeleteCustomer,
   getActivityLogs,
@@ -38,6 +41,7 @@ import {
   getPerformanceStats,
   getSchedules,
   getStatusHistory,
+  getTeamById,
   getUnreadCount,
   getUserById,
   markAllNotificationsRead,
@@ -47,7 +51,10 @@ import {
   updateCustomer,
   updateNotificationProcessStatus,
   updateSchedule,
+  updateTeam,
+  updateUserAccountStatus,
   updateUserRole,
+  updateUserSubBranchAdmin,
   updateUserTeam,
 } from "./db";
 import {
@@ -63,32 +70,63 @@ import {
   refreshLongUnmanagedReminder,
 } from "./notifications";
 
-// ─── Middleware helpers ───────────────────────────────────────────────────────
-const adminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin")
-    throw new TRPCError({ code: "FORBIDDEN", message: "관리자만 접근 가능합니다." });
+// ─── 미들웨어 정의 ─────────────────────────────────────────────────────────────
+/** 지점장 전용 (branch_admin + accountStatus=active) */
+const branchAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const u = ctx.user;
+  if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  if (u.role !== "branch_admin") throw new TRPCError({ code: "FORBIDDEN", message: "지점장만 접근 가능합니다." });
   return next({ ctx });
 });
 
-const managerOrAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role !== "admin" && ctx.user.role !== "manager")
+/** 부지점장 이상 (sub_branch_admin, branch_admin + active) */
+const subBranchAdminOrAboveProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const u = ctx.user;
+  if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  if (u.role !== "branch_admin" && u.role !== "sub_branch_admin")
+    throw new TRPCError({ code: "FORBIDDEN", message: "부지점장 이상만 접근 가능합니다." });
+  return next({ ctx });
+});
+
+/** 팀장 이상 (team_leader, sub_branch_admin, branch_admin + active) */
+const teamLeaderOrAboveProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const u = ctx.user;
+  if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  if (u.role !== "branch_admin" && u.role !== "sub_branch_admin" && u.role !== "team_leader")
     throw new TRPCError({ code: "FORBIDDEN", message: "팀장 이상만 접근 가능합니다." });
   return next({ ctx });
 });
 
+/** 활성 사용자 (accountStatus=active이면 모든 role 허용) */
 const activeUserProcedure = protectedProcedure.use(({ ctx, next }) => {
-  if (ctx.user.role === "inactive")
-    throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  const u = ctx.user;
+  if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
   return next({ ctx });
 });
 
-async function log(
-  userId: number,
-  action: string,
-  targetType?: string,
-  targetId?: number,
-  details?: string
-) {
+/** 고객 소유권 검증 헬퍼 */
+async function verifyCustomerAccess(user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string }, customerId: number) {
+  const customer = await getCustomerById(customerId);
+  if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+  if (user.role === "branch_admin") return customer;
+  if (user.role === "sub_branch_admin") {
+    if (customer.subBranchAdminId !== user.id)
+      throw new TRPCError({ code: "FORBIDDEN", message: "본인 산하 고객만 접근 가능합니다." });
+    return customer;
+  }
+  if (user.role === "team_leader") {
+    const agent = customer.agentId ? await getUserById(customer.agentId) : null;
+    if (!agent || agent.teamId !== user.teamId)
+      throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀 고객만 접근 가능합니다." });
+    return customer;
+  }
+  // member
+  if (customer.agentId !== user.id)
+    throw new TRPCError({ code: "FORBIDDEN", message: "본인 고객만 접근 가능합니다." });
+  return customer;
+}
+
+async function log(userId: number, action: string, targetType?: string, targetId?: number, details?: string) {
   await createActivityLog({ userId, action, targetType, targetId, details });
 }
 
@@ -110,19 +148,29 @@ export const appRouter = router({
   users: router({
     list: activeUserProcedure.query(async ({ ctx }) => {
       const all = await getAllUsers();
-      if (ctx.user.role === "admin") return all;
-      return all.filter((u) => u.role !== "inactive");
+      if (ctx.user.role === "branch_admin") return all;
+      // 비활성 사용자 제외 후 반환
+      return all.filter((u) => u.accountStatus === "active");
     }),
 
-    updateRole: adminProcedure
-      .input(z.object({ userId: z.number(), role: z.enum(["admin", "manager", "agent", "inactive"]) }))
+    updateRole: branchAdminProcedure
+      .input(z.object({ userId: z.number(), role: z.enum(["branch_admin", "sub_branch_admin", "team_leader", "member"]) }))
       .mutation(async ({ ctx, input }) => {
         await updateUserRole(input.userId, input.role);
-        await log(ctx.user.id, input.role === "inactive" ? "USER_BLOCKED" : "USER_ROLE_CHANGED", "user", input.userId, `role=${input.role}`);
+        await log(ctx.user.id, "USER_ROLE_CHANGED", "user", input.userId, `role=${input.role}`);
         return { success: true };
       }),
 
-    updateTeam: adminProcedure
+    updateAccountStatus: branchAdminProcedure
+      .input(z.object({ userId: z.number(), accountStatus: z.enum(["active", "inactive", "resigned"]) }))
+      .mutation(async ({ ctx, input }) => {
+        await updateUserAccountStatus(input.userId, input.accountStatus);
+        const action = input.accountStatus !== "active" ? "USER_BLOCKED" : "USER_ACTIVATED";
+        await log(ctx.user.id, action, "user", input.userId, `accountStatus=${input.accountStatus}`);
+        return { success: true };
+      }),
+
+    updateTeam: branchAdminProcedure
       .input(z.object({ userId: z.number(), teamId: z.number().nullable() }))
       .mutation(async ({ ctx, input }) => {
         await updateUserTeam(input.userId, input.teamId);
@@ -130,13 +178,45 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    updateSubBranchAdmin: branchAdminProcedure
+      .input(z.object({ userId: z.number(), subBranchAdminId: z.number().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        await updateUserSubBranchAdmin(input.userId, input.subBranchAdminId);
+        await log(ctx.user.id, "SUB_BRANCH_ADMIN_ASSIGNED", "user", input.userId, `subBranchAdminId=${input.subBranchAdminId}`);
+        return { success: true };
+      }),
+
     teams: activeUserProcedure.query(async () => getAllTeams()),
 
-    createTeam: adminProcedure
-      .input(z.object({ name: z.string().min(1), managerId: z.number().optional() }))
+    createTeam: branchAdminProcedure
+      .input(z.object({ name: z.string().min(1), managerId: z.number().optional(), subBranchAdminId: z.number().optional(), description: z.string().optional() }))
       .mutation(async ({ ctx, input }) => {
-        await createTeam(input.name, input.managerId);
+        await createTeam(input.name, input.managerId, input.subBranchAdminId, input.description);
         await log(ctx.user.id, "TEAM_CREATED", "team", undefined, `name=${input.name}`);
+        return { success: true };
+      }),
+
+    updateTeamInfo: branchAdminProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        managerId: z.number().optional().nullable(),
+        subBranchAdminId: z.number().optional().nullable(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        const existing = await getTeamById(id);
+        await updateTeam(id, data);
+
+        if (data.isActive === false) {
+          await log(ctx.user.id, "TEAM_DEACTIVATED", "team", id);
+        } else if (data.managerId !== undefined) {
+          await log(ctx.user.id, "TEAM_LEADER_ASSIGNED", "team", id, `managerId=${data.managerId}`);
+        } else {
+          await log(ctx.user.id, "TEAM_UPDATED", "team", id, JSON.stringify({ before: existing, after: data }));
+        }
         return { success: true };
       }),
   }),
@@ -144,26 +224,35 @@ export const appRouter = router({
   // ── Customers ─────────────────────────────────────────────────────────────
   customers: router({
     list: activeUserProcedure
-      .input(z.object({ status: z.string().optional(), unassigned: z.boolean().optional() }))
+      .input(z.object({
+        status: z.string().optional(),
+        unassigned: z.boolean().optional(),
+        region: z.string().optional(),
+        source: z.string().optional(),
+        agentIdFilter: z.number().optional(),
+        assignedDateFrom: z.string().optional(),
+        assignedDateTo: z.string().optional(),
+      }))
       .query(async ({ ctx, input }) => {
         const user = ctx.user;
-        if (user.role === "admin") return getCustomers({ status: input.status, unassigned: input.unassigned });
-        if (user.role === "manager") return getCustomers({ teamId: user.teamId ?? undefined, status: input.status });
-        return getCustomers({ agentId: user.id, status: input.status });
+        const baseFilter = {
+          status: input.status,
+          unassigned: input.unassigned,
+          region: input.region,
+          source: input.source,
+          assignedDateFrom: input.assignedDateFrom ? new Date(input.assignedDateFrom) : undefined,
+          assignedDateTo: input.assignedDateTo ? new Date(input.assignedDateTo) : undefined,
+        };
+        if (user.role === "branch_admin") return getCustomers({ ...baseFilter, agentId: input.agentIdFilter });
+        if (user.role === "sub_branch_admin") return getCustomers({ ...baseFilter, subBranchAdminId: user.id });
+        if (user.role === "team_leader") return getCustomers({ ...baseFilter, teamId: user.teamId ?? undefined });
+        return getCustomers({ ...baseFilter, agentId: user.id });
       }),
 
     get: activeUserProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
-        const customer = await getCustomerById(input.id);
-        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
-        const user = ctx.user;
-        if (user.role === "agent" && customer.agentId !== user.id)
-          throw new TRPCError({ code: "FORBIDDEN" });
-        if (user.role === "manager") {
-          const agent = customer.agentId ? await getUserById(customer.agentId) : null;
-          if (agent && agent.teamId !== user.teamId) throw new TRPCError({ code: "FORBIDDEN" });
-        }
+        const customer = await verifyCustomerAccess(ctx.user, input.id);
         await log(ctx.user.id, "CUSTOMER_VIEWED", "customer", input.id);
         return customer;
       }),
@@ -175,7 +264,7 @@ export const appRouter = router({
         return { isDuplicate: !!dup, existingCustomer: dup ? { id: dup.id, name: dup.name } : null };
       }),
 
-    create: adminProcedure
+    create: branchAdminProcedure
       .input(z.object({
         name: z.string().min(1),
         phone: z.string().optional(),
@@ -190,18 +279,11 @@ export const appRouter = router({
         memo: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        // 연락처 중복 확인
         if (input.phone) {
           const dup = await checkPhoneDuplicate(input.phone);
-          if (dup) {
-            throw new TRPCError({ code: "CONFLICT", message: `이미 동일한 연락처가 등록되어 있습니다. (${dup.name})` });
-          }
+          if (dup) throw new TRPCError({ code: "CONFLICT", message: `이미 동일한 연락처가 등록되어 있습니다. (${dup.name})` });
         }
-        await createCustomer({
-          ...input,
-          birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
-          createdBy: ctx.user.id,
-        });
+        await createCustomer({ ...input, birthDate: input.birthDate ? new Date(input.birthDate) : undefined, createdBy: ctx.user.id });
         await log(ctx.user.id, "CUSTOMER_CREATED", "customer", undefined, `name=${input.name}`);
         return { success: true };
       }),
@@ -224,19 +306,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, birthDate, consultStatus, privacyConsent, marketingConsent, ...rest } = input;
-        const existing = await getCustomerById(id);
-        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        const existing = await verifyCustomerAccess(ctx.user, id);
 
-        // 권한 검증: 팀원은 본인 고객만, 팀장은 본인 팀 고객만
-        const user = ctx.user;
-        if (user.role === "agent" && existing.agentId !== user.id)
-          throw new TRPCError({ code: "FORBIDDEN" });
-        if (user.role === "manager") {
-          const agent = existing.agentId ? await getUserById(existing.agentId) : null;
-          if (agent && agent.teamId !== user.teamId) throw new TRPCError({ code: "FORBIDDEN" });
-        }
-
-        // before/after 기록
         const beforeSnapshot: Record<string, unknown> = {};
         const afterSnapshot: Record<string, unknown> = {};
         for (const key of Object.keys(rest) as (keyof typeof rest)[]) {
@@ -246,14 +317,11 @@ export const appRouter = router({
           }
         }
 
-        // 상태 변경 이력
         if (consultStatus && consultStatus !== existing.consultStatus) {
           await createStatusHistory({ customerId: id, changedBy: ctx.user.id, previousStatus: existing.consultStatus, newStatus: consultStatus });
           beforeSnapshot.consultStatus = existing.consultStatus;
           afterSnapshot.consultStatus = consultStatus;
         }
-
-        // 동의 변경 이력
         if (privacyConsent !== undefined && privacyConsent !== existing.privacyConsent) {
           await createConsentLog({ customerId: id, changedBy: ctx.user.id, consentType: "privacy", previousValue: existing.privacyConsent ?? false, newValue: privacyConsent });
         }
@@ -266,72 +334,125 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    deactivate: activeUserProcedure
+    deactivate: teamLeaderOrAboveProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin" && ctx.user.role !== "manager")
-          throw new TRPCError({ code: "FORBIDDEN" });
+        await verifyCustomerAccess(ctx.user, input.id);
         await softDeleteCustomer(input.id);
         await log(ctx.user.id, "CUSTOMER_DEACTIVATED", "customer", input.id);
         return { success: true };
       }),
 
-    assignmentHistory: activeUserProcedure
-      .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => getAssignmentHistory(input.customerId)),
+    /** 지점장이 부지점장에게 DB 배분 */
+    assignToSubBranch: branchAdminProcedure
+      .input(z.object({ customerId: z.number(), subBranchAdminId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const customer = await getCustomerById(input.customerId);
+        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+        const prevSubBranchAdminId = customer.subBranchAdminId;
+        await assignCustomerToSubBranch(input.customerId, input.subBranchAdminId);
+        await createAssignmentHistory({
+          customerId: input.customerId,
+          previousSubBranchAdminId: prevSubBranchAdminId ?? undefined,
+          newSubBranchAdminId: input.subBranchAdminId,
+          previousAgentId: customer.agentId ?? undefined,
+          assignedBy: ctx.user.id,
+          assignmentType: "branch_to_sub_branch",
+        });
+        await log(ctx.user.id, "DB_ASSIGNED_TO_SUB_BRANCH_ADMIN", "customer", input.customerId, `subBranchAdminId=${input.subBranchAdminId}`);
+        return { success: true };
+      }),
 
-    assign: adminProcedure
+    /** 지점장 또는 부지점장이 팀원에게 최종 배정 */
+    assign: subBranchAdminOrAboveProcedure
       .input(z.object({ customerId: z.number(), agentId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const agent = await getUserById(input.agentId);
+        const user = ctx.user;
         const customer = await getCustomerById(input.customerId);
-        const previousAgentId = customer?.agentId ?? undefined;
-        await assignCustomer(input.customerId, input.agentId, agent?.teamId ?? undefined);
-        // 배정 이력 기록
-        await createAssignmentHistory({ customerId: input.customerId, previousAgentId, newAgentId: input.agentId, assignedBy: ctx.user.id });
+        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+
+        // 부지점장 이중 검증 (조건 3)
+        if (user.role === "sub_branch_admin") {
+          // ① 고객 DB가 본인에게 배분된 것인지
+          if (customer.subBranchAdminId !== user.id)
+            throw new TRPCError({ code: "FORBIDDEN", message: "본인에게 배분된 DB만 배정 가능합니다." });
+          // ② 배정 대상이 본인 산하 팀장/팀원인지
+          const targetUser = await getUserById(input.agentId);
+          if (!targetUser) throw new TRPCError({ code: "NOT_FOUND", message: "대상 사용자를 찾을 수 없습니다." });
+          if (targetUser.subBranchAdminId !== user.id)
+            throw new TRPCError({ code: "FORBIDDEN", message: "본인 산하 조직원에게만 배정 가능합니다." });
+          // ③ 대상 역할 확인
+          if (targetUser.role !== "team_leader" && targetUser.role !== "member")
+            throw new TRPCError({ code: "FORBIDDEN", message: "팀장 또는 팀원에게만 배정 가능합니다." });
+          // ④ 대상 계정 활성 확인
+          if (targetUser.accountStatus !== "active")
+            throw new TRPCError({ code: "FORBIDDEN", message: "비활성 계정에는 배정할 수 없습니다." });
+        }
+
+        const agent = await getUserById(input.agentId);
+        const prevAgentId = customer.agentId;
+        await assignCustomer(input.customerId, input.agentId, agent?.teamId ?? undefined, agent?.subBranchAdminId ?? undefined);
+
+        await createAssignmentHistory({
+          customerId: input.customerId,
+          previousSubBranchAdminId: customer.subBranchAdminId ?? undefined,
+          newSubBranchAdminId: agent?.subBranchAdminId ?? undefined,
+          previousTeamId: customer.assignedTeamId ?? undefined,
+          newTeamId: agent?.teamId ?? undefined,
+          previousAgentId: prevAgentId ?? undefined,
+          newAgentId: input.agentId,
+          assignedBy: ctx.user.id,
+          assignmentType: user.role === "branch_admin" ? "branch_to_agent" : "sub_branch_to_agent",
+        });
+
         await log(ctx.user.id, "CUSTOMER_ASSIGNED", "customer", input.customerId, `agentId=${input.agentId}`);
 
         if (agent && customer) {
-          await createNotification({
-            userId: input.agentId,
-            type: "customer_assigned",
-            title: "새 고객 배정",
-            message: `${customer.name} 고객이 배정되었습니다.`,
-            relatedType: "customer",
-            relatedId: input.customerId,
-            dueAt: new Date(),
-          });
+          await createNotification({ userId: input.agentId, type: "customer_assigned", title: "새 고객 배정", message: `${customer.name} 고객이 배정되었습니다.`, relatedType: "customer", relatedId: input.customerId, dueAt: new Date() });
           await createUncontactedReminder(input.customerId, input.agentId, new Date(), customer.name);
-          if (customer.birthDate) {
-            await createBirthdayReminder(input.customerId, input.agentId, new Date(customer.birthDate), customer.name);
-          }
-          // 배정일 기준 90일 장기 미관리 알림 예약
+          if (customer.birthDate) await createBirthdayReminder(input.customerId, input.agentId, new Date(customer.birthDate), customer.name);
           await refreshLongUnmanagedReminder(input.customerId, input.agentId, new Date(), customer.name);
         }
         return { success: true };
       }),
 
-    changeAgent: adminProcedure
+    changeAgent: teamLeaderOrAboveProcedure
       .input(z.object({ customerId: z.number(), newAgentId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const existing = await getCustomerById(input.customerId);
+        const existing = await verifyCustomerAccess(ctx.user, input.customerId);
         const agent = await getUserById(input.newAgentId);
-        const previousAgentId = existing?.agentId ?? undefined;
-        await assignCustomer(input.customerId, input.newAgentId, agent?.teamId ?? undefined);
-        // 배정 이력 기록
-        await createAssignmentHistory({ customerId: input.customerId, previousAgentId, newAgentId: input.newAgentId, assignedBy: ctx.user.id });
-        await log(ctx.user.id, "AGENT_CHANGED", "customer", input.customerId,
-          JSON.stringify({ before: { agentId: previousAgentId }, after: { agentId: input.newAgentId } }));
+        await assignCustomer(input.customerId, input.newAgentId, agent?.teamId ?? undefined, agent?.subBranchAdminId ?? undefined);
+        await createAssignmentHistory({
+          customerId: input.customerId,
+          previousAgentId: existing.agentId ?? undefined,
+          newAgentId: input.newAgentId,
+          assignedBy: ctx.user.id,
+          assignmentType: "reassignment",
+        });
+        await log(ctx.user.id, "AGENT_CHANGED", "customer", input.customerId, JSON.stringify({ before: { agentId: existing.agentId }, after: { agentId: input.newAgentId } }));
         return { success: true };
+      }),
+
+    assignmentHistory: activeUserProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getAssignmentHistory(input.customerId);
       }),
 
     statusHistory: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => getStatusHistory(input.customerId)),
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getStatusHistory(input.customerId);
+      }),
 
     consentLogs: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => getConsentLogs(input.customerId)),
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getConsentLogs(input.customerId);
+      }),
   }),
 
   // ── Consultations ─────────────────────────────────────────────────────────
@@ -339,23 +460,7 @@ export const appRouter = router({
     list: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const user = ctx.user;
-        // 조건 1: 고객 존재 여부 확인
-        const customer = await getCustomerById(input.customerId);
-        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
-        // 조건 2: 역할별 소유권 검증 (activeUserProcedure만으로 데이터 접근 허용 금지)
-        if (user.role === "admin") {
-          // 지점장: 전체 허용
-        } else if (user.role === "manager") {
-          // 팀장: 본인 팀 고객만
-          const agent = customer.agentId ? await getUserById(customer.agentId) : null;
-          if (!agent || agent.teamId !== user.teamId)
-            throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀 고객만 조회 가능합니다." });
-        } else {
-          // 팀원: 본인 고객만
-          if (customer.agentId !== user.id)
-            throw new TRPCError({ code: "FORBIDDEN", message: "본인 고객만 조회 가능합니다." });
-        }
+        await verifyCustomerAccess(ctx.user, input.customerId);
         return getConsultationsByCustomer(input.customerId);
       }),
 
@@ -367,38 +472,14 @@ export const appRouter = router({
         nextContactAt: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const customer = await getCustomerById(input.customerId);
-        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
-
-        // 권한 검증
-        const user = ctx.user;
-        if (user.role === "agent" && customer.agentId !== user.id)
-          throw new TRPCError({ code: "FORBIDDEN" });
-
-        // 상태 변경 이력
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
         if (input.status !== customer.consultStatus) {
           await createStatusHistory({ customerId: input.customerId, changedBy: ctx.user.id, previousStatus: customer.consultStatus, newStatus: input.status });
         }
-
         const nextContactDate = input.nextContactAt ? new Date(input.nextContactAt) : undefined;
-        await createConsultation({
-          customerId: input.customerId,
-          agentId: ctx.user.id,
-          status: input.status,
-          content: input.content,
-          nextContactAt: nextContactDate,
-        });
-
-        // 재상담 알림
-        if (nextContactDate) {
-          await createReconsultReminder(input.customerId, ctx.user.id, nextContactDate, customer.name);
-        }
-
-        // 장기 미관리 90일 알림 갱신 (기존 알림 취소 + 새 상담일 기준 재예약)
-        if (customer.agentId) {
-          await refreshLongUnmanagedReminder(input.customerId, customer.agentId, new Date(), customer.name);
-        }
-
+        await createConsultation({ customerId: input.customerId, agentId: ctx.user.id, status: input.status, content: input.content, nextContactAt: nextContactDate });
+        if (nextContactDate) await createReconsultReminder(input.customerId, ctx.user.id, nextContactDate, customer.name);
+        if (customer.agentId) await refreshLongUnmanagedReminder(input.customerId, customer.agentId, new Date(), customer.name);
         await log(ctx.user.id, "CONSULTATION_CREATED", "customer", input.customerId, `status=${input.status}`);
         return { success: true };
       }),
@@ -413,11 +494,8 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const existing = await getConsultationById(input.id);
         if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
-
-        // 권한 검증: 본인이 작성한 상담기록만 수정 가능
-        const user = ctx.user;
-        if (user.role === "agent" && existing.agentId !== user.id)
-          throw new TRPCError({ code: "FORBIDDEN" });
+        // 소유권 검증: 상담기록의 고객을 통해 검증
+        await verifyCustomerAccess(ctx.user, existing.customerId);
 
         const beforeSnapshot = { status: existing.status, content: existing.content, nextContactAt: existing.nextContactAt };
         const afterSnapshot: Record<string, unknown> = {};
@@ -431,24 +509,14 @@ export const appRouter = router({
           nextContactAt: input.nextContactAt === null ? null : input.nextContactAt ? new Date(input.nextContactAt) : undefined,
         });
 
-        // 상태 변경 이력
         if (input.status && input.status !== existing.status) {
-          const customer = await getCustomerById(existing.customerId);
-          if (customer) {
-            await createStatusHistory({ customerId: existing.customerId, changedBy: ctx.user.id, previousStatus: existing.status, newStatus: input.status });
-          }
+          await createStatusHistory({ customerId: existing.customerId, changedBy: ctx.user.id, previousStatus: existing.status, newStatus: input.status });
         }
-
-        // 재상담 알림 갱신
         if (input.nextContactAt) {
           const customer = await getCustomerById(existing.customerId);
-          if (customer) {
-            await createReconsultReminder(existing.customerId, existing.agentId, new Date(input.nextContactAt), customer.name);
-          }
+          if (customer) await createReconsultReminder(existing.customerId, existing.agentId, new Date(input.nextContactAt), customer.name);
         }
-
-        await log(ctx.user.id, "CONSULTATION_UPDATED", "consultation", input.id,
-          JSON.stringify({ before: beforeSnapshot, after: afterSnapshot }));
+        await log(ctx.user.id, "CONSULTATION_UPDATED", "consultation", input.id, JSON.stringify({ before: beforeSnapshot, after: afterSnapshot }));
         return { success: true };
       }),
   }),
@@ -458,32 +526,21 @@ export const appRouter = router({
     listByCustomer: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
       .query(async ({ ctx, input }) => {
-        const user = ctx.user;
-        // 조건 1: 고객 존재 여부 확인
-        const customer = await getCustomerById(input.customerId);
-        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
-        // 조건 2: 역할별 소유권 검증 (activeUserProcedure만으로 데이터 접근 허용 금지)
-        if (user.role === "admin") {
-          // 지점장: 전체 허용
-        } else if (user.role === "manager") {
-          // 팀장: 본인 팀 고객만
-          const agent = customer.agentId ? await getUserById(customer.agentId) : null;
-          if (!agent || agent.teamId !== user.teamId)
-            throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀 고객만 조회 가능합니다." });
-        } else {
-          // 팀원: 본인 고객만
-          if (customer.agentId !== user.id)
-            throw new TRPCError({ code: "FORBIDDEN", message: "본인 고객만 조회 가능합니다." });
-        }
+        await verifyCustomerAccess(ctx.user, input.customerId);
         return getContractsByCustomer(input.customerId);
       }),
 
     list: activeUserProcedure.query(async ({ ctx }) => {
       const user = ctx.user;
-      if (user.role === "admin") return getAllContracts({});
-      if (user.role === "manager") return getAllContracts({ teamId: user.teamId ?? undefined });
+      if (user.role === "branch_admin") return getAllContracts({});
+      if (user.role === "sub_branch_admin") return getAllContracts({ subBranchAdminId: user.id });
+      if (user.role === "team_leader") return getAllContracts({ teamId: user.teamId ?? undefined });
       return getAllContracts({ agentId: user.id });
     }),
+
+    contractHistory: activeUserProcedure
+      .input(z.object({ contractId: z.number() }))
+      .query(async ({ input }) => getContractHistory(input.contractId)),
 
     create: activeUserProcedure
       .input(z.object({
@@ -496,25 +553,26 @@ export const appRouter = router({
         paymentStatus: z.enum(["정상","미납","실효","해지"]).default("정상"),
         contractStatus: z.enum(["청약","성립","철회","유지","해지"]).default("청약"),
         memo: z.string().optional(),
-        // 팀장/관리자가 담당 설계사를 지정할 수 있음
         agentIdOverride: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
-        const customer = await getCustomerById(input.customerId);
-        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+        const customer = await verifyCustomerAccess(user, input.customerId);
 
-        // 권한 검증
-        if (user.role === "agent" && customer.agentId !== user.id)
-          throw new TRPCError({ code: "FORBIDDEN" });
-        if (user.role === "manager") {
-          const agent = customer.agentId ? await getUserById(customer.agentId) : null;
-          if (agent && agent.teamId !== user.teamId) throw new TRPCError({ code: "FORBIDDEN" });
-        }
-
-        // 담당 설계사 결정: 팀원=본인, 팀장=지정 팀원 또는 본인, 관리자=전체 지정 가능
         let finalAgentId = user.id;
-        if (input.agentIdOverride && (user.role === "admin" || user.role === "manager")) {
+        if (input.agentIdOverride && user.role !== "member") {
+          // 팀장: 본인 팀원만 지정 가능
+          if (user.role === "team_leader") {
+            const targetAgent = await getUserById(input.agentIdOverride);
+            if (!targetAgent || targetAgent.teamId !== user.teamId)
+              throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀원만 담당자로 지정 가능합니다." });
+          }
+          // 부지점장: 본인 산하만 지정 가능
+          if (user.role === "sub_branch_admin") {
+            const targetAgent = await getUserById(input.agentIdOverride);
+            if (!targetAgent || targetAgent.subBranchAdminId !== user.id)
+              throw new TRPCError({ code: "FORBIDDEN", message: "본인 산하 조직원만 담당자로 지정 가능합니다." });
+          }
           finalAgentId = input.agentIdOverride;
         }
 
@@ -526,16 +584,10 @@ export const appRouter = router({
         if (contractDateObj) {
           const allContracts = await getContractsByCustomer(input.customerId);
           const newContract = allContracts[0];
-          if (newContract) {
-            await createContractReminders(newContract.id, finalAgentId, contractDateObj, customer.name);
-          }
+          if (newContract) await createContractReminders(newContract.id, finalAgentId, contractDateObj, customer.name);
         }
         return { success: true };
       }),
-
-    contractHistory: activeUserProcedure
-      .input(z.object({ contractId: z.number() }))
-      .query(async ({ input }) => getContractHistory(input.contractId)),
 
     update: activeUserProcedure
       .input(z.object({
@@ -548,13 +600,19 @@ export const appRouter = router({
         paymentStatus: z.enum(["정상","미납","실효","해지"]).optional(),
         contractStatus: z.enum(["청약","성립","철회","유지","해지"]).optional(),
         memo: z.string().optional(),
+        newAgentId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { id, contractDate, paymentStatus, ...rest } = input;
+        const { id, contractDate, paymentStatus, newAgentId, ...rest } = input;
         const existing = await getContractById(id);
         if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await verifyCustomerAccess(ctx.user, existing.customerId);
 
-        // contract_history 테이블에 변경 필드별 기록
+        // 담당자 변경 권한 (팀원 불가)
+        if (newAgentId !== undefined && ctx.user.role === "member")
+          throw new TRPCError({ code: "FORBIDDEN", message: "팀원은 계약 담당자를 변경할 수 없습니다." });
+
+        // contract_history 기록
         const fieldsToCheck: (keyof typeof rest)[] = ["company", "productName", "productGroup", "monthlyPremium", "contractStatus", "memo"];
         for (const field of fieldsToCheck) {
           if (rest[field] !== undefined && String((existing as any)[field] ?? "") !== String(rest[field] ?? "")) {
@@ -564,20 +622,29 @@ export const appRouter = router({
         if (paymentStatus && paymentStatus !== existing.paymentStatus) {
           await createContractHistoryEntry({ contractId: id, changedBy: ctx.user.id, fieldName: "paymentStatus", beforeValue: existing.paymentStatus ?? "", afterValue: paymentStatus });
         }
-        if (contractDate && existing.contractDate && new Date(contractDate).toDateString() !== new Date(existing.contractDate).toDateString()) {
-          await createContractHistoryEntry({ contractId: id, changedBy: ctx.user.id, fieldName: "contractDate", beforeValue: String(existing.contractDate), afterValue: contractDate });
+        if (newAgentId && newAgentId !== existing.agentId) {
+          await createContractHistoryEntry({ contractId: id, changedBy: ctx.user.id, fieldName: "agentId", beforeValue: String(existing.agentId), afterValue: String(newAgentId) });
+          await log(ctx.user.id, "CONTRACT_OWNER_CHANGED", "contract", id, JSON.stringify({ before: { agentId: existing.agentId }, after: { agentId: newAgentId } }));
         }
 
-        await updateContract(id, { ...rest, paymentStatus, contractDate: contractDate ? new Date(contractDate) : undefined });
-        await log(ctx.user.id, "CONTRACT_UPDATED", "contract", id, JSON.stringify({ paymentStatus, ...rest }));
+        await updateContract(id, { ...rest, paymentStatus, agentId: newAgentId ?? existing.agentId, contractDate: contractDate ? new Date(contractDate) : undefined });
+        await log(ctx.user.id, "CONTRACT_UPDATED", "contract", id);
 
-        // 납입상태 변경 시 알림
         if (paymentStatus && existing && paymentStatus !== existing.paymentStatus) {
           const customer = existing.customerId ? await getCustomerById(existing.customerId) : null;
-          if (customer) {
-            await createPaymentStatusReminder(id, ctx.user.id, paymentStatus, customer.name);
-          }
+          if (customer) await createPaymentStatusReminder(id, ctx.user.id, paymentStatus, customer.name);
         }
+        return { success: true };
+      }),
+
+    deactivate: teamLeaderOrAboveProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getContractById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await verifyCustomerAccess(ctx.user, existing.customerId);
+        await deactivateContract(input.id);
+        await log(ctx.user.id, "CONTRACT_DEACTIVATED", "contract", input.id);
         return { success: true };
       }),
   }),
@@ -586,8 +653,9 @@ export const appRouter = router({
   schedules: router({
     list: activeUserProcedure.query(async ({ ctx }) => {
       const user = ctx.user;
-      if (user.role === "admin") return getSchedules({});
-      if (user.role === "manager") return getSchedules({ teamId: user.teamId ?? undefined });
+      if (user.role === "branch_admin") return getSchedules({});
+      if (user.role === "sub_branch_admin") return getSchedules({ subBranchAdminId: user.id });
+      if (user.role === "team_leader") return getSchedules({ teamId: user.teamId ?? undefined });
       return getSchedules({ userId: user.id });
     }),
 
@@ -608,37 +676,20 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
         let targetUserId = user.id;
-        if (input.targetUserId && (user.role === "admin" || user.role === "manager")) {
+        if (input.targetUserId && user.role !== "member") {
           targetUserId = input.targetUserId;
         }
         const startTimeDate = new Date(input.startTime);
         const endTimeDate = input.endTime ? new Date(input.endTime) : undefined;
 
-        await createSchedule({
-          userId: targetUserId,
-          title: input.title,
-          type: input.type,
-          status: input.status,
-          startTime: startTimeDate,
-          endTime: endTimeDate,
-          memo: input.memo,
-          description: input.description,
-          reminderDayBefore: input.reminderDayBefore,
-          reminderSameDay: input.reminderSameDay,
-          reminderOneHourBefore: input.reminderOneHourBefore,
-          createdBy: ctx.user.id,
-        });
+        await createSchedule({ userId: targetUserId, title: input.title, type: input.type, status: input.status, startTime: startTimeDate, endTime: endTimeDate, memo: input.memo, description: input.description, reminderDayBefore: input.reminderDayBefore, reminderSameDay: input.reminderSameDay, reminderOneHourBefore: input.reminderOneHourBefore, createdBy: ctx.user.id });
         await log(ctx.user.id, "SCHEDULE_CREATED", "schedule", undefined, `title=${input.title}`);
 
-        // 일정 알림 자동 생성
         const allSchedules = await getSchedules({ userId: targetUserId });
         const newSchedule = allSchedules.find((s) => s.title === input.title && s.startTime.getTime() === startTimeDate.getTime());
         if (newSchedule) {
           await createScheduleReminders(newSchedule.id, targetUserId, startTimeDate, input.title, input.reminderDayBefore, input.reminderSameDay, input.reminderOneHourBefore);
-          // 미완료 일정 알림 예약 (endTime 기준)
-          if (endTimeDate) {
-            await createScheduleIncompleteReminder(newSchedule.id, targetUserId, endTimeDate, input.title);
-          }
+          if (endTimeDate) await createScheduleIncompleteReminder(newSchedule.id, targetUserId, endTimeDate, input.title);
         }
         return { success: true };
       }),
@@ -655,17 +706,26 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const { id, startTime, endTime, status, ...rest } = input;
-        const existing = await getSchedules({ userId: ctx.user.id }).then((list) => list.find((s) => s.id === id));
+        const user = ctx.user;
+
+        // 역할별 범위 조회로 소유권 검증 (조건 3 수정)
+        let allSchedulesList;
+        if (user.role === "branch_admin") allSchedulesList = await getSchedules({});
+        else if (user.role === "sub_branch_admin") allSchedulesList = await getSchedules({ subBranchAdminId: user.id });
+        else if (user.role === "team_leader") allSchedulesList = await getSchedules({ teamId: user.teamId ?? undefined });
+        else allSchedulesList = await getSchedules({ userId: user.id });
+
+        const existing = allSchedulesList.find((s) => s.id === id);
+        if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "해당 일정에 접근 권한이 없습니다." });
+
         const actionLabel = status === "취소" ? "SCHEDULE_CANCELLED" : status === "완료" ? "SCHEDULE_COMPLETED" : "SCHEDULE_UPDATED";
 
         if (status === "완료") {
           await completeSchedule(id);
-          // 미완료 일정 알림 취소
-          if (existing) await cancelScheduleIncompleteNotification(existing.userId, id);
+          await cancelScheduleIncompleteNotification(existing.userId, id);
         } else if (status === "취소" || status === "노쇼") {
           await updateSchedule(id, { status, startTime: startTime ? new Date(startTime) : undefined, endTime: endTime ? new Date(endTime) : undefined, ...rest });
-          // 미완료 일정 알림 취소
-          if (existing) await cancelScheduleIncompleteNotification(existing.userId, id);
+          await cancelScheduleIncompleteNotification(existing.userId, id);
         } else {
           await updateSchedule(id, { status, startTime: startTime ? new Date(startTime) : undefined, endTime: endTime ? new Date(endTime) : undefined, ...rest });
         }
@@ -676,9 +736,18 @@ export const appRouter = router({
     delete: activeUserProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const existing = await getSchedules({ userId: ctx.user.id }).then((list) => list.find((s) => s.id === input.id));
+        const user = ctx.user;
+        let allSchedulesList;
+        if (user.role === "branch_admin") allSchedulesList = await getSchedules({});
+        else if (user.role === "sub_branch_admin") allSchedulesList = await getSchedules({ subBranchAdminId: user.id });
+        else if (user.role === "team_leader") allSchedulesList = await getSchedules({ teamId: user.teamId ?? undefined });
+        else allSchedulesList = await getSchedules({ userId: user.id });
+
+        const existing = allSchedulesList.find((s) => s.id === input.id);
+        if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "해당 일정에 접근 권한이 없습니다." });
+
         await softDeleteSchedule(input.id);
-        if (existing) await cancelScheduleIncompleteNotification(existing.userId, input.id);
+        await cancelScheduleIncompleteNotification(existing.userId, input.id);
         await log(ctx.user.id, "SCHEDULE_CANCELLED", "schedule", input.id);
         return { success: true };
       }),
@@ -703,7 +772,8 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
-  // ── Performance ───────────────────────────────────────────────────────────────
+
+  // ── Performance ───────────────────────────────────────────────────────────
   performance: router({
     stats: activeUserProcedure
       .input(z.object({
@@ -716,15 +786,13 @@ export const appRouter = router({
         const user = ctx.user;
         const dateFrom = input?.dateFrom ? new Date(input.dateFrom) : undefined;
         const dateTo = input?.dateTo ? new Date(input.dateTo) : undefined;
-        if (user.role === "admin") {
-          return getPerformanceStats({ agentId: input?.agentIdFilter, teamId: input?.teamIdFilter, dateFrom, dateTo });
-        }
-        if (user.role === "manager") {
-          return getPerformanceStats({ teamId: user.teamId ?? undefined, agentId: input?.agentIdFilter, dateFrom, dateTo });
-        }
+        if (user.role === "branch_admin") return getPerformanceStats({ agentId: input?.agentIdFilter, teamId: input?.teamIdFilter, dateFrom, dateTo });
+        if (user.role === "sub_branch_admin") return getPerformanceStats({ subBranchAdminId: user.id, agentId: input?.agentIdFilter, dateFrom, dateTo });
+        if (user.role === "team_leader") return getPerformanceStats({ teamId: user.teamId ?? undefined, agentId: input?.agentIdFilter, dateFrom, dateTo });
         return getPerformanceStats({ agentId: user.id, dateFrom, dateTo });
       }),
-    agentStats: managerOrAdminProcedure
+
+    agentStats: teamLeaderOrAboveProcedure
       .input(z.object({ agentId: z.number(), dateFrom: z.string().optional(), dateTo: z.string().optional() }))
       .query(async ({ input }) => getPerformanceStats({
         agentId: input.agentId,
@@ -733,16 +801,13 @@ export const appRouter = router({
       })),
   }),
 
-  // ── Activity Logs ───────────────────────────────────────────────────────────────
+  // ── Activity Logs ─────────────────────────────────────────────────────────
   logs: router({
-    list: managerOrAdminProcedure.query(async ({ ctx }) => {
-      const all = await getActivityLogs(500);
-      if (ctx.user.role === "admin") return all;
-      // 팀장: 본인 팀원 userId 기준 필터
-      const teamMembers = await getAllUsers().then((users) =>
-        users.filter((u) => u.teamId === ctx.user.teamId).map((u) => u.id)
-      );
-      return all.filter((log) => teamMembers.includes(log.userId));
+    list: teamLeaderOrAboveProcedure.query(async ({ ctx }) => {
+      const user = ctx.user;
+      if (user.role === "branch_admin") return getActivityLogs(500);
+      if (user.role === "sub_branch_admin") return getActivityLogs(500, user.id);
+      return getActivityLogs(500, undefined, user.teamId ?? undefined);
     }),
   }),
 });

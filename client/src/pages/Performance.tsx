@@ -68,8 +68,8 @@ export default function Performance() {
     { name: "보류·거절", value: stats?.heldRejectedRate ?? 0 },
   ];
 
-  const roleTitle = user?.role === "admin" ? "전체" : user?.role === "manager" ? "팀" : "내";
-  const agents = (users ?? []).filter((u) => u.role !== "inactive");
+  const roleTitle = user?.role === "branch_admin" ? "전체" : (user?.role === "sub_branch_admin" || user?.role === "team_leader") ? "팀" : "내";
+  const agents = (users ?? []).filter((u) => (u as any).accountStatus === "active");
 
   return (
     <DashboardLayout>
@@ -91,9 +91,9 @@ export default function Performance() {
                 <Label className="text-xs">종료일</Label>
                 <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-8 mt-1" />
               </div>
-              {(user?.role === "admin" || user?.role === "manager") && (
+              {(user?.role === "branch_admin" || user?.role === "sub_branch_admin" || user?.role === "team_leader") && (
                 <>
-                  {user?.role === "admin" && (
+                  {user?.role === "branch_admin" && (
                     <div>
                       <Label className="text-xs">팀</Label>
                       <Select value={teamIdFilter} onValueChange={setTeamIdFilter}>

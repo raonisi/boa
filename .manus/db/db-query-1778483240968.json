@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE users SET accountStatus='inactive' WHERE role='inactive';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 219b9ABc6rHRdDP.root --database bXcB7zzm8DHKYgRuKh5irn --execute UPDATE users SET accountStatus='inactive' WHERE role='inactive';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1917
+}

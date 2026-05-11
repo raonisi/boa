@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Users } from "lucide-react";
+import { Edit2, Plus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -16,31 +16,30 @@ export default function TeamManagement() {
   const { data: teams } = trpc.users.teams.useQuery();
   const { data: users } = trpc.users.list.useQuery();
   const [showCreateTeam, setShowCreateTeam] = useState(false);
+  const [editTeam, setEditTeam] = useState<any>(null);
   const [teamName, setTeamName] = useState("");
   const [selectedManager, setSelectedManager] = useState<string>("none");
 
   const createTeamMutation = trpc.users.createTeam.useMutation({
-    onSuccess: () => {
-      toast.success("팀이 생성되었습니다.");
-      setShowCreateTeam(false);
-      setTeamName("");
-      setSelectedManager("none");
-      utils.users.teams.invalidate();
-    },
+    onSuccess: () => { toast.success("팀이 생성되었습니다."); setShowCreateTeam(false); setTeamName(""); setSelectedManager("none"); utils.users.teams.invalidate(); },
     onError: () => toast.error("팀 생성에 실패했습니다."),
   });
 
-  const updateTeamMutation = trpc.users.updateTeam.useMutation({
-    onSuccess: () => { toast.success("팀이 변경되었습니다."); utils.users.list.invalidate(); },
+  const updateTeamMutation = trpc.users.updateTeamInfo.useMutation({
+    onSuccess: () => { toast.success("팀 정보가 변경되었습니다."); setEditTeam(null); utils.users.teams.invalidate(); utils.users.list.invalidate(); },
     onError: () => toast.error("변경에 실패했습니다."),
+  });
+
+  const updateUserTeamMutation = trpc.users.updateTeam.useMutation({
+    onSuccess: () => { toast.success("팀이 변경되었습니다."); utils.users.list.invalidate(); },
   });
 
   const updateRoleMutation = trpc.users.updateRole.useMutation({
     onSuccess: () => { toast.success("권한이 변경되었습니다."); utils.users.list.invalidate(); },
   });
 
-  const managers = (users ?? []).filter((u) => u.role === "manager" || u.role === "admin");
-  const activeUsers = (users ?? []).filter((u) => u.role !== "inactive");
+  const activeUsers = (users ?? []).filter((u) => (u as any).accountStatus === "active");
+  const managers = activeUsers.filter((u) => u.role === "team_leader" || u.role === "branch_admin");
 
   return (
     <DashboardLayout>
@@ -55,7 +54,6 @@ export default function TeamManagement() {
           </Button>
         </div>
 
-        {/* 팀 목록 */}
         {(teams ?? []).length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center text-muted-foreground">
@@ -77,6 +75,9 @@ export default function TeamManagement() {
                       <span className="text-xs font-normal text-muted-foreground ml-1">
                         팀장: {teamManager?.name ?? "미지정"} · 팀원 {teamMembers.length}명
                       </span>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto" onClick={() => setEditTeam(team)}>
+                        <Edit2 className="h-3 w-3" />
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="p-0">
@@ -84,47 +85,42 @@ export default function TeamManagement() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>이름</TableHead>
-                          <TableHead>이메일</TableHead>
                           <TableHead>역할</TableHead>
+                          <TableHead>계정 상태</TableHead>
                           <TableHead>팀 변경</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {teamMembers.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={4} className="text-center text-muted-foreground py-4 text-sm">
-                              팀원이 없습니다.
-                            </TableCell>
+                            <TableCell colSpan={4} className="text-center text-muted-foreground py-4 text-sm">팀원이 없습니다.</TableCell>
                           </TableRow>
                         ) : (
                           teamMembers.map((u) => (
                             <TableRow key={u.id}>
                               <TableCell className="font-medium">{u.name ?? "-"}</TableCell>
-                              <TableCell className="text-xs text-muted-foreground">{u.email ?? "-"}</TableCell>
                               <TableCell>
-                                <Select
-                                  value={u.role}
-                                  onValueChange={(v) => updateRoleMutation.mutate({ userId: u.id, role: v as any })}
-                                >
-                                  <SelectTrigger className="h-7 text-xs w-24">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                                <Select value={u.role} onValueChange={(v) => updateRoleMutation.mutate({ userId: u.id, role: v as any })}>
+                                  <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="admin">관리자</SelectItem>
-                                    <SelectItem value="manager">팀장</SelectItem>
-                                    <SelectItem value="agent">팀원</SelectItem>
-                                    <SelectItem value="inactive">퇴사자</SelectItem>
+                                    <SelectItem value="branch_admin">지점장</SelectItem>
+                                    <SelectItem value="sub_branch_admin">부지점장</SelectItem>
+                                    <SelectItem value="team_leader">팀장</SelectItem>
+                                    <SelectItem value="member">팀원</SelectItem>
                                   </SelectContent>
                                 </Select>
                               </TableCell>
                               <TableCell>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${(u as any).accountStatus === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                                  {(u as any).accountStatus === "active" ? "재직" : "비활성"}
+                                </span>
+                              </TableCell>
+                              <TableCell>
                                 <Select
                                   value={String(u.teamId ?? "none")}
-                                  onValueChange={(v) => updateTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}
+                                  onValueChange={(v) => updateUserTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}
                                 >
-                                  <SelectTrigger className="h-7 text-xs w-28">
-                                    <SelectValue />
-                                  </SelectTrigger>
+                                  <SelectTrigger className="h-7 text-xs w-28"><SelectValue /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="none">팀 없음</SelectItem>
                                     {(teams ?? []).map((t) => (
@@ -147,7 +143,7 @@ export default function TeamManagement() {
 
         {/* 미배정 팀원 */}
         {(() => {
-          const unassigned = (users ?? []).filter((u) => !u.teamId && u.role !== "inactive");
+          const unassigned = (users ?? []).filter((u) => !u.teamId && (u as any).accountStatus === "active");
           if (unassigned.length === 0) return null;
           return (
             <Card>
@@ -168,16 +164,11 @@ export default function TeamManagement() {
                       <TableRow key={u.id}>
                         <TableCell className="font-medium">{u.name ?? "-"}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {u.role === "manager" ? "팀장" : u.role === "admin" ? "관리자" : "팀원"}
+                          {u.role === "team_leader" ? "팀장" : u.role === "branch_admin" ? "지점장" : u.role === "sub_branch_admin" ? "부지점장" : "팀원"}
                         </TableCell>
                         <TableCell>
-                          <Select
-                            value="none"
-                            onValueChange={(v) => updateTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}
-                          >
-                            <SelectTrigger className="h-7 text-xs w-28">
-                              <SelectValue placeholder="팀 선택" />
-                            </SelectTrigger>
+                          <Select value="none" onValueChange={(v) => updateUserTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}>
+                            <SelectTrigger className="h-7 text-xs w-28"><SelectValue placeholder="팀 선택" /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">팀 없음</SelectItem>
                               {(teams ?? []).map((t) => (
@@ -219,20 +210,83 @@ export default function TeamManagement() {
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" size="sm" onClick={() => setShowCreateTeam(false)}>취소</Button>
-              <Button
-                size="sm"
-                disabled={!teamName || createTeamMutation.isPending}
-                onClick={() => createTeamMutation.mutate({
-                  name: teamName,
-                  managerId: selectedManager !== "none" ? Number(selectedManager) : undefined,
-                })}
-              >
+              <Button size="sm" disabled={!teamName || createTeamMutation.isPending}
+                onClick={() => createTeamMutation.mutate({ name: teamName, managerId: selectedManager !== "none" ? Number(selectedManager) : undefined })}>
                 {createTeamMutation.isPending ? "생성 중..." : "생성"}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 팀 수정 모달 */}
+      {editTeam && (
+        <EditTeamModal
+          team={editTeam}
+          users={users ?? []}
+          onClose={() => setEditTeam(null)}
+          onSubmit={(data) => updateTeamMutation.mutate({ id: editTeam.id, ...data })}
+          loading={updateTeamMutation.isPending}
+        />
+      )}
     </DashboardLayout>
+  );
+}
+
+function EditTeamModal({ team, users, onClose, onSubmit, loading }: {
+  team: any; users: any[]; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
+}) {
+  const [form, setForm] = useState({
+    name: team.name ?? "",
+    description: team.description ?? "",
+    managerId: String(team.managerId ?? "none"),
+    isActive: team.isActive !== false,
+  });
+
+  const managers = users.filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "branch_admin"));
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader><DialogTitle>팀 수정 - {team.name}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">팀 이름</Label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-9 mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">팀 설명</Label>
+            <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="h-9 mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">팀장 변경</Label>
+            <Select value={form.managerId} onValueChange={(v) => setForm({ ...form, managerId: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">미지정</SelectItem>
+                {managers.map((u) => (
+                  <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+            <label htmlFor="isActive" className="text-sm cursor-pointer">팀 활성화</label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
+            <Button size="sm" disabled={loading} onClick={() => onSubmit({
+              name: form.name,
+              description: form.description || undefined,
+              managerId: form.managerId !== "none" ? Number(form.managerId) : null,
+              isActive: form.isActive,
+            })}>
+              {loading ? "저장 중..." : "저장"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
