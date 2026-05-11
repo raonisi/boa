@@ -338,7 +338,26 @@ export const appRouter = router({
   consultations: router({
     list: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => getConsultationsByCustomer(input.customerId)),
+      .query(async ({ ctx, input }) => {
+        const user = ctx.user;
+        // 조건 1: 고객 존재 여부 확인
+        const customer = await getCustomerById(input.customerId);
+        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+        // 조건 2: 역할별 소유권 검증 (activeUserProcedure만으로 데이터 접근 허용 금지)
+        if (user.role === "admin") {
+          // 지점장: 전체 허용
+        } else if (user.role === "manager") {
+          // 팀장: 본인 팀 고객만
+          const agent = customer.agentId ? await getUserById(customer.agentId) : null;
+          if (!agent || agent.teamId !== user.teamId)
+            throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀 고객만 조회 가능합니다." });
+        } else {
+          // 팀원: 본인 고객만
+          if (customer.agentId !== user.id)
+            throw new TRPCError({ code: "FORBIDDEN", message: "본인 고객만 조회 가능합니다." });
+        }
+        return getConsultationsByCustomer(input.customerId);
+      }),
 
     create: activeUserProcedure
       .input(z.object({
@@ -438,7 +457,26 @@ export const appRouter = router({
   contracts: router({
     listByCustomer: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
-      .query(async ({ input }) => getContractsByCustomer(input.customerId)),
+      .query(async ({ ctx, input }) => {
+        const user = ctx.user;
+        // 조건 1: 고객 존재 여부 확인
+        const customer = await getCustomerById(input.customerId);
+        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+        // 조건 2: 역할별 소유권 검증 (activeUserProcedure만으로 데이터 접근 허용 금지)
+        if (user.role === "admin") {
+          // 지점장: 전체 허용
+        } else if (user.role === "manager") {
+          // 팀장: 본인 팀 고객만
+          const agent = customer.agentId ? await getUserById(customer.agentId) : null;
+          if (!agent || agent.teamId !== user.teamId)
+            throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀 고객만 조회 가능합니다." });
+        } else {
+          // 팀원: 본인 고객만
+          if (customer.agentId !== user.id)
+            throw new TRPCError({ code: "FORBIDDEN", message: "본인 고객만 조회 가능합니다." });
+        }
+        return getContractsByCustomer(input.customerId);
+      }),
 
     list: activeUserProcedure.query(async ({ ctx }) => {
       const user = ctx.user;

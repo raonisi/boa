@@ -4,11 +4,12 @@ import type { TrpcContext } from "./_core/context";
 
 type Role = "admin" | "manager" | "agent" | "inactive";
 
-function createCtx(role: Role, teamId?: number): TrpcContext {
+function createCtx(role: Role, teamId?: number, userId?: number): TrpcContext {
+  const id = userId ?? (role === "admin" ? 1 : role === "manager" ? 2 : role === "agent" ? 3 : 4);
   return {
     user: {
-      id: role === "admin" ? 1 : role === "manager" ? 2 : role === "agent" ? 3 : 4,
-      openId: `test-${role}`,
+      id,
+      openId: `test-${role}-${id}`,
       name: `Test ${role}`,
       email: `${role}@test.com`,
       loginMethod: "manus",
@@ -31,14 +32,12 @@ describe("auth.me", () => {
       req: { protocol: "https", headers: {} } as TrpcContext["req"],
       res: { clearCookie: () => {} } as TrpcContext["res"],
     };
-    const caller = appRouter.createCaller(ctx);
-    expect(await caller.auth.me()).toBeNull();
+    expect(await appRouter.createCaller(ctx).auth.me()).toBeNull();
   });
 
   it("returns user for authenticated user", async () => {
     const ctx = createCtx("admin");
-    const caller = appRouter.createCaller(ctx);
-    expect((await caller.auth.me())?.role).toBe("admin");
+    expect((await appRouter.createCaller(ctx).auth.me())?.role).toBe("admin");
   });
 });
 
@@ -56,7 +55,7 @@ describe("auth.logout", () => {
   });
 });
 
-// ─── RBAC - Users ─────────────────────────────────────────────────────────────
+// ─── RBAC - users.list ────────────────────────────────────────────────────────
 describe("RBAC - users.list", () => {
   it("allows admin to access users.list", async () => {
     await expect(appRouter.createCaller(createCtx("admin")).users.list()).resolves.toBeDefined();
@@ -72,20 +71,7 @@ describe("RBAC - users.list", () => {
   });
 });
 
-describe("RBAC - admin-only: updateRole", () => {
-  it("blocks agent from updating user role", async () => {
-    await expect(
-      appRouter.createCaller(createCtx("agent")).users.updateRole({ userId: 1, role: "manager" })
-    ).rejects.toThrow("관리자만 접근 가능합니다.");
-  });
-  it("blocks manager from updating user role", async () => {
-    await expect(
-      appRouter.createCaller(createCtx("manager")).users.updateRole({ userId: 1, role: "agent" })
-    ).rejects.toThrow("관리자만 접근 가능합니다.");
-  });
-});
-
-// ─── RBAC - Inactive ──────────────────────────────────────────────────────────
+// ─── RBAC - inactive user blocked ────────────────────────────────────────────
 describe("RBAC - inactive user blocked from all data", () => {
   it("blocks inactive from customers.list", async () => {
     await expect(appRouter.createCaller(createCtx("inactive")).customers.list({})).rejects.toThrow("계정이 비활성화되었습니다.");
@@ -101,7 +87,21 @@ describe("RBAC - inactive user blocked from all data", () => {
   });
 });
 
-// ─── RBAC - Admin-only routes ─────────────────────────────────────────────────
+// ─── RBAC - admin-only routes ─────────────────────────────────────────────────
+describe("RBAC - users.updateRole (admin only)", () => {
+  it("blocks agent from updating user role", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("agent")).users.updateRole({ userId: 1, role: "manager" })
+    ).rejects.toThrow("관리자만 접근 가능합니다.");
+  });
+  it("blocks manager from updating user role", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("manager")).users.updateRole({ userId: 1, role: "agent" })
+    ).rejects.toThrow("관리자만 접근 가능합니다.");
+  });
+});
+
+// ─── RBAC - logs.list (manager+ only) ────────────────────────────────────────
 describe("RBAC - logs.list (manager+ only)", () => {
   it("blocks agent from logs.list", async () => {
     await expect(appRouter.createCaller(createCtx("agent")).logs.list()).rejects.toThrow();
@@ -114,7 +114,7 @@ describe("RBAC - logs.list (manager+ only)", () => {
   });
 });
 
-// ─── RBAC - Customer assign (admin only) ─────────────────────────────────────
+// ─── RBAC - customers.assign (admin only) ────────────────────────────────────
 describe("RBAC - customers.assign (admin only)", () => {
   it("blocks agent from assigning customers", async () => {
     await expect(
@@ -128,7 +128,7 @@ describe("RBAC - customers.assign (admin only)", () => {
   });
 });
 
-// ─── RBAC - Performance ───────────────────────────────────────────────────────
+// ─── RBAC - performance.agentStats (manager+ only) ───────────────────────────
 describe("RBAC - performance.agentStats (manager+ only)", () => {
   it("blocks agent from agentStats", async () => {
     await expect(
@@ -139,5 +139,27 @@ describe("RBAC - performance.agentStats (manager+ only)", () => {
     await expect(
       appRouter.createCaller(createCtx("manager")).performance.agentStats({ agentId: 3 })
     ).resolves.toBeDefined();
+  });
+});
+
+// ─── 1단계 치명적 문제 수정 검증 ─────────────────────────────────────────────
+
+// consultations.list: 존재하지 않는 고객 ID → NOT_FOUND
+describe("consultations.list - 권한 검증", () => {
+  it("returns NOT_FOUND for non-existent customerId", async () => {
+    const ctx = createCtx("agent", undefined, 3);
+    await expect(
+      appRouter.createCaller(ctx).consultations.list({ customerId: 999999 })
+    ).rejects.toThrow();
+  });
+});
+
+// contracts.listByCustomer: 존재하지 않는 고객 ID → NOT_FOUND
+describe("contracts.listByCustomer - 권한 검증", () => {
+  it("returns NOT_FOUND for non-existent customerId", async () => {
+    const ctx = createCtx("agent", undefined, 3);
+    await expect(
+      appRouter.createCaller(ctx).contracts.listByCustomer({ customerId: 999999 })
+    ).rejects.toThrow();
   });
 });

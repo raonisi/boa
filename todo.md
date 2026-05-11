@@ -102,3 +102,39 @@
 - [x] 팀장 로그 조회 (팀 범위 필터링)
 - [ ] 데이터 다운로드 (관리자 전용 CSV) - 향후 구현 예정
 - [ ] 설정 화면 (Settings.tsx) - 향후 구현 예정
+
+## 4차 수정 작업 (권한 구조 재정의)
+
+### 1단계: 치명적 문제 3건
+- [x] consultations.list 권한 검증 (customerId → 고객 소유권 검증)
+- [x] contracts.listByCustomer 권한 검증 (동일 방식)
+- [x] 퇴사자 서버 레벨 로그인 차단 (oauth.ts role=inactive 체크 + LOGIN_BLOCKED 로그)
+
+### 2단계: DB 스키마 재정의
+- [ ] users.role enum 변경 (branch_admin/sub_branch_admin/team_leader/member)
+- [ ] users.accountStatus 컬럼 추가 (active/inactive/resigned)
+- [ ] users.subBranchAdminId 컬럼 추가
+- [ ] teams 테이블 확장 (description, isActive, subBranchAdminId)
+- [ ] customers.subBranchAdminId, assignmentStatus 컬럼 추가
+- [ ] assignment_history 테이블 확장 (배분 이력 컬럼)
+
+### 3단계: 서버 미들웨어 및 라우터 재정의
+- [ ] 5단계 권한 미들웨어 (branchAdminProcedure, subBranchAdminProcedure 등)
+- [ ] 모든 라우터 권한 로직 업데이트
+- [ ] DB 배정 라우터 재작성 (지점장 전체, 부지점장 제한)
+
+### 4단계: 높은 우선순위
+- [ ] 실적 기간 필터 DB 쿼리 적용
+- [ ] schedules.update 권한 수정
+- [ ] consultations.update 범위 검증
+- [ ] CustomerDetail 배정 이력 탭
+- [ ] 계약 비활성 처리
+- [ ] CONTRACT_OWNER_CHANGED 로그
+- [ ] 데이터 다운로드 (지점장 전용)
+
+### 5단계: 팀 관리 보완 + 중간 우선순위
+- [ ] 팀명 수정·비활성화·팀장 변경
+- [ ] 고객 목록 배정일 필터
+- [ ] 모바일 미완료 일정 섹션
+- [ ] 설정 화면 (지점장 전용)
+- [ ] 실적 상품군·보험사·지역·유입경로 필터

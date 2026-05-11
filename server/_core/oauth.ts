@@ -36,9 +36,34 @@ export function registerOAuthRoutes(app: Express) {
         lastSignedIn: new Date(),
       });
 
-      // 로그인 활동 로그 기록
+      // 로그인 활동 로그 기록 및 퇴사자 서버 레벨 차단
       const loggedInUser = await db.getUserByOpenId(userInfo.openId);
+      const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? undefined;
+      const userAgent = req.headers["user-agent"] ?? undefined;
+
       if (loggedInUser) {
+        // 퇴사자(비활성) 서버 레벨 차단
+        if (loggedInUser.role === "inactive") {
+          // LOGIN_BLOCKED 로그 기록
+          await db.createActivityLog({
+            userId: loggedInUser.id,
+            action: "LOGIN_BLOCKED",
+            targetType: "user",
+            targetId: loggedInUser.id,
+            details: JSON.stringify({
+              email: userInfo.email,
+              reason: "account_inactive",
+              loginMethod: userInfo.loginMethod ?? userInfo.platform ?? "unknown",
+            }),
+            ipAddress,
+            userAgent,
+          });
+          // 세션 쿠키 발급 없이 접근 차단
+          res.status(403).json({ error: "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요." });
+          return;
+        }
+
+        // 정상 로그인 로그 기록
         await db.createActivityLog({
           userId: loggedInUser.id,
           action: "USER_LOGIN",
@@ -48,8 +73,8 @@ export function registerOAuthRoutes(app: Express) {
             email: userInfo.email,
             loginMethod: userInfo.loginMethod ?? userInfo.platform ?? "unknown",
           }),
-          ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? undefined,
-          userAgent: req.headers["user-agent"] ?? undefined,
+          ipAddress,
+          userAgent,
         });
       }
 
