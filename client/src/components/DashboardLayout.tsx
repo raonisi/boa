@@ -59,7 +59,8 @@ const menuItems: NavItem[] = [
   { icon: CalendarDays, label: "일정 캘린더", path: "/calendar" },
   { icon: Bell, label: "알림센터", path: "/notifications" },
   { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["admin"] },
-  { icon: Activity, label: "활동 로그", path: "/logs", roles: ["admin"] },
+  { icon: Users, label: "팀 관리", path: "/teams", roles: ["admin"] },
+  { icon: Activity, label: "활동 로그", path: "/logs", roles: ["admin", "manager"] },
 ];
 
 const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";

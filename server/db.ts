@@ -2,14 +2,18 @@ import { and, desc, eq, gte, isNull, lte, or, sql, isNotNull } from "drizzle-orm
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
+  assignmentHistory,
   consentLogs,
   consultations,
+  contractHistory,
   contracts,
   customers,
   InsertActivityLog,
+  InsertAssignmentHistory,
   InsertConsentLog,
   InsertConsultation,
   InsertContract,
+  InsertContractHistory,
   InsertCustomer,
   InsertNotification,
   InsertSchedule,
@@ -227,6 +231,23 @@ export async function getConsentLogs(customerId: number) {
 }
 
 // ─── Consultations ────────────────────────────────────────────────────────────
+export async function updateConsultation(id: number, data: {
+  content?: string;
+  status?: typeof consultations.$inferSelect["status"];
+  nextContactAt?: Date | null;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(consultations).set(data).where(eq(consultations.id, id));
+}
+
+export async function getConsultationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(consultations).where(eq(consultations.id, id)).limit(1);
+  return result[0];
+}
+
 export async function getConsultationsByCustomer(customerId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -383,6 +404,54 @@ export async function markAllNotificationsRead(userId: number) {
   await db.update(notifications).set({ isRead: true }).where(eq(notifications.userId, userId));
 }
 
+export async function updateNotificationProcessStatus(
+  id: number,
+  processStatus: "미확인" | "확인" | "처리완료" | "보류"
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(notifications).set({ processStatus, isRead: processStatus !== "미확인" }).where(eq(notifications.id, id));
+}
+
+// ─── Assignment History ────────────────────────────────────────────────────────────
+export async function createAssignmentHistory(data: InsertAssignmentHistory) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(assignmentHistory).values(data);
+}
+
+export async function getAssignmentHistory(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(assignmentHistory).where(eq(assignmentHistory.customerId, customerId)).orderBy(desc(assignmentHistory.createdAt));
+}
+
+// ─── Contract History ────────────────────────────────────────────────────────────
+export async function createContractHistoryEntry(data: InsertContractHistory) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(contractHistory).values(data);
+}
+
+export async function getContractHistory(contractId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contractHistory).where(eq(contractHistory.contractId, contractId)).orderBy(desc(contractHistory.createdAt));
+}
+
+// ─── Customer Duplicate Check ──────────────────────────────────────────────────────
+export async function checkPhoneDuplicate(phone: string, excludeId?: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(customers).where(
+    and(eq(customers.phone, phone), eq(customers.isActive, true))
+  ).limit(1);
+  const found = result[0];
+  if (!found) return null;
+  if (excludeId && found.id === excludeId) return null;
+  return found;
+}
+
 // ─── Activity Logs ────────────────────────────────────────────────────────────
 export async function createActivityLog(data: InsertActivityLog) {
   const db = await getDb();
@@ -401,7 +470,7 @@ export async function getActivityLogs(limit = 200) {
 }
 
 // ─── Performance Stats ────────────────────────────────────────────────────────
-export async function getPerformanceStats(filter: { agentId?: number; teamId?: number }) {
+export async function getPerformanceStats(filter: { agentId?: number; teamId?: number; dateFrom?: Date; dateTo?: Date }) {
   const db = await getDb();
   if (!db) return null;
 

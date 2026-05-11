@@ -3,10 +3,10 @@
  * - 중복 방지: notifications 테이블의 uq_notification unique 제약 활용
  * - INSERT IGNORE 패턴으로 중복 시 에러 없이 스킵
  */
-import { addDays, addMonths, addYears, setMonth, setDate, startOfDay } from "date-fns";
+import { addDays, addYears, setMonth, setDate, startOfDay } from "date-fns";
 import { getDb } from "./db";
-import { notifications, customers, contracts, schedules, users } from "../drizzle/schema";
-import { eq, and, lt, isNull, lte } from "drizzle-orm";
+import { notifications } from "../drizzle/schema";
+import { and, eq, isNull } from "drizzle-orm";
 
 type NotifType = typeof notifications.$inferInsert["type"];
 
@@ -27,12 +27,11 @@ export async function createNotificationSafe(data: {
   if (!db) return false;
 
   try {
-    // Drizzle doesn't support INSERT IGNORE natively, use raw SQL
     const conn = (db as any).session?.client ?? (db as any)._client;
     if (conn) {
       await conn.execute(
-        `INSERT IGNORE INTO notifications (userId, type, title, message, relatedType, relatedId, dueAt, isRead, createdAt)
-         VALUES (?, ?, ?, ?, ?, ?, ?, false, NOW())`,
+        `INSERT IGNORE INTO notifications (userId, type, title, message, relatedType, relatedId, dueAt, isRead, processStatus, createdAt)
+         VALUES (?, ?, ?, ?, ?, ?, ?, false, '미확인', NOW())`,
         [
           data.userId,
           data.type,
@@ -44,7 +43,6 @@ export async function createNotificationSafe(data: {
         ]
       );
     } else {
-      // Fallback: use drizzle insert (may throw on duplicate)
       await db.insert(notifications).values({
         userId: data.userId,
         type: data.type,
@@ -57,10 +55,59 @@ export async function createNotificationSafe(data: {
     }
     return true;
   } catch (err: any) {
-    // Duplicate entry → silently skip
     if (err?.code === "ER_DUP_ENTRY" || err?.errno === 1062) return false;
     console.error("[Notification] Failed to create:", err);
     return false;
+  }
+}
+
+/**
+ * 특정 고객의 특정 유형 미처리 알림을 processStatus='처리완료'로 비활성화한다.
+ * 장기 미관리 알림 갱신 시 기존 알림 취소에 사용.
+ */
+export async function cancelPendingNotifications(
+  userId: number,
+  type: NotifType,
+  relatedId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    const conn = (db as any).session?.client ?? (db as any)._client;
+    if (conn) {
+      await conn.execute(
+        `UPDATE notifications SET processStatus = '처리완료'
+         WHERE userId = ? AND type = ? AND relatedId = ? AND processStatus IN ('미확인', '확인')`,
+        [userId, type, relatedId]
+      );
+    }
+  } catch (err) {
+    console.error("[Notification] Failed to cancel pending:", err);
+  }
+}
+
+/**
+ * 일정 완료/취소/노쇼 처리 시 해당 일정의 미완료 알림을 처리완료로 갱신한다.
+ */
+export async function cancelScheduleIncompleteNotification(
+  userId: number,
+  scheduleId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    const conn = (db as any).session?.client ?? (db as any)._client;
+    if (conn) {
+      await conn.execute(
+        `UPDATE notifications SET processStatus = '처리완료'
+         WHERE userId = ? AND type = 'schedule_incomplete' AND relatedId = ? AND processStatus IN ('미확인', '확인')`,
+        [userId, scheduleId]
+      );
+    }
+  } catch (err) {
+    console.error("[Notification] Failed to cancel schedule incomplete:", err);
   }
 }
 
@@ -103,7 +150,6 @@ export async function createBirthdayReminder(
   customerName: string
 ): Promise<void> {
   const now = new Date();
-  // 올해 생일
   let nextBirthday = setDate(setMonth(now, birthDate.getMonth()), birthDate.getDate());
   if (nextBirthday <= now) {
     nextBirthday = addYears(nextBirthday, 1);
@@ -221,8 +267,30 @@ export async function createScheduleReminders(
 }
 
 /**
- * 배정 후 3일 미상담 알림 (서버 사이드 체크용)
- * 배정 시 즉시 3일 후 알림을 예약한다.
+ * 일정 등록 시 → 미완료 일정 알림 예약
+ * 일정 종료 시간 기준으로 예약. 완료/취소/노쇼 처리 시 cancelScheduleIncompleteNotification으로 취소.
+ */
+export async function createScheduleIncompleteReminder(
+  scheduleId: number,
+  userId: number,
+  endTime: Date,
+  title: string
+): Promise<void> {
+  if (endTime <= new Date()) return; // 이미 지난 일정은 스킵
+
+  await createNotificationSafe({
+    userId,
+    type: "schedule_incomplete",
+    title: `[미완료 일정] ${title}`,
+    message: `완료 처리되지 않은 일정이 있습니다: ${title}`,
+    relatedType: "schedule",
+    relatedId: scheduleId,
+    dueAt: endTime,
+  });
+}
+
+/**
+ * 배정 후 3일 미상담 알림 예약
  */
 export async function createUncontactedReminder(
   customerId: number,
@@ -240,4 +308,34 @@ export async function createUncontactedReminder(
     relatedId: customerId,
     dueAt,
   });
+}
+
+/**
+ * 장기 미관리 90일 알림 생성/갱신
+ * - 새 상담기록 작성 시 기존 미처리 long_unmanaged_90 알림을 processStatus='처리완료'로 취소
+ * - 새 상담일 기준 90일 후 알림 재예약
+ * - 상담기록 없는 고객은 배정일 기준
+ */
+export async function refreshLongUnmanagedReminder(
+  customerId: number,
+  agentId: number,
+  lastConsultDate: Date,
+  customerName: string
+): Promise<void> {
+  // 1. 기존 미처리 long_unmanaged_90 알림 취소 (processStatus='처리완료')
+  await cancelPendingNotifications(agentId, "long_unmanaged_90", customerId);
+
+  // 2. 새 상담일 기준 90일 후 알림 재예약
+  const dueAt = addDays(lastConsultDate, 90);
+  if (dueAt > new Date()) {
+    await createNotificationSafe({
+      userId: agentId,
+      type: "long_unmanaged_90",
+      title: `[장기 미관리] ${customerName}`,
+      message: `${customerName} 고객의 마지막 상담 후 90일이 경과했습니다. 관리가 필요합니다.`,
+      relatedType: "customer",
+      relatedId: customerId,
+      dueAt,
+    });
+  }
 }

@@ -102,12 +102,12 @@ describe("RBAC - inactive user blocked from all data", () => {
 });
 
 // ─── RBAC - Admin-only routes ─────────────────────────────────────────────────
-describe("RBAC - admin-only: logs.list", () => {
+describe("RBAC - logs.list (manager+ only)", () => {
   it("blocks agent from logs.list", async () => {
     await expect(appRouter.createCaller(createCtx("agent")).logs.list()).rejects.toThrow();
   });
-  it("blocks manager from logs.list", async () => {
-    await expect(appRouter.createCaller(createCtx("manager")).logs.list()).rejects.toThrow();
+  it("allows manager to access logs.list (filtered to team)", async () => {
+    await expect(appRouter.createCaller(createCtx("manager")).logs.list()).resolves.toBeDefined();
   });
   it("allows admin to access logs.list", async () => {
     await expect(appRouter.createCaller(createCtx("admin")).logs.list()).resolves.toBeDefined();

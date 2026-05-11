@@ -22,6 +22,20 @@
       "when": 1778477323189,
       "tag": "0002_round_mesmero",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1778479467196,
+      "tag": "0003_whole_vindicator",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1778479858231,
+      "tag": "0004_skinny_sentinels",
+      "breakpoints": true
     }
   ]
 }

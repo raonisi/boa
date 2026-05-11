@@ -17,6 +17,7 @@ import Performance from "./pages/Performance";
 import Notifications from "./pages/Notifications";
 import Calendar from "./pages/Calendar";
 import UserManagement from "./pages/UserManagement";
+import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
@@ -50,6 +51,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user || user.role !== "admin") return <Redirect to="/" />;
+  return <>{children}</>;
+}
+
+function ManagerGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || (user.role !== "admin" && user.role !== "manager")) return <Redirect to="/" />;
   return <>{children}</>;
 }
 
@@ -107,11 +114,18 @@ function Router() {
           </AdminGuard>
         </AuthGuard>
       </Route>
-      <Route path="/logs">
+      <Route path="/teams">
         <AuthGuard>
           <AdminGuard>
-            <ActivityLog />
+            <TeamManagement />
           </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/logs">
+        <AuthGuard>
+          <ManagerGuard>
+            <ActivityLog />
+          </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route component={NotFound} />

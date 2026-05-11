@@ -36,6 +36,23 @@ export function registerOAuthRoutes(app: Express) {
         lastSignedIn: new Date(),
       });
 
+      // 로그인 활동 로그 기록
+      const loggedInUser = await db.getUserByOpenId(userInfo.openId);
+      if (loggedInUser) {
+        await db.createActivityLog({
+          userId: loggedInUser.id,
+          action: "USER_LOGIN",
+          targetType: "user",
+          targetId: loggedInUser.id,
+          details: JSON.stringify({
+            email: userInfo.email,
+            loginMethod: userInfo.loginMethod ?? userInfo.platform ?? "unknown",
+          }),
+          ipAddress: (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? undefined,
+          userAgent: req.headers["user-agent"] ?? undefined,
+        });
+      }
+
       const sessionToken = await sdk.createSessionToken(userInfo.openId, {
         name: userInfo.name || "",
         expiresInMs: ONE_YEAR_MS,

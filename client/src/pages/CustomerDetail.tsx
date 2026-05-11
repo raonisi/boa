@@ -2,14 +2,14 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -20,6 +20,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showChangeAgentModal, setShowChangeAgentModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingConsultId, setEditingConsultId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -29,8 +31,18 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: consentLogsData } = trpc.customers.consentLogs.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
 
+  const updateMutation = trpc.customers.update.useMutation({
+    onSuccess: () => { toast.success("고객 정보가 수정되었습니다."); setShowEditModal(false); refetchCustomer(); },
+    onError: () => toast.error("수정에 실패했습니다."),
+  });
+
   const createConsultMutation = trpc.consultations.create.useMutation({
     onSuccess: () => { toast.success("상담기록이 저장되었습니다."); setShowConsultModal(false); refetchConsult(); refetchCustomer(); },
+  });
+
+  const updateConsultMutation = trpc.consultations.update.useMutation({
+    onSuccess: () => { toast.success("상담기록이 수정되었습니다."); setEditingConsultId(null); refetchConsult(); refetchCustomer(); },
+    onError: () => toast.error("수정에 실패했습니다."),
   });
 
   const createContractMutation = trpc.contracts.create.useMutation({
@@ -55,6 +67,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const agentName = users?.find((u) => u.id === customer.agentId)?.name ?? "-";
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
   const canChangeAgent = user?.role === "admin" || user?.role === "manager";
+  const editingConsult = consultations?.find((c) => c.id === editingConsultId);
 
   return (
     <DashboardLayout>
@@ -82,6 +95,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </Button>
               </a>
             )}
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setShowEditModal(true)}>
+              <Edit2 className="h-3.5 w-3.5 mr-1" /> 정보 수정
+            </Button>
             {canChangeAgent && (
               <Button variant="outline" size="sm" className="h-8" onClick={() => setShowChangeAgentModal(true)}>
                 <UserCog className="h-3.5 w-3.5 mr-1" /> 담당자 변경
@@ -89,14 +105,8 @@ export default function CustomerDetail({ id }: { id: number }) {
             )}
             {canChangeAgent && customer.isActive && (
               <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => {
-                  if (confirm("이 고객을 비활성화하시겠습니까? 데이터는 보존됩니다.")) {
-                    deactivateMutation.mutate({ id });
-                  }
-                }}
+                variant="outline" size="sm" className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
+                onClick={() => { if (confirm("이 고객을 비활성화하시겠습니까? 데이터는 보존됩니다.")) deactivateMutation.mutate({ id }); }}
               >
                 <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 비활성화
               </Button>
@@ -163,14 +173,21 @@ export default function CustomerDetail({ id }: { id: number }) {
                 (consultations ?? []).map((c) => (
                   <Card key={c.id}>
                     <CardContent className="p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <StatusBadge status={c.status} />
-                        <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString("ko-KR")}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <StatusBadge status={c.status} />
+                            <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString("ko-KR")}</span>
+                          </div>
+                          <p className="text-sm whitespace-pre-wrap">{c.content ?? "(내용 없음)"}</p>
+                          {c.nextContactAt && (
+                            <p className="text-xs text-primary mt-2">재상담 예정: {new Date(c.nextContactAt).toLocaleString("ko-KR")}</p>
+                          )}
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs shrink-0" onClick={() => setEditingConsultId(c.id)}>
+                          <Edit2 className="h-3 w-3 mr-1" /> 수정
+                        </Button>
                       </div>
-                      <p className="text-sm whitespace-pre-wrap">{c.content ?? "(내용 없음)"}</p>
-                      {c.nextContactAt && (
-                        <p className="text-xs text-primary mt-2">재상담 예정: {new Date(c.nextContactAt).toLocaleString("ko-KR")}</p>
-                      )}
                     </CardContent>
                   </Card>
                 ))
@@ -222,9 +239,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                       const changedByName = users?.find((u) => u.id === h.changedBy)?.name ?? `#${h.changedBy}`;
                       return (
                         <div key={h.id} className="flex items-center gap-3 p-3 text-sm">
-                          <div className="text-xs text-muted-foreground w-32 shrink-0">
-                            {new Date(h.createdAt).toLocaleString("ko-KR")}
-                          </div>
+                          <div className="text-xs text-muted-foreground w-32 shrink-0">{new Date(h.createdAt).toLocaleString("ko-KR")}</div>
                           <div className="flex items-center gap-2 flex-1">
                             {h.previousStatus && <StatusBadge status={h.previousStatus} />}
                             <span className="text-muted-foreground">→</span>
@@ -252,14 +267,10 @@ export default function CustomerDetail({ id }: { id: number }) {
                       const changedByName = users?.find((u) => u.id === l.changedBy)?.name ?? `#${l.changedBy}`;
                       return (
                         <div key={l.id} className="flex items-center gap-3 p-3 text-sm">
-                          <div className="text-xs text-muted-foreground w-32 shrink-0">
-                            {new Date(l.createdAt).toLocaleString("ko-KR")}
-                          </div>
+                          <div className="text-xs text-muted-foreground w-32 shrink-0">{new Date(l.createdAt).toLocaleString("ko-KR")}</div>
                           <div className="flex-1">
                             <span className="font-medium">{l.consentType === "privacy" ? "개인정보 동의" : "마케팅 수신 동의"}</span>
-                            <span className="text-muted-foreground ml-2">
-                              {l.previousValue ? "동의" : "미동의"} → {l.newValue ? "동의" : "미동의"}
-                            </span>
+                            <span className="text-muted-foreground ml-2">{l.previousValue ? "동의" : "미동의"} → {l.newValue ? "동의" : "미동의"}</span>
                           </div>
                           <div className="text-xs text-muted-foreground">{changedByName}</div>
                         </div>
@@ -273,7 +284,17 @@ export default function CustomerDetail({ id }: { id: number }) {
         </Tabs>
       </div>
 
-      {/* 상담기록 모달 */}
+      {/* 고객 정보 수정 모달 */}
+      {showEditModal && (
+        <EditCustomerModal
+          customer={customer}
+          onClose={() => setShowEditModal(false)}
+          onSubmit={(data) => updateMutation.mutate({ id, ...data })}
+          loading={updateMutation.isPending}
+        />
+      )}
+
+      {/* 상담기록 추가 모달 */}
       <ConsultModal
         open={showConsultModal}
         onClose={() => setShowConsultModal(false)}
@@ -281,6 +302,16 @@ export default function CustomerDetail({ id }: { id: number }) {
         loading={createConsultMutation.isPending}
         currentStatus={customer.consultStatus}
       />
+
+      {/* 상담기록 수정 모달 */}
+      {editingConsultId && editingConsult && (
+        <EditConsultModal
+          consult={editingConsult}
+          onClose={() => setEditingConsultId(null)}
+          onSubmit={(data) => updateConsultMutation.mutate({ id: editingConsultId, ...data })}
+          loading={updateConsultMutation.isPending}
+        />
+      )}
 
       {/* 계약 등록 모달 */}
       <ContractModal
@@ -314,6 +345,85 @@ export default function CustomerDetail({ id }: { id: number }) {
   );
 }
 
+// ─── 고객 정보 수정 모달 ──────────────────────────────────────────────────────
+function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
+  customer: any; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
+}) {
+  const [form, setForm] = useState({
+    name: customer.name ?? "",
+    phone: customer.phone ?? "",
+    birthDate: customer.birthDate ? new Date(customer.birthDate).toISOString().split("T")[0] : "",
+    gender: customer.gender ?? "none",
+    region: customer.region ?? "",
+    expectedPremium: customer.expectedPremium ? String(customer.expectedPremium) : "",
+    availableTime: customer.availableTime ?? "",
+    source: customer.source ?? "",
+    memo: customer.memo ?? "",
+    privacyConsent: customer.privacyConsent ?? false,
+    marketingConsent: customer.marketingConsent ?? false,
+  });
+
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>고객 정보 수정</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label className="text-xs">이름 *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">연락처</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">생년월일</Label><Input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} className="h-8 mt-1" /></div>
+            <div>
+              <Label className="text-xs">성별</Label>
+              <Select value={form.gender} onValueChange={(v) => setForm({ ...form, gender: v })}>
+                <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">선택 안함</SelectItem>
+                  <SelectItem value="male">남성</SelectItem>
+                  <SelectItem value="female">여성</SelectItem>
+                  <SelectItem value="other">기타</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs">지역</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">예상보험료 (원)</Label><Input type="number" value={form.expectedPremium} onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">유입경로</Label><Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" /></div>
+          </div>
+          <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
+          <div className="flex gap-4 text-sm">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.privacyConsent} onChange={(e) => setForm({ ...form, privacyConsent: e.target.checked })} />
+              개인정보 동의
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" checked={form.marketingConsent} onChange={(e) => setForm({ ...form, marketingConsent: e.target.checked })} />
+              마케팅 수신 동의
+            </label>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
+            <Button size="sm" disabled={loading || !form.name} onClick={() => onSubmit({
+              name: form.name, phone: form.phone || undefined,
+              birthDate: form.birthDate || undefined,
+              gender: form.gender === "none" ? undefined : form.gender as any,
+              region: form.region || undefined,
+              expectedPremium: form.expectedPremium ? Number(form.expectedPremium) : undefined,
+              availableTime: form.availableTime || undefined,
+              source: form.source || undefined,
+              memo: form.memo || undefined,
+              privacyConsent: form.privacyConsent,
+              marketingConsent: form.marketingConsent,
+            })}>
+              {loading ? "저장 중..." : "저장"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── 상담기록 추가 모달 ───────────────────────────────────────────────────────
 function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
   open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean; currentStatus: string;
 }) {
@@ -348,6 +458,48 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
   );
 }
 
+// ─── 상담기록 수정 모달 ───────────────────────────────────────────────────────
+function EditConsultModal({ consult, onClose, onSubmit, loading }: {
+  consult: any; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
+}) {
+  const [form, setForm] = useState({
+    status: consult.status,
+    content: consult.content ?? "",
+    nextContactAt: consult.nextContactAt ? new Date(consult.nextContactAt).toISOString().slice(0, 16) : "",
+  });
+  return (
+    <Dialog open={true} onOpenChange={onClose}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>상담기록 수정</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <Label className="text-xs">상담상태</Label>
+            <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>{CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">상담내용</Label>
+            <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24" />
+          </div>
+          <div>
+            <Label className="text-xs">재상담 예정일</Label>
+            <Input type="datetime-local" value={form.nextContactAt} onChange={(e) => setForm({ ...form, nextContactAt: e.target.value })} className="h-9 mt-1" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
+            <Button size="sm" disabled={loading} onClick={() => onSubmit({ status: form.status, content: form.content || undefined, nextContactAt: form.nextContactAt || null })}>
+              {loading ? "저장 중..." : "수정 저장"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── 계약 등록 모달 ───────────────────────────────────────────────────────────
 function ContractModal({ open, onClose, onSubmit, loading }: {
   open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
 }) {

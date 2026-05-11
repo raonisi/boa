@@ -224,6 +224,7 @@ export const notifications = mysqlTable("notifications", {
   relatedId: int("relatedId"),
   dueAt: timestamp("dueAt"),
   isRead: boolean("isRead").default(false).notNull(),
+  processStatus: mysqlEnum("processStatus", ["미확인", "확인", "처리완료", "보류"]).default("미확인").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 },
 (table) => ({
@@ -235,6 +236,34 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+// ─── Assignment History (배정 이력) ─────────────────────────────────────────────
+export const assignmentHistory = mysqlTable("assignment_history", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  previousAgentId: int("previousAgentId"),
+  newAgentId: int("newAgentId").notNull(),
+  assignedBy: int("assignedBy").notNull(),
+  reason: varchar("reason", { length: 200 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AssignmentHistory = typeof assignmentHistory.$inferSelect;
+export type InsertAssignmentHistory = typeof assignmentHistory.$inferInsert;
+
+// ─── Contract History (계약 변경 이력) ────────────────────────────────────────
+export const contractHistory = mysqlTable("contract_history", {
+  id: int("id").autoincrement().primaryKey(),
+  contractId: int("contractId").notNull(),
+  changedBy: int("changedBy").notNull(),
+  fieldName: varchar("fieldName", { length: 100 }).notNull(),
+  beforeValue: text("beforeValue"),
+  afterValue: text("afterValue"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContractHistory = typeof contractHistory.$inferSelect;
+export type InsertContractHistory = typeof contractHistory.$inferInsert;
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────
 export const activityLogs = mysqlTable("activity_logs", {

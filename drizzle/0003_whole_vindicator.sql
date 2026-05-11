@@ -1,0 +1,1 @@
+ALTER TABLE `notifications` ADD `processStatus` enum('미확인','확인','처리완료','보류') DEFAULT '미확인' NOT NULL;
