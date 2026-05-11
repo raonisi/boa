@@ -200,3 +200,13 @@
 - [x] updateTeam 로그 보강 (before/after 구조, 부지점장 변경 시 USER_MOVED_TO_ANOTHER_SUB_BRANCH 자동 추가)
 - [x] users 테이블 phone/memo 컨럼 추가 + users.create 라우터 확장 + CreateUserModal 연락처·메모 추가 + 민감정보 안내 문구
 - [x] 이메일 중복 처리 보강 (getAllUsersByEmail, OAuth 매핑 2개 이상 차단 + USER_OAUTH_LINK_CONFLICT 로그, unique constraint 적용 완료)
+
+## 9차 수정 작업 (v7 검수 기반)
+
+### 높은 우선순위 2건
+- [x] 알림 서버 사이드 필터 (모든 권한별 범위에 processStatus/isRead/type/limit/offset 적용 + totalCount/hasMore 페이지네이션 + markAllRead 확인 모달)
+- [x] 신규 사용자 추가 모달 accountStatus 선택 UI 추가 (active/inactive, 기본값 active)
+
+### 중간 우선순위 2건
+- [x] getUserByEmail trim 추가 (email.trim().toLowerCase())
+- [x] USER_ROLE_CHANGED, TEAM_LEADER_ASSIGNED 로그 before/after 보강 (previousRole/newRole, previousTeamLeaderId/newTeamLeaderId)

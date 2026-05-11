@@ -336,6 +336,16 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="h-9 mt-1" placeholder="010-0000-0000" maxLength={20} />
           </div>
           <div>
+            <Label className="text-xs">계정 상태</Label>
+            <Select value={form.accountStatus} onValueChange={(v) => setForm({ ...form, accountStatus: v as any })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">재직 (active)</SelectItem>
+                <SelectItem value="inactive">비활성 (inactive)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
             <Label className="text-xs">역할</Label>
             <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as any, teamId: "none", subBranchAdminId: "none" })}>
               <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>

@@ -67,6 +67,7 @@ import {
   createUser,
   linkUserOpenId,
   getAllNotifications,
+  getNotificationsFiltered,
 } from "./db";
 import {
   cancelPendingNotifications,
@@ -167,8 +168,11 @@ export const appRouter = router({
     updateRole: branchAdminProcedure
       .input(z.object({ userId: z.number(), role: z.enum(["branch_admin", "sub_branch_admin", "team_leader", "member"]) }))
       .mutation(async ({ ctx, input }) => {
+        const existingForRole = await getUserById(input.userId);
+        const previousRole = existingForRole?.role ?? null;
         await updateUserRole(input.userId, input.role);
-        await log(ctx.user.id, "USER_ROLE_CHANGED", "user", input.userId, `role=${input.role}`);
+        await log(ctx.user.id, "USER_ROLE_CHANGED", "user", input.userId,
+          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousRole, newRole: input.role, beforeValue: { role: previousRole }, afterValue: { role: input.role } }));
         return { success: true };
       }),
 
@@ -311,7 +315,9 @@ export const appRouter = router({
         if (data.isActive === false) {
           await log(ctx.user.id, "TEAM_DEACTIVATED", "team", id);
         } else if (data.managerId !== undefined) {
-          await log(ctx.user.id, "TEAM_LEADER_ASSIGNED", "team", id, `managerId=${data.managerId}`);
+          const previousManagerId = existing?.managerId ?? null;
+          await log(ctx.user.id, "TEAM_LEADER_ASSIGNED", "team", id,
+            JSON.stringify({ actor: ctx.user.id, teamId: id, previousTeamLeaderId: previousManagerId, newTeamLeaderId: data.managerId, beforeValue: { managerId: previousManagerId }, afterValue: { managerId: data.managerId } }));
         } else {
           await log(ctx.user.id, "TEAM_UPDATED", "team", id, JSON.stringify({ before: existing, after: data }));
         }
@@ -863,25 +869,42 @@ export const appRouter = router({
 
   // ── Notifications ─────────────────────────────────────────────────────────
   notifications: router({
-    list: activeUserProcedure.query(async ({ ctx }) => {
-      const user = ctx.user;
-      // branch_admin: 전체 알림 조회 (limit 500, 기존 필터 구조 유지)
-      if (user.role === "branch_admin") return getAllNotifications(500);
-      // sub_branch_admin: 본인 + 산하 팀원 알림
-      if (user.role === "sub_branch_admin") {
-        const subordinates = await getUsersBySubBranchAdminId(user.id);
-        const extraIds = subordinates.map((u) => u.id).filter((id) => id !== user.id);
-        return getNotifications(user.id, extraIds);
-      }
-      // team_leader: 본인 + 본인 팀원 알림
-      if (user.role === "team_leader" && user.teamId) {
-        const teamMembers = await getUsersByTeamId(user.teamId);
-        const extraIds = teamMembers.map((u) => u.id).filter((id) => id !== user.id);
-        return getNotifications(user.id, extraIds);
-      }
-      // member: 본인 알림만
-      return getNotifications(user.id);
-    }),
+    list: activeUserProcedure
+      .input(z.object({
+        processStatus: z.string().optional(),
+        isRead: z.boolean().optional(),
+        type: z.string().optional(),
+        limit: z.number().min(1).max(200).default(50),
+        offset: z.number().min(0).default(0),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const user = ctx.user;
+        const filter = {
+          processStatus: input?.processStatus,
+          isRead: input?.isRead,
+          type: input?.type,
+          limit: input?.limit ?? 50,
+          offset: input?.offset ?? 0,
+        };
+        // branch_admin: 전체 알림 (userIds 제한 없음)
+        if (user.role === "branch_admin") {
+          return getNotificationsFiltered({ ...filter });
+        }
+        // sub_branch_admin: 본인 + 산하 팀원 알림
+        if (user.role === "sub_branch_admin") {
+          const subordinates = await getUsersBySubBranchAdminId(user.id);
+          const userIds = [user.id, ...subordinates.map((u) => u.id)];
+          return getNotificationsFiltered({ ...filter, userIds });
+        }
+        // team_leader: 본인 + 본인 팀원 알림
+        if (user.role === "team_leader" && user.teamId) {
+          const teamMembers = await getUsersByTeamId(user.teamId);
+          const userIds = [user.id, ...teamMembers.map((u) => u.id)];
+          return getNotificationsFiltered({ ...filter, userIds });
+        }
+        // member: 본인 알림만
+        return getNotificationsFiltered({ ...filter, userIds: [user.id] });
+      }),
     unreadCount: activeUserProcedure.query(async ({ ctx }) => getUnreadCount(ctx.user.id)),
     markRead: activeUserProcedure
       .input(z.object({ id: z.number() }))

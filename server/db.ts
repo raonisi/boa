@@ -79,7 +79,7 @@ export async function upsertUser(user: typeof users.$inferInsert): Promise<void>
 export async function getUserByEmail(email: string) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+  const result = await db.select().from(users).where(eq(users.email, email.trim().toLowerCase())).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
@@ -500,6 +500,39 @@ export async function getAllNotifications(limit = 500) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(limit);
+}
+
+export async function getNotificationsFiltered(filter: {
+  userIds?: number[]; // null이면 전체 조회 (branch_admin)
+  processStatus?: string;
+  isRead?: boolean;
+  type?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { items: [], totalCount: 0, hasMore: false };
+  const limit = filter.limit ?? 50;
+  const offset = filter.offset ?? 0;
+  const conditions: any[] = [];
+  // 권한별 userId 범위 (null이면 전체)
+  if (filter.userIds !== undefined && filter.userIds.length > 0) {
+    conditions.push(or(...filter.userIds.map((id) => eq(notifications.userId, id))));
+  }
+  if (filter.processStatus) conditions.push(eq(notifications.processStatus, filter.processStatus as any));
+  if (filter.isRead !== undefined) conditions.push(eq(notifications.isRead, filter.isRead));
+  if (filter.type) conditions.push(eq(notifications.type, filter.type as any));
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+  const [items, countResult] = await Promise.all([
+    whereClause
+      ? db.select().from(notifications).where(whereClause).orderBy(desc(notifications.createdAt)).limit(limit).offset(offset)
+      : db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(limit).offset(offset),
+    whereClause
+      ? db.select({ count: sql<number>`COUNT(*)` }).from(notifications).where(whereClause)
+      : db.select({ count: sql<number>`COUNT(*)` }).from(notifications),
+  ]);
+  const totalCount = Number(countResult[0]?.count ?? 0);
+  return { items, totalCount, hasMore: offset + limit < totalCount };
 }
 
 export async function getAllUsersByEmail(email: string) {

@@ -53,13 +53,14 @@ function SubBranchAdminDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { data: stats } = trpc.performance.stats.useQuery();
-  const { data: notifications } = trpc.notifications.list.useQuery();
+  const { data: notifResult } = trpc.notifications.list.useQuery({});
+  const notifications = notifResult?.items ?? [];
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: customers } = trpc.customers.list.useQuery({});
   const { data: allUsers } = trpc.users.list.useQuery();
 
   const today = new Date();
-  const unreadNotifs = (notifications ?? []).filter((n) => !n.isRead);
+  const unreadNotifs = notifications.filter((n: any) => !n.isRead);
   const todaySchedules = (schedules ?? []).filter((s) => new Date(s.startTime).toDateString() === today.toDateString());
   const allDb = customers ?? [];
   const assignedToSubBranch = allDb.filter((c) => (c as any).assignmentStatus === "assigned_to_sub_branch");
@@ -129,11 +130,12 @@ export default function Dashboard() {
 
   const [, setLocation] = useLocation();
   const { data: stats } = trpc.performance.stats.useQuery();
-  const { data: notifications } = trpc.notifications.list.useQuery();
+  const { data: notifResult } = trpc.notifications.list.useQuery({});
+  const notifications = notifResult?.items ?? [];
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: customers } = trpc.customers.list.useQuery({});
 
-  const unreadNotifs = notifications?.filter((n) => !n.isRead) ?? [];
+  const unreadNotifs = notifications.filter((n: any) => !n.isRead);
   const todaySchedules = schedules?.filter((s) => {
     const d = new Date(s.startTime);
     const today = new Date();
