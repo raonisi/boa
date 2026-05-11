@@ -1,3 +1,4 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,7 +35,15 @@ const processStatusColors: Record<string, string> = {
 type ProcessStatus = "미확인" | "확인" | "처리완료" | "보류";
 type FilterType = "전체" | ProcessStatus;
 
+const titleMap: Record<string, string> = {
+  branch_admin: "알림센터",
+  sub_branch_admin: "본인 산하 알림 관리",
+  team_leader: "본인 팀 알림 관리",
+  member: "내 알림",
+};
+
 export default function Notifications() {
+  const { user } = useAuth();
   const utils = trpc.useUtils();
   const [filter, setFilter] = useState<FilterType>("전체");
   const { data: notifications } = trpc.notifications.list.useQuery();
@@ -69,7 +78,7 @@ export default function Notifications() {
       <div className="space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="text-2xl font-bold">알림센터</h1>
+            <h1 className="text-2xl font-bold">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
             <p className="text-sm text-muted-foreground mt-0.5">미읽은 알림 {unreadCount}개</p>
           </div>
           <div className="flex items-center gap-2">

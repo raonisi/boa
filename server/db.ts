@@ -76,6 +76,45 @@ export async function upsertUser(user: typeof users.$inferInsert): Promise<void>
   await db.insert(users).values(values).onDuplicateKeyUpdate({ set: updateSet });
 }
 
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function createUser(data: {
+  name: string;
+  email: string;
+  role: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+  accountStatus?: "active" | "inactive" | "resigned";
+  loginStatus?: "invited" | "linked";
+  teamId?: number | null;
+  subBranchAdminId?: number | null;
+}) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(users).values({
+    openId: `invited_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+    name: data.name,
+    email: data.email.toLowerCase(),
+    role: data.role,
+    accountStatus: data.accountStatus ?? "active",
+    loginStatus: data.loginStatus ?? "invited",
+    teamId: data.teamId ?? null,
+    subBranchAdminId: data.subBranchAdminId ?? null,
+    lastSignedIn: new Date(),
+  });
+  const newUser = await db.select().from(users).where(eq(users.email, data.email.toLowerCase())).limit(1);
+  return newUser[0] ?? null;
+}
+
+export async function linkUserOpenId(userId: number, openId: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ openId, loginStatus: "linked", lastSignedIn: new Date() }).where(eq(users.id, userId));
+}
+
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
@@ -441,10 +480,30 @@ export async function completeSchedule(id: number) {
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
-export async function getNotifications(userId: number) {
+export async function getNotifications(userId: number, extraUserIds?: number[]) {
   const db = await getDb();
   if (!db) return [];
+  if (extraUserIds && extraUserIds.length > 0) {
+    const allIds = [userId, ...extraUserIds];
+    return db.select().from(notifications)
+      .where(or(...allIds.map((id) => eq(notifications.userId, id))))
+      .orderBy(desc(notifications.createdAt)).limit(200);
+  }
   return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(100);
+}
+
+export async function getUsersBySubBranchAdminId(subBranchAdminId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ id: users.id }).from(users)
+    .where(and(eq(users.subBranchAdminId, subBranchAdminId), eq(users.accountStatus, "active")));
+}
+
+export async function getUsersByTeamId(teamId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({ id: users.id }).from(users)
+    .where(and(eq(users.teamId, teamId), eq(users.accountStatus, "active")));
 }
 
 export async function getUnreadCount(userId: number) {

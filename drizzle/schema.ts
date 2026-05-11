@@ -19,6 +19,7 @@ export const users = mysqlTable("users", {
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["branch_admin", "sub_branch_admin", "team_leader", "member"]).default("member").notNull(),
   accountStatus: mysqlEnum("accountStatus", ["active", "inactive", "resigned"]).default("active").notNull(),
+  loginStatus: mysqlEnum("loginStatus", ["invited", "linked"]).default("linked"),
   teamId: int("teamId"),
   subBranchAdminId: int("subBranchAdminId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

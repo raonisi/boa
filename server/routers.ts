@@ -60,6 +60,11 @@ import {
   createSetting,
   toggleSetting,
   updateSetting,
+  getUsersBySubBranchAdminId,
+  getUsersByTeamId,
+  getUserByEmail,
+  createUser,
+  linkUserOpenId,
 } from "./db";
 import {
   cancelPendingNotifications,
@@ -165,6 +170,44 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    create: branchAdminProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        role: z.enum(["branch_admin", "sub_branch_admin", "team_leader", "member"]),
+        accountStatus: z.enum(["active", "inactive", "resigned"]).default("active"),
+        teamId: z.number().nullable().optional(),
+        subBranchAdminId: z.number().nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // 조건 2: 이메일 중복 검증
+        const existing = await getUserByEmail(input.email);
+        if (existing) throw new TRPCError({ code: "BAD_REQUEST", message: "이미 등록된 이메일입니다." });
+        // 조건 4: 역할별 조직 정합성 검증
+        let resolvedSubBranchAdminId = input.subBranchAdminId ?? null;
+        const resolvedTeamId = input.teamId ?? null;
+        if (resolvedTeamId) {
+          const team = await getTeamById(resolvedTeamId);
+          if (team) resolvedSubBranchAdminId = (team as any).subBranchAdminId ?? null;
+        }
+        if (["branch_admin", "sub_branch_admin"].includes(input.role)) {
+          resolvedSubBranchAdminId = null;
+        }
+        const newUser = await createUser({
+          name: input.name,
+          email: input.email,
+          role: input.role,
+          accountStatus: input.accountStatus,
+          loginStatus: "invited",
+          teamId: resolvedTeamId,
+          subBranchAdminId: resolvedSubBranchAdminId,
+        });
+        if (!newUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "사용자 생성에 실패했습니다." });
+        await log(ctx.user.id, "USER_CREATED", "user", newUser.id,
+          JSON.stringify({ actor: ctx.user.id, targetUserId: newUser.id, role: input.role, accountStatus: input.accountStatus, subBranchAdminId: resolvedSubBranchAdminId, teamId: resolvedTeamId, email: input.email }));
+        return { success: true, userId: newUser.id };
+      }),
+
     updateAccountStatus: branchAdminProcedure
       .input(z.object({ userId: z.number(), accountStatus: z.enum(["active", "inactive", "resigned"]) }))
       .mutation(async ({ ctx, input }) => {
@@ -191,12 +234,23 @@ export const appRouter = router({
     updateSubBranchAdmin: branchAdminProcedure
       .input(z.object({ userId: z.number(), subBranchAdminId: z.number().nullable() }))
       .mutation(async ({ ctx, input }) => {
+        // 조건 6: 서버 레벨 불일치 차단 - teamId가 있으면 해당 팀의 subBranchAdminId와 일치 확인
+        const existingUser = await getUserById(input.userId); // 수정 전 먼저 조회 (before 값 정확성)
+        if (existingUser?.teamId && input.subBranchAdminId !== null) {
+          const team = await getTeamById(existingUser.teamId);
+          if (team && (team as any).subBranchAdminId !== null && (team as any).subBranchAdminId !== input.subBranchAdminId) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "사용자의 소속 팀과 부지점장 산하 정보가 일치하지 않습니다. 팀 이동과 함께 처리해야 합니다."
+            });
+          }
+        }
+        const previousSubBranchAdminId = existingUser?.subBranchAdminId ?? null;
         await updateUserSubBranchAdmin(input.userId, input.subBranchAdminId);
-        const existingUser = await getUserById(input.userId);
         await log(ctx.user.id, "SUB_BRANCH_ADMIN_ASSIGNED", "user", input.userId,
-          JSON.stringify({ before: { subBranchAdminId: existingUser?.subBranchAdminId }, after: { subBranchAdminId: input.subBranchAdminId } }));
+          JSON.stringify({ before: { subBranchAdminId: previousSubBranchAdminId }, after: { subBranchAdminId: input.subBranchAdminId } }));
         await log(ctx.user.id, "USER_MOVED_TO_ANOTHER_SUB_BRANCH", "user", input.userId,
-          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousSubBranchAdminId: existingUser?.subBranchAdminId, newSubBranchAdminId: input.subBranchAdminId }));
+          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousSubBranchAdminId, newSubBranchAdminId: input.subBranchAdminId }));
         return { success: true };
       }),
 
@@ -375,6 +429,8 @@ export const appRouter = router({
         });
         await log(ctx.user.id, "DB_ASSIGNED_TO_SUB_BRANCH_ADMIN", "customer", input.customerId, `subBranchAdminId=${input.subBranchAdminId}`);
         await log(ctx.user.id, "ASSIGNMENT_HISTORY_CREATED", "customer", input.customerId);
+        await log(ctx.user.id, "CUSTOMER_TRANSFERRED", "customer", input.customerId,
+          JSON.stringify({ actor: ctx.user.id, customerId: input.customerId, previousSubBranchAdminId: customer.subBranchAdminId ?? null, newSubBranchAdminId: input.subBranchAdminId, previousAgentId: customer.agentId ?? null, newAgentId: null, assignmentStatusBefore: customer.assignmentStatus, assignmentStatusAfter: "assigned_to_sub_branch" }));
         return { success: true };
       }),
 
@@ -777,7 +833,25 @@ export const appRouter = router({
 
   // ── Notifications ─────────────────────────────────────────────────────────
   notifications: router({
-    list: activeUserProcedure.query(async ({ ctx }) => getNotifications(ctx.user.id)),
+    list: activeUserProcedure.query(async ({ ctx }) => {
+      const user = ctx.user;
+      // branch_admin: 전체 알림 (userId 기반 본인 알림만 - 전체 알림은 관리자 로그에서 확인)
+      if (user.role === "branch_admin") return getNotifications(user.id);
+      // sub_branch_admin: 본인 + 산하 팀원 알림
+      if (user.role === "sub_branch_admin") {
+        const subordinates = await getUsersBySubBranchAdminId(user.id);
+        const extraIds = subordinates.map((u) => u.id).filter((id) => id !== user.id);
+        return getNotifications(user.id, extraIds);
+      }
+      // team_leader: 본인 + 본인 팀원 알림
+      if (user.role === "team_leader" && user.teamId) {
+        const teamMembers = await getUsersByTeamId(user.teamId);
+        const extraIds = teamMembers.map((u) => u.id).filter((id) => id !== user.id);
+        return getNotifications(user.id, extraIds);
+      }
+      // member: 본인 알림만
+      return getNotifications(user.id);
+    }),
     unreadCount: activeUserProcedure.query(async ({ ctx }) => getUnreadCount(ctx.user.id)),
     markRead: activeUserProcedure
       .input(z.object({ id: z.number() }))

@@ -1,0 +1,18 @@
+{
+  "query": "-- 1. users.teamId가 있는데 users.subBranchAdminId와 teams.subBranchAdminId가 다른 경우\nSELECT u.id, u.name, u.role, u.teamId, u.subBranchAdminId as user_subBranchAdminId,\n       t.subBranchAdminId as team_subBranchAdminId, t.name as team_name\nFROM users u\nJOIN teams t ON u.teamId = t.id\nWHERE u.subBranchAdminId != t.subBranchAdminId\n   OR (u.subBranchAdminId IS NULL AND t.subBranchAdminId IS NOT NULL)\n   OR (u.subBranchAdminId IS NOT NULL AND t.subBranchAdminId IS NULL);\n\n-- 2. team_leader/member인데 subBranchAdminId가 null인 경우\nSELECT id, name, role, teamId, subBranchAdminId, accountStatus FROM users\nWHERE role IN ('team_leader', 'member') AND subBranchAdminId IS NULL;\n\n-- 3. member인데 teamId가 null인 경우\nSELECT id, name, role, teamId, subBranchAdminId, accountStatus FROM users\nWHERE role = 'member' AND teamId IS NULL;\n\n-- 4. 전체 사용자 현황\nSELECT id, name, role, accountStatus, teamId, subBranchAdminId FROM users ORDER BY role, id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway06.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 219b9ABc6rHRdDP.root --database bXcB7zzm8DHKYgRuKh5irn --execute -- 1. users.teamId가 있는데 users.subBranchAdminId와 teams.subBranchAdminId가 다른 경우\nSELECT u.id, u.name, u.role, u.teamId, u.subBranchAdminId as user_subBranchAdminId,\n       t.subBranchAdminId as team_subBranchAdminId, t.name as team_name\nFROM users u\nJOIN teams t ON u.teamId = t.id\nWHERE u.subBranchAdminId != t.subBranchAdminId\n   OR (u.subBranchAdminId IS NULL AND t.subBranchAdminId IS NOT NULL)\n   OR (u.subBranchAdminId IS NOT NULL AND t.subBranchAdminId IS NULL);\n\n-- 2. team_leader/member인데 subBranchAdminId가 null인 경우\nSELECT id, name, role, teamId, subBranchAdminId, accountStatus FROM users\nWHERE role IN ('team_leader', 'member') AND subBranchAdminId IS NULL;\n\n-- 3. member인데 teamId가 null인 경우\nSELECT id, name, role, teamId, subBranchAdminId, accountStatus FROM users\nWHERE role = 'member' AND teamId IS NULL;\n\n-- 4. 전체 사용자 현황\nSELECT id, name, role, accountStatus, teamId, subBranchAdminId FROM users ORDER BY role, id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "도현 이",
+      "role": "branch_admin",
+      "accountStatus": "active",
+      "teamId": "NULL",
+      "subBranchAdminId": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\trole\taccountStatus\tteamId\tsubBranchAdminId\n1\t도현 이\tbranch_admin\tactive\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 2639
+}

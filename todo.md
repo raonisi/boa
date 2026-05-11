@@ -169,3 +169,24 @@
 - [x] 로그 보완 (CUSTOMER_REASSIGNED, USER_MOVED_TO_ANOTHER_SUB_BRANCH, USER_MOVED_TO_ANOTHER_TEAM, MEMBER_ASSIGNED_TO_TEAM)
 - [x] 부지점장 전용 화면 권한 범위 문구 추가 (고객관리, 계약관리 상단)
 - [x] 불일치 방지 (팀 이동 시 users.subBranchAdminId 자동 동기화, 부지점장 변경 시 팀 해제 후 처리)
+
+## 7차 수정 작업 (v5 검수 기반)
+
+### 사전 점검
+- [x] 기존 데이터 불일치 점검 (사용자 1명, 불일치 없음)
+
+### 치명 문제 1건
+- [x] 부지점장 알림센터 권한 범위 수정 (산하 팀원 알림 포함 + 팀장 팀원 포함)
+
+### 높은 우선순위 3건
+- [x] USER_MOVED_TO_ANOTHER_SUB_BRANCH 로그 before 값 버그 수정 (수정 전 먼저 조회 + 서버 레벨 불일치 차단 추가)
+- [x] CUSTOMER_TRANSFERRED 로그 추가 (assignToSubBranch 시 before/after 포함)
+- [x] 서버 레벨 불일치 저장 차단 (users.updateSubBranchAdmin BAD_REQUEST)
+
+### 신규 사용자 추가 기능
+- [x] users 테이블에 사전 등록 + OAuth 이메일 매핑 (invited_ 프리픽스 openId 방식)
+- [x] UserManagement 사용자 추가 버튼 + 모달 (이름/이메일/역할/팀/부지점장 입력)
+- [x] users.create 라우터 (branchAdminProcedure + 이메일 중복 검증 + 조직 정합성 검증)
+- [x] loginStatus 컨럼 추가 (invited/linked)
+- [x] 이메일 중복 검증
+- [x] USER_CREATED 로그
