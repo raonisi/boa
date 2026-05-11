@@ -138,3 +138,20 @@
 - [ ] 모바일 미완료 일정 섹션
 - [ ] 설정 화면 (지점장 전용)
 - [ ] 실적 상품군·보험사·지역·유입경로 필터
+
+## 5차 수정 작업 (v3 검수 기반)
+
+### 치명적 문제 4건
+- [x] 지점장→부지점장 DB 배분 UI (CustomerAssign.tsx 탭 추가)
+- [x] 부지점장 전용 DB 배정 UI (/customers/assign SubBranchAdminOrAboveGuard)
+- [x] CustomerDetail 배정 이력 탭 추가
+- [x] 부지점장 전용 대시보드 분기 (Dashboard.tsx)
+
+### 높은 우선순위 7건
+- [x] 데이터 다운로드 (Download.tsx + branchAdminProcedure + DATA_DOWNLOAD 로그)
+- [x] 설정 화면 (Settings.tsx + DB 저장 구조 + settings 테이블)
+- [x] 실적 필터 확장 (상품군·보험사·지역·유입경로 UI + DB 쿼리)
+- [x] 계약 비활성 처리 UI (ContractList.tsx 비활성 버튼 + 확인 모달)
+- [x] DB 배정 로그 분리 (DB_ASSIGNED_BY_BRANCH_ADMIN, DB_ASSIGNED_BY_SUB_BRANCH_ADMIN, ASSIGNMENT_HISTORY_CREATED)
+- [x] 모바일 미완료 일정 섹션 (Calendar.tsx 모바일 뷰)
+- [x] 고객 목록 배정일 날짜 범위 필터 (CustomerList.tsx + DB 쿼리)

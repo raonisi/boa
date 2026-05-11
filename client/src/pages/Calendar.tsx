@@ -77,9 +77,14 @@ export default function Calendar() {
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  // 모바일: 오늘 일정 + 이번 주 일정
+  // 모바일: 오늘 일정 + 이번 주 일정 + 미완료 일정
   const today = new Date();
   const todaySchedules = getSchedulesForDay(today);
+  const incompleteSchedules = (schedules ?? []).filter((s) => {
+    if (s.status !== "예정" && s.status !== "보류") return false;
+    if (!s.endTime) return false;
+    return new Date(s.endTime) < today;
+  });
   const thisWeekSchedules = (schedules ?? []).filter((s) => {
     const d = new Date(s.startTime);
     const wStart = startOfWeek(today, { weekStartsOn: 1 });
@@ -123,6 +128,27 @@ export default function Calendar() {
               )}
             </CardContent>
           </Card>
+
+          {/* 미완료 일정 */}
+          {incompleteSchedules.length > 0 && (
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-orange-700">⚠️ 미완료 일정 ({incompleteSchedules.length})</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {incompleteSchedules.map((s) => (
+                  <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-white cursor-pointer hover:bg-orange-50" onClick={() => setSelectedSchedule(s)}>
+                    <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="text-xs text-orange-600">종료: {s.endTime ? format(new Date(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
+                    </div>
+                    <span className="text-xs text-orange-600 font-medium">{s.status}</span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           {/* 이번 주 일정 */}
           <Card>

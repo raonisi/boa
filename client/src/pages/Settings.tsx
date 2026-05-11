@@ -1,0 +1,139 @@
+import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { trpc } from "@/lib/trpc";
+import { Plus, Settings as SettingsIcon } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+type SettingCategory =
+  | "productGroup"
+  | "insurer"
+  | "source"
+  | "region"
+  | "consultStatus"
+  | "scheduleType"
+  | "paymentStatus"
+  | "contractStatus";
+
+const categoryLabels: Record<SettingCategory, string> = {
+  productGroup: "상품군",
+  insurer: "보험사",
+  source: "유입경로",
+  region: "지역",
+  consultStatus: "상담상태",
+  scheduleType: "일정유형",
+  paymentStatus: "납입상태",
+  contractStatus: "계약상태",
+};
+
+export default function Settings() {
+  const utils = trpc.useUtils();
+  const [activeTab, setActiveTab] = useState<SettingCategory>("productGroup");
+  const [showAdd, setShowAdd] = useState(false);
+  const [newValue, setNewValue] = useState("");
+
+  const { data: settings } = trpc.settings.list.useQuery({ category: activeTab });
+
+  const createMutation = trpc.settings.create.useMutation({
+    onSuccess: () => { toast.success("항목이 추가되었습니다."); setShowAdd(false); setNewValue(""); utils.settings.list.invalidate(); },
+    onError: () => toast.error("추가에 실패했습니다."),
+  });
+
+  const toggleMutation = trpc.settings.toggle.useMutation({
+    onSuccess: () => { utils.settings.list.invalidate(); },
+    onError: () => toast.error("상태 변경에 실패했습니다."),
+  });
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <SettingsIcon className="h-6 w-6" /> 설정 관리
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">지점장 전용 — 마스터 데이터를 관리합니다.</p>
+          </div>
+          <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4 mr-1" /> 항목 추가
+          </Button>
+        </div>
+
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as SettingCategory)}>
+          <TabsList className="flex-wrap h-auto gap-1">
+            {(Object.keys(categoryLabels) as SettingCategory[]).map((cat) => (
+              <TabsTrigger key={cat} value={cat}>{categoryLabels[cat]}</TabsTrigger>
+            ))}
+          </TabsList>
+
+          {(Object.keys(categoryLabels) as SettingCategory[]).map((cat) => (
+            <TabsContent key={cat} value={cat}>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{categoryLabels[cat]} 목록</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {(settings ?? []).length === 0 ? (
+                    <div className="py-8 text-center text-muted-foreground text-sm">등록된 항목이 없습니다.</div>
+                  ) : (
+                    <div className="divide-y">
+                      {(settings ?? []).map((s) => (
+                        <div key={s.id} className="flex items-center justify-between p-3">
+                          <div className="flex items-center gap-3">
+                            <span className={`h-2 w-2 rounded-full ${s.isActive ? "bg-green-500" : "bg-gray-300"}`} />
+                            <span className={`text-sm ${!s.isActive ? "text-muted-foreground line-through" : ""}`}>{s.value}</span>
+                            {!s.isActive && <span className="text-xs text-muted-foreground">(비활성)</span>}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className={`h-7 text-xs ${s.isActive ? "text-muted-foreground" : "text-green-600"}`}
+                            onClick={() => toggleMutation.mutate({ id: s.id, isActive: !s.isActive })}
+                          >
+                            {s.isActive ? "비활성화" : "활성화"}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
+        </Tabs>
+      </div>
+
+      {/* 항목 추가 모달 */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{categoryLabels[activeTab]} 항목 추가</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label className="text-xs">항목 이름</Label>
+              <Input
+                value={newValue}
+                onChange={(e) => setNewValue(e.target.value)}
+                className="h-9 mt-1"
+                placeholder={`예: ${activeTab === "productGroup" ? "종신보험" : activeTab === "insurer" ? "삼성생명" : "새 항목"}`}
+                onKeyDown={(e) => { if (e.key === "Enter" && newValue) createMutation.mutate({ category: activeTab, value: newValue }); }}
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setShowAdd(false)}>취소</Button>
+              <Button size="sm" disabled={!newValue || createMutation.isPending} onClick={() => createMutation.mutate({ category: activeTab, value: newValue })}>
+                {createMutation.isPending ? "추가 중..." : "추가"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </DashboardLayout>
+  );
+}

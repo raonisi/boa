@@ -1,157 +1,254 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 export default function CustomerAssign() {
-  const [selectedAgent, setSelectedAgent] = useState<string>("");
-  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
-
-  const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true });
-  const { data: users } = trpc.users.list.useQuery();
-  const assignMutation = trpc.customers.assign.useMutation({
-    onSuccess: () => {
-      toast.success("배정이 완료되었습니다.");
-      setSelectedCustomers([]);
-      refetch();
-    },
-    onError: () => toast.error("배정에 실패했습니다."),
-  });
-
-  const agents = users?.filter((u) => u.role === "member" || u.role === "team_leader") ?? [];
-
-  const toggleSelect = (id: number) => {
-    setSelectedCustomers((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  const handleAssign = () => {
-    if (!selectedAgent || selectedCustomers.length === 0) {
-      toast.error("담당자와 고객을 선택하세요.");
-      return;
-    }
-    Promise.all(
-      selectedCustomers.map((cid) =>
-        assignMutation.mutateAsync({ customerId: cid, agentId: Number(selectedAgent) })
-      )
-    ).then(() => {
-      toast.success(`${selectedCustomers.length}명 배정 완료`);
-      setSelectedCustomers([]);
-    });
-  };
+  const { user } = useAuth();
+  const isBranchAdmin = user?.role === "branch_admin";
+  const isSubBranchAdmin = user?.role === "sub_branch_admin";
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">DB 배정</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">미배정 고객 DB를 담당 설계사에게 배정합니다.</p>
-        </div>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">배정 설정</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col sm:flex-row gap-3 items-end">
-              <div className="flex-1">
-                <label className="text-xs text-muted-foreground mb-1 block">담당 설계사 선택</label>
-                <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="담당자를 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {agents.map((a) => (
-                      <SelectItem key={a.id} value={String(a.id)}>
-                        {a.name} ({a.role === "team_leader" ? "팀장" : "팀원"})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button
-                onClick={handleAssign}
-                disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending}
-                className="h-9"
-              >
-                <UserPlus className="h-4 w-4 mr-1" />
-                {selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배정` : "배정하기"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">미배정 고객 목록 ({unassigned?.length ?? 0}명)</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-10">
-                      <input
-                        type="checkbox"
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCustomers(unassigned?.map((c) => c.id) ?? []);
-                          } else {
-                            setSelectedCustomers([]);
-                          }
-                        }}
-                        checked={selectedCustomers.length === (unassigned?.length ?? 0) && selectedCustomers.length > 0}
-                      />
-                    </TableHead>
-                    <TableHead>이름</TableHead>
-                    <TableHead>연락처</TableHead>
-                    <TableHead>지역</TableHead>
-                    <TableHead>유입경로</TableHead>
-                    <TableHead>상담상태</TableHead>
-                    <TableHead>등록일</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(unassigned ?? []).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                        미배정 고객이 없습니다.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    (unassigned ?? []).map((c) => (
-                      <TableRow key={c.id} className={selectedCustomers.includes(c.id) ? "bg-primary/5" : ""}>
-                        <TableCell>
-                          <input
-                            type="checkbox"
-                            checked={selectedCustomers.includes(c.id)}
-                            onChange={() => toggleSelect(c.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{c.name}</TableCell>
-                        <TableCell>{c.phone ?? "-"}</TableCell>
-                        <TableCell>{c.region ?? "-"}</TableCell>
-                        <TableCell>{c.source ?? "-"}</TableCell>
-                        <TableCell><StatusBadge status={c.consultStatus} /></TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {new Date(c.createdAt).toLocaleDateString("ko-KR")}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {isBranchAdmin && <BranchAdminAssign />}
+      {isSubBranchAdmin && <SubBranchAdminAssign />}
     </DashboardLayout>
+  );
+}
+
+// ─── 지점장 화면 ──────────────────────────────────────────────────────────────
+function BranchAdminAssign() {
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">DB 배정 관리</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">고객 DB를 부지점장에게 배분하거나 팀원에게 직접 배정합니다.</p>
+      </div>
+      <Tabs defaultValue="to_agent">
+        <TabsList>
+          <TabsTrigger value="to_agent">
+            <UserPlus className="h-4 w-4 mr-1.5" /> 팀원에게 직접 배정
+          </TabsTrigger>
+          <TabsTrigger value="to_sub_branch">
+            <Users className="h-4 w-4 mr-1.5" /> 부지점장에게 배분
+          </TabsTrigger>
+        </TabsList>
+        <TabsContent value="to_agent" className="mt-4">
+          <AssignToAgent />
+        </TabsContent>
+        <TabsContent value="to_sub_branch" className="mt-4">
+          <AssignToSubBranch />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+// ─── 팀원에게 직접 배정 ───────────────────────────────────────────────────────
+function AssignToAgent() {
+  const utils = trpc.useUtils();
+  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<string>("");
+
+  const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true });
+  const { data: allUsers } = trpc.users.list.useQuery();
+  const agents = (allUsers ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "member"));
+
+  const assignMutation = trpc.customers.assign.useMutation({
+    onSuccess: () => { refetch(); utils.customers.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "배정에 실패했습니다."),
+  });
+
+  const handleAssign = async () => {
+    if (!selectedAgent || selectedCustomers.length === 0) { toast.error("담당자와 고객을 선택하세요."); return; }
+    let count = 0;
+    for (const cid of selectedCustomers) {
+      try { await assignMutation.mutateAsync({ customerId: cid, agentId: Number(selectedAgent) }); count++; } catch {}
+    }
+    toast.success(`${count}명 배정 완료`);
+    setSelectedCustomers([]); setSelectedAgent("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">배정 설정</CardTitle></CardHeader>
+        <CardContent className="flex gap-3 flex-wrap">
+          <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+            <SelectTrigger className="w-48 h-9"><SelectValue placeholder="담당 설계사 선택" /></SelectTrigger>
+            <SelectContent>
+              {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.name} ({a.role === "team_leader" ? "팀장" : "팀원"})</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>
+            <UserPlus className="h-4 w-4 mr-1" />{selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배정` : "배정하기"}
+          </Button>
+        </CardContent>
+      </Card>
+      <CustomerTable customers={unassigned ?? []} selected={selectedCustomers} onToggle={(id) => setSelectedCustomers((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])} onToggleAll={() => setSelectedCustomers(selectedCustomers.length === (unassigned?.length ?? 0) ? [] : (unassigned?.map((c) => c.id) ?? []))} title={`미배정 고객 목록 (${unassigned?.length ?? 0}명)`} />
+    </div>
+  );
+}
+
+// ─── 부지점장에게 배분 (지점장 전용) ─────────────────────────────────────────
+function AssignToSubBranch() {
+  const utils = trpc.useUtils();
+  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
+  const [selectedSubBranchAdmin, setSelectedSubBranchAdmin] = useState<string>("");
+
+  const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true });
+  const { data: allUsers } = trpc.users.list.useQuery();
+  const subBranchAdmins = (allUsers ?? []).filter((u) => u.role === "sub_branch_admin" && (u as any).accountStatus === "active");
+
+  const assignToSubBranchMutation = trpc.customers.assignToSubBranch.useMutation({
+    onSuccess: () => { refetch(); utils.customers.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "배분에 실패했습니다."),
+  });
+
+  const handleAssign = async () => {
+    if (!selectedSubBranchAdmin || selectedCustomers.length === 0) { toast.error("부지점장과 고객을 선택하세요."); return; }
+    let count = 0;
+    for (const cid of selectedCustomers) {
+      try { await assignToSubBranchMutation.mutateAsync({ customerId: cid, subBranchAdminId: Number(selectedSubBranchAdmin) }); count++; } catch {}
+    }
+    toast.success(`${count}명 배분 완료`);
+    setSelectedCustomers([]); setSelectedSubBranchAdmin("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">배분 설정</CardTitle></CardHeader>
+        <CardContent className="flex gap-3 flex-wrap items-center">
+          <Select value={selectedSubBranchAdmin} onValueChange={setSelectedSubBranchAdmin}>
+            <SelectTrigger className="w-48 h-9"><SelectValue placeholder="부지점장 선택" /></SelectTrigger>
+            <SelectContent>
+              {subBranchAdmins.length === 0
+                ? <SelectItem value="none" disabled>부지점장 없음</SelectItem>
+                : subBranchAdmins.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" disabled={!selectedSubBranchAdmin || selectedCustomers.length === 0 || assignToSubBranchMutation.isPending} onClick={handleAssign}>
+            <Users className="h-4 w-4 mr-1" />{selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배분` : "배분하기"}
+          </Button>
+          {subBranchAdmins.length === 0 && <p className="text-xs text-muted-foreground">사용자 관리에서 부지점장을 지정해주세요.</p>}
+        </CardContent>
+      </Card>
+      <CustomerTable customers={unassigned ?? []} selected={selectedCustomers} onToggle={(id) => setSelectedCustomers((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])} onToggleAll={() => setSelectedCustomers(selectedCustomers.length === (unassigned?.length ?? 0) ? [] : (unassigned?.map((c) => c.id) ?? []))} title={`미배분 고객 목록 (${unassigned?.length ?? 0}명)`} />
+    </div>
+  );
+}
+
+// ─── 부지점장 화면 ────────────────────────────────────────────────────────────
+function SubBranchAdminAssign() {
+  const { user } = useAuth();
+  const utils = trpc.useUtils();
+  const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
+  const [selectedAgent, setSelectedAgent] = useState<string>("");
+
+  const { data: myDb, refetch } = trpc.customers.list.useQuery({});
+  const assignedToMe = (myDb ?? []).filter((c) => (c as any).assignmentStatus === "assigned_to_sub_branch");
+
+  const { data: allUsers } = trpc.users.list.useQuery();
+  const myTeamMembers = (allUsers ?? []).filter((u) =>
+    (u as any).accountStatus === "active" &&
+    (u.role === "team_leader" || u.role === "member") &&
+    (u as any).subBranchAdminId === user?.id
+  );
+
+  const assignMutation = trpc.customers.assign.useMutation({
+    onSuccess: () => { refetch(); utils.customers.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "배정에 실패했습니다."),
+  });
+
+  const handleAssign = async () => {
+    if (!selectedAgent || selectedCustomers.length === 0) { toast.error("담당자와 고객을 선택하세요."); return; }
+    let count = 0;
+    for (const cid of selectedCustomers) {
+      try { await assignMutation.mutateAsync({ customerId: cid, agentId: Number(selectedAgent) }); count++; } catch {}
+    }
+    toast.success(`${count}명 배정 완료`);
+    setSelectedCustomers([]); setSelectedAgent("");
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-2xl font-bold">DB 배정</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">배분받은 DB를 산하 팀장·팀원에게 배정합니다.</p>
+      </div>
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">배정 설정</CardTitle></CardHeader>
+        <CardContent className="flex gap-3 flex-wrap">
+          <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+            <SelectTrigger className="w-48 h-9"><SelectValue placeholder="담당자 선택" /></SelectTrigger>
+            <SelectContent>
+              {myTeamMembers.length === 0
+                ? <SelectItem value="none" disabled>산하 팀원 없음</SelectItem>
+                : myTeamMembers.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role === "team_leader" ? "팀장" : "팀원"})</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>
+            <UserPlus className="h-4 w-4 mr-1" />{selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배정` : "배정하기"}
+          </Button>
+        </CardContent>
+      </Card>
+      <CustomerTable customers={assignedToMe} selected={selectedCustomers} onToggle={(id) => setSelectedCustomers((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])} onToggleAll={() => setSelectedCustomers(selectedCustomers.length === assignedToMe.length ? [] : assignedToMe.map((c) => c.id))} title={`배분받은 미배정 DB (${assignedToMe.length}명)`} />
+    </div>
+  );
+}
+
+// ─── 공통 고객 테이블 ─────────────────────────────────────────────────────────
+function CustomerTable({ customers, selected, onToggle, onToggleAll, title }: {
+  customers: any[]; selected: number[]; onToggle: (id: number) => void; onToggleAll: () => void; title: string;
+}) {
+  return (
+    <Card>
+      <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <input type="checkbox" onChange={onToggleAll} checked={selected.length === customers.length && customers.length > 0} />
+                </TableHead>
+                <TableHead>이름</TableHead>
+                <TableHead>연락처</TableHead>
+                <TableHead>지역</TableHead>
+                <TableHead>유입경로</TableHead>
+                <TableHead>상담상태</TableHead>
+                <TableHead>등록일</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {customers.length === 0 ? (
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">데이터가 없습니다.</TableCell></TableRow>
+              ) : (
+                customers.map((c) => (
+                  <TableRow key={c.id} className={selected.includes(c.id) ? "bg-primary/5" : ""}>
+                    <TableCell><input type="checkbox" checked={selected.includes(c.id)} onChange={() => onToggle(c.id)} /></TableCell>
+                    <TableCell className="font-medium">{c.name}</TableCell>
+                    <TableCell>{c.phone ?? "-"}</TableCell>
+                    <TableCell>{c.region ?? "-"}</TableCell>
+                    <TableCell>{c.source ?? "-"}</TableCell>
+                    <TableCell><StatusBadge status={c.consultStatus} /></TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleDateString("ko-KR")}</TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

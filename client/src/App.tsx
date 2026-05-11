@@ -19,6 +19,8 @@ import Calendar from "./pages/Calendar";
 import UserManagement from "./pages/UserManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
+import Download from "./pages/Download";
+import Settings from "./pages/Settings";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
 
@@ -60,6 +62,12 @@ function ManagerGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function SubBranchAdminOrAboveGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin")) return <Redirect to="/" />;
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Switch>
@@ -75,9 +83,9 @@ function Router() {
       </Route>
       <Route path="/customers/assign">
         <AuthGuard>
-          <AdminGuard>
+          <SubBranchAdminOrAboveGuard>
             <CustomerAssign />
-          </AdminGuard>
+          </SubBranchAdminOrAboveGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/:id">
@@ -126,6 +134,20 @@ function Router() {
           <ManagerGuard>
             <ActivityLog />
           </ManagerGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/download">
+        <AuthGuard>
+          <AdminGuard>
+            <Download />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/settings">
+        <AuthGuard>
+          <AdminGuard>
+            <Settings />
+          </AdminGuard>
         </AuthGuard>
       </Route>
       <Route component={NotFound} />

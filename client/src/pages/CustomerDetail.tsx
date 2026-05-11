@@ -29,6 +29,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: contracts, refetch: refetchContracts } = trpc.contracts.listByCustomer.useQuery({ customerId: id });
   const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery({ customerId: id });
   const { data: consentLogsData } = trpc.customers.consentLogs.useQuery({ customerId: id });
+  const { data: assignmentHistoryData } = trpc.customers.assignmentHistory.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
 
   const updateMutation = trpc.customers.update.useMutation({
@@ -121,6 +122,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <TabsTrigger value="contract">계약정보 ({contracts?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="history">상태이력 ({statusHistoryData?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="consent">동의이력</TabsTrigger>
+            <TabsTrigger value="assign_history">배정이력 ({assignmentHistoryData?.length ?? 0})</TabsTrigger>
           </TabsList>
 
           {/* 기본정보 */}
@@ -249,6 +251,61 @@ export default function CustomerDetail({ id }: { id: number }) {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* 배정 이력 */}
+          <TabsContent value="assign_history">
+            <Card>
+              <CardContent className="p-0">
+                {(assignmentHistoryData ?? []).length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground text-sm">배정 이력이 없습니다.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="border-b">
+                        <tr className="text-xs text-muted-foreground">
+                          <th className="text-left p-3">배정일시</th>
+                          <th className="text-left p-3">배정유형</th>
+                          <th className="text-left p-3">이전 부지점장</th>
+                          <th className="text-left p-3">새 부지점장</th>
+                          <th className="text-left p-3">이전 담당자</th>
+                          <th className="text-left p-3">새 담당자</th>
+                          <th className="text-left p-3">배정자</th>
+                          <th className="text-left p-3">사유</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {(assignmentHistoryData ?? []).map((h) => {
+                          const typeLabels: Record<string, string> = {
+                            branch_to_sub_branch: "지점장 → 부지점장 배분",
+                            sub_branch_to_agent: "부지점장 → 산하 조직원 배정",
+                            branch_to_agent: "지점장 직접 배정",
+                            reassignment: "담당자 재배정",
+                          };
+                          const prevSubAdmin = users?.find((u) => u.id === h.previousSubBranchAdminId)?.name ?? "-";
+                          const newSubAdmin = users?.find((u) => u.id === (h as any).newSubBranchAdminId)?.name ?? "-";
+                          const prevAgent = users?.find((u) => u.id === h.previousAgentId)?.name ?? "-";
+                          const newAgent = users?.find((u) => u.id === h.newAgentId)?.name ?? "-";
+                          const assignedByName = users?.find((u) => u.id === h.assignedBy)?.name ?? "-";
+                          return (
+                            <tr key={h.id}>
+                              <td className="p-3 text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString("ko-KR")}</td>
+                              <td className="p-3"><span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{typeLabels[(h as any).assignmentType ?? ""] ?? (h as any).assignmentType ?? "-"}</span></td>
+                              <td className="p-3 text-xs">{prevSubAdmin}</td>
+                              <td className="p-3 text-xs">{newSubAdmin}</td>
+                              <td className="p-3 text-xs">{prevAgent}</td>
+                              <td className="p-3 text-xs font-medium">{newAgent}</td>
+                              <td className="p-3 text-xs text-muted-foreground">{assignedByName}</td>
+                              <td className="p-3 text-xs text-muted-foreground">{(h as any).assignmentReason ?? "-"}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </CardContent>

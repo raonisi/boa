@@ -20,6 +20,7 @@ import {
   InsertStatusHistory,
   notifications,
   schedules,
+  settings,
   statusHistory,
   teams,
   users,
@@ -491,6 +492,25 @@ export async function getAssignmentHistory(customerId: number) {
   return db.select().from(assignmentHistory).where(eq(assignmentHistory.customerId, customerId)).orderBy(desc(assignmentHistory.createdAt));
 }
 
+// ─── Settings ────────────────────────────────────────────────────────────
+export async function getSettings(category: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(settings).where(eq(settings.category, category)).orderBy(settings.value);
+}
+
+export async function createSetting(category: string, value: string, createdBy: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(settings).values({ category, value, createdBy, isActive: true });
+}
+
+export async function toggleSetting(id: number, isActive: boolean) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(settings).set({ isActive }).where(eq(settings.id, id));
+}
+
 // ─── Activity Logs ────────────────────────────────────────────────────────────
 export async function createActivityLog(data: InsertActivityLog) {
   const db = await getDb();
@@ -530,6 +550,10 @@ export async function getPerformanceStats(filter: {
   subBranchAdminId?: number;
   dateFrom?: Date;
   dateTo?: Date;
+  productGroup?: string;
+  company?: string;
+  region?: string;
+  source?: string;
 }) {
   const db = await getDb();
   if (!db) return null;
@@ -544,9 +568,18 @@ export async function getPerformanceStats(filter: {
   const dateConditions: any[] = [activeContractCondition];
   if (filter.dateFrom) dateConditions.push(gte(contracts.contractDate, filter.dateFrom as any));
   if (filter.dateTo) dateConditions.push(lte(contracts.contractDate, filter.dateTo as any));
+  // 계약 필터 (상품군, 보험사)
+  if (filter.productGroup) dateConditions.push(eq(contracts.productGroup, filter.productGroup));
+  if (filter.company) dateConditions.push(eq(contracts.company, filter.company));
+
+  // 고객 필터 (지역, 유입경로)
+  const customerConditions: any[] = [activeCondition];
+  if (filter.region) customerConditions.push(eq(customers.region, filter.region));
+  if (filter.source) customerConditions.push(eq(customers.source, filter.source));
+  const customerBaseCondition = customerConditions.length > 1 ? and(...customerConditions) : activeCondition;
 
   if (filter.agentId !== undefined) {
-    customerList = await db.select().from(customers).where(and(eq(customers.agentId, filter.agentId), activeCondition));
+    customerList = await db.select().from(customers).where(and(eq(customers.agentId, filter.agentId), customerBaseCondition as any));
     contractList = await db.select().from(contracts).where(and(eq(contracts.agentId, filter.agentId), ...dateConditions));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));

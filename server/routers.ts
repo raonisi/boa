@@ -56,6 +56,9 @@ import {
   updateUserRole,
   updateUserSubBranchAdmin,
   updateUserTeam,
+  getSettings,
+  createSetting,
+  toggleSetting,
 } from "./db";
 import {
   cancelPendingNotifications,
@@ -360,6 +363,7 @@ export const appRouter = router({
           assignmentType: "branch_to_sub_branch",
         });
         await log(ctx.user.id, "DB_ASSIGNED_TO_SUB_BRANCH_ADMIN", "customer", input.customerId, `subBranchAdminId=${input.subBranchAdminId}`);
+        await log(ctx.user.id, "ASSIGNMENT_HISTORY_CREATED", "customer", input.customerId);
         return { success: true };
       }),
 
@@ -405,6 +409,10 @@ export const appRouter = router({
           assignmentType: user.role === "branch_admin" ? "branch_to_agent" : "sub_branch_to_agent",
         });
 
+        // DB 배정 로그 분리 (역할 및 assignmentType 기반)
+        const assignLogAction = user.role === "branch_admin" ? "DB_ASSIGNED_BY_BRANCH_ADMIN" : "DB_ASSIGNED_BY_SUB_BRANCH_ADMIN";
+        await log(ctx.user.id, assignLogAction, "customer", input.customerId, `agentId=${input.agentId}`);
+        await log(ctx.user.id, "ASSIGNMENT_HISTORY_CREATED", "customer", input.customerId);
         await log(ctx.user.id, "CUSTOMER_ASSIGNED", "customer", input.customerId, `agentId=${input.agentId}`);
 
         if (agent && customer) {
@@ -781,15 +789,22 @@ export const appRouter = router({
         dateTo: z.string().optional(),
         agentIdFilter: z.number().optional(),
         teamIdFilter: z.number().optional(),
+        productGroup: z.string().optional(),
+        company: z.string().optional(),
+        region: z.string().optional(),
+        source: z.string().optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
         const user = ctx.user;
         const dateFrom = input?.dateFrom ? new Date(input.dateFrom) : undefined;
         const dateTo = input?.dateTo ? new Date(input.dateTo) : undefined;
-        if (user.role === "branch_admin") return getPerformanceStats({ agentId: input?.agentIdFilter, teamId: input?.teamIdFilter, dateFrom, dateTo });
-        if (user.role === "sub_branch_admin") return getPerformanceStats({ subBranchAdminId: user.id, agentId: input?.agentIdFilter, dateFrom, dateTo });
-        if (user.role === "team_leader") return getPerformanceStats({ teamId: user.teamId ?? undefined, agentId: input?.agentIdFilter, dateFrom, dateTo });
-        return getPerformanceStats({ agentId: user.id, dateFrom, dateTo });
+        const extraFilter = { productGroup: input?.productGroup, company: input?.company, region: input?.region, source: input?.source };
+        if (user.role === "branch_admin") {
+          return getPerformanceStats({ agentId: input?.agentIdFilter, teamId: input?.teamIdFilter, dateFrom, dateTo, ...extraFilter });
+        }
+        if (user.role === "sub_branch_admin") return getPerformanceStats({ subBranchAdminId: user.id, agentId: input?.agentIdFilter, dateFrom, dateTo, ...extraFilter });
+        if (user.role === "team_leader") return getPerformanceStats({ teamId: user.teamId ?? undefined, agentId: input?.agentIdFilter, dateFrom, dateTo, ...extraFilter });
+        return getPerformanceStats({ agentId: user.id, dateFrom, dateTo, ...extraFilter });
       }),
 
     agentStats: teamLeaderOrAboveProcedure
@@ -801,7 +816,52 @@ export const appRouter = router({
       })),
   }),
 
-  // ── Activity Logs ─────────────────────────────────────────────────────────
+  // ── Download (지점장 전용) ─────────────────────────────────────────────────────────
+  download: router({
+    customers: branchAdminProcedure.query(async ({ ctx }) => {
+      const data = await getCustomers({});
+      await log(ctx.user.id, "DATA_DOWNLOAD", "customers", undefined, "type=customers");
+      return data;
+    }),
+    contracts: branchAdminProcedure.query(async ({ ctx }) => {
+      const data = await getAllContracts({});
+      await log(ctx.user.id, "DATA_DOWNLOAD", "contracts", undefined, "type=contracts");
+      return data;
+    }),
+    schedules: branchAdminProcedure.query(async ({ ctx }) => {
+      const data = await getSchedules({});
+      await log(ctx.user.id, "DATA_DOWNLOAD", "schedules", undefined, "type=schedules");
+      return data;
+    }),
+    performance: branchAdminProcedure.query(async ({ ctx }) => {
+      const data = await getPerformanceStats({});
+      await log(ctx.user.id, "DATA_DOWNLOAD", "performance", undefined, "type=performance");
+      return data;
+    }),
+  }),
+
+  // ── Settings (지점장 전용 마스터 데이터) ─────────────────────────────────────────────
+  settings: router({
+    list: activeUserProcedure
+      .input(z.object({ category: z.string() }))
+      .query(async ({ input }) => getSettings(input.category)),
+    create: branchAdminProcedure
+      .input(z.object({ category: z.string(), value: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        await createSetting(input.category, input.value, ctx.user.id);
+        await log(ctx.user.id, "SETTINGS_CREATED", "settings", undefined, `category=${input.category},value=${input.value}`);
+        return { success: true };
+      }),
+    toggle: branchAdminProcedure
+      .input(z.object({ id: z.number(), isActive: z.boolean() }))
+      .mutation(async ({ ctx, input }) => {
+        await toggleSetting(input.id, input.isActive);
+        await log(ctx.user.id, "SETTINGS_UPDATED", "settings", input.id, `isActive=${input.isActive}`);
+        return { success: true };
+      }),
+  }),
+
+  // ── Activity Logs ───────────────────────────────────────────────────────────────
   logs: router({
     list: teamLeaderOrAboveProcedure.query(async ({ ctx }) => {
       const user = ctx.user;

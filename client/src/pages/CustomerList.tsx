@@ -19,17 +19,21 @@ export default function CustomerList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [regionFilter, setRegionFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [agentFilter, setAgentFilter] = useState<string>("all");
+  const [assignedDateFrom, setAssignedDateFrom] = useState("");
+  const [assignedDateTo, setAssignedDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
-  const [showCreate, setShowCreate] = useState(false);
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
   const { data: customers, refetch } = trpc.customers.list.useQuery({
     status: statusFilter === "all" ? undefined : statusFilter,
+    assignedDateFrom: assignedDateFrom || undefined,
+    assignedDateTo: assignedDateTo || undefined,
   });
   const { data: allUsers } = trpc.users.list.useQuery();
 
@@ -59,6 +63,8 @@ export default function CustomerList() {
     setRegionFilter("");
     setSourceFilter("");
     setAgentFilter("all");
+    setAssignedDateFrom("");
+    setAssignedDateTo("");
   };
 
   return (
@@ -118,6 +124,8 @@ export default function CustomerList() {
                 </Select>
                 <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-8 text-xs" />
                 <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-8 text-xs" />
+                <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="h-8 text-xs" title="배정일 시작" />
+                <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="h-8 text-xs" title="배정일 종료" />
                 {(user?.role === "branch_admin" || user?.role === "team_leader") && (
                   <Select value={agentFilter} onValueChange={setAgentFilter}>
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>

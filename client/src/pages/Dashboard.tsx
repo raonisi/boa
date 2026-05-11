@@ -48,8 +48,85 @@ function StatCard({
   );
 }
 
+// ─── 부지점장 전용 대시보드 ───────────────────────────────────────────────────
+function SubBranchAdminDashboard() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const { data: stats } = trpc.performance.stats.useQuery();
+  const { data: notifications } = trpc.notifications.list.useQuery();
+  const { data: schedules } = trpc.schedules.list.useQuery();
+  const { data: customers } = trpc.customers.list.useQuery({});
+  const { data: allUsers } = trpc.users.list.useQuery();
+
+  const today = new Date();
+  const unreadNotifs = (notifications ?? []).filter((n) => !n.isRead);
+  const todaySchedules = (schedules ?? []).filter((s) => new Date(s.startTime).toDateString() === today.toDateString());
+  const allDb = customers ?? [];
+  const assignedToSubBranch = allDb.filter((c) => (c as any).assignmentStatus === "assigned_to_sub_branch");
+  const assignedToAgent = allDb.filter((c) => (c as any).assignmentStatus === "assigned_to_agent");
+  const myTeamMembers = (allUsers ?? []).filter((u) =>
+    (u as any).accountStatus === "active" &&
+    (u.role === "team_leader" || u.role === "member") &&
+    (u as any).subBranchAdminId === user?.id
+  );
+
+  return (
+    <DashboardLayout>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">대시보드</h1>
+          <p className="text-sm text-muted-foreground mt-1">{user?.name} (부지점장) · {today.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })}</p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard title="배분받은 전체 DB" value={allDb.length} icon={Users} />
+          <StatCard title="미배정 DB" value={assignedToSubBranch.length} icon={Users} color="text-orange-500" />
+          <StatCard title="배정 완료 DB" value={assignedToAgent.length} icon={Users} color="text-green-600" />
+          <StatCard title="산하 계약건수" value={stats?.contracted} icon={FileText} color="text-blue-600" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <StatCard title="월납보험료 합계" value={stats?.monthlyPremiumSum?.toLocaleString()} icon={TrendingUp} suffix="원" color="text-blue-600" />
+          <StatCard title="오늘 일정" value={todaySchedules.length} icon={CalendarDays} />
+          <StatCard title="미읽은 알림" value={unreadNotifs.length} icon={Bell} color="text-red-500" />
+          <StatCard title="미상담 DB" value={allDb.filter((c) => c.consultStatus === "미상담").length} icon={Phone} color="text-orange-500" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">산하 팀원별 고객 현황</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {myTeamMembers.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground text-sm">산하 팀원이 없습니다.</div>
+              ) : (
+                <table className="w-full text-sm"><thead className="border-b"><tr className="text-xs text-muted-foreground"><th className="text-left p-3">이름</th><th className="text-left p-3">역할</th><th className="text-right p-3">배정 고객</th><th className="text-right p-3">미상담</th></tr></thead>
+                <tbody className="divide-y">{myTeamMembers.map((u) => { const mc = allDb.filter((c) => c.agentId === u.id); return (<tr key={u.id}><td className="p-3 font-medium">{u.name}</td><td className="p-3 text-xs text-muted-foreground">{u.role === "team_leader" ? "팀장" : "팀원"}</td><td className="p-3 text-right">{mc.length}</td><td className="p-3 text-right text-orange-600">{mc.filter((c) => c.consultStatus === "미상담").length}</td></tr>); })}</tbody></table>
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">미배정 DB 목록</CardTitle></CardHeader>
+            <CardContent className="p-0">
+              {assignedToSubBranch.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground text-sm">미배정 DB가 없습니다.</div>
+              ) : (
+                <div className="divide-y max-h-48 overflow-y-auto">
+                  {assignedToSubBranch.slice(0, 8).map((c) => (
+                    <div key={c.id} className="flex items-center gap-3 p-3 cursor-pointer hover:bg-muted/50" onClick={() => setLocation(`/customers/${c.id}`)}
+                    ><div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{c.name}</p><p className="text-xs text-muted-foreground">{c.region ?? "-"}</p></div><StatusBadge status={c.consultStatus} /></div>
+                  ))}
+                  {assignedToSubBranch.length > 8 && <div className="p-3 text-center text-xs text-muted-foreground">+{assignedToSubBranch.length - 8}명 더 있음</div>}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
+  if (user?.role === "sub_branch_admin") return <SubBranchAdminDashboard />;
+
   const [, setLocation] = useLocation();
   const { data: stats } = trpc.performance.stats.useQuery();
   const { data: notifications } = trpc.notifications.list.useQuery();

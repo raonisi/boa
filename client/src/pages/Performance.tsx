@@ -34,6 +34,10 @@ export default function Performance() {
   const [dateTo, setDateTo] = useState("");
   const [agentIdFilter, setAgentIdFilter] = useState<string>("all");
   const [teamIdFilter, setTeamIdFilter] = useState<string>("all");
+  const [productGroupFilter, setProductGroupFilter] = useState("");
+  const [companyFilter, setCompanyFilter] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
 
   const { data: users } = trpc.users.list.useQuery();
   const { data: teams } = trpc.users.teams.useQuery();
@@ -43,7 +47,11 @@ export default function Performance() {
     dateTo: dateTo || undefined,
     agentIdFilter: agentIdFilter !== "all" ? Number(agentIdFilter) : undefined,
     teamIdFilter: teamIdFilter !== "all" ? Number(teamIdFilter) : undefined,
-  }), [dateFrom, dateTo, agentIdFilter, teamIdFilter]);
+    productGroup: productGroupFilter || undefined,
+    company: companyFilter || undefined,
+    region: regionFilter || undefined,
+    source: sourceFilter || undefined,
+  }), [dateFrom, dateTo, agentIdFilter, teamIdFilter, productGroupFilter, companyFilter, regionFilter, sourceFilter]);
 
   const { data: stats } = trpc.performance.stats.useQuery(statsInput);
 
@@ -117,6 +125,10 @@ export default function Performance() {
                   </div>
                 </>
               )}
+              <div><Label className="text-xs">상품군</Label><Input value={productGroupFilter} onChange={(e) => setProductGroupFilter(e.target.value)} className="h-8 mt-1" placeholder="예: 종신, 실손" /></div>
+              <div><Label className="text-xs">보험사</Label><Input value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="h-8 mt-1" placeholder="예: 삼성생명" /></div>
+              <div><Label className="text-xs">지역</Label><Input value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-8 mt-1" placeholder="예: 서울" /></div>
+              <div><Label className="text-xs">유입경로</Label><Input value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-8 mt-1" placeholder="예: 지인소개" /></div>
             </div>
           </CardContent>
         </Card>

@@ -17,19 +17,14 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  /** 역할: 지점장/부지점장/팀장/팀원 */
   role: mysqlEnum("role", ["branch_admin", "sub_branch_admin", "team_leader", "member"]).default("member").notNull(),
-  /** 계정 상태: role과 분리. active가 아니면 모든 접근 차단 */
   accountStatus: mysqlEnum("accountStatus", ["active", "inactive", "resigned"]).default("active").notNull(),
-  /** 소속 팀 ID */
   teamId: int("teamId"),
-  /** 소속 부지점장 ID (teams.subBranchAdminId와 동기화 필수) */
   subBranchAdminId: int("subBranchAdminId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
 });
-
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
@@ -39,14 +34,25 @@ export const teams = mysqlTable("teams", {
   name: varchar("name", { length: 100 }).notNull(),
   description: text("description"),
   managerId: int("managerId"),
-  /** 이 팀이 어느 부지점장 산하인지 (정본 기준값) */
   subBranchAdminId: int("subBranchAdminId"),
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type Team = typeof teams.$inferSelect;
+
+// ─── Settings (마스터 데이터) ─────────────────────────────────────────────────
+export const settings = mysqlTable("settings", {
+  id: int("id").autoincrement().primaryKey(),
+  category: varchar("category", { length: 50 }).notNull(),
+  value: varchar("value", { length: 200 }).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type Setting = typeof settings.$inferSelect;
+export type InsertSetting = typeof settings.$inferInsert;
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 export const customers = mysqlTable("customers", {
@@ -59,13 +65,10 @@ export const customers = mysqlTable("customers", {
   expectedPremium: int("expectedPremium"),
   availableTime: varchar("availableTime", { length: 100 }),
   source: varchar("source", { length: 100 }),
-  /** 담당 설계사 ID (agentId로 통일) */
   agentId: int("agentId"),
   assignedTeamId: int("assignedTeamId"),
   assignedAt: timestamp("assignedAt"),
-  /** 배분된 부지점장 ID */
   subBranchAdminId: int("subBranchAdminId"),
-  /** DB 배정 상태 */
   assignmentStatus: mysqlEnum("assignmentStatus", ["unassigned", "assigned_to_sub_branch", "assigned_to_agent"]).default("unassigned").notNull(),
   consultStatus: mysqlEnum("consultStatus", [
     "미상담", "부재", "통화완료", "상담예정", "설계중",
@@ -80,7 +83,6 @@ export const customers = mysqlTable("customers", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 
@@ -94,7 +96,6 @@ export const statusHistory = mysqlTable("status_history", {
   note: text("note"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type StatusHistory = typeof statusHistory.$inferSelect;
 export type InsertStatusHistory = typeof statusHistory.$inferInsert;
 
@@ -108,7 +109,6 @@ export const consentLogs = mysqlTable("consent_logs", {
   newValue: boolean("newValue").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type ConsentLog = typeof consentLogs.$inferSelect;
 export type InsertConsentLog = typeof consentLogs.$inferInsert;
 
@@ -128,7 +128,6 @@ export const consultations = mysqlTable("consultations", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Consultation = typeof consultations.$inferSelect;
 export type InsertConsultation = typeof consultations.$inferInsert;
 
@@ -136,7 +135,6 @@ export type InsertConsultation = typeof consultations.$inferInsert;
 export const contracts = mysqlTable("contracts", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
-  /** 계약 담당 설계사 ID (agentId로 통일) */
   agentId: int("agentId").notNull(),
   company: varchar("company", { length: 100 }),
   productName: varchar("productName", { length: 200 }),
@@ -152,7 +150,6 @@ export const contracts = mysqlTable("contracts", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Contract = typeof contracts.$inferSelect;
 export type InsertContract = typeof contracts.$inferInsert;
 
@@ -181,7 +178,6 @@ export const schedules = mysqlTable("schedules", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
 
@@ -206,11 +202,8 @@ export const reminders = mysqlTable("reminders", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 },
 (table) => ({
-  uniqueReminder: unique("uq_reminder").on(
-    table.userId, table.type, table.relatedType, table.relatedId, table.dueAt
-  ),
+  uniqueReminder: unique("uq_reminder").on(table.userId, table.type, table.relatedType, table.relatedId, table.dueAt),
 }));
-
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 
@@ -236,11 +229,8 @@ export const notifications = mysqlTable("notifications", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 },
 (table) => ({
-  uniqueNotif: unique("uq_notification").on(
-    table.userId, table.type, table.relatedType, table.relatedId, table.dueAt
-  ),
+  uniqueNotif: unique("uq_notification").on(table.userId, table.type, table.relatedType, table.relatedId, table.dueAt),
 }));
-
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
@@ -261,7 +251,6 @@ export const assignmentHistory = mysqlTable("assignment_history", {
   assignmentReason: varchar("assignmentReason", { length: 300 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type AssignmentHistory = typeof assignmentHistory.$inferSelect;
 export type InsertAssignmentHistory = typeof assignmentHistory.$inferInsert;
 
@@ -275,7 +264,6 @@ export const contractHistory = mysqlTable("contract_history", {
   afterValue: text("afterValue"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type ContractHistory = typeof contractHistory.$inferSelect;
 export type InsertContractHistory = typeof contractHistory.$inferInsert;
 
@@ -291,6 +279,5 @@ export const activityLogs = mysqlTable("activity_logs", {
   userAgent: varchar("userAgent", { length: 300 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
-
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;

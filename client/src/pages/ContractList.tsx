@@ -1,21 +1,33 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Search } from "lucide-react";
+import { Search, XCircle } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 export default function ContractList() {
+  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
 
+  const utils = trpc.useUtils();
   const { data: contracts } = trpc.contracts.list.useQuery();
+
+  const deactivateMutation = trpc.contracts.deactivate.useMutation({
+    onSuccess: () => { toast.success("계약이 비활성 처리되었습니다."); utils.contracts.list.invalidate(); },
+    onError: () => toast.error("비활성 처리에 실패했습니다."),
+  });
+
+  const canDeactivate = user?.role === "branch_admin" || user?.role === "sub_branch_admin" || user?.role === "team_leader";
 
   const filtered = (contracts ?? []).filter((c) => {
     const matchSearch = !search || (c.productName ?? "").includes(search) || (c.company ?? "").includes(search);
@@ -27,6 +39,13 @@ export default function ContractList() {
   const totalPremium = filtered
     .filter((c) => c.contractStatus === "유지")
     .reduce((sum, c) => sum + (c.monthlyPremium ?? 0), 0);
+
+  const handleDeactivate = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("이 계약을 비활성 처리하시겠습니까? 데이터는 보존됩니다.")) {
+      deactivateMutation.mutate({ id });
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -77,12 +96,13 @@ export default function ContractList() {
                     <TableHead>납입상태</TableHead>
                     <TableHead>계약상태</TableHead>
                     <TableHead>메모</TableHead>
+                    {canDeactivate && <TableHead className="w-16"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} className="text-center text-muted-foreground py-8">계약 데이터가 없습니다.</TableCell>
+                      <TableCell colSpan={canDeactivate ? 9 : 8} className="text-center text-muted-foreground py-8">계약 데이터가 없습니다.</TableCell>
                     </TableRow>
                   ) : (
                     filtered.map((c) => (
@@ -95,6 +115,19 @@ export default function ContractList() {
                         <TableCell><StatusBadge status={c.paymentStatus ?? "정상"} /></TableCell>
                         <TableCell><StatusBadge status={c.contractStatus ?? "청약"} /></TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-32 truncate">{c.memo ?? "-"}</TableCell>
+                        {canDeactivate && (
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={(e) => handleDeactivate(c.id, e)}
+                              title="계약 비활성 처리"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     ))
                   )}
