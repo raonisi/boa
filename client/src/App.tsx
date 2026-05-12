@@ -32,7 +32,7 @@ function LoginConfigurationNotice({ message }: { message: string }) {
         <h1 className="text-xl font-semibold tracking-tight">로그인 설정 확인 필요</h1>
         <p className="mt-3 text-sm text-muted-foreground">{message}</p>
         <p className="mt-2 text-sm text-muted-foreground">
-          관리자에게 VITE_OAUTH_PORTAL_URL 환경변수 설정을 요청해주세요.
+          관리자에게 VITE_GOOGLE_CLIENT_ID 환경변수 설정을 요청해주세요.
         </p>
       </div>
     </div>

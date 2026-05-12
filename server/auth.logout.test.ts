@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
+import { getSessionCookieOptions } from "./_core/cookies";
 
 type CookieCall = {
   name: string;
@@ -54,9 +55,50 @@ describe("auth.logout", () => {
     expect(clearedCookies[0]?.options).toMatchObject({
       maxAge: -1,
       secure: true,
-      sameSite: "none",
+      sameSite: "lax",
       httpOnly: true,
       path: "/",
     });
+  });
+});
+
+describe("session cookie options", () => {
+  it("uses a non-secure lax cookie for local development over HTTP", () => {
+    const options = getSessionCookieOptions({
+      protocol: "http",
+      hostname: "127.0.0.1",
+      headers: { host: "127.0.0.1:3000" },
+    } as TrpcContext["req"]);
+
+    expect(options).toMatchObject({
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: false,
+    });
+    expect(options.domain).toBeUndefined();
+  });
+
+  it("keeps secure cookies for production HTTPS requests", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      const options = getSessionCookieOptions({
+        protocol: "https",
+        hostname: "crm.example.com",
+        headers: { host: "crm.example.com" },
+      } as TrpcContext["req"]);
+
+      expect(options).toMatchObject({
+        httpOnly: true,
+        path: "/",
+        sameSite: "lax",
+        secure: true,
+      });
+      expect(options.domain).toBeUndefined();
+    } finally {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
   });
 });

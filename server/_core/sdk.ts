@@ -27,14 +27,28 @@ export type SessionPayload = {
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
+const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
+
+export type GoogleTokenResponse = {
+  access_token: string;
+  expires_in?: number;
+  id_token?: string;
+  scope?: string;
+  token_type?: string;
+};
+
+export type GoogleUserInfo = {
+  sub: string;
+  name?: string;
+  email?: string;
+  email_verified?: boolean;
+};
 
 class OAuthService {
   constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
     if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable."
-      );
+      console.info("[OAuth] Legacy OAUTH_SERVER_URL is not configured.");
     }
   }
 
@@ -143,6 +157,43 @@ class SDKServer {
       platform: loginMethod,
       loginMethod,
     } as GetUserInfoResponse;
+  }
+
+  async exchangeGoogleCodeForToken(
+    code: string,
+    redirectUri: string
+  ): Promise<GoogleTokenResponse> {
+    if (!ENV.googleClientId || !ENV.googleClientSecret) {
+      throw new Error("Google OAuth server environment is not configured");
+    }
+
+    const body = new URLSearchParams({
+      code,
+      client_id: ENV.googleClientId,
+      client_secret: ENV.googleClientSecret,
+      redirect_uri: redirectUri,
+      grant_type: "authorization_code",
+    });
+
+    const { data } = await axios.post<GoogleTokenResponse>(
+      GOOGLE_TOKEN_URL,
+      body,
+      {
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        timeout: AXIOS_TIMEOUT_MS,
+      }
+    );
+
+    return data;
+  }
+
+  async getGoogleUserInfo(accessToken: string): Promise<GoogleUserInfo> {
+    const { data } = await axios.get<GoogleUserInfo>(GOOGLE_USERINFO_URL, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      timeout: AXIOS_TIMEOUT_MS,
+    });
+
+    return data;
   }
 
   private parseCookies(cookieHeader: string | undefined) {

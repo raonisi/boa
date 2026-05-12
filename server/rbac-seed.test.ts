@@ -10,6 +10,7 @@ import {
 } from "./notifications";
 import { registerOAuthRoutes } from "./_core/oauth";
 import { sdk } from "./_core/sdk";
+import { buildGoogleAuthorizeUrl } from "../client/src/const";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 
@@ -175,19 +176,127 @@ describe("notification generation paths", () => {
 });
 
 describe("OAuth pre-registration guard", () => {
+  it("builds a Google authorize URL with the CRM callback redirect URI", () => {
+    const url = new URL(buildGoogleAuthorizeUrl({
+      clientId: "google-client-id",
+      origin: "http://127.0.0.1:3000",
+    }));
+
+    expect(url.origin + url.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
+    expect(url.searchParams.get("client_id")).toBe("google-client-id");
+    expect(url.searchParams.get("redirect_uri")).toBe("http://127.0.0.1:3000/api/oauth/callback");
+    expect(url.searchParams.get("response_type")).toBe("code");
+    expect(url.searchParams.get("scope")).toBe("openid email profile");
+  });
+
+  it("rejects empty Google client IDs before building the authorize URL", () => {
+    expect(() => buildGoogleAuthorizeUrl({ clientId: "", origin: "http://127.0.0.1:3000" })).toThrow();
+  });
+
   it("does not auto-create an active member for an unregistered OAuth email", async () => {
     let callback: any;
     registerOAuthRoutes({ get: (_path: string, handler: any) => { callback = handler; } } as any);
-    vi.spyOn(sdk, "exchangeCodeForToken").mockResolvedValue({ accessToken: "token" } as any);
-    vi.spyOn(sdk, "getUserInfo").mockResolvedValue({ openId: "unregistered-open-id", email: "New.User@Test.Local", name: "[TEST] OAuth" } as any);
+    vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({ access_token: "token" } as any);
+    vi.spyOn(sdk, "getGoogleUserInfo").mockResolvedValue({ sub: "unregistered-open-id", email: "New.User@Test.Local", email_verified: true, name: "[TEST] OAuth" } as any);
     vi.spyOn(db, "getAllUsersByEmail").mockResolvedValue([]);
     const upsertSpy = vi.spyOn(db, "upsertUser").mockResolvedValue(undefined);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
     const status = vi.fn().mockReturnThis();
     const json = vi.fn().mockReturnThis();
+    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
     await callback(
-      { query: { code: "code", state: "state" }, headers: {}, socket: {} },
+      { query: { code: "code", state: Buffer.from(redirectUri).toString("base64") }, protocol: "http", headers: { host: "127.0.0.1:3000" }, socket: {} },
+      { status, json, cookie: vi.fn(), redirect: vi.fn() }
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(json).toHaveBeenCalled();
+    expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks callback state mismatch before exchanging a Google code", async () => {
+    let callback: any;
+    registerOAuthRoutes({ get: (_path: string, handler: any) => { callback = handler; } } as any);
+    const exchangeSpy = vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({ access_token: "token" } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn().mockReturnThis();
+    await callback(
+      { query: { code: "code", state: Buffer.from("http://evil.test/api/oauth/callback").toString("base64") }, protocol: "http", headers: { host: "127.0.0.1:3000" }, socket: {} },
+      { status, json, cookie: vi.fn(), redirect: vi.fn() }
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(exchangeSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks Google accounts when email is not verified", async () => {
+    let callback: any;
+    registerOAuthRoutes({ get: (_path: string, handler: any) => { callback = handler; } } as any);
+    vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({ access_token: "token" } as any);
+    vi.spyOn(sdk, "getGoogleUserInfo").mockResolvedValue({ sub: "google-sub", email: "member-a1@test.local", email_verified: false, name: "[TEST] OAuth" } as any);
+    const upsertSpy = vi.spyOn(db, "upsertUser").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn().mockReturnThis();
+    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
+    await callback(
+      { query: { code: "code", state: Buffer.from(redirectUri).toString("base64") }, protocol: "http", headers: { host: "127.0.0.1:3000" }, socket: {} },
+      { status, json, cookie: vi.fn(), redirect: vi.fn() }
+    );
+
+    expect(status).toHaveBeenCalledWith(403);
+    expect(upsertSpy).not.toHaveBeenCalled();
+  });
+
+  it("links an invited pre-registered user to a Google sub on first login", async () => {
+    let callback: any;
+    registerOAuthRoutes({ get: (_path: string, handler: any) => { callback = handler; } } as any);
+    vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({ access_token: "token" } as any);
+    vi.spyOn(sdk, "getGoogleUserInfo").mockResolvedValue({ sub: "google-member-a1", email: "member-a1@test.local", email_verified: true, name: "[TEST] Member A1" } as any);
+    vi.spyOn(db, "getAllUsersByEmail").mockResolvedValue([{ ...users[5], openId: "invited_member_a1", loginStatus: "invited" }] as any);
+    vi.spyOn(db, "getUserByOpenId").mockResolvedValueOnce(undefined).mockResolvedValueOnce({ ...users[5], openId: "google-member-a1", loginStatus: "linked" } as any);
+    const linkSpy = vi.spyOn(db, "linkUserOpenId").mockResolvedValue(undefined);
+    const upsertSpy = vi.spyOn(db, "upsertUser").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(sdk, "createSessionToken").mockResolvedValue("session-token");
+
+    const redirect = vi.fn();
+    const cookie = vi.fn();
+    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
+    await callback(
+      { query: { code: "code", state: Buffer.from(redirectUri).toString("base64") }, protocol: "http", headers: { host: "127.0.0.1:3000" }, socket: {} },
+      { status: vi.fn().mockReturnThis(), json: vi.fn().mockReturnThis(), cookie, redirect }
+    );
+
+    expect(linkSpy).toHaveBeenCalledWith(users[5].id, "google-member-a1");
+    expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({ openId: "google-member-a1", loginMethod: "google" }));
+    expect(cookie).toHaveBeenCalledWith("app_session_id", "session-token", expect.objectContaining({
+      httpOnly: true,
+      path: "/",
+      sameSite: "lax",
+      secure: false,
+    }));
+    expect(redirect).toHaveBeenCalledWith(302, "/");
+  });
+
+  it("blocks overwriting an already linked openId", async () => {
+    let callback: any;
+    registerOAuthRoutes({ get: (_path: string, handler: any) => { callback = handler; } } as any);
+    vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({ access_token: "token" } as any);
+    vi.spyOn(sdk, "getGoogleUserInfo").mockResolvedValue({ sub: "different-google-sub", email: "member-a1@test.local", email_verified: true, name: "[TEST] Member A1" } as any);
+    vi.spyOn(db, "getAllUsersByEmail").mockResolvedValue([{ ...users[5], openId: "existing-google-sub", loginStatus: "linked" }] as any);
+    const upsertSpy = vi.spyOn(db, "upsertUser").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const status = vi.fn().mockReturnThis();
+    const json = vi.fn().mockReturnThis();
+    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
+    await callback(
+      { query: { code: "code", state: Buffer.from(redirectUri).toString("base64") }, protocol: "http", headers: { host: "127.0.0.1:3000" }, socket: {} },
       { status, json, cookie: vi.fn(), redirect: vi.fn() }
     );
 
