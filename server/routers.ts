@@ -150,6 +150,65 @@ async function verifyCustomerAccess(user: { id: number; role: string; teamId: nu
   return customer;
 }
 
+async function assertTeamCanBeDeactivated(teamId: number) {
+  const team = await getTeamById(teamId);
+  if (!team) throw new TRPCError({ code: "NOT_FOUND" });
+  if ((team as any).isActive === false || (team as any).deletedAt) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "이미 비활성 처리된 팀입니다." });
+  }
+
+  const activeUsers = (await getUsersByTeamId(teamId)).filter((u: any) => u.accountStatus === "active");
+  if (activeUsers.length > 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "소속 활성 사용자가 있는 팀은 삭제할 수 없습니다." });
+  }
+
+  const activeCustomers = await getCustomers({ teamId });
+  if (activeCustomers.length > 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "활성 고객이 남아 있는 팀은 삭제할 수 없습니다." });
+  }
+
+  const activeSchedules = await getSchedules({ teamId });
+  if (activeSchedules.length > 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "진행 중인 일정이 남아 있는 팀은 삭제할 수 없습니다." });
+  }
+
+  return team;
+}
+
+async function verifyCustomerDeleteAccess(
+  user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string },
+  customerId: number,
+) {
+  if (user.role !== "branch_admin" && user.role !== "sub_branch_admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "고객 삭제는 지점장 또는 부지점장만 가능합니다." });
+  }
+  const customer = await verifyCustomerAccess(user, customerId);
+  if ((customer as any).isActive === false || (customer as any).deletedAt) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "이미 비활성 처리된 고객입니다." });
+  }
+  const activeContracts = await getContractsByCustomer(customerId);
+  if (activeContracts.length > 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "활성 계약이 있는 고객은 삭제할 수 없습니다. 계약을 먼저 비활성 처리해주세요." });
+  }
+  return customer;
+}
+
+async function verifyContractDeleteAccess(
+  user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string },
+  contractId: number,
+) {
+  if (user.role !== "branch_admin" && user.role !== "sub_branch_admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "계약 삭제는 지점장 또는 부지점장만 가능합니다." });
+  }
+  const contract = await getContractById(contractId);
+  if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+  if ((contract as any).isActive === false || (contract as any).deletedAt) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "이미 비활성 처리된 계약입니다." });
+  }
+  await verifyCustomerAccess(user, contract.customerId);
+  return contract;
+}
+
 async function log(userId: number, action: string, targetType?: string, targetId?: number, details?: string, client?: Parameters<typeof createActivityLog>[1]) {
   await createActivityLog({
     userId,
@@ -607,10 +666,23 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const { id, ...data } = input;
         const existing = await getTeamById(id);
-        await updateTeam(id, data);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        if (data.isActive === false) {
+          await assertTeamCanBeDeactivated(id);
+        }
+        const updateData = data.isActive === false ? { ...data, deletedAt: new Date() } : data;
+        await updateTeam(id, updateData);
 
         if (data.isActive === false) {
-          await log(ctx.user.id, "TEAM_DEACTIVATED", "team", id);
+          await log(ctx.user.id, "TEAM_DEACTIVATED", "team", id,
+            logDetails({
+              actor: ctx.user.id,
+              targetId: id,
+              targetType: "team",
+              beforeValue: { isActive: existing?.isActive ?? null, deletedAt: (existing as any)?.deletedAt ?? null },
+              afterValue: { isActive: false },
+              metadata: { deleteMode: "soft" },
+            }));
         } else if (data.managerId !== undefined) {
           const previousManagerId = existing?.managerId ?? null;
           await log(ctx.user.id, "TEAM_LEADER_ASSIGNED", "team", id,
@@ -618,6 +690,23 @@ export const appRouter = router({
         } else {
           await log(ctx.user.id, "TEAM_UPDATED", "team", id, JSON.stringify({ before: existing, after: data }));
         }
+        return { success: true };
+      }),
+
+    deactivateTeam: branchAdminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await assertTeamCanBeDeactivated(input.id);
+        await deactivateTeam(input.id);
+        await log(ctx.user.id, "TEAM_DEACTIVATED", "team", input.id,
+          logDetails({
+            actor: ctx.user.id,
+            targetId: input.id,
+            targetType: "team",
+            beforeValue: { isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null },
+            afterValue: { isActive: false },
+            metadata: { deleteMode: "soft" },
+          }));
         return { success: true };
       }),
   }),
@@ -739,12 +828,20 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    deactivate: teamLeaderOrAboveProcedure
+    deactivate: subBranchAdminOrAboveProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        await verifyCustomerAccess(ctx.user, input.id);
+        const existing = await verifyCustomerDeleteAccess(ctx.user, input.id);
         await softDeleteCustomer(input.id);
-        await log(ctx.user.id, "CUSTOMER_DEACTIVATED", "customer", input.id);
+        await log(ctx.user.id, "CUSTOMER_DEACTIVATED", "customer", input.id,
+          logDetails({
+            actor: ctx.user.id,
+            targetId: input.id,
+            targetType: "customer",
+            beforeValue: { isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null },
+            afterValue: { isActive: false },
+            metadata: { deleteMode: "soft" },
+          }));
         return { success: true };
       }),
 
@@ -1334,20 +1431,26 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    deactivate: teamLeaderOrAboveProcedure
+    deactivate: subBranchAdminOrAboveProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        const existing = await getContractById(input.id);
-        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
-        await verifyCustomerAccess(ctx.user, existing.customerId);
+        const existing = await verifyContractDeleteAccess(ctx.user, input.id);
+        await createContractHistoryEntry({
+          contractId: input.id,
+          changedBy: ctx.user.id,
+          fieldName: "isActive",
+          beforeValue: String(existing.isActive),
+          afterValue: "false",
+        });
         await deactivateContract(input.id);
         await log(ctx.user.id, "CONTRACT_DEACTIVATED", "contract", input.id,
           logDetails({
             actor: ctx.user.id,
             targetId: input.id,
             targetType: "contract",
-            beforeValue: { isActive: existing.isActive, contractStatus: existing.contractStatus },
+            beforeValue: { isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null, contractStatus: existing.contractStatus },
             afterValue: { isActive: false },
+            metadata: { deleteMode: "soft" },
           }));
         return { success: true };
       }),

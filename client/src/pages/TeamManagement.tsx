@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { Building2, Edit2, Plus, Users } from "lucide-react";
+import { Building2, Edit2, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -259,6 +259,11 @@ function TeamListView() {
     onError: () => toast.error("변경에 실패했습니다."),
   });
 
+  const deactivateTeamMutation = trpc.users.deactivateTeam.useMutation({
+    onSuccess: () => { toast.success("팀이 삭제(비활성 처리)되었습니다."); utils.users.teams.invalidate(); utils.users.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "팀 삭제에 실패했습니다."),
+  });
+
   const updateUserTeamMutation = trpc.users.updateTeam.useMutation({
     onSuccess: () => { toast.success("팀이 변경되었습니다."); utils.users.list.invalidate(); },
   });
@@ -270,6 +275,12 @@ function TeamListView() {
   const activeUsers = (users ?? []).filter((u) => (u as any).accountStatus === "active");
   const subBranchAdmins = activeUsers.filter((u) => u.role === "sub_branch_admin");
   const managers = activeUsers.filter((u) => u.role === "team_leader" || u.role === "branch_admin");
+
+  const handleDeactivateTeam = (team: any) => {
+    if (confirm("이 팀을 삭제하시겠습니까?\n소속 팀원 또는 고객이 남아 있으면 삭제할 수 없습니다.\n삭제된 팀은 기본 목록에서 숨김 처리되며, 활동 로그에 기록됩니다.")) {
+      deactivateTeamMutation.mutate({ id: team.id });
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -303,6 +314,15 @@ function TeamListView() {
                     </span>
                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0 ml-auto" onClick={() => setEditTeam(team)}>
                       <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => handleDeactivateTeam(team)}
+                      title="팀 삭제"
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </Button>
                   </CardTitle>
                 </CardHeader>

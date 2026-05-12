@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X } from "lucide-react";
+import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -46,7 +46,13 @@ export default function CustomerList() {
     onSuccess: () => { toast.success("상태가 변경되었습니다."); utils.customers.list.invalidate(); },
   });
 
+  const deactivateMutation = trpc.customers.deactivate.useMutation({
+    onSuccess: () => { toast.success("고객이 삭제(비활성 처리)되었습니다."); utils.customers.list.invalidate(); refetch(); },
+    onError: (err) => toast.error(err.message || "고객 삭제에 실패했습니다."),
+  });
+
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
+  const canDeactivateCustomer = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
 
   const filtered = (customers ?? []).filter((c) => {
     const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
@@ -65,6 +71,13 @@ export default function CustomerList() {
     setAgentFilter("all");
     setAssignedDateFrom("");
     setAssignedDateTo("");
+  };
+
+  const handleDeactivateCustomer = (id: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm("이 고객을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다.\n이 작업은 활동 로그에 기록됩니다.")) {
+      deactivateMutation.mutate({ id });
+    }
   };
 
   return (
@@ -202,7 +215,7 @@ export default function CustomerList() {
                       <TableHead>상담상태</TableHead>
                       <TableHead>배정일</TableHead>
                       <TableHead>예상보험료</TableHead>
-                      <TableHead className="w-16"></TableHead>
+                      <TableHead className="w-20"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -229,7 +242,20 @@ export default function CustomerList() {
                             {c.expectedPremium ? `${c.expectedPremium.toLocaleString()}원` : "-"}
                           </TableCell>
                           <TableCell>
-                            <Button variant="ghost" size="sm" className="h-7 text-xs">상세</Button>
+                            <div className="flex items-center justify-end gap-1">
+                              <Button variant="ghost" size="sm" className="h-7 text-xs">상세</Button>
+                              {canDeactivateCustomer && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                  onClick={(e) => handleDeactivateCustomer(c.id, e)}
+                                  title="고객 삭제"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
