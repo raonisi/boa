@@ -21,7 +21,7 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
+import { getLoginUrlResult } from "@/const";
 import { trpc } from "@/lib/trpc";
 import {
   Activity,
@@ -85,6 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [loginConfigMessage, setLoginConfigMessage] = useState<string | null>(null);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -93,6 +94,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <DashboardLayoutSkeleton />;
 
   if (!user) {
+    const handleLogin = () => {
+      const loginUrl = getLoginUrlResult();
+      if (loginUrl.ok) {
+        window.location.href = loginUrl.url;
+        return;
+      }
+
+      setLoginConfigMessage(loginUrl.message);
+    };
+
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full">
@@ -101,7 +112,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <h1 className="text-2xl font-bold tracking-tight">보험 영업 사내 전산</h1>
             <p className="text-sm text-muted-foreground mt-2">로그인이 필요합니다.</p>
           </div>
-          <Button onClick={() => { window.location.href = getLoginUrl(); }} size="lg" className="w-full">
+          {loginConfigMessage ? (
+            <p className="text-sm text-destructive text-center">{loginConfigMessage}</p>
+          ) : null}
+          <Button onClick={handleLogin} size="lg" className="w-full">
             로그인
           </Button>
         </div>
