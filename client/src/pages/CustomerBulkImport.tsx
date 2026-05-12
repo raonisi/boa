@@ -21,6 +21,8 @@ export default function CustomerBulkImport() {
   const navigate = (path: string) => setLocation(path);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState<string>("");
+  const [fileSize, setFileSize] = useState<number>(0);
+  const [mimeType, setMimeType] = useState<string>("");
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
   const [stage, setStage] = useState<"upload" | "preview" | "result">("upload");
@@ -64,13 +66,15 @@ export default function CustomerBulkImport() {
     }
 
     setFileName(file.name);
+    setFileSize(file.size);
+    setMimeType(file.type || "text/csv");
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (results: any) => {
         const rows = results.data as ParsedRow[];
         setParsedRows(rows);
-        handlePreview(rows);
+        handlePreview(rows, file.name, file.size, file.type || "text/csv");
       },
       error: (error: any) => {
         alert(`파일 파싱 오류: ${error.message}`);
@@ -78,7 +82,7 @@ export default function CustomerBulkImport() {
     });
   };
 
-  const handlePreview = async (rows: ParsedRow[]) => {
+  const handlePreview = async (rows: ParsedRow[], selectedFileName = fileName, selectedFileSize = fileSize, selectedMimeType = mimeType) => {
     if (rows.length === 0) {
       alert("파일에 데이터가 없습니다.");
       return;
@@ -86,7 +90,7 @@ export default function CustomerBulkImport() {
 
     setIsLoading(true);
     try {
-      const result = await previewImportMutation.mutateAsync({ rows });
+      const result = await previewImportMutation.mutateAsync({ rows, fileName: selectedFileName, fileSize: selectedFileSize, mimeType: selectedMimeType });
       setValidationResults(result.validationResults);
       setStage("preview");
     } catch (error: any) {
@@ -104,6 +108,8 @@ export default function CustomerBulkImport() {
       const result = await bulkImportMutation.mutateAsync({
         rows: parsedRows,
         fileName,
+        fileSize,
+        mimeType,
       });
       setImportBatchId(result.importBatchId);
       setValidationResults(result.validationResults);

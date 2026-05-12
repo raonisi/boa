@@ -1,4 +1,4 @@
-import { getLoginUrl } from "@/const";
+import { getLoginUrlResult } from "@/const";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -9,8 +9,7 @@ type UseAuthOptions = {
 };
 
 export function useAuth(options?: UseAuthOptions) {
-  const { redirectOnUnauthenticated = false, redirectPath = getLoginUrl() } =
-    options ?? {};
+  const { redirectOnUnauthenticated = false, redirectPath } = options ?? {};
   const utils = trpc.useUtils();
 
   const meQuery = trpc.auth.me.useQuery(undefined, {
@@ -65,9 +64,19 @@ export function useAuth(options?: UseAuthOptions) {
     if (meQuery.isLoading || logoutMutation.isPending) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
-    if (window.location.pathname === redirectPath) return;
 
-    window.location.href = redirectPath
+    const loginUrl = redirectPath
+      ? { ok: true as const, url: redirectPath }
+      : getLoginUrlResult();
+
+    if (!loginUrl.ok) {
+      console.error("[Auth] Login URL configuration error:", loginUrl.message);
+      return;
+    }
+
+    if (window.location.href === loginUrl.url) return;
+
+    window.location.href = loginUrl.url;
   }, [
     redirectOnUnauthenticated,
     redirectPath,

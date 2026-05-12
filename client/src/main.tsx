@@ -5,7 +5,7 @@ import { httpBatchLink, TRPCClientError } from "@trpc/client";
 import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
-import { getLoginUrl } from "./const";
+import { getLoginUrlResult } from "./const";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -18,7 +18,13 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
 
   if (!isUnauthorized) return;
 
-  window.location.href = getLoginUrl();
+  const loginUrl = getLoginUrlResult();
+  if (loginUrl.ok) {
+    window.location.href = loginUrl.url;
+    return;
+  }
+
+  console.error("[Auth] Login URL configuration error:", loginUrl.message);
 };
 
 queryClient.getQueryCache().subscribe(event => {

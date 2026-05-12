@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight } from "lucide-react";
@@ -51,12 +52,16 @@ export default function Notifications() {
   const [processStatusFilter, setProcessStatusFilter] = useState<string>("all");
   const [isReadFilter, setIsReadFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [offset, setOffset] = useState(0);
 
   const queryInput = {
     processStatus: processStatusFilter !== "all" ? processStatusFilter : undefined,
     isRead: isReadFilter === "unread" ? false : isReadFilter === "read" ? true : undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
     limit: LIMIT,
     offset,
   };
@@ -153,6 +158,18 @@ export default function Notifications() {
               ))}
             </SelectContent>
           </Select>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }}
+            className="h-8 text-xs w-36"
+          />
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setOffset(0); }}
+            className="h-8 text-xs w-36"
+          />
         </div>
 
         {/* 알림 목록 */}

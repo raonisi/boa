@@ -316,6 +316,8 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
   open: boolean; onClose: () => void; defaultDate: Date | null;
   onSubmit: (data: any) => void; loading: boolean; users: any[] | undefined;
 }) {
+  const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({ category: "scheduleType" });
+  const scheduleTypes = scheduleTypeOptions?.length ? scheduleTypeOptions.map((item) => item.value) : SCHEDULE_TYPES;
   const defaultStart = defaultDate ? format(defaultDate, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'09:00");
   const [form, setForm] = useState({
     title: "", type: "기타" as string, status: "예정" as string,
@@ -333,7 +335,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
               <Label className="text-xs">유형</Label>
               <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                 <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{SCHEDULE_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+                <SelectContent>{scheduleTypes.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
@@ -383,8 +385,10 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
 function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }: {
   schedule: any; onClose: () => void; onDelete: () => void; onUpdate: (data: any) => void; loading: boolean;
 }) {
+  const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({ category: "scheduleType" });
+  const scheduleTypes = scheduleTypeOptions?.length ? scheduleTypeOptions.map((item) => item.value) : SCHEDULE_TYPES;
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ status: schedule.status, memo: schedule.memo ?? "" });
+  const [form, setForm] = useState({ type: schedule.type, status: schedule.status, memo: schedule.memo ?? "" });
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -400,6 +404,13 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
           {schedule.endTime && <div><p className="text-xs text-muted-foreground">종료</p><p>{new Date(schedule.endTime).toLocaleString("ko-KR")}</p></div>}
           {editing ? (
             <>
+              <div>
+                <Label className="text-xs">유형</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>{scheduleTypes.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label className="text-xs">상태 변경</Label>
                 <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>

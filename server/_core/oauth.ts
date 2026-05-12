@@ -9,6 +9,48 @@ function getQueryParam(req: Request, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return "[masked-email]";
+  const visible = local.slice(0, Math.min(2, local.length));
+  return `${visible}${"*".repeat(Math.max(2, local.length - visible.length))}@${domain}`;
+}
+
+function sanitizeLogMetadata(metadata: Record<string, unknown> = {}) {
+  const safe: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    if (key.toLowerCase().includes("email") && typeof value === "string") {
+      safe[key === "email" ? "maskedEmail" : key] = maskEmail(value);
+      continue;
+    }
+    if (["phone", "memo", "password"].includes(key.toLowerCase())) continue;
+    safe[key] = value;
+  }
+  return safe;
+}
+
+function oauthLogDetails(data: {
+  actor?: number | string | null;
+  targetId?: number | string | null;
+  targetType?: string;
+  beforeValue?: Record<string, unknown> | null;
+  afterValue?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown>;
+}) {
+  return JSON.stringify({
+    actor: data.actor ?? null,
+    targetId: data.targetId ?? null,
+    targetType: data.targetType ?? "user",
+    beforeValue: data.beforeValue ?? null,
+    afterValue: data.afterValue ?? null,
+    metadata: sanitizeLogMetadata(data.metadata),
+  });
+}
+
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
@@ -31,51 +73,135 @@ export function registerOAuthRoutes(app: Express) {
       const ipAddress = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? undefined;
       const userAgent = req.headers["user-agent"] ?? undefined;
 
-      // 조건 3: 이메일 기반 사전 등록 사용자 매핑 (조건 2: normalize 기준 통일)
-      if (userInfo.email) {
-        const normalizedEmail = userInfo.email.trim().toLowerCase();
-        const matchingUsers = await db.getAllUsersByEmail(normalizedEmail);
-        // 조건 3: 중복 이메일 레코드가 2개 이상이면 자동 연결 금지
+      if (!userInfo.email) {
+        await db.createActivityLog({
+          userId: 0,
+          action: "LOGIN_BLOCKED",
+          targetType: "user",
+          targetId: 0,
+          details: oauthLogDetails({ metadata: { reason: "missing_email" } }),
+          ipAddress,
+          userAgent,
+        });
+        res.status(403).json({ error: "사전 등록된 이메일 계정만 로그인할 수 있습니다." });
+        return;
+      }
+
+      const normalizedEmail = normalizeEmail(userInfo.email);
+      const matchingUsers = await db.getAllUsersByEmail(normalizedEmail);
+
+      if (matchingUsers.length !== 1) {
         if (matchingUsers.length > 1) {
           await db.createActivityLog({
             userId: 0,
             action: "USER_OAUTH_LINK_CONFLICT",
             targetType: "user",
             targetId: 0,
-            details: JSON.stringify({ email: normalizedEmail, conflictCount: matchingUsers.length, reason: "duplicate_email_records" }),
+            details: oauthLogDetails({
+              metadata: { email: normalizedEmail, conflictCount: matchingUsers.length, reason: "duplicate_email_records" },
+            }),
             ipAddress,
             userAgent,
           });
-        } else if (matchingUsers.length === 1) {
-          const existingByEmail = matchingUsers[0];
-          if (
-            existingByEmail &&
-            existingByEmail.openId.startsWith("invited_") && // 사전 등록 레코드
-            existingByEmail.accountStatus === "active" &&
-            existingByEmail.loginStatus === "invited"
-          ) {
-            const alreadyLinked = await db.getUserByOpenId(userInfo.openId);
-            if (!alreadyLinked) {
-              await db.linkUserOpenId(existingByEmail.id, userInfo.openId);
-              await db.createActivityLog({
-                userId: existingByEmail.id,
-                action: "USER_OAUTH_LINKED",
-                targetType: "user",
-                targetId: existingByEmail.id,
-                details: JSON.stringify({ email: normalizedEmail }),
-                ipAddress,
-                userAgent,
-              });
-            }
-          }
         }
+        await db.createActivityLog({
+          userId: 0,
+          action: "LOGIN_BLOCKED",
+          targetType: "user",
+          targetId: 0,
+          details: oauthLogDetails({
+            metadata: { email: normalizedEmail, reason: matchingUsers.length === 0 ? "not_pre_registered" : "duplicate_email_records" },
+          }),
+          ipAddress,
+          userAgent,
+        });
+        res.status(403).json({ error: "사전 등록된 활성 사용자만 로그인할 수 있습니다." });
+        return;
       }
 
-      // 기존 upsertUser (신규 사용자 또는 기존 OAuth 사용자 업데이트)
+      const preRegisteredUser = matchingUsers[0];
+      if (preRegisteredUser.accountStatus !== "active") {
+        await db.createActivityLog({
+          userId: preRegisteredUser.id,
+          action: "LOGIN_BLOCKED",
+          targetType: "user",
+          targetId: preRegisteredUser.id,
+          details: oauthLogDetails({
+            actor: preRegisteredUser.id,
+            targetId: preRegisteredUser.id,
+            metadata: { email: normalizedEmail, reason: "account_inactive", accountStatus: preRegisteredUser.accountStatus },
+          }),
+          ipAddress,
+          userAgent,
+        });
+        res.status(403).json({ error: "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요." });
+        return;
+      }
+
+      const isInvited = preRegisteredUser.openId.startsWith("invited_") && preRegisteredUser.loginStatus === "invited";
+      const isAlreadyLinkedToThisOpenId = preRegisteredUser.openId === userInfo.openId;
+
+      if (!isInvited && !isAlreadyLinkedToThisOpenId) {
+        await db.createActivityLog({
+          userId: preRegisteredUser.id,
+          action: "USER_OAUTH_LINK_CONFLICT",
+          targetType: "user",
+          targetId: preRegisteredUser.id,
+          details: oauthLogDetails({
+            actor: preRegisteredUser.id,
+            targetId: preRegisteredUser.id,
+            metadata: { email: normalizedEmail, reason: "open_id_already_linked" },
+          }),
+          ipAddress,
+          userAgent,
+        });
+        res.status(403).json({ error: "이미 다른 OAuth 계정과 연결된 사용자입니다." });
+        return;
+      }
+
+      if (isInvited) {
+        const alreadyLinked = await db.getUserByOpenId(userInfo.openId);
+        if (alreadyLinked && alreadyLinked.id !== preRegisteredUser.id) {
+          await db.createActivityLog({
+            userId: preRegisteredUser.id,
+            action: "USER_OAUTH_LINK_CONFLICT",
+            targetType: "user",
+            targetId: preRegisteredUser.id,
+            details: oauthLogDetails({
+              actor: preRegisteredUser.id,
+              targetId: preRegisteredUser.id,
+              metadata: { email: normalizedEmail, reason: "open_id_used_by_another_user" },
+            }),
+            ipAddress,
+            userAgent,
+          });
+          res.status(403).json({ error: "이미 다른 사용자와 연결된 OAuth 계정입니다." });
+          return;
+        }
+
+        await db.linkUserOpenId(preRegisteredUser.id, userInfo.openId);
+        await db.createActivityLog({
+          userId: preRegisteredUser.id,
+          action: "USER_OAUTH_LINKED",
+          targetType: "user",
+          targetId: preRegisteredUser.id,
+          details: oauthLogDetails({
+            actor: preRegisteredUser.id,
+            targetId: preRegisteredUser.id,
+            beforeValue: { loginStatus: preRegisteredUser.loginStatus },
+            afterValue: { loginStatus: "linked" },
+            metadata: { email: normalizedEmail },
+          }),
+          ipAddress,
+          userAgent,
+        });
+      }
+
+      // 사전 등록 및 연결 검증을 통과한 사용자만 최신 로그인 정보를 갱신한다.
       await db.upsertUser({
         openId: userInfo.openId,
         name: userInfo.name || null,
-        email: userInfo.email ?? null,
+        email: normalizedEmail,
         loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
         lastSignedIn: new Date(),
       });
@@ -86,19 +212,23 @@ export function registerOAuthRoutes(app: Express) {
       if (loggedInUser) {
         // 퇴사자(비활성) 서버 레벨 차단
         if (loggedInUser.accountStatus !== "active") {
-          await db.createActivityLog({
-            userId: loggedInUser.id,
-            action: "LOGIN_BLOCKED",
-            targetType: "user",
+        await db.createActivityLog({
+          userId: loggedInUser.id,
+          action: "LOGIN_BLOCKED",
+          targetType: "user",
+          targetId: loggedInUser.id,
+          details: oauthLogDetails({
+            actor: loggedInUser.id,
             targetId: loggedInUser.id,
-            details: JSON.stringify({
-              email: userInfo.email,
+            metadata: {
+              email: normalizedEmail,
               reason: "account_inactive",
               loginMethod: userInfo.loginMethod ?? userInfo.platform ?? "unknown",
-            }),
-            ipAddress,
-            userAgent,
-          });
+            },
+          }),
+          ipAddress,
+          userAgent,
+        });
           res.status(403).json({ error: "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요." });
           return;
         }
@@ -109,9 +239,13 @@ export function registerOAuthRoutes(app: Express) {
           action: "USER_LOGIN",
           targetType: "user",
           targetId: loggedInUser.id,
-          details: JSON.stringify({
-            email: userInfo.email,
-            loginMethod: userInfo.loginMethod ?? userInfo.platform ?? "unknown",
+          details: oauthLogDetails({
+            actor: loggedInUser.id,
+            targetId: loggedInUser.id,
+            metadata: {
+              email: normalizedEmail,
+              loginMethod: userInfo.loginMethod ?? userInfo.platform ?? "unknown",
+            },
           }),
           ipAddress,
           userAgent,
