@@ -4,7 +4,7 @@ import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
-import { getLoginUrl } from "./const";
+import { getLoginUrlResult } from "./const";
 import { Loader2 } from "lucide-react";
 
 // Pages
@@ -25,6 +25,20 @@ import Settings from "./pages/Settings";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
 
+function LoginConfigurationNotice({ message }: { message: string }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm">
+        <h1 className="text-xl font-semibold tracking-tight">로그인 설정 확인 필요</h1>
+        <p className="mt-3 text-sm text-muted-foreground">{message}</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          관리자에게 VITE_OAUTH_PORTAL_URL 환경변수 설정을 요청해주세요.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
@@ -40,7 +54,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
-    window.location.href = getLoginUrl();
+    const loginUrl = getLoginUrlResult();
+
+    if (!loginUrl.ok) {
+      return <LoginConfigurationNotice message={loginUrl.message} />;
+    }
+
+    window.location.href = loginUrl.url;
     return null;
   }
 
