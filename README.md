@@ -12,16 +12,40 @@ Copy `.env.example` to `.env` and fill in real values. Do not commit `.env` or a
 
 ## Required Environment Variables
 
+Current production authentication uses Google OAuth 2.0 directly. Railway should be configured with the variables below; legacy Manus/WebDev OAuth variables are not required for production.
+
 - `DATABASE_URL`: MySQL connection string used by Drizzle and the server
 - `JWT_SECRET`: session/cookie signing secret
-- `VITE_APP_ID`: Manus app id exposed to the browser for OAuth login
-- `VITE_OAUTH_PORTAL_URL`: public OAuth portal URL used by the browser login redirect
-- `OAUTH_SERVER_URL`: OAuth server URL used by the server
-- `OWNER_OPEN_ID`: initial owner open id that becomes `branch_admin`
+- `GOOGLE_CLIENT_ID`: Google OAuth 2.0 Web application client id used by the server
+- `GOOGLE_CLIENT_SECRET`: Google OAuth 2.0 Web application client secret, server-side only
+- `GOOGLE_REDIRECT_URI`: Google OAuth callback URI, for example `http://127.0.0.1:3000/api/oauth/callback`
+- `VITE_GOOGLE_CLIENT_ID`: public Google OAuth client id used by the browser to build the authorize URL
+- `OWNER_GOOGLE_EMAIL`: initial owner Google email for bootstrap/reference only
+- `OWNER_OPEN_ID`: optional initial owner open id / Google `sub` for bootstrap/reference
 - `BUILT_IN_FORGE_API_URL`: built-in Forge API URL
 - `BUILT_IN_FORGE_API_KEY`: built-in Forge API key
 
 Only public browser-safe values should use the `VITE_` prefix. Do not move `DATABASE_URL`, `JWT_SECRET`, API keys, database passwords, or service-role keys into `VITE_` variables.
+
+### Google OAuth 2.0 Setup
+
+This CRM uses Google OAuth 2.0 Web Server Flow directly.
+
+Local development:
+
+- Authorized JavaScript origin: `http://127.0.0.1:3000`
+- Authorized redirect URI: `http://127.0.0.1:3000/api/oauth/callback`
+
+Production:
+
+- Authorized JavaScript origin: `https://your-crm-domain.example`
+- Authorized redirect URI: `https://your-crm-domain.example/api/oauth/callback`
+
+The redirect URI must exactly match the value registered in Google Cloud Console. Production must use HTTPS. Keep `GOOGLE_CLIENT_SECRET` only in server environment variables. Never commit `.env`.
+
+### Railway Environment Variables
+
+Set the Google OAuth variables listed above in Railway. Do not add legacy Manus/WebDev OAuth portal variables for the current production deployment; the browser login button uses `VITE_GOOGLE_CLIENT_ID` and the Google authorize endpoint directly.
 
 ## Development
 
