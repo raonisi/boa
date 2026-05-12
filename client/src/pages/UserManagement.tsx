@@ -193,7 +193,7 @@ export default function UserManagement() {
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {new Date(u.createdAt).toLocaleDateString("ko-KR")}
+                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ko-KR") : "-"}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">

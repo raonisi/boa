@@ -36,6 +36,20 @@
       "when": 1778479858231,
       "tag": "0004_skinny_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1778557516605,
+      "tag": "0005_assignment_history_schema_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1778557595868,
+      "tag": "0006_core_schema_sync",
+      "breakpoints": true
     }
   ]
 }

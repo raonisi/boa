@@ -30,6 +30,7 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
+type DbExecutor = NonNullable<typeof _db>;
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -41,6 +42,12 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+export async function runDbTransaction<T>(callback: (tx: DbExecutor) => Promise<T>): Promise<T | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  return db.transaction(async (tx) => callback(tx as DbExecutor));
 }
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -282,18 +289,22 @@ export async function softDeleteCustomer(id: number) {
 export async function checkPhoneDuplicate(phone: string, excludeId?: number) {
   const db = await getDb();
   if (!db) return null;
+  const normalized = normalizePhone(phone);
+  if (!normalized) return null;
   const result = await db.select().from(customers)
-    .where(and(eq(customers.phone, phone), eq(customers.isActive, true)))
-    .limit(1);
-  const found = result[0];
+    .where(eq(customers.isActive, true));
+  const found = result.find((customer) => {
+    if (!customer.phone) return false;
+    if (excludeId && customer.id === excludeId) return false;
+    return normalizePhone(customer.phone) === normalized;
+  });
   if (!found) return null;
-  if (excludeId && found.id === excludeId) return null;
   return found;
 }
 
 /** 지점장이 부지점장에게 DB 배분 */
-export async function assignCustomerToSubBranch(customerId: number, subBranchAdminId: number) {
-  const db = await getDb();
+export async function assignCustomerToSubBranch(customerId: number, subBranchAdminId: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
   if (!db) return;
   await db.update(customers).set({
     subBranchAdminId,
@@ -303,8 +314,8 @@ export async function assignCustomerToSubBranch(customerId: number, subBranchAdm
 }
 
 /** 최종 팀원 배정 */
-export async function assignCustomer(customerId: number, agentId: number, teamId?: number, subBranchAdminId?: number) {
-  const db = await getDb();
+export async function assignCustomer(customerId: number, agentId: number, teamId?: number, subBranchAdminId?: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
   if (!db) return;
   await db.update(customers).set({
     agentId,
@@ -504,11 +515,20 @@ export async function getAllNotifications(limit = 500) {
   return db.select().from(notifications).orderBy(desc(notifications.createdAt)).limit(limit);
 }
 
+export async function getNotificationById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(notifications).where(eq(notifications.id, id)).limit(1);
+  return result[0];
+}
+
 export async function getNotificationsFiltered(filter: {
   userIds?: number[]; // null이면 전체 조회 (branch_admin)
   processStatus?: string;
   isRead?: boolean;
   type?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
   limit?: number;
   offset?: number;
 }) {
@@ -524,6 +544,8 @@ export async function getNotificationsFiltered(filter: {
   if (filter.processStatus) conditions.push(eq(notifications.processStatus, filter.processStatus as any));
   if (filter.isRead !== undefined) conditions.push(eq(notifications.isRead, filter.isRead));
   if (filter.type) conditions.push(eq(notifications.type, filter.type as any));
+  if (filter.dateFrom) conditions.push(gte(notifications.createdAt, filter.dateFrom));
+  if (filter.dateTo) conditions.push(lte(notifications.createdAt, filter.dateTo));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const [items, countResult] = await Promise.all([
     whereClause
@@ -566,8 +588,8 @@ export async function getUnreadCount(userId: number) {
   return result[0]?.count ?? 0;
 }
 
-export async function createNotification(data: InsertNotification) {
-  const db = await getDb();
+export async function createNotification(data: InsertNotification, client?: DbExecutor) {
+  const db = client ?? await getDb();
   if (!db) return;
   await db.insert(notifications).values(data);
 }
@@ -591,8 +613,8 @@ export async function updateNotificationProcessStatus(id: number, processStatus:
 }
 
 // ─── Assignment History ───────────────────────────────────────────────────────
-export async function createAssignmentHistory(data: InsertAssignmentHistory) {
-  const db = await getDb();
+export async function createAssignmentHistory(data: InsertAssignmentHistory, client?: DbExecutor) {
+  const db = client ?? await getDb();
   if (!db) return;
   await db.insert(assignmentHistory).values(data);
 }
@@ -629,8 +651,8 @@ export async function updateSetting(id: number, value: string) {
 }
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────
-export async function createActivityLog(data: InsertActivityLog) {
-  const db = await getDb();
+export async function createActivityLog(data: InsertActivityLog, client?: DbExecutor) {
+  const db = client ?? await getDb();
   if (!db) return;
   await db.insert(activityLogs).values(data);
 }
@@ -759,6 +781,32 @@ export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
+function pickString(row: Record<string, unknown>, ...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null) return String(value).trim();
+  }
+  return undefined;
+}
+
+export function normalizeBulkImportRow(row: Record<string, unknown>): BulkImportRow {
+  return {
+    name: pickString(row, "name", "이름"),
+    phone: pickString(row, "phone", "연락처"),
+    birthDate: pickString(row, "birthDate", "생년월일"),
+    gender: pickString(row, "gender", "성별"),
+    region: pickString(row, "region", "지역"),
+    expectedPremium: pickString(row, "expectedPremium", "예상보험료"),
+    availableTime: pickString(row, "availableTime", "통화가능시간"),
+    source: pickString(row, "source", "유입경로"),
+    consultStatus: pickString(row, "consultStatus", "상담상태"),
+    memo: pickString(row, "memo", "메모"),
+    subBranchAdminName: pickString(row, "subBranchAdminName", "부지점장"),
+    teamName: pickString(row, "teamName", "팀"),
+    agentName: pickString(row, "agentName", "담당자"),
+  };
+}
+
 /** 금지 컬럼 감지 */
 export function detectForbiddenColumns(headers: string[]): string[] {
   const forbiddenPatterns = [
@@ -850,11 +898,12 @@ export interface BulkImportValidationResult {
 }
 
 export async function validateBulkImportRow(
-  row: BulkImportRow,
+  sourceRow: BulkImportRow,
   rowIndex: number,
   existingPhones: Set<string>,
   filePhones: Set<string>
 ): Promise<BulkImportValidationResult> {
+  const row = normalizeBulkImportRow(sourceRow as Record<string, unknown>);
   const errors: string[] = [];
   let normalizedPhone: string | undefined;
   let agentId: number | undefined;
@@ -875,7 +924,7 @@ export async function validateBulkImportRow(
     } else {
       // 파일 내부 중복 검증
       if (filePhones.has(normalizedPhone)) {
-        errors.push(`연락처가 파일 내에서 중복됩니다. (${row.phone})`);
+        errors.push(`연락처가 파일 내 중복됩니다. (${row.phone})`);
       } else {
         filePhones.add(normalizedPhone);
       }
@@ -965,8 +1014,7 @@ export async function validateBulkImportRow(
 
   if (row.agentName && row.agentName.trim() !== "") {
     const { user, isDuplicate } = await findUserByNameUnique(
-      row.agentName,
-      "member"
+      row.agentName
     );
     if (isDuplicate) {
       errors.push(
@@ -977,13 +1025,23 @@ export async function validateBulkImportRow(
         `담당자를 찾을 수 없습니다. (${row.agentName})`
       );
     } else {
-      agentId = user.id;
+      if (user.role !== "team_leader" && user.role !== "member") {
+        errors.push(`담당자는 팀장 또는 팀원이어야 합니다. (${row.agentName})`);
+      } else {
+        agentId = user.id;
+      }
       // 담당자의 subBranchAdminId/teamId 자동 적용
       if (!subBranchAdminId && user.subBranchAdminId) {
         subBranchAdminId = user.subBranchAdminId;
       }
       if (!teamId && user.teamId) {
         teamId = user.teamId;
+      }
+      if (subBranchAdminId && user.subBranchAdminId && subBranchAdminId !== user.subBranchAdminId) {
+        errors.push("담당자의 부지점장 소속이 지정한 부지점장과 일치하지 않습니다.");
+      }
+      if (teamId && user.teamId && teamId !== user.teamId) {
+        errors.push("담당자의 팀 소속이 지정한 팀과 일치하지 않습니다.");
       }
     }
   }

@@ -22,6 +22,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [showChangeAgentModal, setShowChangeAgentModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null);
+  const [editingContractId, setEditingContractId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -50,6 +51,11 @@ export default function CustomerDetail({ id }: { id: number }) {
     onSuccess: () => { toast.success("계약이 등록되었습니다."); setShowContractModal(false); refetchContracts(); },
   });
 
+  const updateContractMutation = trpc.contracts.update.useMutation({
+    onSuccess: () => { toast.success("계약이 수정되었습니다."); setEditingContractId(null); refetchContracts(); },
+    onError: () => toast.error("계약 수정에 실패했습니다."),
+  });
+
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
     onSuccess: () => { toast.success("담당자가 변경되었습니다."); setShowChangeAgentModal(false); refetchCustomer(); },
   });
@@ -69,6 +75,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
   const canChangeAgent = user?.role === "branch_admin" || user?.role === "team_leader";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
+  const editingContract = contracts?.find((c) => c.id === editingContractId);
 
   return (
     <DashboardLayout>
@@ -222,6 +229,11 @@ export default function CustomerDetail({ id }: { id: number }) {
                         <div><p className="text-xs text-muted-foreground">계약상태</p><StatusBadge status={c.contractStatus ?? "청약"} /></div>
                       </div>
                       {c.memo && <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">{c.memo}</p>}
+                      <div className="mt-3 flex justify-end">
+                        <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditingContractId(c.id)}>
+                          <Edit2 className="h-3 w-3 mr-1" /> 수정
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 ))
@@ -376,7 +388,21 @@ export default function CustomerDetail({ id }: { id: number }) {
         onClose={() => setShowContractModal(false)}
         onSubmit={(data) => createContractMutation.mutate({ ...data, customerId: id })}
         loading={createContractMutation.isPending}
+        customerAgentId={customer.agentId}
+        currentUserRole={user?.role}
       />
+
+      {editingContractId && editingContract && (
+        <ContractModal
+          open={true}
+          contract={editingContract}
+          onClose={() => setEditingContractId(null)}
+          onSubmit={(data) => updateContractMutation.mutate({ id: editingContractId, ...data })}
+          loading={updateContractMutation.isPending}
+          customerAgentId={customer.agentId}
+          currentUserRole={user?.role}
+        />
+      )}
 
       {/* 담당자 변경 모달 */}
       {showChangeAgentModal && (
@@ -406,6 +432,10 @@ export default function CustomerDetail({ id }: { id: number }) {
 function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
   customer: any; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
 }) {
+  const { data: regionOptions } = trpc.settings.formOptions.useQuery({ category: "region" });
+  const { data: sourceOptions } = trpc.settings.formOptions.useQuery({ category: "source" });
+  const regions = regionOptions?.map((item) => item.value).filter(Boolean) ?? [];
+  const sources = sourceOptions?.map((item) => item.value).filter(Boolean) ?? [];
   const [form, setForm] = useState({
     name: customer.name ?? "",
     phone: customer.phone ?? "",
@@ -441,11 +471,13 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label className="text-xs">지역</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">지역</Label><Input list="edit-customer-region-options" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">예상보험료 (원)</Label><Input type="number" value={form.expectedPremium} onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" /></div>
-            <div><Label className="text-xs">유입경로</Label><Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">유입경로</Label><Input list="edit-customer-source-options" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" /></div>
           </div>
+          <datalist id="edit-customer-region-options">{regions.map((v) => <option key={v} value={v} />)}</datalist>
+          <datalist id="edit-customer-source-options">{sources.map((v) => <option key={v} value={v} />)}</datalist>
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
@@ -484,6 +516,8 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
 function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
   open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean; currentStatus: string;
 }) {
+  const { data: consultStatusOptions } = trpc.settings.formOptions.useQuery({ category: "consultStatus" });
+  const consultStatuses = consultStatusOptions?.length ? consultStatusOptions.map((item) => item.value) : CONSULT_STATUSES;
   const [form, setForm] = useState({ status: currentStatus, content: "", nextContactAt: "" });
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -494,7 +528,7 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
             <Label className="text-xs">상담상태</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
               <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>{CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                <SelectContent>{consultStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
@@ -557,44 +591,82 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
 }
 
 // ─── 계약 등록 모달 ───────────────────────────────────────────────────────────
-function ContractModal({ open, onClose, onSubmit, loading }: {
-  open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
+function ContractModal({ open, onClose, onSubmit, loading, contract, customerAgentId, currentUserRole }: {
+  open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean; contract?: any; customerAgentId?: number | null; currentUserRole?: string;
 }) {
   const [form, setForm] = useState({
-    company: "", productName: "", productGroup: "", contractDate: "",
-    monthlyPremium: "", paymentStatus: "정상", contractStatus: "청약", memo: "",
+    company: contract?.company ?? "", productName: contract?.productName ?? "", productGroup: contract?.productGroup ?? "", contractDate: contract?.contractDate ? new Date(contract.contractDate).toISOString().split("T")[0] : "",
+    monthlyPremium: contract?.monthlyPremium ? String(contract.monthlyPremium) : "", paymentStatus: contract?.paymentStatus ?? "정상", contractStatus: contract?.contractStatus ?? "청약", memo: contract?.memo ?? "",
+    agentId: contract?.agentId ? String(contract.agentId) : customerAgentId ? String(customerAgentId) : "default",
   });
+  const { data: users } = trpc.users.list.useQuery();
+  const { data: insurerOptions } = trpc.settings.formOptions.useQuery({ category: "insurer" });
+  const { data: productGroupOptions } = trpc.settings.formOptions.useQuery({ category: "productGroup" });
+  const { data: paymentStatusOptions } = trpc.settings.formOptions.useQuery({ category: "paymentStatus" });
+  const { data: contractStatusOptions } = trpc.settings.formOptions.useQuery({ category: "contractStatus" });
+  const insurers = insurerOptions?.map((item) => item.value).filter(Boolean) ?? [];
+  const productGroups = productGroupOptions?.map((item) => item.value).filter(Boolean) ?? [];
+  const paymentStatuses = paymentStatusOptions?.length ? paymentStatusOptions.map((item) => item.value) : [form.paymentStatus];
+  const contractStatuses = contractStatusOptions?.length ? contractStatusOptions.map((item) => item.value) : [form.contractStatus];
+  const agentOptions = (users ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "member"));
+  const requiresAgentSelection = !contract && !customerAgentId && currentUserRole !== "member";
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>계약 등록</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>{contract ? "계약 수정" : "계약 등록"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div><Label className="text-xs">보험사</Label><Input value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">보험사</Label><Input list="contract-insurer-options" value={form.company} onChange={(e) => setForm({ ...form, company: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">상품명</Label><Input value={form.productName} onChange={(e) => setForm({ ...form, productName: e.target.value })} className="h-8 mt-1" /></div>
-            <div><Label className="text-xs">상품군</Label><Input value={form.productGroup} onChange={(e) => setForm({ ...form, productGroup: e.target.value })} className="h-8 mt-1" placeholder="예: 종신, 실손" /></div>
+            <div><Label className="text-xs">상품군</Label><Input list="contract-product-group-options" value={form.productGroup} onChange={(e) => setForm({ ...form, productGroup: e.target.value })} className="h-8 mt-1" placeholder="예: 종신, 실손" /></div>
             <div><Label className="text-xs">계약일</Label><Input type="date" value={form.contractDate} onChange={(e) => setForm({ ...form, contractDate: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">월보험료 (원)</Label><Input type="number" value={form.monthlyPremium} onChange={(e) => setForm({ ...form, monthlyPremium: e.target.value })} className="h-8 mt-1" /></div>
             <div>
               <Label className="text-xs">납입상태</Label>
               <Select value={form.paymentStatus} onValueChange={(v) => setForm({ ...form, paymentStatus: v })}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{["정상","미납","실효","해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                <SelectContent>{paymentStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">계약상태</Label>
               <Select value={form.contractStatus} onValueChange={(v) => setForm({ ...form, contractStatus: v })}>
                 <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>{["청약","성립","철회","유지","해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                <SelectContent>{contractStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            <div>
+              <Label className="text-xs">담당 설계사</Label>
+              <Select value={form.agentId} onValueChange={(v) => setForm({ ...form, agentId: v })}>
+                <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="기본 담당자" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="default">기본 담당자</SelectItem>
+                  {agentOptions.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              {requiresAgentSelection && (
+                <p className="text-xs text-destructive mt-1">계약 담당 설계사를 선택해야 합니다.</p>
+              )}
+            </div>
           </div>
+          <datalist id="contract-insurer-options">{insurers.map((v) => <option key={v} value={v} />)}</datalist>
+          <datalist id="contract-product-group-options">{productGroups.map((v) => <option key={v} value={v} />)}</datalist>
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading} onClick={() => onSubmit({ ...form, monthlyPremium: form.monthlyPremium ? Number(form.monthlyPremium) : undefined })}>
-              {loading ? "저장 중..." : "등록"}
+            <Button size="sm" disabled={loading} onClick={() => {
+              if (requiresAgentSelection && form.agentId === "default") {
+                toast.error("계약 담당 설계사를 선택해야 합니다.");
+                return;
+              }
+              const { agentId, ...payload } = form;
+              onSubmit({
+                ...payload,
+                monthlyPremium: form.monthlyPremium ? Number(form.monthlyPremium) : undefined,
+                ...(agentId !== "default" ? (contract ? { newAgentId: Number(agentId) } : { agentIdOverride: Number(agentId) }) : {}),
+              });
+            }}>
+              {loading ? "저장 중..." : contract ? "수정" : "등록"}
             </Button>
           </div>
         </div>

@@ -256,10 +256,16 @@ export default function CustomerList() {
 function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
   open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
 }) {
+  const { data: regionOptions } = trpc.settings.formOptions.useQuery({ category: "region" });
+  const { data: sourceOptions } = trpc.settings.formOptions.useQuery({ category: "source" });
+  const { data: consultStatusOptions } = trpc.settings.formOptions.useQuery({ category: "consultStatus" });
+  const regions = regionOptions?.map((item) => item.value).filter(Boolean) ?? [];
+  const sources = sourceOptions?.map((item) => item.value).filter(Boolean) ?? [];
+  const consultStatuses = consultStatusOptions?.length ? consultStatusOptions.map((item) => item.value) : ["미상담"];
   const [form, setForm] = useState({
     name: "", phone: "", birthDate: "", gender: "" as "male" | "female" | "other" | "",
     region: "", expectedPremium: "", availableTime: "", source: "",
-    privacyConsent: false, marketingConsent: false, memo: "",
+    consultStatus: "미상담", privacyConsent: false, marketingConsent: false, memo: "",
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -271,6 +277,7 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
       region: form.region || undefined,
       expectedPremium: form.expectedPremium ? Number(form.expectedPremium) : undefined,
       availableTime: form.availableTime || undefined, source: form.source || undefined,
+      consultStatus: form.consultStatus || undefined,
       privacyConsent: form.privacyConsent, marketingConsent: form.marketingConsent,
       memo: form.memo || undefined,
     });
@@ -297,11 +304,20 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label className="text-xs">지역</Label><Input value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">지역</Label><Input list="customer-region-options" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">예상보험료 (원)</Label><Input type="number" value={form.expectedPremium} onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" placeholder="예: 오후 2~5시" /></div>
-            <div><Label className="text-xs">유입경로</Label><Input value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" placeholder="예: 지인소개, SNS" /></div>
+            <div><Label className="text-xs">유입경로</Label><Input list="customer-source-options" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" placeholder="예: 지인소개, SNS" /></div>
+            <div>
+              <Label className="text-xs">상담상태</Label>
+              <Select value={form.consultStatus} onValueChange={(v) => setForm({ ...form, consultStatus: v })}>
+                <SelectTrigger className="h-8 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{consultStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
           </div>
+          <datalist id="customer-region-options">{regions.map((v) => <option key={v} value={v} />)}</datalist>
+          <datalist id="customer-source-options">{sources.map((v) => <option key={v} value={v} />)}</datalist>
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex gap-4 text-sm">
             <label className="flex items-center gap-2 cursor-pointer">
