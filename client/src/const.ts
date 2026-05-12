@@ -13,54 +13,68 @@ type LoginUrlFailure = {
 
 export type LoginUrlResult = LoginUrlSuccess | LoginUrlFailure;
 
-const REQUIRED_OAUTH_PORTAL_MESSAGE = "OAuth 로그인 URL 설정이 필요합니다.";
-const INVALID_OAUTH_PORTAL_MESSAGE = "로그인 설정 URL이 올바르지 않습니다.";
+const GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
+const REQUIRED_GOOGLE_CLIENT_MESSAGE = "Google OAuth Client ID 설정이 필요합니다.";
+const INVALID_GOOGLE_LOGIN_MESSAGE = "Google 로그인 URL 설정이 올바르지 않습니다.";
 
-const getOAuthPortalUrl = () => {
-  const value = import.meta.env.VITE_OAUTH_PORTAL_URL;
+const getGoogleClientId = () => {
+  const value = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   return typeof value === "string" ? value.trim() : "";
 };
 
-const buildPortalAuthUrl = (oauthPortalUrl: string) => {
-  const portalUrl = new URL(oauthPortalUrl);
+export function buildGoogleAuthorizeUrl({
+  clientId,
+  origin,
+}: {
+  clientId: string;
+  origin: string;
+}) {
+  const normalizedClientId = clientId.trim();
+  const normalizedOrigin = origin.replace(/\/$/, "");
 
-  if (portalUrl.protocol !== "https:" && portalUrl.protocol !== "http:") {
-    throw new Error("Unsupported OAuth portal protocol");
+  if (!normalizedClientId) {
+    throw new Error("Google client ID is required");
   }
 
-  const basePath = portalUrl.pathname.replace(/\/$/, "");
-  return new URL(`${basePath}/app-auth`, portalUrl.origin);
-};
+  const redirectUri = `${normalizedOrigin}/api/oauth/callback`;
+  const state = btoa(redirectUri);
+  const url = new URL(GOOGLE_AUTHORIZE_URL);
+
+  url.searchParams.set("client_id", normalizedClientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "openid email profile");
+  url.searchParams.set("state", state);
+  url.searchParams.set("prompt", "select_account");
+
+  return url.toString();
+}
 
 // Generate login URL at runtime so redirect URI reflects the current origin.
 export const getLoginUrlResult = (): LoginUrlResult => {
-  const oauthPortalUrl = getOAuthPortalUrl();
+  const googleClientId = getGoogleClientId();
 
-  if (!oauthPortalUrl) {
+  if (!googleClientId) {
     return {
       ok: false,
       reason: "missing",
-      message: REQUIRED_OAUTH_PORTAL_MESSAGE,
+      message: REQUIRED_GOOGLE_CLIENT_MESSAGE,
     };
   }
 
   try {
-    const appId = import.meta.env.VITE_APP_ID;
-    const redirectUri = `${window.location.origin}/api/oauth/callback`;
-    const state = btoa(redirectUri);
-
-    const url = buildPortalAuthUrl(oauthPortalUrl);
-    url.searchParams.set("appId", appId);
-    url.searchParams.set("redirectUri", redirectUri);
-    url.searchParams.set("state", state);
-    url.searchParams.set("type", "signIn");
-
-    return { ok: true, url: url.toString() };
+    return {
+      ok: true,
+      url: buildGoogleAuthorizeUrl({
+        clientId: googleClientId,
+        origin: window.location.origin,
+      }),
+    };
   } catch {
     return {
       ok: false,
       reason: "invalid",
-      message: INVALID_OAUTH_PORTAL_MESSAGE,
+      message: INVALID_GOOGLE_LOGIN_MESSAGE,
     };
   }
 };
