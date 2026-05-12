@@ -16,10 +16,10 @@
 | **Frontend** | React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui |
 | **Backend** | Express 4 + tRPC 11 + Node.js |
 | **Database** | MySQL/TiDB + Drizzle ORM |
-| **Authentication** | Manus OAuth 2.0 |
+| **Authentication** | Google OAuth 2.0 Web Server Flow |
 | **Testing** | Vitest + React Testing Library |
 | **Build** | Vite + pnpm |
-| **Deployment** | Manus WebDev (built-in hosting) |
+| **Deployment** | Railway / Node.js hosting |
 
 ---
 
@@ -46,10 +46,11 @@ cp .env.example .env.local
 ```
 DATABASE_URL=mysql://user:password@host:3306/insurance_crm
 JWT_SECRET=your_secret_key
-VITE_APP_ID=your_oauth_app_id
-OAUTH_SERVER_URL=https://api.manus.im
-VITE_OAUTH_PORTAL_URL=https://portal.manus.im
-OWNER_NAME=Branch Manager Name
+GOOGLE_CLIENT_ID=your_google_oauth_client_id
+GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
+GOOGLE_REDIRECT_URI=https://your-domain.example/api/oauth/callback
+VITE_GOOGLE_CLIENT_ID=your_google_oauth_client_id
+OWNER_GOOGLE_EMAIL=owner@example.com
 OWNER_OPEN_ID=owner_open_id
 BUILT_IN_FORGE_API_URL=https://api.manus.im/forge
 BUILT_IN_FORGE_API_KEY=your_api_key
@@ -101,7 +102,7 @@ pnpm test:coverage
 # 프로덕션 빌드
 pnpm build
 
-# Manus WebDev에 배포 (UI에서 Publish 버튼 클릭)
+# Railway 배포: Google OAuth 환경변수만 설정
 ```
 
 ---
@@ -184,7 +185,7 @@ insurance-crm/
 ## ✅ 현재 구현 완료 기능
 
 ### 1단계: 기본 기능 (v1)
-- [x] 사용자 인증 (Manus OAuth)
+- [x] 사용자 인증 (Google OAuth 2.0 direct)
 - [x] 역할 기반 접근 제어 (RBAC): branch_admin, sub_branch_admin, team_leader, member
 - [x] 고객 DB 관리 (CRUD)
 - [x] 계약 관리
@@ -515,7 +516,6 @@ pnpm tsc --noEmit
 
 ## 📞 연락처
 
-**마누스 개발팀**: support@manus.im  
 **프로젝트 저장소**: https://github.com/raonisi/boa
 
 ---

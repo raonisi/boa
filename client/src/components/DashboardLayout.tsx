@@ -187,8 +187,8 @@ function DashboardLayoutContent({
               </div>
               {!isCollapsed && (
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-sidebar-foreground truncate">보험 CRM</p>
-                  <p className="text-xs text-sidebar-foreground/60 truncate">사내 전산 시스템</p>
+                  <p className="text-sm font-bold text-sidebar-foreground truncate">BOA 지점관리</p>
+                  <p className="text-xs text-sidebar-foreground/60 truncate">Best Of All CRM</p>
                 </div>
               )}
             </div>
