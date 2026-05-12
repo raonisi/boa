@@ -454,3 +454,102 @@ describe("contracts.listByCustomer - 권한 검증", () => {
     ).rejects.toThrow();
   });
 });
+describe("soft delete permissions and audit flow", () => {
+  it("allows branch_admin to deactivate an empty active team", async () => {
+    vi.spyOn(db, "getTeamById").mockResolvedValue({ id: 77, name: "[TEST] Empty team", isActive: true, deletedAt: null } as any);
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([]);
+    vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([]);
+    const deactivateSpy = vi.spyOn(db, "deactivateTeam").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).users.deactivateTeam({ id: 77 })).resolves.toEqual({ success: true });
+    expect(deactivateSpy).toHaveBeenCalledWith(77);
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "TEAM_DEACTIVATED", targetType: "team", targetId: 77 }));
+  });
+
+  it("blocks non-branch admins and teams with active members from team deletion", async () => {
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin")).users.deactivateTeam({ id: 77 })).rejects.toThrow();
+
+    vi.spyOn(db, "getTeamById").mockResolvedValue({ id: 77, name: "[TEST] Used team", isActive: true, deletedAt: null } as any);
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 10, accountStatus: "active" }] as any);
+    const deactivateSpy = vi.spyOn(db, "deactivateTeam").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).users.deactivateTeam({ id: 77 })).rejects.toThrow();
+    expect(deactivateSpy).not.toHaveBeenCalled();
+  });
+
+  it("allows branch_admin to soft delete a customer without active contracts", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "[TEST] Customer",
+      agentId: 4,
+      subBranchAdminId: 2,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    vi.spyOn(db, "getContractsByCustomer").mockResolvedValue([]);
+    const softDeleteSpy = vi.spyOn(db, "softDeleteCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customers.deactivate({ id: 100 })).resolves.toEqual({ success: true });
+    expect(softDeleteSpy).toHaveBeenCalledWith(100);
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "CUSTOMER_DEACTIVATED", targetType: "customer", targetId: 100 }));
+  });
+
+  it("blocks customer deletion for team_leader/member and when active contracts remain", async () => {
+    await expect(appRouter.createCaller(createCtx("team_leader")).customers.deactivate({ id: 100 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member")).customers.deactivate({ id: 100 })).rejects.toThrow();
+
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "[TEST] Customer",
+      agentId: 4,
+      subBranchAdminId: 2,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    vi.spyOn(db, "getContractsByCustomer").mockResolvedValue([{ id: 10, isActive: true }] as any);
+    const softDeleteSpy = vi.spyOn(db, "softDeleteCustomer").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.deactivate({ id: 100 })).rejects.toThrow();
+    expect(softDeleteSpy).not.toHaveBeenCalled();
+  });
+
+  it("allows branch_admin to soft delete a contract and records history plus audit log", async () => {
+    vi.spyOn(db, "getContractById").mockResolvedValue({
+      id: 10,
+      customerId: 100,
+      agentId: 4,
+      isActive: true,
+      deletedAt: null,
+      contractStatus: "유지",
+    } as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      agentId: 4,
+      subBranchAdminId: 2,
+      isActive: true,
+    } as any);
+    const historySpy = vi.spyOn(db, "createContractHistoryEntry").mockResolvedValue(undefined);
+    const deactivateSpy = vi.spyOn(db, "deactivateContract").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).contracts.deactivate({ id: 10 })).resolves.toEqual({ success: true });
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({ contractId: 10, fieldName: "isActive", afterValue: "false" }));
+    expect(deactivateSpy).toHaveBeenCalledWith(10);
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "CONTRACT_DEACTIVATED", targetType: "contract", targetId: 10 }));
+  });
+
+  it("blocks contract deletion for team_leader/member and out-of-scope sub_branch_admin", async () => {
+    await expect(appRouter.createCaller(createCtx("team_leader")).contracts.deactivate({ id: 10 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member")).contracts.deactivate({ id: 10 })).rejects.toThrow();
+
+    vi.spyOn(db, "getContractById").mockResolvedValue({ id: 10, customerId: 100, agentId: 4, isActive: true } as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 100, agentId: 4, subBranchAdminId: 99, isActive: true } as any);
+    const deactivateSpy = vi.spyOn(db, "deactivateContract").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).contracts.deactivate({ id: 10 })).rejects.toThrow();
+    expect(deactivateSpy).not.toHaveBeenCalled();
+  });
+});

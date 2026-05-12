@@ -23,11 +23,11 @@ export default function ContractList() {
   const { data: contracts } = trpc.contracts.list.useQuery();
 
   const deactivateMutation = trpc.contracts.deactivate.useMutation({
-    onSuccess: () => { toast.success("계약이 비활성 처리되었습니다."); utils.contracts.list.invalidate(); },
-    onError: () => toast.error("비활성 처리에 실패했습니다."),
+    onSuccess: () => { toast.success("계약이 삭제(비활성 처리)되었습니다."); utils.contracts.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "계약 삭제에 실패했습니다."),
   });
 
-  const canDeactivate = user?.role === "branch_admin" || user?.role === "sub_branch_admin" || user?.role === "team_leader";
+  const canDeactivate = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
 
   const filtered = (contracts ?? []).filter((c) => {
     const matchSearch = !search || (c.productName ?? "").includes(search) || (c.company ?? "").includes(search);
@@ -42,7 +42,7 @@ export default function ContractList() {
 
   const handleDeactivate = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("이 계약을 비활성 처리하시겠습니까? 데이터는 보존됩니다.")) {
+    if (confirm("이 계약을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n삭제된 계약은 기본 계약 목록과 실적 집계에서 제외됩니다.\n이 작업은 활동 로그에 기록됩니다.")) {
       deactivateMutation.mutate({ id });
     }
   };
@@ -125,7 +125,7 @@ export default function ContractList() {
                               size="sm"
                               className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                               onClick={(e) => handleDeactivate(c.id, e)}
-                              title="계약 비활성 처리"
+                              title="계약 삭제"
                             >
                               <XCircle className="h-4 w-4" />
                             </Button>

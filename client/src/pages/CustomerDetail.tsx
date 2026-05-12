@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2 } from "lucide-react";
+import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -56,6 +56,11 @@ export default function CustomerDetail({ id }: { id: number }) {
     onError: () => toast.error("계약 수정에 실패했습니다."),
   });
 
+  const deactivateContractMutation = trpc.contracts.deactivate.useMutation({
+    onSuccess: () => { toast.success("계약이 삭제(비활성 처리)되었습니다."); refetchContracts(); },
+    onError: (err) => toast.error(err.message || "계약 삭제에 실패했습니다."),
+  });
+
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
     onSuccess: () => { toast.success("담당자가 변경되었습니다."); setShowChangeAgentModal(false); refetchCustomer(); },
   });
@@ -74,6 +79,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const agentName = users?.find((u) => u.id === customer.agentId)?.name ?? "-";
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
   const canChangeAgent = user?.role === "branch_admin" || user?.role === "team_leader";
+  const canDeactivateCustomer = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
+  const canDeactivateContract = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
   const editingContract = contracts?.find((c) => c.id === editingContractId);
 
@@ -111,12 +118,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <UserCog className="h-3.5 w-3.5 mr-1" /> 담당자 변경
               </Button>
             )}
-            {canChangeAgent && customer.isActive && (
+            {canDeactivateCustomer && customer.isActive && (
               <Button
                 variant="outline" size="sm" className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => { if (confirm("이 고객을 비활성화하시겠습니까? 데이터는 보존됩니다.")) deactivateMutation.mutate({ id }); }}
+                onClick={() => { if (confirm("이 고객을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다.\n이 작업은 활동 로그에 기록됩니다.")) deactivateMutation.mutate({ id }); }}
               >
-                <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 비활성화
+                <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 고객 삭제
               </Button>
             )}
           </div>
@@ -229,10 +236,22 @@ export default function CustomerDetail({ id }: { id: number }) {
                         <div><p className="text-xs text-muted-foreground">계약상태</p><StatusBadge status={c.contractStatus ?? "청약"} /></div>
                       </div>
                       {c.memo && <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">{c.memo}</p>}
-                      <div className="mt-3 flex justify-end">
+                      <div className="mt-3 flex justify-end gap-2">
                         <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setEditingContractId(c.id)}>
                           <Edit2 className="h-3 w-3 mr-1" /> 수정
                         </Button>
+                        {canDeactivateContract && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                            onClick={() => {
+                              if (confirm("이 계약을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n삭제된 계약은 기본 계약 목록과 실적 집계에서 제외됩니다.\n이 작업은 활동 로그에 기록됩니다.")) deactivateContractMutation.mutate({ id: c.id });
+                            }}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" /> 계약 삭제
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
