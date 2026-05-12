@@ -14,11 +14,14 @@ Copy `.env.example` to `.env` and fill in real values. Do not commit `.env` or a
 
 - `DATABASE_URL`: MySQL connection string used by Drizzle and the server
 - `JWT_SECRET`: session/cookie signing secret
-- `VITE_APP_ID`: Manus app id
-- `OAUTH_SERVER_URL`: OAuth server URL
+- `VITE_APP_ID`: Manus app id exposed to the browser for OAuth login
+- `VITE_OAUTH_PORTAL_URL`: public OAuth portal URL used by the browser login redirect
+- `OAUTH_SERVER_URL`: OAuth server URL used by the server
 - `OWNER_OPEN_ID`: initial owner open id that becomes `branch_admin`
 - `BUILT_IN_FORGE_API_URL`: built-in Forge API URL
 - `BUILT_IN_FORGE_API_KEY`: built-in Forge API key
+
+Only public browser-safe values should use the `VITE_` prefix. Do not move `DATABASE_URL`, `JWT_SECRET`, API keys, database passwords, or service-role keys into `VITE_` variables.
 
 ## Development
 
@@ -43,6 +46,14 @@ pnpm test
 ```bash
 pnpm db:push
 ```
+
+### Migration Precautions
+
+- Clean or reset staging/test databases can apply the full migration set from scratch.
+- If `assignment_history` columns were manually added to an existing database, inspect the current column state before applying migrations to avoid duplicate-column errors.
+- Never reset a production database as part of migration recovery.
+- Validate migrations on staging/test before applying them to production.
+- Back up production data before any production migration.
 
 ## Permission Summary
 
