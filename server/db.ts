@@ -2593,6 +2593,9 @@ export async function validateBulkImportRow(
   if (!row.name || row.name.trim() === "") {
     errors.push("이름이 필수입니다.");
   }
+  if (!row.birthDate || row.birthDate.trim() === "") {
+    errors.push("생년월일이 필수입니다.");
+  }
   if (!row.phone || row.phone.trim() === "") {
     errors.push("연락처가 필수입니다.");
   } else {

@@ -94,6 +94,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
       };
 
       const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
@@ -105,6 +106,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "",
+        생년월일: "1990-01-15",
       };
 
       const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
@@ -116,6 +118,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "123",
+        생년월일: "1990-01-15",
       };
 
       const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
@@ -127,6 +130,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5678", // Already in existingPhones
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -141,6 +145,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-9999-9999",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -172,6 +177,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         예상보험료: "abc",
         부지점장: "",
         팀: "",
@@ -190,6 +196,7 @@ describe("Bulk Import Functions", () => {
         const row = {
           이름: "홍길동",
           연락처: "010-1234-5679",
+          생년월일: "1990-01-15",
           성별: gender,
         };
 
@@ -206,6 +213,7 @@ describe("Bulk Import Functions", () => {
         const row = {
           이름: "홍길동",
           연락처: "010-1234-5679",
+          생년월일: "1990-01-15",
           상담상태: status,
         };
 
@@ -219,6 +227,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -230,10 +239,22 @@ describe("Bulk Import Functions", () => {
       expect(result.errors.filter((e) => !e.includes("부지점장") && !e.includes("팀") && !e.includes("담당자")).length).toBe(0);
     });
 
+    it("should reject row with missing birth date", async () => {
+      const row = {
+        이름: "홍길동",
+        연락처: "010-1234-5679",
+      };
+
+      const result = await validateBulkImportRow(row, 0, new Set(), new Set());
+      expect(result.isValid).toBe(false);
+      expect(result.errors.some((e) => e.includes("생년월일"))).toBe(true);
+    });
+
     it("should normalize phone before checking duplicates", async () => {
       const row = {
         이름: "홍길동",
         연락처: "010 1234 5678", // Will normalize to 01012345678
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -250,6 +271,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "  홍길동  ",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -264,6 +286,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "+82-10-1234-5679",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -278,6 +301,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         메모: "a".repeat(1000),
         부지점장: "",
         팀: "",
@@ -292,6 +316,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동김철수",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -305,6 +330,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "01012345678",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -320,6 +346,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -338,6 +365,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
         부지점장: "",
         팀: "",
         담당자: "",
@@ -351,6 +379,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
       };
 
       const result = await validateBulkImportRow(row, 0, new Set(), new Set());
@@ -361,6 +390,7 @@ describe("Bulk Import Functions", () => {
       const row = {
         이름: "홍길동",
         연락처: "010-1234-5679",
+        생년월일: "1990-01-15",
       };
 
       const result = await validateBulkImportRow(row, 9999, new Set(), new Set());
