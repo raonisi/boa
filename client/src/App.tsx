@@ -20,6 +20,7 @@ import Performance from "./pages/Performance";
 import Notifications from "./pages/Notifications";
 import Calendar from "./pages/Calendar";
 import UserManagement from "./pages/UserManagement";
+import UserHandoffManagement from "./pages/UserHandoffManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
 import AdminAuditDashboard from "./pages/AdminAuditDashboard";
@@ -159,6 +160,13 @@ function Router() {
       <Route path="/calendar">
         <AuthGuard>
           <Calendar />
+        </AuthGuard>
+      </Route>
+      <Route path="/users/handoff">
+        <AuthGuard>
+          <AdminGuard>
+            <UserHandoffManagement />
+          </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/users">

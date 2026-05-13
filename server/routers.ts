@@ -86,6 +86,9 @@ import {
   getUserByEmail,
   getAllUsersByEmail,
   createUser,
+  executeUserHandoff,
+  getHandoffHistories,
+  getHandoffPreview,
   invalidateAllUserSessions,
   invalidateUserSessions,
   linkUserOpenId,
@@ -1188,6 +1191,91 @@ export const appRouter = router({
           })
           .slice(0, input?.limit ?? 100);
       }),
+  }),
+
+  adminHandoff: router({
+    listUsers: branchAdminProcedure.query(async ({ ctx }) => {
+      const allUsers = await getAllUsers();
+      return allUsers
+        .filter((user) => user.id !== ctx.user.id)
+        .map((user) => ({
+          id: user.id,
+          name: user.name,
+          email: user.email ? maskEmail(user.email) : null,
+          role: user.role,
+          accountStatus: user.accountStatus,
+          teamId: user.teamId,
+          subBranchAdminId: user.subBranchAdminId,
+        }));
+    }),
+
+    preview: branchAdminProcedure
+      .input(z.object({ sourceUserId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (input.sourceUserId === ctx.user.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "본인 계정은 인수인계 대상으로 선택할 수 없습니다." });
+        }
+        const preview = await getHandoffPreview(input.sourceUserId);
+        if (!preview) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+        await log(ctx.user.id, "USER_HANDOFF_PREVIEWED", "user", input.sourceUserId, logDetails({
+          actor: ctx.user.id,
+          targetType: "user",
+          targetId: input.sourceUserId,
+          metadata: { counts: preview.counts },
+        }));
+        return preview;
+      }),
+
+    execute: branchAdminProcedure
+      .input(z.object({
+        sourceUserId: z.number(),
+        targetUserId: z.number(),
+        transferCustomers: z.boolean(),
+        transferFollowUps: z.boolean(),
+        transferSchedules: z.boolean(),
+        transferNotifications: z.boolean(),
+        updateSourceAccountStatus: z.enum(["keep", "inactive", "resigned"]),
+        forceLogoutSource: z.boolean(),
+        resetOAuthSource: z.boolean(),
+        reason: z.string().min(5).max(300),
+        confirmText: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== "인수인계") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "확인 문구가 일치하지 않습니다." });
+        }
+        if (input.sourceUserId === input.targetUserId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "이관 대상자와 새 담당자가 같습니다." });
+        }
+        if (input.sourceUserId === ctx.user.id) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "본인 계정은 인수인계 대상으로 선택할 수 없습니다." });
+        }
+
+        const source = await getUserById(input.sourceUserId);
+        const target = await getUserById(input.targetUserId);
+        if (!source || !target) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+        if (target.accountStatus !== "active") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "새 담당자는 active 상태여야 합니다." });
+        }
+        if (target.role !== "member" && target.role !== "team_leader") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "고객 담당자는 active team_leader 또는 member만 지정할 수 있습니다." });
+        }
+        if (!target.teamId || !target.subBranchAdminId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "새 담당자의 팀과 부지점장 정보가 필요합니다." });
+        }
+
+        const result = await executeUserHandoff({ ...input, executedBy: ctx.user.id });
+        if (!result) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "인수인계 처리에 실패했습니다." });
+        return result;
+      }),
+
+    history: branchAdminProcedure
+      .input(z.object({
+        sourceUserId: z.number().optional(),
+        targetUserId: z.number().optional(),
+        limit: z.number().min(1).max(200).default(50),
+      }).optional())
+      .query(async ({ input }) => getHandoffHistories(input)),
   }),
 
   adminAudit: router({

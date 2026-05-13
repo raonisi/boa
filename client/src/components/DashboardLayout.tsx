@@ -25,6 +25,7 @@ import { getLoginUrlResult } from "@/const";
 import { trpc } from "@/lib/trpc";
 import {
   Activity,
+  ArrowRightLeft,
   BarChart3,
   Bell,
   BookOpen,
@@ -66,6 +67,7 @@ const menuItems: NavItem[] = [
   { icon: CalendarDays, label: "일정 캘린더", path: "/calendar" },
   { icon: Bell, label: "알림센터", path: "/notifications" },
   { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
+  { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },
   { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
   { icon: ShieldCheck, label: "운영 점검", path: "/admin-audit", roles: ["branch_admin"] },
   { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },

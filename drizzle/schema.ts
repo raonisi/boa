@@ -332,6 +332,26 @@ export const assignmentHistory = mysqlTable("assignment_history", {
 export type AssignmentHistory = typeof assignmentHistory.$inferSelect;
 export type InsertAssignmentHistory = typeof assignmentHistory.$inferInsert;
 
+export const handoffHistories = mysqlTable("handoff_histories", {
+  id: int("id").autoincrement().primaryKey(),
+  sourceUserId: int("sourceUserId").notNull(),
+  targetUserId: int("targetUserId").notNull(),
+  executedBy: int("executedBy").notNull(),
+  reason: varchar("reason", { length: 300 }).notNull(),
+  transferredCustomerCount: int("transferredCustomerCount").default(0).notNull(),
+  transferredContractCount: int("transferredContractCount").default(0).notNull(),
+  transferredFollowUpCount: int("transferredFollowUpCount").default(0).notNull(),
+  transferredScheduleCount: int("transferredScheduleCount").default(0).notNull(),
+  transferredNotificationCount: int("transferredNotificationCount").default(0).notNull(),
+  sourceAccountStatusBefore: mysqlEnum("sourceAccountStatusBefore", ["active", "inactive", "resigned"]).notNull(),
+  sourceAccountStatusAfter: mysqlEnum("sourceAccountStatusAfter", ["active", "inactive", "resigned"]).notNull(),
+  forceLogoutSource: boolean("forceLogoutSource").default(false).notNull(),
+  resetOAuthSource: boolean("resetOAuthSource").default(false).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type HandoffHistory = typeof handoffHistories.$inferSelect;
+export type InsertHandoffHistory = typeof handoffHistories.$inferInsert;
+
 // ─── Contract History ─────────────────────────────────────────────────────────
 export const contractHistory = mysqlTable("contract_history", {
   id: int("id").autoincrement().primaryKey(),
