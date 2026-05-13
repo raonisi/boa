@@ -39,6 +39,29 @@ import { ENV } from "./_core/env";
 let _db: ReturnType<typeof drizzle> | null = null;
 type DbExecutor = NonNullable<typeof _db>;
 
+export type CustomerTimelineEvent = {
+  id: string;
+  eventType: string;
+  eventLabel: string;
+  occurredAt: Date;
+  actorName: string | null;
+  actorRole: string | null;
+  source: string;
+  summary: string;
+  detail: string | null;
+  metadata: Record<string, unknown>;
+  severity: "normal" | "info" | "success" | "warning" | "danger";
+  relatedId: number | null;
+  relatedType: string | null;
+};
+
+export type CustomerTimelineFilter = {
+  dateFrom?: Date;
+  dateTo?: Date;
+  eventTypes?: string[];
+  limit?: number;
+};
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -976,6 +999,304 @@ export async function getActivityLogs(limit = 500, subBranchAdminId?: number, te
 }
 
 // ─── Performance Stats ────────────────────────────────────────────────────────
+function truncateTimelineText(value: unknown, maxLength = 120) {
+  if (typeof value !== "string") return null;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (!normalized) return null;
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength)}...` : normalized;
+}
+
+function safeTimelineMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  const blocked = /phone|contact|memo|content|secret|token|password|openId|database|url|jwt|client/i;
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .filter(([key]) => !blocked.test(key))
+      .map(([key, item]) => [key, typeof item === "string" ? truncateTimelineText(item, 80) : item]),
+  );
+}
+
+function parseLogDetails(details?: string | null) {
+  if (!details) return {};
+  try {
+    return safeTimelineMetadata(JSON.parse(details));
+  } catch {
+    const text = truncateTimelineText(details, 80);
+    return text ? { summary: text } : {};
+  }
+}
+
+function userLabel(userMap: Map<number, { name: string | null; role: string | null }>, id?: number | null) {
+  if (!id) return { actorName: null, actorRole: null };
+  const user = userMap.get(id);
+  return { actorName: user?.name ?? `#${id}`, actorRole: user?.role ?? null };
+}
+
+function timelineLabelForAction(action: string) {
+  const labels: Record<string, string> = {
+    CUSTOMER_CREATED: "고객이 등록되었습니다.",
+    CUSTOMER_UPDATED: "고객 정보가 수정되었습니다.",
+    CUSTOMER_DEACTIVATED: "고객이 삭제 처리되었습니다.",
+    CUSTOMER_DELETED_SOFT: "고객이 삭제 처리되었습니다.",
+    CUSTOMER_RESTORED: "고객이 복구되었습니다.",
+    CUSTOMER_PRIORITY_UPDATED: "고객 우선순위가 변경되었습니다.",
+    CUSTOMER_TAGS_UPDATED: "고객 성향 태그가 변경되었습니다.",
+    CUSTOMER_NEXT_ACTION_UPDATED: "다음 액션이 변경되었습니다.",
+    CONTRACT_CREATED: "계약이 등록되었습니다.",
+    CONTRACT_UPDATED: "계약이 수정되었습니다.",
+    CONTRACT_DEACTIVATED: "계약이 삭제 처리되었습니다.",
+    CONTRACT_DEACTIVATED_BY_REQUEST: "계약 삭제 요청이 승인되었습니다.",
+    CONTRACT_RESTORED: "계약이 복구되었습니다.",
+    PERMANENT_DELETE_BLOCKED: "완전삭제가 차단되었습니다.",
+    DELETE_REQUEST_CREATED: "삭제 요청이 생성되었습니다.",
+    DELETE_REQUEST_APPROVED: "삭제 요청이 승인되었습니다.",
+    DELETE_REQUEST_REJECTED: "삭제 요청이 반려되었습니다.",
+  };
+  return labels[action] ?? action;
+}
+
+function timelineSeverity(eventType: string): CustomerTimelineEvent["severity"] {
+  if (eventType.includes("deleted") || eventType.includes("blocked") || eventType.includes("rejected")) return "warning";
+  if (eventType.includes("restored") || eventType.includes("completed") || eventType.includes("approved")) return "success";
+  if (eventType.includes("contract")) return "info";
+  return "normal";
+}
+
+export async function getCustomerTimeline(customerId: number, filter: CustomerTimelineFilter = {}) {
+  const db = await getDb();
+  if (!db) return { items: [], totalCount: 0 };
+
+  const limit = Math.min(Math.max(filter.limit ?? 50, 1), 200);
+  const [
+    customerRows,
+    userRows,
+    consultationRows,
+    contractRows,
+    followUpRows,
+    assignmentRows,
+    statusRows,
+    relatedNotificationRows,
+    requestRows,
+  ] = await Promise.all([
+    db.select().from(customers).where(eq(customers.id, customerId)).limit(1),
+    db.select({ id: users.id, name: users.name, role: users.role }).from(users),
+    db.select().from(consultations).where(eq(consultations.customerId, customerId)),
+    db.select().from(contracts).where(eq(contracts.customerId, customerId)),
+    db.select().from(followUps).where(eq(followUps.customerId, customerId)),
+    db.select().from(assignmentHistory).where(eq(assignmentHistory.customerId, customerId)),
+    db.select().from(statusHistory).where(eq(statusHistory.customerId, customerId)),
+    db.select().from(notifications).where(and(eq(notifications.relatedType, "customer"), eq(notifications.relatedId, customerId))),
+    db.select().from(deleteRequests).where(eq(deleteRequests.customerId, customerId)),
+  ]);
+
+  const customer = customerRows[0];
+  const userMap = new Map(userRows.map((user) => [user.id, { name: user.name, role: user.role }]));
+  const contractIds = contractRows.map((contract) => contract.id);
+  const requestIds = requestRows.map((request) => request.id);
+  const [contractHistoryRows, contractNotificationRows, customerActivityRows, contractActivityRows, requestActivityRows] = await Promise.all([
+    contractIds.length > 0 ? db.select().from(contractHistory).where(inArray(contractHistory.contractId, contractIds)) : Promise.resolve([]),
+    contractIds.length > 0 ? db.select().from(notifications).where(and(eq(notifications.relatedType, "contract"), inArray(notifications.relatedId, contractIds))) : Promise.resolve([]),
+    db.select().from(activityLogs).where(and(eq(activityLogs.targetType, "customer"), eq(activityLogs.targetId, customerId))).limit(200),
+    contractIds.length > 0 ? db.select().from(activityLogs).where(and(eq(activityLogs.targetType, "contract"), inArray(activityLogs.targetId, contractIds))).limit(200) : Promise.resolve([]),
+    requestIds.length > 0 ? db.select().from(activityLogs).where(and(eq(activityLogs.targetType, "delete_request"), inArray(activityLogs.targetId, requestIds))).limit(200) : Promise.resolve([]),
+  ]);
+
+  const events: CustomerTimelineEvent[] = [];
+  const pushEvent = (event: CustomerTimelineEvent) => events.push(event);
+
+  if (customer?.createdAt) {
+    pushEvent({
+      id: `customer:${customer.id}:created`,
+      eventType: "customer_created",
+      eventLabel: "고객이 등록되었습니다.",
+      occurredAt: customer.createdAt,
+      ...userLabel(userMap, customer.createdBy),
+      source: "customers",
+      summary: `${customer.name} 고객 등록`,
+      detail: null,
+      metadata: { consultStatus: customer.consultStatus, priority: customer.priority },
+      severity: "normal",
+      relatedId: customer.id,
+      relatedType: "customer",
+    });
+  }
+
+  for (const row of consultationRows) {
+    const updated = row.updatedAt && row.updatedAt.getTime() !== row.createdAt.getTime();
+    pushEvent({
+      id: `consultation:${row.id}`,
+      eventType: updated ? "consultation_updated" : "consultation_created",
+      eventLabel: updated ? "상담기록이 수정되었습니다." : "상담기록이 추가되었습니다.",
+      occurredAt: updated ? row.updatedAt : row.createdAt,
+      ...userLabel(userMap, row.agentId),
+      source: "consultations",
+      summary: row.summary ?? `${row.consultationType ?? "상담"} / ${row.customerNeed ?? row.status}`,
+      detail: truncateTimelineText(row.content, 140),
+      metadata: safeTimelineMetadata({ status: row.status, consultationType: row.consultationType, customerNeed: row.customerNeed, nextAction: row.nextAction }),
+      severity: "info",
+      relatedId: row.id,
+      relatedType: "consultation",
+    });
+  }
+
+  for (const row of contractRows) {
+    const deleted = row.isActive === false || !!row.deletedAt;
+    pushEvent({
+      id: `contract:${row.id}`,
+      eventType: deleted ? "contract_deleted" : "contract_created",
+      eventLabel: deleted ? "계약이 삭제 처리되었습니다." : "계약이 등록되었습니다.",
+      occurredAt: row.deletedAt ?? row.createdAt,
+      ...userLabel(userMap, row.createdBy ?? row.agentId),
+      source: "contracts",
+      summary: `${row.company ?? "보험사 미입력"} / ${row.productName ?? "상품명 미입력"}`,
+      detail: null,
+      metadata: safeTimelineMetadata({ productGroup: row.productGroup, contractStatus: row.contractStatus, paymentStatus: row.paymentStatus, monthlyPremium: row.monthlyPremium }),
+      severity: deleted ? "warning" : "info",
+      relatedId: row.id,
+      relatedType: "contract",
+    });
+  }
+
+  for (const row of contractHistoryRows) {
+    pushEvent({
+      id: `contract_history:${row.id}`,
+      eventType: "contract_updated",
+      eventLabel: "계약 이력이 기록되었습니다.",
+      occurredAt: row.createdAt,
+      ...userLabel(userMap, row.changedBy),
+      source: "contract_history",
+      summary: `${row.fieldName} 변경`,
+      detail: null,
+      metadata: safeTimelineMetadata({ fieldName: row.fieldName, beforeValue: row.beforeValue, afterValue: row.afterValue }),
+      severity: row.fieldName === "isActive" ? "warning" : "info",
+      relatedId: row.contractId,
+      relatedType: "contract",
+    });
+  }
+
+  for (const row of followUpRows) {
+    const eventType = row.status === "completed" ? "follow_up_completed" : row.status === "cancelled" ? "follow_up_cancelled" : "follow_up_created";
+    pushEvent({
+      id: `follow_up:${row.id}`,
+      eventType,
+      eventLabel: row.status === "completed" ? "후속관리가 완료되었습니다." : row.status === "cancelled" ? "후속관리가 취소되었습니다." : "다음 연락일이 설정되었습니다.",
+      occurredAt: row.completedAt ?? row.updatedAt ?? row.createdAt,
+      ...userLabel(userMap, row.createdBy),
+      source: "follow_ups",
+      summary: `${row.nextAction} / ${row.reason}`,
+      detail: truncateTimelineText(row.memo, 100),
+      metadata: safeTimelineMetadata({ nextContactDate: row.nextContactDate, status: row.status }),
+      severity: row.status === "completed" ? "success" : row.status === "cancelled" ? "warning" : "normal",
+      relatedId: row.id,
+      relatedType: "follow_up",
+    });
+  }
+
+  for (const row of assignmentRows) {
+    pushEvent({
+      id: `assignment:${row.id}`,
+      eventType: "assignment_changed",
+      eventLabel: "담당자 또는 배정 범위가 변경되었습니다.",
+      occurredAt: row.createdAt,
+      ...userLabel(userMap, row.assignedBy),
+      source: "assignment_history",
+      summary: row.assignmentType ?? "배정 변경",
+      detail: truncateTimelineText(row.assignmentReason, 120),
+      metadata: safeTimelineMetadata({
+        previousSubBranchAdminId: row.previousSubBranchAdminId,
+        newSubBranchAdminId: row.newSubBranchAdminId,
+        previousTeamId: row.previousTeamId,
+        newTeamId: row.newTeamId,
+        previousAgentId: row.previousAgentId,
+        newAgentId: row.newAgentId,
+      }),
+      severity: "info",
+      relatedId: row.id,
+      relatedType: "assignment_history",
+    });
+  }
+
+  for (const row of statusRows) {
+    pushEvent({
+      id: `status:${row.id}`,
+      eventType: "customer_updated",
+      eventLabel: "상담상태가 변경되었습니다.",
+      occurredAt: row.createdAt,
+      ...userLabel(userMap, row.changedBy),
+      source: "status_history",
+      summary: `${row.previousStatus ?? "-"} -> ${row.newStatus}`,
+      detail: truncateTimelineText(row.note, 100),
+      metadata: safeTimelineMetadata({ previousStatus: row.previousStatus, newStatus: row.newStatus }),
+      severity: "normal",
+      relatedId: row.id,
+      relatedType: "status_history",
+    });
+  }
+
+  for (const row of [...relatedNotificationRows, ...contractNotificationRows]) {
+    const changed = row.isRead || row.processStatus !== "미확인";
+    pushEvent({
+      id: `notification:${row.id}`,
+      eventType: changed ? "notification_status_changed" : "notification_created",
+      eventLabel: changed ? "알림 상태가 변경되었습니다." : "알림이 생성되었습니다.",
+      occurredAt: row.createdAt,
+      ...userLabel(userMap, row.userId),
+      source: "notifications",
+      summary: row.title,
+      detail: truncateTimelineText(row.message, 120),
+      metadata: safeTimelineMetadata({ type: row.type, processStatus: row.processStatus, isRead: row.isRead, relatedType: row.relatedType, relatedId: row.relatedId }),
+      severity: changed ? "success" : "warning",
+      relatedId: row.id,
+      relatedType: "notification",
+    });
+  }
+
+  for (const row of requestRows) {
+    pushEvent({
+      id: `delete_request:${row.id}`,
+      eventType: row.status === "approved" ? "delete_request_approved" : row.status === "rejected" ? "delete_request_rejected" : "delete_request_created",
+      eventLabel: row.status === "approved" ? "삭제 요청이 승인되었습니다." : row.status === "rejected" ? "삭제 요청이 반려되었습니다." : "삭제 요청이 생성되었습니다.",
+      occurredAt: row.reviewedAt ?? row.updatedAt ?? row.createdAt,
+      ...userLabel(userMap, row.requestedBy),
+      source: "delete_requests",
+      summary: row.requestReason,
+      detail: truncateTimelineText(row.reviewComment ?? row.requestMemo, 120),
+      metadata: safeTimelineMetadata({ requestType: row.requestType, status: row.status, expectedImpact: row.expectedImpact }),
+      severity: row.status === "approved" ? "warning" : row.status === "rejected" ? "normal" : "info",
+      relatedId: row.id,
+      relatedType: "delete_request",
+    });
+  }
+
+  for (const row of [...customerActivityRows, ...contractActivityRows, ...requestActivityRows]) {
+    pushEvent({
+      id: `activity:${row.id}`,
+      eventType: row.action.toLowerCase(),
+      eventLabel: timelineLabelForAction(row.action),
+      occurredAt: row.createdAt,
+      ...userLabel(userMap, row.userId),
+      source: "activity_logs",
+      summary: timelineLabelForAction(row.action),
+      detail: null,
+      metadata: parseLogDetails(row.details),
+      severity: timelineSeverity(row.action.toLowerCase()),
+      relatedId: row.targetId ?? null,
+      relatedType: row.targetType ?? null,
+    });
+  }
+
+  const from = filter.dateFrom?.getTime();
+  const to = filter.dateTo?.getTime();
+  const eventTypes = new Set(filter.eventTypes ?? []);
+  const filtered = events
+    .filter((event) => !from || event.occurredAt.getTime() >= from)
+    .filter((event) => !to || event.occurredAt.getTime() <= to)
+    .filter((event) => eventTypes.size === 0 || eventTypes.has(event.eventType) || eventTypes.has(event.source))
+    .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime());
+
+  return { items: filtered.slice(0, limit), totalCount: filtered.length };
+}
+
 export async function getPerformanceStats(filter: {
   agentId?: number;
   teamId?: number;

@@ -43,6 +43,7 @@ import {
   getContractsByCustomerIncludingInactive,
   getCustomerPermanentDeleteBlockers,
   getCustomerById,
+  getCustomerTimeline,
   getCustomers,
   getDeletedContracts,
   getDeletedCustomers,
@@ -1696,6 +1697,28 @@ export const appRouter = router({
       }),
 
     // ── Bulk Import (지점장 전용) ────────────────────────────────────────────
+    timeline: activeUserProcedure
+      .input(z.object({
+        customerId: z.number(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        eventTypes: z.array(z.string()).max(20).optional(),
+        limit: z.number().min(1).max(200).optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        const dateFrom = input.dateFrom ? new Date(input.dateFrom) : undefined;
+        const dateTo = input.dateTo ? new Date(input.dateTo) : undefined;
+        if (dateFrom && Number.isNaN(dateFrom.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "dateFrom이 올바르지 않습니다." });
+        if (dateTo && Number.isNaN(dateTo.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "dateTo가 올바르지 않습니다." });
+        return getCustomerTimeline(input.customerId, {
+          dateFrom,
+          dateTo,
+          eventTypes: input.eventTypes,
+          limit: input.limit,
+        });
+      }),
+
     downloadImportTemplate: branchAdminProcedure.query(async ({ ctx }) => {
       const headers = [
         "이름",
