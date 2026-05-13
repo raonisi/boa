@@ -182,6 +182,7 @@ export async function createUser(data: {
   role: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
   accountStatus?: "active" | "inactive" | "resigned";
   loginStatus?: "invited" | "linked";
+  parentUserId?: number | null;
   teamId?: number | null;
   subBranchAdminId?: number | null;
   phone?: string;
@@ -196,6 +197,7 @@ export async function createUser(data: {
     role: data.role,
     accountStatus: data.accountStatus ?? "active",
     loginStatus: data.loginStatus ?? "invited",
+    parentUserId: data.parentUserId ?? null,
     teamId: data.teamId ?? null,
     subBranchAdminId: data.subBranchAdminId ?? null,
     phone: data.phone ?? null,
@@ -242,6 +244,18 @@ export async function updateUserAccountStatus(id: number, accountStatus: "active
   const db = await getDb();
   if (!db) return;
   await db.update(users).set({ accountStatus }).where(eq(users.id, id));
+}
+
+export async function updateUserParent(id: number, parentUserId: number | null) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set({ parentUserId }).where(eq(users.id, id));
+}
+
+export async function updateUserOrganization(id: number, data: { parentUserId: number | null; teamId: number | null; subBranchAdminId: number | null }) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(users).set(data).where(eq(users.id, id));
 }
 
 export async function updateUserTeam(id: number, teamId: number | null) {
@@ -621,6 +635,7 @@ export async function permanentlyDeleteTeam(id: number, client?: DbExecutor) {
 /** 역할별 고객 목록 조회 */
 export async function getCustomers(filter: {
   agentId?: number;
+  agentIds?: number[];
   teamId?: number;
   subBranchAdminId?: number;
   unassigned?: boolean;
@@ -643,7 +658,10 @@ export async function getCustomers(filter: {
     conditions.push(eq(customers.isActive, true));
   }
 
-  if (filter.agentId !== undefined) {
+  if (filter.agentIds !== undefined) {
+    if (filter.agentIds.length === 0) return [];
+    conditions.push(or(...filter.agentIds.map((id) => eq(customers.agentId, id))) as any);
+  } else if (filter.agentId !== undefined) {
     conditions.push(eq(customers.agentId, filter.agentId));
   } else if (filter.unassigned) {
     conditions.push(isNull(customers.agentId));
@@ -1357,12 +1375,15 @@ export async function getContractsByCustomerIncludingInactive(customerId: number
     .orderBy(desc(contracts.createdAt));
 }
 
-export async function getAllContracts(filter: { agentId?: number; teamId?: number; subBranchAdminId?: number }) {
+export async function getAllContracts(filter: { agentId?: number; agentIds?: number[]; teamId?: number; subBranchAdminId?: number }) {
   const db = await getDb();
   if (!db) return [];
 
   const baseCondition = eq(contracts.isActive, true);
-  if (filter.agentId !== undefined) {
+  if (filter.agentIds !== undefined) {
+    if (filter.agentIds.length === 0) return [];
+    return db.select().from(contracts).where(and(baseCondition, or(...filter.agentIds.map((id) => eq(contracts.agentId, id))))).orderBy(desc(contracts.createdAt));
+  } else if (filter.agentId !== undefined) {
     return db.select().from(contracts).where(and(baseCondition, eq(contracts.agentId, filter.agentId))).orderBy(desc(contracts.createdAt));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
@@ -1594,6 +1615,7 @@ export async function getFollowUpById(id: number) {
 export async function getFollowUps(filter: {
   customerId?: number;
   agentId?: number;
+  agentIds?: number[];
   teamId?: number;
   subBranchAdminId?: number;
   statuses?: Array<"scheduled" | "completed" | "postponed" | "cancelled">;
@@ -1606,7 +1628,10 @@ export async function getFollowUps(filter: {
   const conditions: any[] = [];
   if (!filter.includeDeleted) conditions.push(isNull(followUps.deletedAt));
   if (filter.customerId !== undefined) conditions.push(eq(followUps.customerId, filter.customerId));
-  if (filter.agentId !== undefined) conditions.push(eq(followUps.assignedAgentId, filter.agentId));
+  if (filter.agentIds !== undefined) {
+    if (filter.agentIds.length === 0) return [];
+    conditions.push(or(...filter.agentIds.map((id) => eq(followUps.assignedAgentId, id))));
+  } else if (filter.agentId !== undefined) conditions.push(eq(followUps.assignedAgentId, filter.agentId));
   if (filter.teamId !== undefined) conditions.push(eq(followUps.teamId, filter.teamId));
   if (filter.subBranchAdminId !== undefined) conditions.push(eq(followUps.subBranchAdminId, filter.subBranchAdminId));
   if (filter.statuses && filter.statuses.length > 0) conditions.push(or(...filter.statuses.map((status) => eq(followUps.status, status))));
@@ -1623,12 +1648,15 @@ export async function updateFollowUp(id: number, data: Partial<InsertFollowUp>, 
   await db.update(followUps).set(data).where(eq(followUps.id, id));
 }
 
-export async function getSchedules(filter: { userId?: number; teamId?: number; subBranchAdminId?: number }) {
+export async function getSchedules(filter: { userId?: number; userIds?: number[]; teamId?: number; subBranchAdminId?: number }) {
   const db = await getDb();
   if (!db) return [];
 
   const baseCondition = eq(schedules.isActive, true);
-  if (filter.userId !== undefined) {
+  if (filter.userIds !== undefined) {
+    if (filter.userIds.length === 0) return [];
+    return db.select().from(schedules).where(and(baseCondition, or(...filter.userIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
+  } else if (filter.userId !== undefined) {
     return db.select().from(schedules).where(and(baseCondition, eq(schedules.userId, filter.userId))).orderBy(schedules.startTime);
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
@@ -2157,6 +2185,7 @@ export async function getCustomerTimeline(customerId: number, filter: CustomerTi
 
 export async function getPerformanceStats(filter: {
   agentId?: number;
+  agentIds?: number[];
   teamId?: number;
   subBranchAdminId?: number;
   dateFrom?: Date;
@@ -2189,7 +2218,12 @@ export async function getPerformanceStats(filter: {
   if (filter.source) customerConditions.push(eq(customers.source, filter.source));
   const customerBaseCondition = customerConditions.length > 1 ? and(...customerConditions) : activeCondition;
 
-  if (filter.agentId !== undefined) {
+  if (filter.agentIds !== undefined) {
+    if (filter.agentIds.length > 0) {
+      customerList = await db.select().from(customers).where(and(or(...filter.agentIds.map((id) => eq(customers.agentId, id))), customerBaseCondition as any));
+      contractList = await db.select().from(contracts).where(and(or(...filter.agentIds.map((id) => eq(contracts.agentId, id))), ...dateConditions));
+    }
+  } else if (filter.agentId !== undefined) {
     customerList = await db.select().from(customers).where(and(eq(customers.agentId, filter.agentId), customerBaseCondition as any));
     contractList = await db.select().from(contracts).where(and(eq(contracts.agentId, filter.agentId), ...dateConditions));
   } else if (filter.teamId !== undefined) {

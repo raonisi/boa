@@ -344,20 +344,27 @@ describe("RBAC - updateRole (branch_admin only)", () => {
 });
 
 // ─── RBAC - DB 배정 권한 ──────────────────────────────────────────────────────
-describe("RBAC - customers.assign (sub_branch_admin or above only)", () => {
+describe("RBAC - customers.assign (team_leader or above only)", () => {
   it("blocks member from assigning customers", async () => {
     await expect(
       appRouter.createCaller(createCtx("member")).customers.assign({ customerId: 1, agentId: 3 })
-    ).rejects.toThrow("부지점장 이상만 접근 가능합니다.");
+    ).rejects.toThrow();
   });
-  it("blocks team_leader from assigning customers", async () => {
+  it("blocks team_leader from assigning outside descendants", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 1, agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, isActive: true } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 99, name: "[TEST] Outside", role: "member", accountStatus: "active", teamId: null, subBranchAdminId: null } as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", parentUserId: null, teamId: 10, subBranchAdminId: 2 },
+      { id: 99, name: "[TEST] Outside", role: "member", accountStatus: "active", parentUserId: null, teamId: null, subBranchAdminId: null },
+    ] as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([] as any);
     await expect(
-      appRouter.createCaller(createCtx("team_leader")).customers.assign({ customerId: 1, agentId: 3 })
-    ).rejects.toThrow("부지점장 이상만 접근 가능합니다.");
+      appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).customers.assign({ customerId: 1, agentId: 99 })
+    ).rejects.toThrow();
   });
 });
 
-// ─── RBAC - assignToSubBranch (branch_admin only) ────────────────────────────
+// RBAC - assignToSubBranch (branch_admin only)
 describe("RBAC - customers.assignToSubBranch (branch_admin only)", () => {
   it("blocks sub_branch_admin from assigning to sub branch", async () => {
     await expect(
@@ -2050,22 +2057,22 @@ describe("dashboard.todayWork", () => {
     mockTodayWorkData();
     vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 4 }] as any);
     await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).dashboard.todayWork({ date: baseDate });
-    expect(db.getCustomers).toHaveBeenCalledWith({ teamId: 10 });
-    expect(db.getAllContracts).toHaveBeenCalledWith({ teamId: 10 });
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [3, 4] });
+    expect(db.getAllContracts).toHaveBeenCalledWith({ agentIds: [3, 4] });
 
     vi.restoreAllMocks();
     mockTodayWorkData();
-    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: null })).dashboard.todayWork({ date: baseDate });
-    expect(result.cards.todayScheduleCount).toBe(0);
-    expect(result.cards.monthlyContractCount).toBe(0);
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: null })).dashboard.todayWork({ date: baseDate });
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [3] });
+    expect(db.getAllContracts).toHaveBeenCalledWith({ agentIds: [3] });
   });
 
   it("uses sub-branch and branch scopes, and blocks inactive users", async () => {
     mockTodayWorkData();
     vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([{ id: 4 }] as any);
     await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).dashboard.todayWork({ date: baseDate });
-    expect(db.getCustomers).toHaveBeenCalledWith({ subBranchAdminId: 2 });
-    expect(db.getAllContracts).toHaveBeenCalledWith({ subBranchAdminId: 2 });
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [2, 4] });
+    expect(db.getAllContracts).toHaveBeenCalledWith({ agentIds: [2, 4] });
 
     vi.restoreAllMocks();
     mockTodayWorkData();
@@ -2147,13 +2154,13 @@ describe("PR12 recommendations", () => {
     mockRecommendationData();
     vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 4 }] as any);
     await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).recommendations.dashboardSummary({ date: baseDate });
-    expect(db.getCustomers).toHaveBeenCalledWith({ teamId: 10 });
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [3, 4] });
 
     vi.restoreAllMocks();
     mockRecommendationData();
     vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([{ id: 4 }] as any);
     await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).recommendations.dashboardSummary({ date: baseDate });
-    expect(db.getCustomers).toHaveBeenCalledWith({ subBranchAdminId: 2 });
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [2, 4] });
 
     await expect(appRouter.createCaller(createInactiveCtx()).recommendations.priorityContacts({ date: baseDate })).rejects.toThrow();
   });
@@ -2351,11 +2358,13 @@ describe("followUps", () => {
     await appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.listToday({ date: "2026-05-13T00:00:00.000Z" });
     expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ agentId: 4 }));
 
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 4 }] as any);
     await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).followUps.listOverdue({ date: "2026-05-13T00:00:00.000Z" });
-    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ teamId: 10 }));
+    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ agentIds: [3, 4] }));
 
+    vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([{ id: 4 }] as any);
     await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).followUps.listToday({ date: "2026-05-13T00:00:00.000Z" });
-    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ subBranchAdminId: 2 }));
+    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ agentIds: [2, 4] }));
   });
 });
 

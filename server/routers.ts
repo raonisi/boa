@@ -97,6 +97,8 @@ import {
   updateSchedule,
   updateTeam,
   updateUserAccountStatus,
+  updateUserParent,
+  updateUserOrganization,
   updateUserRole,
   updateUserSubBranchAdmin,
   updateUserTeam,
@@ -634,32 +636,12 @@ async function verifyAgentTarget(
   actor: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null },
   targetUserId: number
 ) {
-  const target = await getUserById(targetUserId);
-  if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "대상 사용자를 찾을 수 없습니다." });
-  if (target.accountStatus !== "active") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "비활성 계정에는 배정할 수 없습니다." });
-  }
-  const isBranchAdminSelfTarget = actor.role === "branch_admin" && target.id === actor.id && target.role === "branch_admin";
-  if (!isBranchAdminSelfTarget && target.role !== "team_leader" && target.role !== "member") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "팀장 또는 팀원만 담당자로 지정할 수 있습니다." });
-  }
+  const target = await assertCanAssignCustomerToUser({ ...actor, accountStatus: "active" }, targetUserId);
   if (target.teamId) {
     const team = await getTeamById(target.teamId);
     if (team && (team as any).subBranchAdminId !== target.subBranchAdminId) {
       throw new TRPCError({ code: "BAD_REQUEST", message: "대상 사용자의 팀과 부지점장 소속이 일치하지 않습니다." });
     }
-  }
-  if (actor.role === "sub_branch_admin" && target.subBranchAdminId !== actor.id) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "본인 산하 조직원에게만 배정 가능합니다." });
-  }
-  if (actor.role === "team_leader") {
-    const isSameTeam = actor.teamId !== null && target.teamId === actor.teamId;
-    if (target.id !== actor.id && !isSameTeam) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "본인 또는 본인 팀원에게만 배정 가능합니다." });
-    }
-  }
-  if (actor.role === "member" && target.id !== actor.id) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "팀원은 담당자를 변경할 수 없습니다." });
   }
   return target;
 }
@@ -759,16 +741,16 @@ async function verifyTargetUserAccess(
   actor: { id: number; role: string; teamId: number | null },
   targetUserId: number
 ) {
-  const target = await getUserById(targetUserId);
+  const [target, usersList, teamsList] = await Promise.all([getUserById(targetUserId), getAllUsers(), getAllTeams()]);
   if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "대상 사용자를 찾을 수 없습니다." });
   if (target.accountStatus !== "active") {
     throw new TRPCError({ code: "FORBIDDEN", message: "비활성 사용자에게는 처리할 수 없습니다." });
   }
   if (actor.role === "branch_admin") return target;
-  if (actor.role === "sub_branch_admin" && (target.id === actor.id || target.subBranchAdminId === actor.id)) return target;
-  if (actor.role === "team_leader") {
-    const isSameTeam = actor.teamId !== null && target.teamId === actor.teamId;
-    if (target.id === actor.id || isSameTeam) return target;
+  const scopedUsers = ensureOrgUsers(usersList as OrgUser[], actor, target as OrgUser);
+  if (actor.role === "sub_branch_admin" || actor.role === "team_leader") {
+    const ids = descendantUserIdsFrom(actor.id, scopedUsers, teamsList as OrgTeam[], true);
+    if (ids.includes(target.id)) return target;
   }
   if (actor.role === "member" && target.id === actor.id) return target;
   throw new TRPCError({ code: "FORBIDDEN", message: "대상 사용자에 대한 권한이 없습니다." });
@@ -780,6 +762,7 @@ type MinimalUser = {
   name: string | null;
   email: null;
   role: string;
+  parentUserId: number | null;
   teamId: number | null;
   subBranchAdminId: number | null;
   accountStatus: string;
@@ -790,6 +773,7 @@ function toMinimalUser(user: {
   id: number;
   name: string | null;
   role: string;
+  parentUserId?: number | null;
   teamId: number | null;
   subBranchAdminId: number | null;
   accountStatus: string;
@@ -799,11 +783,171 @@ function toMinimalUser(user: {
     name: user.name,
     email: null,
     role: user.role,
+    parentUserId: user.parentUserId ?? null,
     teamId: user.teamId,
     subBranchAdminId: user.subBranchAdminId,
     accountStatus: user.accountStatus,
     createdAt: null,
   };
+}
+
+type OrgUser = {
+  id: number;
+  name: string | null;
+  role: string;
+  accountStatus: string;
+  parentUserId?: number | null;
+  teamId: number | null;
+  subBranchAdminId: number | null;
+};
+
+type OrgTeam = { id: number; managerId?: number | null; subBranchAdminId?: number | null };
+
+function effectiveParentUserId(user: OrgUser, usersList: OrgUser[], teamsList: OrgTeam[]): number | null {
+  if (user.parentUserId !== undefined && user.parentUserId !== null) return user.parentUserId;
+  if (user.role === "branch_admin") return null;
+  if (user.role === "sub_branch_admin") return null;
+  if (user.role === "team_leader") return user.subBranchAdminId ?? null;
+  if (user.role === "member") {
+    if (user.teamId !== null) {
+      const team = teamsList.find((item) => item.id === user.teamId);
+      if (team?.managerId) return team.managerId;
+    }
+    if (user.subBranchAdminId !== null) return user.subBranchAdminId;
+  }
+  return null;
+}
+
+function ensureOrgUsers(
+  usersList: OrgUser[],
+  actor: { id: number; role: string; accountStatus?: string },
+  target?: OrgUser
+) {
+  const byId = new Map<number, OrgUser>();
+  for (const user of usersList) byId.set(user.id, user);
+  if (!byId.has(actor.id)) {
+    byId.set(actor.id, {
+      id: actor.id,
+      name: null,
+      role: actor.role,
+      accountStatus: actor.accountStatus ?? "active",
+      parentUserId: null,
+      teamId: null,
+      subBranchAdminId: null,
+    });
+  }
+  if (target && !byId.has(target.id)) byId.set(target.id, target);
+  return Array.from(byId.values());
+}
+
+function descendantUserIdsFrom(
+  rootUserId: number,
+  usersList: OrgUser[],
+  teamsList: OrgTeam[],
+  includeRoot = true
+): number[] {
+  const result = new Set<number>();
+  if (includeRoot) result.add(rootUserId);
+  const walk = (parentId: number) => {
+    for (const user of usersList) {
+      if (user.accountStatus !== "active") continue;
+      if (effectiveParentUserId(user, usersList, teamsList) !== parentId) continue;
+      if (result.has(user.id)) continue;
+      result.add(user.id);
+      walk(user.id);
+    }
+  };
+  walk(rootUserId);
+  return Array.from(result);
+}
+
+async function getHierarchyScopeUserIds(actor: {
+  id: number;
+  role: string;
+  accountStatus: string;
+  teamId?: number | null;
+  subBranchAdminId?: number | null;
+}): Promise<number[] | undefined> {
+  if (actor.role === "branch_admin") return undefined;
+  const [usersList, teamsList] = await Promise.all([getAllUsers(), getAllTeams()]);
+  if (actor.role === "sub_branch_admin" || actor.role === "team_leader") {
+    const ids = descendantUserIdsFrom(actor.id, ensureOrgUsers(usersList as OrgUser[], actor), teamsList as OrgTeam[], true);
+    if (ids.length > 1) return ids;
+    if (actor.role === "team_leader" && actor.teamId) {
+      const teamMembers = await getUsersByTeamId(actor.teamId);
+      return Array.from(new Set([actor.id, ...teamMembers.filter((member: any) => !member.accountStatus || member.accountStatus === "active").map((member) => member.id)]));
+    }
+    if (actor.role === "sub_branch_admin") {
+      const subordinates = await getUsersBySubBranchAdminId(actor.id);
+      return Array.from(new Set([actor.id, ...subordinates.filter((member: any) => !member.accountStatus || member.accountStatus === "active").map((member) => member.id)]));
+    }
+    return ids;
+  }
+  return [actor.id];
+}
+
+async function assertCanAssignCustomerToUser(
+  actor: { id: number; role: string; accountStatus: string },
+  targetUserId: number
+) {
+  const [target, usersList, teamsList] = await Promise.all([getUserById(targetUserId), getAllUsers(), getAllTeams()]);
+  if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "대상 사용자를 찾을 수 없습니다." });
+  if (target.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "비활성 계정에는 배정할 수 없습니다." });
+  if (actor.role === "branch_admin") return target;
+  const scopedUsers = ensureOrgUsers(usersList as OrgUser[], actor, target as OrgUser);
+  if (actor.role === "sub_branch_admin") {
+    const ids = descendantUserIdsFrom(actor.id, scopedUsers, teamsList as OrgTeam[], false);
+    if (ids.includes(targetUserId) && (target.role === "team_leader" || target.role === "member")) return target;
+  }
+  if (actor.role === "team_leader") {
+    const ids = descendantUserIdsFrom(actor.id, scopedUsers, teamsList as OrgTeam[], false);
+    if (ids.includes(targetUserId) && target.role === "member") return target;
+  }
+  throw new TRPCError({ code: "FORBIDDEN", message: "산하 조직원에게만 배정할 수 있습니다." });
+}
+
+async function buildOrganizationTree(actor: { id: number; role: string; accountStatus: string }) {
+  const [usersListRaw, teamsListRaw, customersList] = await Promise.all([getAllUsers(), getAllTeams(), getCustomers({})]);
+  const usersList = usersListRaw as OrgUser[];
+  const teamsList = teamsListRaw as OrgTeam[];
+  const visibleIds = actor.role === "branch_admin"
+    ? new Set(usersList.map((user) => user.id))
+    : new Set(descendantUserIdsFrom(actor.id, usersList, teamsList, true));
+  const visibleUsers = usersList.filter((user) => visibleIds.has(user.id));
+  const customerCounts = new Map<number, number>();
+  for (const customer of customersList) {
+    if (customer.agentId) customerCounts.set(customer.agentId, (customerCounts.get(customer.agentId) ?? 0) + 1);
+  }
+  const nodes = visibleUsers.map((user) => ({
+    id: user.id,
+    name: user.name,
+    role: user.role,
+    accountStatus: user.accountStatus,
+    teamId: user.teamId,
+    subBranchAdminId: user.subBranchAdminId,
+    parentUserId: effectiveParentUserId(user, usersList, teamsList),
+    explicitParentUserId: user.parentUserId ?? null,
+    directReportCount: usersList.filter((candidate) => candidate.accountStatus === "active" && effectiveParentUserId(candidate, usersList, teamsList) === user.id).length,
+    descendantCount: Math.max(descendantUserIdsFrom(user.id, usersList, teamsList, false).length, 0),
+    customerCount: customerCounts.get(user.id) ?? 0,
+  }));
+  const summary = {
+    subBranchAdminCount: nodes.filter((node) => node.role === "sub_branch_admin").length,
+    directTeamLeaderCount: nodes.filter((node) => node.role === "team_leader" && node.parentUserId === null).length,
+    totalTeamLeaderCount: nodes.filter((node) => node.role === "team_leader").length,
+    totalMemberCount: nodes.filter((node) => node.role === "member").length,
+    directMemberCount: nodes.filter((node) => node.role === "member" && node.parentUserId === null).length,
+    unassignedCount: nodes.filter((node) => node.role !== "branch_admin" && node.parentUserId === null && node.accountStatus === "active").length,
+  };
+  return { nodes, summary };
+}
+
+function isAllowedParentForRole(targetRole: string, parentRole?: string | null) {
+  if (targetRole === "branch_admin") return parentRole == null;
+  if (targetRole === "sub_branch_admin") return parentRole === "branch_admin";
+  if (targetRole === "team_leader") return parentRole === "branch_admin" || parentRole === "sub_branch_admin";
+  if (targetRole === "member") return parentRole === "branch_admin" || parentRole === "sub_branch_admin" || parentRole === "team_leader";
+  return false;
 }
 
 async function verifyTeamFilterAccess(
@@ -819,7 +963,7 @@ async function verifyTeamFilterAccess(
 }
 
 async function buildPerformanceScope(
-  user: { id: number; role: string; teamId: number | null },
+  user: { id: number; role: string; teamId: number | null; accountStatus: string },
   input?: { agentIdFilter?: number; teamIdFilter?: number; scope?: "all" | "mine" }
 ) {
   const agentId = input?.agentIdFilter;
@@ -846,15 +990,13 @@ async function buildPerformanceScope(
 
   if (teamId !== undefined) await verifyTeamFilterAccess(user, teamId);
 
-  if (user.role === "sub_branch_admin") return { subBranchAdminId: user.id, agentId, teamId };
+  if (user.role === "sub_branch_admin") {
+    if (agentId !== undefined || teamId !== undefined) return { agentId, teamId };
+    return { agentIds: await getHierarchyScopeUserIds(user) };
+  }
   if (user.role === "team_leader") {
-    if (user.teamId === null) {
-      if (teamId !== undefined || agentId !== undefined) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "팀 소속이 없어 팀 실적을 조회할 수 없습니다." });
-      }
-      return { agentId: user.id };
-    }
-    return { teamId: teamId ?? user.teamId, agentId };
+    if (agentId !== undefined || teamId !== undefined) return { agentId, teamId };
+    return { agentIds: await getHierarchyScopeUserIds(user) };
   }
 
   if (teamId !== undefined || (agentId !== undefined && agentId !== user.id)) {
@@ -863,17 +1005,15 @@ async function buildPerformanceScope(
   return { agentId: user.id };
 }
 
-async function getAccessibleSchedules(user: { id: number; role: string; teamId: number | null }) {
+async function getAccessibleSchedules(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
   if (user.role === "branch_admin") return getSchedules({});
-  if (user.role === "sub_branch_admin") return getSchedules({ subBranchAdminId: user.id });
-  if (user.role === "team_leader") {
-    if (user.teamId === null) return [];
-    return getSchedules({ teamId: user.teamId });
+  if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+    return getSchedules({ userIds: await getHierarchyScopeUserIds(user) });
   }
   return getSchedules({ userId: user.id });
 }
 
-async function getScopedDashboardData(user: { id: number; role: string; teamId: number | null }) {
+async function getScopedDashboardData(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
   if (user.role === "branch_admin") {
     const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
       getCustomers({}),
@@ -886,28 +1026,25 @@ async function getScopedDashboardData(user: { id: number; role: string; teamId: 
   }
 
   if (user.role === "sub_branch_admin") {
-    const subordinates = await getUsersBySubBranchAdminId(user.id);
-    const userIds = [user.id, ...subordinates.map((u) => u.id)];
+    const userIds = await getHierarchyScopeUserIds(user) ?? [user.id];
     const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
-      getCustomers({ subBranchAdminId: user.id }),
-      getAllContracts({ subBranchAdminId: user.id }),
+      getCustomers({ agentIds: userIds }),
+      getAllContracts({ agentIds: userIds }),
       getAccessibleSchedules(user),
       getNotificationsFiltered({ userIds, limit: 200 }),
-      getFollowUps({ subBranchAdminId: user.id, statuses: ["scheduled", "postponed"] }),
+      getFollowUps({ agentIds: userIds, statuses: ["scheduled", "postponed"] }),
     ]);
     return { customerList, contractList, scheduleList, notifications: notificationResult.items, followUpList };
   }
 
   if (user.role === "team_leader") {
-    if (user.teamId === null) return { customerList: [], contractList: [], scheduleList: [], notifications: [], followUpList: [] };
-    const teamMembers = await getUsersByTeamId(user.teamId);
-    const userIds = [user.id, ...teamMembers.map((u) => u.id)];
+    const userIds = await getHierarchyScopeUserIds(user) ?? [user.id];
     const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
-      getCustomers({ teamId: user.teamId }),
-      getAllContracts({ teamId: user.teamId }),
+      getCustomers({ agentIds: userIds }),
+      getAllContracts({ agentIds: userIds }),
       getAccessibleSchedules(user),
       getNotificationsFiltered({ userIds, limit: 200 }),
-      getFollowUps({ teamId: user.teamId, statuses: ["scheduled", "postponed"] }),
+      getFollowUps({ agentIds: userIds, statuses: ["scheduled", "postponed"] }),
     ]);
     return { customerList, contractList, scheduleList, notifications: notificationResult.items, followUpList };
   }
@@ -946,12 +1083,10 @@ function toDayEnd(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
 }
 
-async function getFollowUpScope(user: { id: number; role: string; teamId: number | null }) {
+async function getFollowUpScope(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
   if (user.role === "branch_admin") return {};
-  if (user.role === "sub_branch_admin") return { subBranchAdminId: user.id };
-  if (user.role === "team_leader") {
-    if (user.teamId === null) return { teamId: -1 };
-    return { teamId: user.teamId };
+  if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+    return { agentIds: await getHierarchyScopeUserIds(user) };
   }
   return { agentId: user.id };
 }
@@ -1063,7 +1198,7 @@ function goalItemForScope(items: any[], scope: { targetUserId?: number; teamId?:
   return items.find((item) => item.goal.targetType === "branch") ?? items[0];
 }
 
-async function buildRecommendationItems(user: { id: number; role: string; teamId: number | null }, baseDate: Date) {
+async function buildRecommendationItems(user: { id: number; role: string; teamId: number | null; accountStatus: string }, baseDate: Date) {
   const { customerList, contractList, notifications, followUpList } = await getScopedDashboardData(user);
   const activeCustomers = customerList.filter((customer) => customer.isActive && !customer.deletedAt);
   const consultationEntries = await Promise.all(activeCustomers.map(async (customer) => ({
@@ -1455,15 +1590,11 @@ export const appRouter = router({
       const all = await getAllUsers();
       if (ctx.user.role === "branch_admin") return all;
       // 비활성 사용자 제외 후 반환
-      if (ctx.user.role === "sub_branch_admin") {
+      if (ctx.user.role === "sub_branch_admin" || ctx.user.role === "team_leader") {
+        const teams = await getAllTeams();
+        const ids = new Set(descendantUserIdsFrom(ctx.user.id, all as OrgUser[], teams as OrgTeam[], true));
         return all
-          .filter((u) => u.accountStatus === "active" && u.subBranchAdminId === ctx.user.id && (u.role === "team_leader" || u.role === "member"))
-          .map(toMinimalUser);
-      }
-      if (ctx.user.role === "team_leader") {
-        if (ctx.user.teamId === null) return [toMinimalUser(ctx.user)];
-        return all
-          .filter((u) => u.accountStatus === "active" && u.teamId === ctx.user.teamId && u.role === "member")
+          .filter((u) => u.accountStatus === "active" && ids.has(u.id))
           .map(toMinimalUser);
       }
       return [toMinimalUser(ctx.user)];
@@ -1589,6 +1720,71 @@ export const appRouter = router({
           JSON.stringify({ before: { subBranchAdminId: previousSubBranchAdminId }, after: { subBranchAdminId: input.subBranchAdminId } }));
         await log(ctx.user.id, "USER_MOVED_TO_ANOTHER_SUB_BRANCH", "user", input.userId,
           JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, previousSubBranchAdminId, newSubBranchAdminId: input.subBranchAdminId }));
+        return { success: true };
+      }),
+
+    organizationTree: activeUserProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role === "member") throw new TRPCError({ code: "FORBIDDEN", message: "조직 관리는 팀장 이상만 접근 가능합니다." });
+      return buildOrganizationTree(ctx.user);
+    }),
+
+    assignableParents: branchAdminProcedure
+      .input(z.object({ userId: z.number() }))
+      .query(async ({ input }) => {
+        const [target, allUsers, teams] = await Promise.all([getUserById(input.userId), getAllUsers(), getAllTeams()]);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+        if (target.accountStatus !== "active") return [];
+        return (allUsers as OrgUser[])
+          .filter((candidate) => candidate.accountStatus === "active" && candidate.id !== target.id)
+          .filter((candidate) => isAllowedParentForRole(target.role, candidate.role))
+          .filter((candidate) => !descendantUserIdsFrom(target.id, allUsers as OrgUser[], teams as OrgTeam[], false).includes(candidate.id))
+          .map((candidate) => ({ id: candidate.id, name: candidate.name, role: candidate.role, accountStatus: candidate.accountStatus }));
+      }),
+
+    updateParent: branchAdminProcedure
+      .input(z.object({ userId: z.number(), parentUserId: z.number().nullable() }))
+      .mutation(async ({ ctx, input }) => {
+        const [target, parent, allUsers, teams] = await Promise.all([
+          getUserById(input.userId),
+          input.parentUserId === null ? Promise.resolve(null) : getUserById(input.parentUserId),
+          getAllUsers(),
+          getAllTeams(),
+        ]);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+        if (target.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "비활성/퇴사 사용자는 조직 배정 대상이 아닙니다." });
+        if (input.parentUserId === input.userId) throw new TRPCError({ code: "BAD_REQUEST", message: "자기 자신을 상위자로 지정할 수 없습니다." });
+        if (input.parentUserId !== null && !parent) throw new TRPCError({ code: "NOT_FOUND", message: "상위 사용자를 찾을 수 없습니다." });
+        if (parent && parent.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "비활성/퇴사 사용자는 상위자로 지정할 수 없습니다." });
+        const parentRole = parent?.role ?? null;
+        if (!isAllowedParentForRole(target.role, parentRole)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "해당 역할에 허용되지 않는 상위자입니다." });
+        }
+        if (input.parentUserId !== null && descendantUserIdsFrom(target.id, allUsers as OrgUser[], teams as OrgTeam[], false).includes(input.parentUserId)) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "순환 조직 구조는 만들 수 없습니다." });
+        }
+        const nextTeamId = parent?.role === "team_leader" ? parent.teamId ?? null : null;
+        const nextSubBranchAdminId =
+          parent?.role === "sub_branch_admin"
+            ? parent.id
+            : parent?.role === "team_leader"
+              ? parent.subBranchAdminId ?? null
+              : null;
+        await updateUserOrganization(input.userId, { parentUserId: input.parentUserId, teamId: nextTeamId, subBranchAdminId: nextSubBranchAdminId });
+        await log(ctx.user.id, "USER_ORG_PARENT_CHANGED", "user", input.userId, logDetails({
+          actor: ctx.user.id,
+          targetType: "user",
+          targetId: input.userId,
+          beforeValue: {
+            parentUserId: (target as any).parentUserId ?? null,
+            teamId: target.teamId ?? null,
+            subBranchAdminId: target.subBranchAdminId ?? null,
+          },
+          afterValue: {
+            parentUserId: input.parentUserId,
+            teamId: nextTeamId,
+            subBranchAdminId: nextSubBranchAdminId,
+          },
+        }));
         return { success: true };
       }),
 
@@ -2049,10 +2245,9 @@ export const appRouter = router({
           const scopedAgentId = input.scope === "mine" ? user.id : input.agentIdFilter;
           return getCustomers({ ...baseFilter, agentId: scopedAgentId });
         }
-        if (user.role === "sub_branch_admin") return getCustomers({ ...baseFilter, subBranchAdminId: user.id });
-        if (user.role === "team_leader") {
-          if (user.teamId === null) return [];
-          return getCustomers({ ...baseFilter, teamId: user.teamId });
+        if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+          const agentIds = await getHierarchyScopeUserIds(user);
+          return getCustomers({ ...baseFilter, agentIds });
         }
         return getCustomers({ ...baseFilter, agentId: user.id });
       }),
@@ -2282,8 +2477,8 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** 지점장 또는 부지점장이 팀원에게 최종 배정 */
-    assign: subBranchAdminOrAboveProcedure
+    /** 지점장/부지점장/팀장이 산하 조직원에게 최종 배정 */
+    assign: teamLeaderOrAboveProcedure
       .input(z.object({ customerId: z.number(), agentId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
@@ -2323,7 +2518,10 @@ export const appRouter = router({
             newSubBranchAdminId: nextSubBranchAdminId,
             newTeamId: nextTeamId,
           },
-          metadata: { assignmentType: user.role === "branch_admin" ? "branch_to_agent" : "sub_branch_to_agent", selfManagedByBranchAdmin: isBranchAdminSelfAssignment },
+          metadata: {
+            assignmentType: user.role === "branch_admin" ? "branch_to_agent" : user.role === "sub_branch_admin" ? "sub_branch_to_agent" : "team_to_agent",
+            selfManagedByBranchAdmin: isBranchAdminSelfAssignment,
+          },
         });
         await runDbTransaction(async (tx) => {
           await assignCustomer(input.customerId, input.agentId, nextTeamId ?? undefined, nextSubBranchAdminId ?? undefined, tx);
@@ -3152,10 +3350,8 @@ export const appRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "전체 계약은 지점장만 조회할 수 있습니다." });
       }
       if (user.role === "branch_admin") return getAllContracts(input?.scope === "mine" ? { agentId: user.id } : {});
-      if (user.role === "sub_branch_admin") return getAllContracts({ subBranchAdminId: user.id });
-      if (user.role === "team_leader") {
-        if (user.teamId === null) return [];
-        return getAllContracts({ teamId: user.teamId });
+      if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+        return getAllContracts({ agentIds: await getHierarchyScopeUserIds(user) });
       }
       return getAllContracts({ agentId: user.id });
     }),
