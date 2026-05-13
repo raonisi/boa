@@ -62,6 +62,18 @@ export type CustomerTimelineFilter = {
   limit?: number;
 };
 
+export type CustomerMergeStats = {
+  consultations: number;
+  contracts: number;
+  followUps: number;
+  notifications: number;
+  reminders: number;
+  deleteRequests: number;
+  statusHistory: number;
+  consentLogs: number;
+  assignmentHistory: number;
+};
+
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -387,6 +399,236 @@ export async function permanentlyDeleteCustomer(id: number, client?: DbExecutor)
   const db = client ?? await getDb();
   if (!db) return;
   await db.delete(customers).where(eq(customers.id, id));
+}
+
+function maskPhoneForMerge(phone?: string | null) {
+  const normalized = phone ? normalizePhone(phone) : "";
+  if (normalized.length < 7) return normalized ? "***" : null;
+  return `${normalized.slice(0, 3)}-****-${normalized.slice(-4)}`;
+}
+
+function decodeTagList(value?: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  }
+}
+
+function encodeTagList(tags: string[]) {
+  return JSON.stringify(Array.from(new Set(tags)).slice(0, 10));
+}
+
+function strongerPriority(a?: string | null, b?: string | null) {
+  const rank: Record<string, number> = { A: 5, B: 4, C: 3, D: 2, unclassified: 1 };
+  return (rank[b ?? "unclassified"] ?? 1) > (rank[a ?? "unclassified"] ?? 1) ? b : a;
+}
+
+function customerMergeSummary(row: typeof customers.$inferSelect, stats?: CustomerMergeStats) {
+  return {
+    id: row.id,
+    name: row.name,
+    maskedPhone: maskPhoneForMerge(row.phone),
+    birthDate: row.birthDate,
+    region: row.region,
+    source: row.source,
+    consultStatus: row.consultStatus,
+    priority: row.priority,
+    customerTags: decodeTagList(row.customerTags),
+    nextAction: row.nextAction,
+    agentId: row.agentId,
+    assignedTeamId: row.assignedTeamId,
+    subBranchAdminId: row.subBranchAdminId,
+    isActive: row.isActive,
+    deletedAt: row.deletedAt,
+    mergedIntoCustomerId: row.mergedIntoCustomerId,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+    stats,
+  };
+}
+
+export async function getCustomerMergeStats(customerId: number): Promise<CustomerMergeStats> {
+  const db = await getDb();
+  if (!db) return {
+    consultations: 0,
+    contracts: 0,
+    followUps: 0,
+    notifications: 0,
+    reminders: 0,
+    deleteRequests: 0,
+    statusHistory: 0,
+    consentLogs: 0,
+    assignmentHistory: 0,
+  };
+  const [consultationRows, contractRows, followUpRows, notificationRows, reminderRows, requestRows, statusRows, consentRows, assignmentRows] = await Promise.all([
+    db.select({ count: sql<number>`COUNT(*)` }).from(consultations).where(eq(consultations.customerId, customerId)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(contracts).where(eq(contracts.customerId, customerId)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(followUps).where(eq(followUps.customerId, customerId)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(notifications).where(and(eq(notifications.relatedType, "customer"), eq(notifications.relatedId, customerId))),
+    db.select({ count: sql<number>`COUNT(*)` }).from(reminders).where(and(eq(reminders.relatedType, "customer"), eq(reminders.relatedId, customerId))),
+    db.select({ count: sql<number>`COUNT(*)` }).from(deleteRequests).where(eq(deleteRequests.customerId, customerId)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(statusHistory).where(eq(statusHistory.customerId, customerId)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(consentLogs).where(eq(consentLogs.customerId, customerId)),
+    db.select({ count: sql<number>`COUNT(*)` }).from(assignmentHistory).where(eq(assignmentHistory.customerId, customerId)),
+  ]);
+  return {
+    consultations: Number(consultationRows[0]?.count ?? 0),
+    contracts: Number(contractRows[0]?.count ?? 0),
+    followUps: Number(followUpRows[0]?.count ?? 0),
+    notifications: Number(notificationRows[0]?.count ?? 0),
+    reminders: Number(reminderRows[0]?.count ?? 0),
+    deleteRequests: Number(requestRows[0]?.count ?? 0),
+    statusHistory: Number(statusRows[0]?.count ?? 0),
+    consentLogs: Number(consentRows[0]?.count ?? 0),
+    assignmentHistory: Number(assignmentRows[0]?.count ?? 0),
+  };
+}
+
+export async function findDuplicateCustomerGroups(filter: { search?: string; phone?: string; name?: string; onlyActive?: boolean } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (filter.onlyActive !== false) conditions.push(eq(customers.isActive, true), isNull(customers.deletedAt));
+  if (filter.search) {
+    const like = `%${filter.search}%`;
+    conditions.push(or(sql`${customers.name} like ${like}`, sql`${customers.phone} like ${like}`) as any);
+  }
+  if (filter.name) conditions.push(sql`${customers.name} like ${`%${filter.name}%`}` as any);
+  const rows = await db.select().from(customers)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(customers.updatedAt))
+    .limit(1000);
+
+  const expectedPhone = filter.phone ? normalizePhone(filter.phone) : null;
+  const phoneGroups = new Map<string, typeof rows>();
+  for (const row of rows) {
+    const normalized = row.phone ? normalizePhone(row.phone) : "";
+    if (!normalized || (expectedPhone && normalized !== expectedPhone)) continue;
+    const group = phoneGroups.get(normalized) ?? [];
+    group.push(row);
+    phoneGroups.set(normalized, group);
+  }
+
+  const duplicateGroups = Array.from(phoneGroups.entries())
+    .filter(([, group]) => group.length > 1)
+    .slice(0, 50);
+
+  return Promise.all(duplicateGroups.map(async ([normalizedPhone, group]) => ({
+    normalizedPhone,
+    maskedPhone: maskPhoneForMerge(normalizedPhone),
+    candidates: await Promise.all(group.map(async (row) => customerMergeSummary(row, await getCustomerMergeStats(row.id)))),
+  })));
+}
+
+export async function getCustomerMergePreview(targetCustomerId: number, sourceCustomerId: number) {
+  const [target, source] = await Promise.all([getCustomerById(targetCustomerId), getCustomerById(sourceCustomerId)]);
+  if (!target || !source) return undefined;
+  const [targetStats, sourceStats] = await Promise.all([
+    getCustomerMergeStats(targetCustomerId),
+    getCustomerMergeStats(sourceCustomerId),
+  ]);
+  const db = await getDb();
+  const pendingRows = db ? await db.select({ count: sql<number>`COUNT(*)` }).from(deleteRequests)
+    .where(and(eq(deleteRequests.customerId, sourceCustomerId), eq(deleteRequests.status, "pending")))
+    : [{ count: 0 }];
+  const conflicts = ["name", "phone", "region", "source", "consultStatus", "priority", "nextAction"]
+    .filter((field) => (target as any)[field] && (source as any)[field] && (target as any)[field] !== (source as any)[field]);
+  return {
+    targetCustomer: customerMergeSummary(target, targetStats),
+    sourceCustomer: customerMergeSummary(source, sourceStats),
+    transferCounts: sourceStats,
+    conflicts,
+    mergePolicy: "기준 고객 값 유지, 빈 값 보완, 태그 union, 우선순위 상향",
+    blockers: {
+      sameCustomer: targetCustomerId === sourceCustomerId,
+      inactiveTarget: !target.isActive || !!target.deletedAt,
+      inactiveSource: !source.isActive || !!source.deletedAt,
+      alreadyMerged: !!source.mergedIntoCustomerId,
+      pendingDeleteRequests: Number(pendingRows[0]?.count ?? 0) > 0,
+    },
+  };
+}
+
+export async function mergeCustomers(params: {
+  targetCustomerId: number;
+  sourceCustomerId: number;
+  actorId: number;
+  reason?: string;
+}) {
+  const { targetCustomerId, sourceCustomerId, actorId, reason } = params;
+  const preview = await getCustomerMergePreview(targetCustomerId, sourceCustomerId);
+  if (!preview) throw new Error("merge_customers_not_found");
+  const source = await getCustomerById(sourceCustomerId);
+  const target = await getCustomerById(targetCustomerId);
+  if (!source || !target) throw new Error("merge_customers_not_found");
+  const now = new Date();
+  const tags = encodeTagList([...decodeTagList(target.customerTags), ...decodeTagList(source.customerTags)]);
+  const targetPatch: Partial<InsertCustomer> = {
+    phone: target.phone ?? source.phone,
+    birthDate: target.birthDate ?? source.birthDate,
+    gender: target.gender ?? source.gender,
+    region: target.region ?? source.region,
+    expectedPremium: target.expectedPremium ?? source.expectedPremium,
+    availableTime: target.availableTime ?? source.availableTime,
+    source: target.source ?? source.source,
+    priority: strongerPriority(target.priority, source.priority) as any,
+    customerTags: tags,
+    nextAction: target.nextAction ?? source.nextAction,
+    privacyConsent: target.privacyConsent || source.privacyConsent,
+    marketingConsent: target.marketingConsent || source.marketingConsent,
+  };
+
+  await runDbTransaction(async (tx) => {
+    const client = tx as any;
+    await client.update(consultations).set({ customerId: targetCustomerId }).where(eq(consultations.customerId, sourceCustomerId));
+    await client.update(contracts).set({ customerId: targetCustomerId }).where(eq(contracts.customerId, sourceCustomerId));
+    await client.update(followUps).set({ customerId: targetCustomerId }).where(eq(followUps.customerId, sourceCustomerId));
+    await client.update(statusHistory).set({ customerId: targetCustomerId }).where(eq(statusHistory.customerId, sourceCustomerId));
+    await client.update(consentLogs).set({ customerId: targetCustomerId }).where(eq(consentLogs.customerId, sourceCustomerId));
+    await client.update(assignmentHistory).set({ customerId: targetCustomerId }).where(eq(assignmentHistory.customerId, sourceCustomerId));
+    await client.update(deleteRequests).set({ customerId: targetCustomerId }).where(eq(deleteRequests.customerId, sourceCustomerId));
+    await client.update(notifications).set({ relatedId: targetCustomerId }).where(and(eq(notifications.relatedType, "customer"), eq(notifications.relatedId, sourceCustomerId)));
+    await client.update(reminders).set({ relatedId: targetCustomerId }).where(and(eq(reminders.relatedType, "customer"), eq(reminders.relatedId, sourceCustomerId)));
+    await client.update(customers).set(targetPatch).where(eq(customers.id, targetCustomerId));
+    await client.update(customers).set({
+      isActive: false,
+      deletedAt: now,
+      mergedIntoCustomerId: targetCustomerId,
+      mergedAt: now,
+      mergedBy: actorId,
+    }).where(eq(customers.id, sourceCustomerId));
+    await createActivityLog({
+      userId: actorId,
+      action: "CUSTOMER_MERGED",
+      targetType: "customer",
+      targetId: targetCustomerId,
+      details: JSON.stringify({
+        actorId,
+        sourceCustomerId,
+        targetCustomerId,
+        reason,
+        movedConsultationCount: preview.transferCounts.consultations,
+        movedContractCount: preview.transferCounts.contracts,
+        movedFollowUpCount: preview.transferCounts.followUps,
+        movedNotificationCount: preview.transferCounts.notifications,
+        movedDeleteRequestCount: preview.transferCounts.deleteRequests,
+        movedStatusHistoryCount: preview.transferCounts.statusHistory,
+        movedConsentLogCount: preview.transferCounts.consentLogs,
+        movedAssignmentHistoryCount: preview.transferCounts.assignmentHistory,
+      }),
+      createdAt: now,
+    }, tx);
+  });
+
+  return {
+    success: true,
+    targetCustomerId,
+    sourceCustomerId,
+    affectedCounts: preview.transferCounts,
+  };
 }
 
 export async function checkPhoneDuplicate(phone: string, excludeId?: number) {
@@ -1051,6 +1293,8 @@ function timelineLabelForAction(action: string) {
     DELETE_REQUEST_CREATED: "삭제 요청이 생성되었습니다.",
     DELETE_REQUEST_APPROVED: "삭제 요청이 승인되었습니다.",
     DELETE_REQUEST_REJECTED: "삭제 요청이 반려되었습니다.",
+    CUSTOMER_MERGED: "고객 병합이 실행되었습니다.",
+    CUSTOMER_MERGE_BLOCKED: "고객 병합이 차단되었습니다.",
   };
   return labels[action] ?? action;
 }

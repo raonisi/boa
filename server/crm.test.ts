@@ -846,6 +846,89 @@ describe("Customer History Timeline", () => {
   });
 });
 
+describe("PR10-2 customer merge workflow", () => {
+  const mergePreview = {
+    targetCustomer: { id: 100, name: "[TEST] Target", maskedPhone: "010-****-5678", isActive: true },
+    sourceCustomer: { id: 101, name: "[TEST] Source", maskedPhone: "010-****-5678", isActive: true },
+    transferCounts: {
+      consultations: 2,
+      contracts: 1,
+      followUps: 1,
+      notifications: 1,
+      reminders: 0,
+      deleteRequests: 0,
+      statusHistory: 1,
+      consentLogs: 1,
+      assignmentHistory: 1,
+    },
+    conflicts: ["name"],
+    mergePolicy: "target_first",
+    blockers: {
+      sameCustomer: false,
+      inactiveTarget: false,
+      inactiveSource: false,
+      alreadyMerged: false,
+      pendingDeleteRequests: false,
+    },
+  } as any;
+
+  it("allows only branch_admin to find duplicate customers and normalizes phone strings", async () => {
+    const groups = [{ normalizedPhone: "01012345678", maskedPhone: "010-****-5678", candidates: [] }];
+    vi.spyOn(db, "findDuplicateCustomerGroups").mockResolvedValue(groups as any);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.findDuplicates({ phone: "010-1234-5678" })).resolves.toEqual(groups);
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customerMerge.findDuplicates({})).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customerMerge.findDuplicates({})).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerMerge.findDuplicates({})).rejects.toThrow();
+    await expect(appRouter.createCaller(createInactiveCtx("branch_admin")).customerMerge.findDuplicates({})).rejects.toThrow();
+    expect(db.normalizePhone("010 1234 5678")).toBe("01012345678");
+  });
+
+  it("returns merge preview only for valid active customer pairs", async () => {
+    vi.spyOn(db, "getCustomerMergePreview").mockResolvedValue(mergePreview);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.preview({ targetCustomerId: 100, sourceCustomerId: 101 })).resolves.toMatchObject({
+      transferCounts: expect.objectContaining({ consultations: 2, contracts: 1 }),
+    });
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.preview({ targetCustomerId: 100, sourceCustomerId: 100 })).rejects.toThrow();
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getCustomerMergePreview").mockResolvedValue({ ...mergePreview, blockers: { ...mergePreview.blockers, pendingDeleteRequests: true } });
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.preview({ targetCustomerId: 100, sourceCustomerId: 101 })).rejects.toThrow();
+  });
+
+  it("executes customer merge with confirm text and records transactional helper call", async () => {
+    vi.spyOn(db, "getCustomerMergePreview").mockResolvedValue(mergePreview);
+    const mergeSpy = vi.spyOn(db, "mergeCustomers").mockResolvedValue({ success: true, targetCustomerId: 100, sourceCustomerId: 101, affectedCounts: mergePreview.transferCounts });
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.execute({
+      targetCustomerId: 100,
+      sourceCustomerId: 101,
+      confirmText: "고객병합",
+      reason: "[TEST] 중복 고객 정리",
+    })).resolves.toMatchObject({ success: true, targetCustomerId: 100, sourceCustomerId: 101 });
+    expect(mergeSpy).toHaveBeenCalledWith(expect.objectContaining({
+      targetCustomerId: 100,
+      sourceCustomerId: 101,
+      actorId: 1,
+    }));
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.execute({
+      targetCustomerId: 100,
+      sourceCustomerId: 101,
+      confirmText: "삭제",
+      reason: "[TEST] 중복 고객 정리",
+    })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerMerge.execute({
+      targetCustomerId: 100,
+      sourceCustomerId: 101,
+      confirmText: "고객병합",
+      reason: "[TEST] 중복 고객 정리",
+    })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,
