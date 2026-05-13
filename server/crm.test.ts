@@ -129,22 +129,52 @@ describe("RBAC - settings", () => {
 });
 
 describe("Bulk import router policy", () => {
-  it("blocks non CSV fileName on previewImport", async () => {
+  it("allows CSV and XLSX fileName on previewImport", async () => {
+    vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
     await expect(
       appRouter.createCaller(createCtx("branch_admin")).customers.previewImport({
         fileName: "customers.xlsx",
-        rows: [{ 이름: "테스트", 연락처: "010-1234-5678" }],
+        rows: [{ 이름: "테스트", 생년월일: "1990-01-15", 연락처: "010-1234-5678" }],
+      })
+    ).resolves.toMatchObject({ totalRows: 1 });
+  });
+
+  it("blocks unsupported fileName on previewImport", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("branch_admin")).customers.previewImport({
+        fileName: "customers.txt",
+        rows: [{ 이름: "테스트", 생년월일: "1990-01-15", 연락처: "010-1234-5678" }],
       })
     ).rejects.toThrow();
   });
 
-  it("blocks non CSV fileName on bulkImport", async () => {
+  it("blocks unsupported fileName on bulkImport", async () => {
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
     await expect(
       appRouter.createCaller(createCtx("branch_admin")).customers.bulkImport({
-        fileName: "customers.xlsx",
-        rows: [{ 이름: "테스트", 연락처: "010-1234-5678" }],
+        fileName: "customers.txt",
+        rows: [{ 이름: "테스트", 생년월일: "1990-01-15", 연락처: "010-1234-5678" }],
       })
     ).rejects.toThrow();
+  });
+
+  it("returns role-specific bulk import template columns", async () => {
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const branchTemplate = await appRouter.createCaller(createCtx("branch_admin")).customers.downloadImportTemplate();
+    const memberTemplate = await appRouter.createCaller(createCtx("member")).customers.downloadImportTemplate();
+
+    expect(branchTemplate.requiredHeaders).toEqual(["이름", "생년월일", "연락처"]);
+    expect(branchTemplate.headers).toContain("담당자");
+    expect(branchTemplate.headers).not.toContain("부지점장");
+    expect(branchTemplate.headers).not.toContain("팀");
+    expect(memberTemplate.headers).not.toContain("담당자");
+    expect(memberTemplate.headers).not.toContain("부지점장");
+    expect(memberTemplate.headers).not.toContain("팀");
+    expect(memberTemplate.assigneeHeaderEnabled).toBe(false);
   });
 });
 
@@ -273,12 +303,13 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
 
     await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
       fileName: "customers.csv",
-      rows: [{ 이름: "[TEST] Bulk Member", 연락처: "010-2000-0001", 담당자: "다른사람" }],
+      rows: [{ 이름: "[TEST] Bulk Member", 생년월일: "1990-01-15", 연락처: "010-2000-0001", 담당자: "다른사람" }],
     });
 
     expect(bulkCreateSpy).toHaveBeenCalledWith([
       expect.objectContaining({
         name: "[TEST] Bulk Member",
+        consultStatus: "미상담",
         agentId: 44,
         assignedTeamId: 10,
         subBranchAdminId: 2,
@@ -291,7 +322,7 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
     await expect(
       appRouter.createCaller(createCtx("member", { userId: 44 })).customers.previewImport({
         fileName: "customers.csv",
-        rows: [{ 이름: "[TEST] Bulk Bad", 연락처: "010-2000-0002" }],
+        rows: [{ 이름: "[TEST] Bulk Bad", 생년월일: "1990-01-15", 연락처: "010-2000-0002" }],
         agentId: 45,
       })
     ).rejects.toThrow("본인만 지정");
@@ -310,7 +341,7 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
 
     const preview = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.previewImport({
       fileName: "customers.csv",
-      rows: [{ 이름: "[TEST] Bulk Branch", 연락처: "010-2000-0003" }],
+      rows: [{ 이름: "[TEST] Bulk Branch", 생년월일: "1990-01-15", 연락처: "010-2000-0003" }],
       agentId: 4,
     });
 
@@ -321,6 +352,27 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
       subBranchAdminId: 2,
       assignmentStatus: "assigned_to_agent",
     });
+  });
+
+  it("keeps provided consultation status during bulk import", async () => {
+    vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
+    const bulkCreateSpy = vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
+
+    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
+      fileName: "customers.xlsx",
+      rows: [{ 이름: "[TEST] Bulk Status", 생년월일: "1990-01-15", 연락처: "010-2000-0004", 상담상태: "상담예정" }],
+    });
+
+    expect(bulkCreateSpy).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "[TEST] Bulk Status",
+        consultStatus: "상담예정",
+        agentId: 44,
+      }),
+    ], {});
   });
 });
 

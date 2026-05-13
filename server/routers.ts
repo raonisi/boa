@@ -704,17 +704,24 @@ async function verifySubBranchAdminTarget(userId: number) {
 }
 
 const BULK_IMPORT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
-const CSV_MIME_TYPES = new Set(["text/csv", "application/csv", "text/plain", "application/vnd.ms-excel"]);
+const BULK_IMPORT_MIME_TYPES = new Set([
+  "text/csv",
+  "application/csv",
+  "text/plain",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
 
 function verifyBulkImportFilePolicy(input: { fileName?: string; fileSize?: number; mimeType?: string }) {
-  if (input.fileName && !input.fileName.toLowerCase().endsWith(".csv")) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "CSV 파일만 업로드할 수 있습니다." });
+  const fileName = input.fileName?.toLowerCase();
+  if (fileName && !fileName.endsWith(".csv") && !fileName.endsWith(".xlsx")) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "CSV 또는 XLSX 파일만 업로드할 수 있습니다." });
   }
   if (input.fileSize !== undefined && input.fileSize > BULK_IMPORT_MAX_FILE_SIZE_BYTES) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "파일 크기는 5MB 이하만 업로드할 수 있습니다." });
   }
-  if (input.mimeType && !CSV_MIME_TYPES.has(input.mimeType)) {
-    throw new TRPCError({ code: "BAD_REQUEST", message: "허용되지 않는 파일 형식입니다. CSV 파일만 업로드할 수 있습니다." });
+  if (input.mimeType && !BULK_IMPORT_MIME_TYPES.has(input.mimeType)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "허용되지 않는 파일 형식입니다. CSV 또는 XLSX 파일만 업로드할 수 있습니다." });
   }
 }
 
@@ -2654,8 +2661,8 @@ export const appRouter = router({
     downloadImportTemplate: activeUserProcedure.query(async ({ ctx }) => {
       const baseHeaders = [
         "이름",
-        "연락처",
         "생년월일",
+        "연락처",
         "성별",
         "지역",
         "예상보험료",
@@ -2664,15 +2671,16 @@ export const appRouter = router({
         "상담상태",
         "메모",
       ];
-      const assignmentHeaders = [
-        "부지점장",
-        "팀",
-        "담당자",
-      ];
-      const headers = ctx.user.role === "branch_admin" ? [...baseHeaders, ...assignmentHeaders] : baseHeaders;
+      const headers = ctx.user.role === "branch_admin" ? [...baseHeaders, "담당자"] : baseHeaders;
       const csvContent = headers.join(",");
       await log(ctx.user.id, "DATA_DOWNLOAD", "template", undefined, "type=bulk_import_template");
-      return { headers, csvContent };
+      return {
+        headers,
+        csvContent,
+        requiredHeaders: ["이름", "생년월일", "연락처"],
+        optionalHeaders: baseHeaders.filter((header) => !["이름", "생년월일", "연락처"].includes(header)),
+        assigneeHeaderEnabled: ctx.user.role === "branch_admin",
+      };
     }),
 
     previewImport: activeUserProcedure
@@ -2685,9 +2693,6 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         verifyBulkImportFilePolicy(input);
-        if (input.fileName && !input.fileName.toLowerCase().endsWith(".csv")) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "CSV 파일만 업로드할 수 있습니다." });
-        }
         const headers = Object.keys(input.rows[0] || {});
         const forbiddenCols = detectForbiddenColumns(headers);
         if (forbiddenCols.length > 0) {
@@ -2747,11 +2752,6 @@ export const appRouter = router({
             JSON.stringify({ importBatchId, reason: "file_policy_rejected", fileName: input.fileName, fileSize: input.fileSize, mimeType: input.mimeType }));
           throw error;
         }
-        if (input.fileName && !input.fileName.toLowerCase().endsWith(".csv")) {
-          await log(ctx.user.id, "CUSTOMER_BULK_IMPORT_FAILED", "customer", undefined,
-            JSON.stringify({ importBatchId, reason: "unsupported_extension", fileName: input.fileName }));
-          throw new TRPCError({ code: "BAD_REQUEST", message: "CSV 파일만 업로드할 수 있습니다." });
-        }
 
         const headers = Object.keys(input.rows[0] || {});
         const forbiddenCols = detectForbiddenColumns(headers);
@@ -2798,12 +2798,12 @@ export const appRouter = router({
             name: row.name!,
             phone: result.normalizedPhone ?? (row.phone ? normalizePhone(row.phone) : undefined),
             birthDate: row.birthDate ? new Date(row.birthDate) : undefined,
-            gender: (row.gender === "?" || row.gender === "male" ? "male" : row.gender === "?" || row.gender === "female" ? "female" : row.gender === "??" || row.gender === "other" ? "other" : undefined) as any,
+            gender: (row.gender === "남" || row.gender === "male" ? "male" : row.gender === "여" || row.gender === "female" ? "female" : row.gender === "기타" || row.gender === "other" ? "other" : undefined) as any,
             region: row.region,
             expectedPremium: row.expectedPremium ? parseInt(row.expectedPremium, 10) : undefined,
             availableTime: row.availableTime,
             source: row.source,
-            consultStatus: row.consultStatus || "???",
+            consultStatus: row.consultStatus || "미상담",
             memo: row.memo,
             agentId: result.agentId,
             subBranchAdminId: result.subBranchAdminId,

@@ -229,10 +229,10 @@ describe("seed-backed RBAC integration", () => {
     await expect(appRouter.createCaller(ctx(41)).customers.assign({ customerId: 1001, agentId: 42 })).rejects.toThrow();
   });
 
-  it("blocks non-admin bulk import and non-csv or oversized payloads", async () => {
+  it("blocks empty, unsupported, oversized, or mismatched bulk import payloads", async () => {
     setupSeedDb();
     await expect(appRouter.createCaller(ctx(41)).customers.bulkImport({ rows: [], fileName: "customers.csv" })).rejects.toThrow();
-    await expect(appRouter.createCaller(ctx(1)).customers.previewImport({ rows: [], fileName: "customers.xlsx" })).rejects.toThrow();
+    await expect(appRouter.createCaller(ctx(1)).customers.previewImport({ rows: [], fileName: "customers.txt" })).rejects.toThrow();
     await expect(appRouter.createCaller(ctx(1)).customers.previewImport({ rows: [], fileName: "customers.csv", fileSize: 6 * 1024 * 1024 })).rejects.toThrow();
     await expect(appRouter.createCaller(ctx(1)).customers.previewImport({ rows: [], fileName: "customers.csv", mimeType: "application/zip" })).rejects.toThrow();
   });
