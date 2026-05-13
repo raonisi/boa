@@ -34,6 +34,7 @@ export default function PerformanceGoals() {
   const [monthlyPremiumGoal, setMonthlyPremiumGoal] = useState(0);
 
   const { data: dashboard } = trpc.performanceGoals.dashboard.useQuery({ year, month });
+  const { data: workRhythm } = trpc.workRhythm.summary.useQuery({ period: "month" });
   const { data: users } = trpc.users.list.useQuery(undefined, { enabled: user?.role === "branch_admin" });
   const { data: teams } = trpc.users.teams.useQuery(undefined, { enabled: user?.role === "branch_admin" });
 
@@ -132,6 +133,49 @@ export default function PerformanceGoals() {
             </CardContent>
           </Card>
         )}
+
+        <Card className="border-sky-200">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">업무 리듬 리포트</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">상담기록</p>
+              <p className="font-medium">{workRhythm?.consultationCount ?? 0}건</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">후속관리 완료율</p>
+              <p className="font-medium">{workRhythm?.followUpCompletionRate ?? "-"}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">A등급 관리율</p>
+              <p className="font-medium">{workRhythm?.priorityAManagementRate ?? "-"}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">오늘 필요 상담</p>
+              <p className="font-medium">{workRhythm?.recommendedTodayActions?.suggestedConsultationCount ?? 0}명</p>
+            </div>
+            <div className="md:col-span-4 grid gap-2 text-xs md:grid-cols-3">
+              <div className="rounded-md bg-muted p-2">
+                <p className="text-muted-foreground">부족 계약 수</p>
+                <p className="mt-1 font-semibold">{workRhythm?.remaining?.contractCount ?? 0}건</p>
+              </div>
+              <div className="rounded-md bg-muted p-2">
+                <p className="text-muted-foreground">부족 월납보험료</p>
+                <p className="mt-1 font-semibold">{formatWon(workRhythm?.remaining?.monthlyPremium)}</p>
+              </div>
+              <div className="rounded-md bg-muted p-2">
+                <p className="text-muted-foreground">일평균 필요 월납보험료</p>
+                <p className="mt-1 font-semibold">{formatWon(workRhythm?.dailyRequired?.monthlyPremium)}</p>
+              </div>
+            </div>
+            {(workRhythm?.insights ?? []).length > 0 && (
+              <div className="md:col-span-4 rounded-md bg-sky-50 p-3 text-xs text-sky-800">
+                {workRhythm?.insights.map((item) => <p key={item}>• {item}</p>)}
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {user?.role === "branch_admin" && (
           <Card>
