@@ -16,6 +16,7 @@ import {
   createContractHistoryEntry,
   createCustomer,
   createDeleteRequest,
+  createFollowUp,
   createImportBatch,
   createNotification,
   createSchedule,
@@ -48,6 +49,8 @@ import {
   getDeletedTeams,
   getDeleteRequestById,
   getDeleteRequests,
+  getFollowUpById,
+  getFollowUps,
   getCustomersByImportBatch,
   getImportBatchByBatchId,
   getImportBatchCancelBlockers,
@@ -102,6 +105,7 @@ import {
   restoreTeam,
   bulkCreateCustomers,
   updateDeleteRequest,
+  updateFollowUp,
   updateImportBatch,
   softDeleteCustomersByImportBatch,
   BulkImportRow,
@@ -591,47 +595,51 @@ async function getAccessibleSchedules(user: { id: number; role: string; teamId: 
 
 async function getScopedDashboardData(user: { id: number; role: string; teamId: number | null }) {
   if (user.role === "branch_admin") {
-    const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+    const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
       getCustomers({}),
       getAllContracts({}),
       getAccessibleSchedules(user),
       getNotificationsFiltered({ limit: 200 }),
+      getFollowUps({ statuses: ["scheduled", "postponed"] }),
     ]);
-    return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+    return { customerList, contractList, scheduleList, notifications: notificationResult.items, followUpList };
   }
 
   if (user.role === "sub_branch_admin") {
     const subordinates = await getUsersBySubBranchAdminId(user.id);
     const userIds = [user.id, ...subordinates.map((u) => u.id)];
-    const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+    const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
       getCustomers({ subBranchAdminId: user.id }),
       getAllContracts({ subBranchAdminId: user.id }),
       getAccessibleSchedules(user),
       getNotificationsFiltered({ userIds, limit: 200 }),
+      getFollowUps({ subBranchAdminId: user.id, statuses: ["scheduled", "postponed"] }),
     ]);
-    return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+    return { customerList, contractList, scheduleList, notifications: notificationResult.items, followUpList };
   }
 
   if (user.role === "team_leader") {
-    if (user.teamId === null) return { customerList: [], contractList: [], scheduleList: [], notifications: [] };
+    if (user.teamId === null) return { customerList: [], contractList: [], scheduleList: [], notifications: [], followUpList: [] };
     const teamMembers = await getUsersByTeamId(user.teamId);
     const userIds = [user.id, ...teamMembers.map((u) => u.id)];
-    const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+    const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
       getCustomers({ teamId: user.teamId }),
       getAllContracts({ teamId: user.teamId }),
       getAccessibleSchedules(user),
       getNotificationsFiltered({ userIds, limit: 200 }),
+      getFollowUps({ teamId: user.teamId, statuses: ["scheduled", "postponed"] }),
     ]);
-    return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+    return { customerList, contractList, scheduleList, notifications: notificationResult.items, followUpList };
   }
 
-  const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+  const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
     getCustomers({ agentId: user.id }),
     getAllContracts({ agentId: user.id }),
     getAccessibleSchedules(user),
     getNotificationsFiltered({ userIds: [user.id], limit: 200 }),
+    getFollowUps({ agentId: user.id, statuses: ["scheduled", "postponed"] }),
   ]);
-  return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+  return { customerList, contractList, scheduleList, notifications: notificationResult.items, followUpList };
 }
 
 function isSameCalendarDay(a: Date, b: Date) {
@@ -644,6 +652,35 @@ function isFinishedScheduleStatus(status: string) {
 
 function isUnreadNotification(notification: { isRead: boolean; processStatus?: string | null }) {
   return !notification.isRead || notification.processStatus === "미확인";
+}
+
+function isOpenFollowUpStatus(status: string) {
+  return status === "scheduled" || status === "postponed";
+}
+
+function toDayStart(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function toDayEnd(date: Date) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+}
+
+async function getFollowUpScope(user: { id: number; role: string; teamId: number | null }) {
+  if (user.role === "branch_admin") return {};
+  if (user.role === "sub_branch_admin") return { subBranchAdminId: user.id };
+  if (user.role === "team_leader") {
+    if (user.teamId === null) return { teamId: -1 };
+    return { teamId: user.teamId };
+  }
+  return { agentId: user.id };
+}
+
+async function verifyFollowUpAccess(user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string }, followUpId: number) {
+  const followUp = await getFollowUpById(followUpId);
+  if (!followUp || followUp.deletedAt) throw new TRPCError({ code: "NOT_FOUND", message: "후속관리를 찾을 수 없습니다." });
+  await verifyCustomerAccess(user, followUp.customerId);
+  return followUp;
 }
 
 export const appRouter = router({
@@ -2039,6 +2076,119 @@ export const appRouter = router({
   }),
 
   // ── Notifications ─────────────────────────────────────────────────────────
+  followUps: router({
+    create: activeUserProcedure
+      .input(z.object({
+        customerId: z.number(),
+        nextContactDate: z.string(),
+        reason: z.string().min(1),
+        nextAction: z.enum(["전화", "카톡", "문자", "방문", "설계안 발송", "계약 확인", "보장분석", "사후관리", "기타"]).default("전화"),
+        memo: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 후속관리를 등록할 수 없습니다." });
+        const nextContactDate = new Date(input.nextContactDate);
+        if (Number.isNaN(nextContactDate.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "다음 연락일이 올바르지 않습니다." });
+        await createFollowUp({
+          customerId: customer.id,
+          assignedAgentId: customer.agentId,
+          teamId: customer.assignedTeamId,
+          subBranchAdminId: customer.subBranchAdminId,
+          nextContactDate,
+          reason: input.reason,
+          nextAction: input.nextAction,
+          status: "scheduled",
+          memo: input.memo,
+          createdBy: ctx.user.id,
+        });
+        await log(ctx.user.id, "FOLLOW_UP_CREATED", "customer", customer.id, logDetails({
+          actor: ctx.user.id,
+          targetId: customer.id,
+          targetType: "customer",
+          afterValue: { nextContactDate, reason: input.reason, nextAction: input.nextAction, status: "scheduled" },
+          metadata: { customerId: customer.id },
+        }));
+        return { success: true };
+      }),
+
+    listByCustomer: activeUserProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getFollowUps({ customerId: input.customerId });
+      }),
+
+    listToday: activeUserProcedure
+      .input(z.object({ date: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const date = input?.date ? new Date(input.date) : new Date();
+        const scope = await getFollowUpScope(ctx.user);
+        return getFollowUps({ ...scope, statuses: ["scheduled", "postponed"], dueTo: toDayEnd(date) });
+      }),
+
+    listOverdue: activeUserProcedure
+      .input(z.object({ date: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const date = input?.date ? new Date(input.date) : new Date();
+        const scope = await getFollowUpScope(ctx.user);
+        return getFollowUps({ ...scope, statuses: ["scheduled", "postponed"], dueTo: new Date(toDayStart(date).getTime() - 1) });
+      }),
+
+    complete: activeUserProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const followUp = await verifyFollowUpAccess(ctx.user, input.id);
+        if (!isOpenFollowUpStatus(followUp.status)) throw new TRPCError({ code: "BAD_REQUEST", message: "처리 가능한 후속관리가 아닙니다." });
+        await updateFollowUp(input.id, { status: "completed", completedAt: new Date(), completedBy: ctx.user.id });
+        await log(ctx.user.id, "FOLLOW_UP_COMPLETED", "follow_up", input.id, logDetails({
+          actor: ctx.user.id,
+          targetId: input.id,
+          targetType: "follow_up",
+          beforeValue: { status: followUp.status },
+          afterValue: { status: "completed" },
+          metadata: { customerId: followUp.customerId },
+        }));
+        return { success: true };
+      }),
+
+    postpone: activeUserProcedure
+      .input(z.object({ id: z.number(), nextContactDate: z.string(), reason: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const followUp = await verifyFollowUpAccess(ctx.user, input.id);
+        if (!isOpenFollowUpStatus(followUp.status)) throw new TRPCError({ code: "BAD_REQUEST", message: "연기 가능한 후속관리가 아닙니다." });
+        const nextContactDate = new Date(input.nextContactDate);
+        if (Number.isNaN(nextContactDate.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "다음 연락일이 올바르지 않습니다." });
+        await updateFollowUp(input.id, { status: "postponed", nextContactDate, reason: input.reason ?? followUp.reason });
+        await log(ctx.user.id, "FOLLOW_UP_POSTPONED", "follow_up", input.id, logDetails({
+          actor: ctx.user.id,
+          targetId: input.id,
+          targetType: "follow_up",
+          beforeValue: { nextContactDate: followUp.nextContactDate, status: followUp.status },
+          afterValue: { nextContactDate, status: "postponed" },
+          metadata: { customerId: followUp.customerId },
+        }));
+        return { success: true };
+      }),
+
+    cancel: activeUserProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const followUp = await verifyFollowUpAccess(ctx.user, input.id);
+        if (!isOpenFollowUpStatus(followUp.status)) throw new TRPCError({ code: "BAD_REQUEST", message: "취소 가능한 후속관리가 아닙니다." });
+        await updateFollowUp(input.id, { status: "cancelled" });
+        await log(ctx.user.id, "FOLLOW_UP_CANCELLED", "follow_up", input.id, logDetails({
+          actor: ctx.user.id,
+          targetId: input.id,
+          targetType: "follow_up",
+          beforeValue: { status: followUp.status },
+          afterValue: { status: "cancelled" },
+          metadata: { customerId: followUp.customerId },
+        }));
+        return { success: true };
+      }),
+  }),
+
   dashboard: router({
     todayWork: activeUserProcedure
       .input(z.object({ date: z.string().optional() }).optional())
@@ -2046,8 +2196,9 @@ export const appRouter = router({
         const baseDate = input?.date ? new Date(input.date) : new Date();
         const monthStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
         const nextMonthStart = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
-        const { customerList, contractList, scheduleList, notifications } = await getScopedDashboardData(ctx.user);
+        const { customerList, contractList, scheduleList, notifications, followUpList } = await getScopedDashboardData(ctx.user);
         const customerMap = new Map(customerList.map((customer) => [customer.id, customer]));
+        const todayEnd = toDayEnd(baseDate);
 
         const todaySchedules = scheduleList
           .filter((schedule) => isSameCalendarDay(new Date(schedule.startTime), baseDate) && !isFinishedScheduleStatus(schedule.status))
@@ -2063,6 +2214,14 @@ export const appRouter = router({
         const pendingNotifications = notifications
           .filter((notification) => isUnreadNotification(notification))
           .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        const todayFollowUps = followUpList
+          .filter((followUp) => isOpenFollowUpStatus(followUp.status) && new Date(followUp.nextContactDate).getTime() <= todayEnd.getTime())
+          .sort((a, b) => new Date(a.nextContactDate).getTime() - new Date(b.nextContactDate).getTime());
+
+        const overdueFollowUps = followUpList
+          .filter((followUp) => isOpenFollowUpStatus(followUp.status) && new Date(followUp.nextContactDate).getTime() < toDayStart(baseDate).getTime())
+          .sort((a, b) => new Date(a.nextContactDate).getTime() - new Date(b.nextContactDate).getTime());
 
         const longUnmanagedCustomers = notifications
           .filter((notification) => notification.type === "long_unmanaged_90" && notification.relatedType === "customer" && notification.relatedId)
@@ -2097,6 +2256,8 @@ export const appRouter = router({
             longUnmanagedCustomerCount: longUnmanagedCustomers.length,
             monthlyContractCount: monthlyContracts.length,
             monthlyPremiumSum,
+            todayFollowUpCount: todayFollowUps.length,
+            overdueFollowUpCount: overdueFollowUps.length,
           },
           todaySchedules: todaySchedules.slice(0, 8).map((schedule) => ({
             id: schedule.id,
@@ -2131,6 +2292,32 @@ export const appRouter = router({
             };
           }),
           longUnmanagedCustomers,
+          todayFollowUps: todayFollowUps.slice(0, 8).map((followUp) => {
+            const customer = customerMap.get(followUp.customerId);
+            return {
+              id: followUp.id,
+              customerId: followUp.customerId,
+              customerName: customer?.name ?? null,
+              consultStatus: customer?.consultStatus ?? null,
+              nextContactDate: followUp.nextContactDate,
+              reason: followUp.reason,
+              nextAction: followUp.nextAction,
+              status: followUp.status,
+            };
+          }),
+          overdueFollowUps: overdueFollowUps.slice(0, 8).map((followUp) => {
+            const customer = customerMap.get(followUp.customerId);
+            return {
+              id: followUp.id,
+              customerId: followUp.customerId,
+              customerName: customer?.name ?? null,
+              consultStatus: customer?.consultStatus ?? null,
+              nextContactDate: followUp.nextContactDate,
+              reason: followUp.reason,
+              nextAction: followUp.nextAction,
+              status: followUp.status,
+            };
+          }),
           monthlyPerformance: {
             contractCount: monthlyContracts.length,
             monthlyPremiumSum,

@@ -68,15 +68,17 @@ function TodayWorkSection() {
         <h2 className="text-lg font-semibold">오늘 할 일</h2>
         <p className="text-xs text-muted-foreground mt-1">권한 범위 안의 일정, 알림, 장기 미관리 고객, 이번 달 계약 현황입니다.</p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} />
         <StatCard title="미완료 일정" value={isLoading ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} color="text-orange-500" />
         <StatCard title="미확인 알림" value={isLoading ? "-" : cards?.pendingNotificationCount} icon={Bell} color="text-red-500" />
         <StatCard title="장기 미관리 고객" value={isLoading ? "-" : cards?.longUnmanagedCustomerCount} icon={Users} color="text-amber-600" />
+        <StatCard title="오늘 연락 대상" value={isLoading ? "-" : cards?.todayFollowUpCount} icon={Phone} color="text-sky-600" />
+        <StatCard title="미처리 후속관리" value={isLoading ? "-" : cards?.overdueFollowUpCount} icon={AlertCircle} color="text-red-600" />
         <StatCard title="이번 달 계약" value={isLoading ? "-" : cards?.monthlyContractCount} icon={FileText} color="text-green-600" />
         <StatCard title="이번 달 월납보험료" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} color="text-blue-600" />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">오늘 일정</CardTitle></CardHeader>
           <CardContent className="space-y-2">
@@ -125,6 +127,22 @@ function TodayWorkSection() {
                   <StatusBadge status={customer.consultStatus} />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">알림 생성일 {new Date(customer.createdAt).toLocaleDateString("ko-KR")}</p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">오늘 연락 대상</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {(data?.todayFollowUps ?? []).length === 0 ? (
+              <EmptyLine>오늘 연락할 고객이 없습니다.</EmptyLine>
+            ) : data?.todayFollowUps.map((followUp) => (
+              <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate">{followUp.customerName ?? `고객 #${followUp.customerId}`}</span>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">{followUp.nextAction}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{followUp.reason}</p>
               </button>
             ))}
           </CardContent>

@@ -64,6 +64,13 @@
       "when": 1778631774689,
       "tag": "0008_melodic_shriek",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1778634444890,
+      "tag": "0009_wonderful_weapon_omega",
+      "breakpoints": true
     }
   ]
 }

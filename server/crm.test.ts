@@ -607,6 +607,11 @@ describe("dashboard.todayWork", () => {
       totalCount: 2,
       hasMore: false,
     } as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue([
+      { id: 30, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: new Date("2026-05-13T11:00:00.000Z"), reason: "[TEST] Follow", nextAction: "전화", status: "scheduled", createdBy: 4, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+      { id: 31, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: new Date("2026-05-12T11:00:00.000Z"), reason: "[TEST] Overdue", nextAction: "문자", status: "scheduled", createdBy: 4, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+      { id: 32, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: new Date("2026-05-13T11:00:00.000Z"), reason: "[TEST] Done", nextAction: "전화", status: "completed", createdBy: 4, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+    ] as any);
   }
 
   it("returns member-scoped today summary without customer phone or memo", async () => {
@@ -620,6 +625,8 @@ describe("dashboard.todayWork", () => {
     expect(result.cards.pendingNotificationCount).toBe(1);
     expect(result.cards.monthlyContractCount).toBe(1);
     expect(result.cards.monthlyPremiumSum).toBe(120000);
+    expect(result.cards.todayFollowUpCount).toBe(2);
+    expect(result.cards.overdueFollowUpCount).toBe(1);
     expect(JSON.stringify(result)).not.toContain("01012345678");
     expect(JSON.stringify(result)).not.toContain("private memo");
   });
@@ -652,6 +659,100 @@ describe("dashboard.todayWork", () => {
     expect(db.getAllContracts).toHaveBeenCalledWith({});
 
     await expect(appRouter.createCaller(createInactiveCtx()).dashboard.todayWork({ date: baseDate })).rejects.toThrow();
+  });
+});
+
+describe("followUps", () => {
+  const activeCustomer = {
+    id: 100,
+    name: "[TEST] Customer",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    isActive: true,
+    deletedAt: null,
+  } as any;
+  const activeFollowUp = {
+    id: 30,
+    customerId: 100,
+    assignedAgentId: 4,
+    teamId: 10,
+    subBranchAdminId: 2,
+    nextContactDate: new Date("2026-05-13T10:00:00.000Z"),
+    reason: "[TEST] Reason",
+    nextAction: "전화",
+    status: "scheduled",
+    createdBy: 4,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    deletedAt: null,
+  } as any;
+
+  it("allows member to create follow_up for own customer and blocks another customer", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    const createSpy = vi.spyOn(db, "createFollowUp").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.create({
+      customerId: 100,
+      nextContactDate: "2026-05-14T10:00:00.000Z",
+      reason: "[TEST] Follow",
+      nextAction: "전화",
+    })).resolves.toEqual({ success: true });
+
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ customerId: 100, status: "scheduled", assignedAgentId: 4 }));
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "FOLLOW_UP_CREATED" }));
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, agentId: 99 });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.create({
+      customerId: 100,
+      nextContactDate: "2026-05-14T10:00:00.000Z",
+      reason: "[TEST] Follow",
+      nextAction: "전화",
+    })).rejects.toThrow();
+  });
+
+  it("blocks follow_up creation for inactive customer and inactive account", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, isActive: false, deletedAt: new Date() });
+    await expect(appRouter.createCaller(createCtx("branch_admin")).followUps.create({
+      customerId: 100,
+      nextContactDate: "2026-05-14T10:00:00.000Z",
+      reason: "[TEST] Follow",
+      nextAction: "전화",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createInactiveCtx()).followUps.listToday()).rejects.toThrow();
+  });
+
+  it("completes, postpones and cancels an accessible follow_up with logs", async () => {
+    vi.spyOn(db, "getFollowUpById").mockResolvedValue(activeFollowUp);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    const updateSpy = vi.spyOn(db, "updateFollowUp").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.complete({ id: 30 })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.postpone({ id: 30, nextContactDate: "2026-05-15T10:00:00.000Z", reason: "[TEST] Later" })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.cancel({ id: 30 })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalledWith(30, expect.objectContaining({ status: "completed", completedBy: 4 }));
+    expect(updateSpy).toHaveBeenCalledWith(30, expect.objectContaining({ status: "postponed" }));
+    expect(updateSpy).toHaveBeenCalledWith(30, expect.objectContaining({ status: "cancelled" }));
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "FOLLOW_UP_COMPLETED" }));
+    expect(logSpy.mock.calls[1]?.[0]).toEqual(expect.objectContaining({ action: "FOLLOW_UP_POSTPONED" }));
+    expect(logSpy.mock.calls[2]?.[0]).toEqual(expect.objectContaining({ action: "FOLLOW_UP_CANCELLED" }));
+  });
+
+  it("uses role scopes for today and overdue follow_up lists", async () => {
+    const listSpy = vi.spyOn(db, "getFollowUps").mockResolvedValue([activeFollowUp]);
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.listToday({ date: "2026-05-13T00:00:00.000Z" });
+    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ agentId: 4 }));
+
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).followUps.listOverdue({ date: "2026-05-13T00:00:00.000Z" });
+    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ teamId: 10 }));
+
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).followUps.listToday({ date: "2026-05-13T00:00:00.000Z" });
+    expect(listSpy).toHaveBeenCalledWith(expect.objectContaining({ subBranchAdminId: 2 }));
   });
 });
 

@@ -27,6 +27,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [requestContractId, setRequestContractId] = useState<number | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestMemo, setRequestMemo] = useState("");
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(null);
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -35,6 +37,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery({ customerId: id });
   const { data: consentLogsData } = trpc.customers.consentLogs.useQuery({ customerId: id });
   const { data: assignmentHistoryData } = trpc.customers.assignmentHistory.useQuery({ customerId: id });
+  const { data: followUps, refetch: refetchFollowUps } = trpc.followUps.listByCustomer.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
 
   const updateMutation = trpc.customers.update.useMutation({
@@ -84,6 +87,44 @@ export default function CustomerDetail({ id }: { id: number }) {
   const deactivateMutation = trpc.customers.deactivate.useMutation({
     onSuccess: () => { toast.success("고객이 비활성화되었습니다."); setLocation("/customers"); },
     onError: () => toast.error("비활성화에 실패했습니다."),
+  });
+
+  const createFollowUpMutation = trpc.followUps.create.useMutation({
+    onSuccess: () => {
+      toast.success("다음 연락일이 설정되었습니다.");
+      setShowFollowUpModal(false);
+      refetchFollowUps();
+      utils.dashboard.todayWork.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "다음 연락일 설정에 실패했습니다."),
+  });
+
+  const completeFollowUpMutation = trpc.followUps.complete.useMutation({
+    onSuccess: () => {
+      toast.success("후속관리가 완료 처리되었습니다.");
+      refetchFollowUps();
+      utils.dashboard.todayWork.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "후속관리 완료 처리에 실패했습니다."),
+  });
+
+  const postponeFollowUpMutation = trpc.followUps.postpone.useMutation({
+    onSuccess: () => {
+      toast.success("연락일이 연기되었습니다.");
+      setPostponeFollowUpId(null);
+      refetchFollowUps();
+      utils.dashboard.todayWork.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "연락일 연기에 실패했습니다."),
+  });
+
+  const cancelFollowUpMutation = trpc.followUps.cancel.useMutation({
+    onSuccess: () => {
+      toast.success("후속관리가 취소되었습니다.");
+      refetchFollowUps();
+      utils.dashboard.todayWork.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "후속관리 취소에 실패했습니다."),
   });
 
   if (!customer) return (
@@ -222,6 +263,14 @@ export default function CustomerDetail({ id }: { id: number }) {
                 )}
               </CardContent>
             </Card>
+            <FollowUpPanel
+              followUps={followUps ?? []}
+              onCreate={() => setShowFollowUpModal(true)}
+              onComplete={(followUpId) => completeFollowUpMutation.mutate({ id: followUpId })}
+              onPostpone={(followUpId) => setPostponeFollowUpId(followUpId)}
+              onCancel={(followUpId) => cancelFollowUpMutation.mutate({ id: followUpId })}
+              loading={completeFollowUpMutation.isPending || postponeFollowUpMutation.isPending || cancelFollowUpMutation.isPending}
+            />
           </TabsContent>
 
           {/* 상담기록 */}
@@ -484,6 +533,21 @@ export default function CustomerDetail({ id }: { id: number }) {
       )}
 
       {/* 담당자 변경 모달 */}
+      <FollowUpModal
+        open={showFollowUpModal}
+        onClose={() => setShowFollowUpModal(false)}
+        onSubmit={(data) => createFollowUpMutation.mutate({ customerId: id, ...data })}
+        loading={createFollowUpMutation.isPending}
+      />
+
+      <FollowUpModal
+        open={postponeFollowUpId !== null}
+        mode="postpone"
+        onClose={() => setPostponeFollowUpId(null)}
+        onSubmit={(data) => postponeFollowUpId && postponeFollowUpMutation.mutate({ id: postponeFollowUpId, nextContactDate: data.nextContactDate, reason: data.reason })}
+        loading={postponeFollowUpMutation.isPending}
+      />
+
       {showChangeAgentModal && (
         <Dialog open={true} onOpenChange={() => setShowChangeAgentModal(false)}>
           <DialogContent className="max-w-sm">
@@ -508,6 +572,106 @@ export default function CustomerDetail({ id }: { id: number }) {
 }
 
 // ─── 고객 정보 수정 모달 ──────────────────────────────────────────────────────
+function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, loading }: {
+  followUps: any[];
+  onCreate: () => void;
+  onComplete: (id: number) => void;
+  onPostpone: (id: number) => void;
+  onCancel: (id: number) => void;
+  loading: boolean;
+}) {
+  const openItems = followUps.filter((item) => item.status === "scheduled" || item.status === "postponed");
+  return (
+    <Card className="mt-4">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">다음 연락일 / 후속관리</p>
+            <p className="text-xs text-muted-foreground">민감정보는 후속관리 메모에 입력하지 마세요.</p>
+          </div>
+          <Button size="sm" onClick={onCreate}>다음 연락일 설정</Button>
+        </div>
+        {openItems.length === 0 ? (
+          <div className="py-5 text-center text-sm text-muted-foreground">등록된 다음 연락일이 없습니다.</div>
+        ) : (
+          <div className="space-y-2">
+            {openItems.slice(0, 5).map((item) => (
+              <div key={item.id} className="rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-medium">{new Date(item.nextContactDate).toLocaleString("ko-KR")} · {item.nextAction}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
+                  </div>
+                  <span className="text-xs rounded-full bg-muted px-2 py-1">{item.status}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap justify-end gap-2">
+                  <Button size="sm" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>
+                  <Button size="sm" variant="outline" disabled={loading} onClick={() => onPostpone(item.id)}>연락일 연기</Button>
+                  <Button size="sm" variant="outline" disabled={loading} onClick={() => onCancel(item.id)}>후속관리 취소</Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (data: { nextContactDate: string; reason: string; nextAction: "전화" | "카톡" | "문자" | "방문" | "설계안 발송" | "계약 확인" | "보장분석" | "사후관리" | "기타"; memo?: string }) => void;
+  loading: boolean;
+  mode?: "create" | "postpone";
+}) {
+  const defaultDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+  const [nextContactDate, setNextContactDate] = useState(defaultDate);
+  const [reason, setReason] = useState("");
+  const [nextAction, setNextAction] = useState<"전화" | "카톡" | "문자" | "방문" | "설계안 발송" | "계약 확인" | "보장분석" | "사후관리" | "기타">("전화");
+  const [memo, setMemo] = useState("");
+  const actions = ["전화", "카톡", "문자", "방문", "설계안 발송", "계약 확인", "보장분석", "사후관리", "기타"] as const;
+  const reasons = ["설계안 전달 후 재상담", "보험료 조정 상담", "보장분석 후속 연락", "계약 전 확인", "계약 후 사후관리", "생일/기념일 관리", "장기 미관리 고객 재접촉", "기타"];
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{mode === "postpone" ? "연락일 연기" : "다음 연락일 설정"}</DialogTitle></DialogHeader>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">고객과 다시 연락할 날짜와 후속 사유를 기록합니다. 주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.</p>
+          <div>
+            <Label>다음 연락일 *</Label>
+            <Input type="datetime-local" value={nextContactDate} onChange={(e) => setNextContactDate(e.target.value)} className="mt-1" />
+          </div>
+          <div>
+            <Label>후속관리 사유 *</Label>
+            <Select value={reason} onValueChange={setReason}>
+              <SelectTrigger className="mt-1"><SelectValue placeholder="사유 선택" /></SelectTrigger>
+              <SelectContent>{reasons.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>다음 액션</Label>
+            <Select value={nextAction} onValueChange={(value) => setNextAction(value as typeof nextAction)}>
+              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>{actions.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>메모</Label>
+            <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} className="mt-1" placeholder="민감정보 입력 금지" />
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={onClose}>취소</Button>
+            <Button disabled={!nextContactDate || !reason || loading} onClick={() => onSubmit({ nextContactDate, reason, nextAction, memo: memo || undefined })}>
+              {mode === "postpone" ? "연기" : "저장"}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
   customer: any; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
 }) {

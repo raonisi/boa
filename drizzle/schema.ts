@@ -200,6 +200,27 @@ export type DeleteRequest = typeof deleteRequests.$inferSelect;
 export type InsertDeleteRequest = typeof deleteRequests.$inferInsert;
 
 // ─── Schedules ────────────────────────────────────────────────────────────────
+export const followUps = mysqlTable("follow_ups", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  assignedAgentId: int("assignedAgentId"),
+  teamId: int("teamId"),
+  subBranchAdminId: int("subBranchAdminId"),
+  nextContactDate: timestamp("nextContactDate").notNull(),
+  reason: varchar("reason", { length: 200 }).notNull(),
+  nextAction: mysqlEnum("nextAction", ["전화", "카톡", "문자", "방문", "설계안 발송", "계약 확인", "보장분석", "사후관리", "기타"]).default("전화").notNull(),
+  status: mysqlEnum("status", ["scheduled", "completed", "postponed", "cancelled"]).default("scheduled").notNull(),
+  memo: text("memo"),
+  completedAt: timestamp("completedAt"),
+  completedBy: int("completedBy"),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
+});
+export type FollowUp = typeof followUps.$inferSelect;
+export type InsertFollowUp = typeof followUps.$inferInsert;
+
 export const schedules = mysqlTable("schedules", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
