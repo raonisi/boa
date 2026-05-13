@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { useIsMobile } from "@/hooks/useMobile";
 import { Search, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +25,7 @@ export default function ContractList() {
   const [requestContractId, setRequestContractId] = useState<number | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestMemo, setRequestMemo] = useState("");
+  const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
   const { data: contracts } = trpc.contracts.list.useQuery();
@@ -107,9 +109,49 @@ export default function ContractList() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
+        {isMobile ? (
+          <div className="space-y-2">
+            {filtered.length === 0 ? (
+              <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">계약 데이터가 없습니다.</CardContent></Card>
+            ) : (
+              filtered.map((c) => (
+                <Card key={c.id} className="cursor-pointer active:bg-muted/70" onClick={() => setLocation(`/customers/${c.customerId}`)}>
+                  <CardContent className="space-y-3 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{c.productName ?? "-"}</p>
+                        <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.company ?? "-"} · {c.productGroup ?? "-"}</p>
+                      </div>
+                      <StatusBadge status={c.contractStatus ?? "청약"} />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div><p className="text-muted-foreground">계약일</p><p className="font-medium">{c.contractDate ? new Date(c.contractDate).toLocaleDateString("ko-KR") : "-"}</p></div>
+                      <div><p className="text-muted-foreground">월보험료</p><p className="font-medium">{c.monthlyPremium ? `${c.monthlyPremium.toLocaleString()}원` : "-"}</p></div>
+                      <div><p className="text-muted-foreground">납입상태</p><StatusBadge status={c.paymentStatus ?? "정상"} /></div>
+                      <div><p className="text-muted-foreground">상태</p><StatusBadge status={c.contractStatus ?? "청약"} /></div>
+                    </div>
+                    {(canDeactivate || canRequestDelete) && (
+                      <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+                        {canDeactivate ? (
+                          <Button variant="outline" size="sm" className="min-h-9 text-destructive" onClick={(e) => handleDeactivate(c.id, e)}>
+                            <XCircle className="h-4 w-4 mr-1" /> 계약 삭제
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" className="min-h-9" onClick={() => setRequestContractId(c.id)}>
+                            삭제 요청
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -158,13 +200,14 @@ export default function ContractList() {
                   )}
                 </TableBody>
               </Table>
-            </div>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Dialog open={requestContractId !== null} onOpenChange={(open) => { if (!open) setRequestContractId(null); }}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">
           <DialogHeader><DialogTitle>계약 삭제 요청</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">

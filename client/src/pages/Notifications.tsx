@@ -130,9 +130,9 @@ export default function Notifications() {
         </div>
 
         {/* 서버 사이드 필터 */}
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Select value={processStatusFilter} onValueChange={handleFilterChange(setProcessStatusFilter)}>
-            <SelectTrigger className="h-8 text-xs w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full text-xs sm:w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 상태</SelectItem>
               <SelectItem value="미확인">미확인</SelectItem>
@@ -142,7 +142,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={isReadFilter} onValueChange={handleFilterChange(setIsReadFilter)}>
-            <SelectTrigger className="h-8 text-xs w-24"><SelectValue placeholder="읽음" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full text-xs sm:w-24"><SelectValue placeholder="읽음" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
               <SelectItem value="unread">미읽음</SelectItem>
@@ -150,7 +150,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={handleFilterChange(setTypeFilter)}>
-            <SelectTrigger className="h-8 text-xs w-36"><SelectValue placeholder="알림 유형" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full text-xs sm:w-36"><SelectValue placeholder="알림 유형" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 유형</SelectItem>
               {Object.entries(typeLabels).map(([k, v]) => (
@@ -162,13 +162,13 @@ export default function Notifications() {
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }}
-            className="h-8 text-xs w-36"
+            className="h-9 w-full text-xs sm:w-36"
           />
           <Input
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); setOffset(0); }}
-            className="h-8 text-xs w-36"
+            className="h-9 w-full text-xs sm:w-36"
           />
         </div>
 
@@ -185,13 +185,13 @@ export default function Notifications() {
               const colorClass = processStatusColors[processStatus] ?? processStatusColors["미확인"];
               return (
                 <Card key={n.id} className={`border-l-4 ${colorClass}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
+                  <CardContent className="p-3 sm:p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
                           <span className="text-xs font-semibold text-primary">{typeLabels[n.type] ?? n.type}</span>
-                          <span className="text-xs text-muted-foreground ml-auto">{new Date(n.createdAt).toLocaleString("ko-KR")}</span>
+                          <span className="text-xs text-muted-foreground sm:ml-auto">{new Date(n.createdAt).toLocaleString("ko-KR")}</span>
                         </div>
                         <p className="text-sm font-medium">{n.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
@@ -199,12 +199,12 @@ export default function Notifications() {
                           <p className="text-xs text-primary mt-1">예정일: {new Date(n.dueAt).toLocaleDateString("ko-KR")}</p>
                         )}
                       </div>
-                      <div className="flex flex-col gap-1 shrink-0">
+                      <div className="flex shrink-0 gap-2 sm:flex-col sm:gap-1">
                         <Select
                           value={processStatus}
                           onValueChange={(v) => updateStatusMutation.mutate({ id: n.id, processStatus: v as ProcessStatus })}
                         >
-                          <SelectTrigger className="h-7 text-xs w-24"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-9 w-28 text-xs sm:h-7 sm:w-24"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="미확인">미확인</SelectItem>
                             <SelectItem value="확인">확인</SelectItem>
@@ -213,7 +213,7 @@ export default function Notifications() {
                           </SelectContent>
                         </Select>
                         {!n.isRead && (
-                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => markReadMutation.mutate({ id: n.id })}>
+                          <Button variant="ghost" size="sm" className="h-9 text-xs sm:h-7" onClick={() => markReadMutation.mutate({ id: n.id })}>
                             읽음
                           </Button>
                         )}

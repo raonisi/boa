@@ -30,16 +30,16 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="p-4">
+      <CardContent className="p-3 sm:p-4">
         <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs text-muted-foreground">{title}</p>
-            <p className="text-2xl font-bold mt-1">
+          <div className="min-w-0">
+            <p className="truncate text-[11px] text-muted-foreground sm:text-xs">{title}</p>
+            <p className="mt-1 text-xl font-bold sm:text-2xl">
               {value ?? 0}
               {suffix && <span className="text-sm font-normal text-muted-foreground ml-1">{suffix}</span>}
             </p>
           </div>
-          <div className={`h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center ${color}`}>
+          <div className={`ml-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 sm:h-10 sm:w-10 ${color}`}>
             <Icon className="h-5 w-5" />
           </div>
         </div>
@@ -68,7 +68,7 @@ function TodayWorkSection() {
         <h2 className="text-lg font-semibold">오늘 할 일</h2>
         <p className="text-xs text-muted-foreground mt-1">권한 범위 안의 일정, 알림, 장기 미관리 고객, 이번 달 계약 현황입니다.</p>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-4">
         <StatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} />
         <StatCard title="미완료 일정" value={isLoading ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} color="text-orange-500" />
         <StatCard title="미확인 알림" value={isLoading ? "-" : cards?.pendingNotificationCount} icon={Bell} color="text-red-500" />
@@ -78,14 +78,14 @@ function TodayWorkSection() {
         <StatCard title="이번 달 계약" value={isLoading ? "-" : cards?.monthlyContractCount} icon={FileText} color="text-green-600" />
         <StatCard title="이번 달 월납보험료" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} color="text-blue-600" />
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4 lg:gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">오늘 일정</CardTitle></CardHeader>
           <CardContent className="space-y-2">
             {(data?.todaySchedules ?? []).length === 0 ? (
               <EmptyLine>오늘 예정된 상담이 없습니다.</EmptyLine>
             ) : data?.todaySchedules.map((schedule) => (
-              <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+              <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="min-h-14 w-full rounded-md border p-2 text-left hover:bg-accent">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium truncate">{schedule.title}</span>
                   <StatusBadge status={schedule.status} />
@@ -103,7 +103,7 @@ function TodayWorkSection() {
             {(data?.pendingNotifications ?? []).length === 0 ? (
               <EmptyLine>미확인 알림이 없습니다.</EmptyLine>
             ) : data?.pendingNotifications.map((notification) => (
-              <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+              <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="min-h-14 w-full rounded-md border p-2 text-left hover:bg-accent">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium truncate">{notification.title}</span>
                   <span className="text-[11px] text-muted-foreground whitespace-nowrap">{notification.processStatus}</span>
@@ -121,7 +121,7 @@ function TodayWorkSection() {
             {(data?.longUnmanagedCustomers ?? []).length === 0 ? (
               <EmptyLine>장기 미관리 고객이 없습니다.</EmptyLine>
             ) : data?.longUnmanagedCustomers.filter((customer) => customer !== null).map((customer) => (
-              <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+              <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="min-h-14 w-full rounded-md border p-2 text-left hover:bg-accent">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium truncate">{customer.name}</span>
                   <StatusBadge status={customer.consultStatus} />
@@ -137,7 +137,7 @@ function TodayWorkSection() {
             {(data?.todayFollowUps ?? []).length === 0 ? (
               <EmptyLine>오늘 연락할 고객이 없습니다.</EmptyLine>
             ) : data?.todayFollowUps.map((followUp) => (
-              <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+              <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="min-h-14 w-full rounded-md border p-2 text-left hover:bg-accent">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium truncate">{followUp.customerName ?? `고객 #${followUp.customerId}`}</span>
                   <span className="text-[11px] text-muted-foreground whitespace-nowrap">{followUp.nextAction}</span>
