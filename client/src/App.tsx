@@ -13,6 +13,7 @@ import CustomerList from "./pages/CustomerList";
 import CustomerDetail from "./pages/CustomerDetail";
 import CustomerAssign from "./pages/CustomerAssign";
 import CustomerBulkImport from "./pages/CustomerBulkImport";
+import CustomerMergeManagement from "./pages/CustomerMergeManagement";
 import ImportBatchManagement from "./pages/ImportBatchManagement";
 import ContractList from "./pages/ContractList";
 import Performance from "./pages/Performance";
@@ -123,6 +124,13 @@ function Router() {
         <AuthGuard>
           <AdminGuard>
             <ImportBatchManagement />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/customers/merge">
+        <AuthGuard>
+          <AdminGuard>
+            <CustomerMergeManagement />
           </AdminGuard>
         </AuthGuard>
       </Route>

@@ -97,8 +97,11 @@ import {
   runDbTransaction,
   detectForbiddenColumns,
   findUserByNameUnique,
+  findDuplicateCustomerGroups,
   findTeamByNameAndSubBranch,
+  getCustomerMergePreview,
   validateBulkImportRow,
+  mergeCustomers,
   getAllActiveCustomerPhones,
   permanentlyDeleteContract,
   permanentlyDeleteCustomer,
@@ -1919,6 +1922,70 @@ export const appRouter = router({
   }),
 
   // ── Consultations ─────────────────────────────────────────────────────────
+  customerMerge: router({
+    findDuplicates: branchAdminProcedure
+      .input(z.object({
+        search: z.string().optional(),
+        phone: z.string().optional(),
+        name: z.string().optional(),
+        onlyActive: z.boolean().default(true).optional(),
+      }).optional())
+      .query(async ({ input }) => findDuplicateCustomerGroups(input ?? { onlyActive: true })),
+
+    preview: branchAdminProcedure
+      .input(z.object({ targetCustomerId: z.number(), sourceCustomerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (input.targetCustomerId === input.sourceCustomerId) throw new TRPCError({ code: "BAD_REQUEST", message: "기준 고객과 병합 대상 고객이 같습니다." });
+        const preview = await getCustomerMergePreview(input.targetCustomerId, input.sourceCustomerId);
+        if (!preview) throw new TRPCError({ code: "NOT_FOUND", message: "고객을 찾을 수 없습니다." });
+        if (preview.blockers.inactiveTarget || preview.blockers.inactiveSource || preview.blockers.alreadyMerged || preview.blockers.pendingDeleteRequests) {
+          await log(ctx.user.id, "CUSTOMER_MERGE_BLOCKED", "customer", input.targetCustomerId, logDetails({
+            actor: ctx.user.id,
+            targetId: input.targetCustomerId,
+            targetType: "customer",
+            metadata: { sourceCustomerId: input.sourceCustomerId, blockers: preview.blockers },
+          }));
+          throw new TRPCError({ code: "BAD_REQUEST", message: "active 상태이며 pending 삭제 요청이 없는 고객만 병합할 수 있습니다." });
+        }
+        await log(ctx.user.id, "CUSTOMER_MERGE_PREVIEWED", "customer", input.targetCustomerId, logDetails({
+          actor: ctx.user.id,
+          targetId: input.targetCustomerId,
+          targetType: "customer",
+          metadata: { sourceCustomerId: input.sourceCustomerId, transferCounts: preview.transferCounts },
+        }));
+        return preview;
+      }),
+
+    execute: branchAdminProcedure
+      .input(z.object({
+        targetCustomerId: z.number(),
+        sourceCustomerId: z.number(),
+        confirmText: z.string(),
+        reason: z.string().min(5).max(300).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== "고객병합") throw new TRPCError({ code: "BAD_REQUEST", message: "확인 문구가 일치하지 않습니다." });
+        if (input.targetCustomerId === input.sourceCustomerId) throw new TRPCError({ code: "BAD_REQUEST", message: "기준 고객과 병합 대상 고객이 같습니다." });
+        const preview = await getCustomerMergePreview(input.targetCustomerId, input.sourceCustomerId);
+        if (!preview) throw new TRPCError({ code: "NOT_FOUND", message: "고객을 찾을 수 없습니다." });
+        if (preview.blockers.inactiveTarget || preview.blockers.inactiveSource || preview.blockers.alreadyMerged || preview.blockers.pendingDeleteRequests) {
+          await log(ctx.user.id, "CUSTOMER_MERGE_BLOCKED", "customer", input.targetCustomerId, logDetails({
+            actor: ctx.user.id,
+            targetId: input.targetCustomerId,
+            targetType: "customer",
+            metadata: { sourceCustomerId: input.sourceCustomerId, blockers: preview.blockers },
+          }));
+          throw new TRPCError({ code: "BAD_REQUEST", message: "active 상태이며 pending 삭제 요청이 없는 고객만 병합할 수 있습니다." });
+        }
+        return mergeCustomers({
+          targetCustomerId: input.targetCustomerId,
+          sourceCustomerId: input.sourceCustomerId,
+          actorId: ctx.user.id,
+          reason: input.reason,
+        });
+      }),
+  }),
+
   consultations: router({
     list: activeUserProcedure
       .input(z.object({ customerId: z.number() }))
