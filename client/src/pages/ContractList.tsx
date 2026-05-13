@@ -22,13 +22,14 @@ export default function ContractList() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [paymentFilter, setPaymentFilter] = useState("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "mine">("all");
   const [requestContractId, setRequestContractId] = useState<number | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestMemo, setRequestMemo] = useState("");
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
-  const { data: contracts } = trpc.contracts.list.useQuery();
+  const { data: contracts } = trpc.contracts.list.useQuery(user?.role === "branch_admin" ? { scope: scopeFilter } : undefined);
 
   const deactivateMutation = trpc.contracts.deactivate.useMutation({
     onSuccess: () => {
@@ -105,6 +106,15 @@ export default function ContractList() {
                   {["정상", "미납", "실효", "해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {user?.role === "branch_admin" && (
+                <Select value={scopeFilter} onValueChange={(value) => setScopeFilter(value as "all" | "mine")}>
+                  <SelectTrigger className="w-full sm:w-32 h-9"><SelectValue placeholder="계약 범위" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 계약</SelectItem>
+                    <SelectItem value="mine">내 계약</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           </CardContent>
         </Card>

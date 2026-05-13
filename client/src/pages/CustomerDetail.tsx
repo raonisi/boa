@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { formatUserWithRole } from "@/lib/userRole";
 import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
@@ -53,6 +54,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showChangeAgentModal, setShowChangeAgentModal] = useState(false);
+  const [selectedNewAgentId, setSelectedNewAgentId] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null);
   const [editingContractId, setEditingContractId] = useState<number | null>(null);
@@ -152,7 +154,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   });
 
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
-    onSuccess: () => { toast.success("담당자가 변경되었습니다."); setShowChangeAgentModal(false); refetchCustomer(); },
+    onSuccess: () => { toast.success("담당자가 변경되었습니다."); setSelectedNewAgentId(""); setShowChangeAgentModal(false); refetchCustomer(); },
+    onError: (err) => toast.error(err.message || "담당자 변경에 실패했습니다."),
   });
 
   const deactivateMutation = trpc.customers.deactivate.useMutation({
@@ -287,7 +290,7 @@ export default function CustomerDetail({ id }: { id: number }) {
     </DashboardLayout>
   );
 
-  const agentName = users?.find((u) => u.id === customer.agentId)?.name ?? "-";
+  const agentName = formatUserWithRole(users?.find((u) => u.id === customer.agentId));
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
   const canChangeAgent = user?.role === "branch_admin" || user?.role === "team_leader";
   const canDeactivateCustomer = user?.role === "branch_admin";
@@ -328,7 +331,7 @@ export default function CustomerDetail({ id }: { id: number }) {
               <Edit2 className="h-3.5 w-3.5 mr-1" /> 정보 수정
             </Button>
             {canChangeAgent && (
-              <Button variant="outline" size="sm" className="h-8" onClick={() => setShowChangeAgentModal(true)}>
+              <Button variant="outline" size="sm" className="h-8" onClick={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(true); }}>
                 <UserCog className="h-3.5 w-3.5 mr-1" /> 담당자 변경
               </Button>
             )}
@@ -893,9 +896,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                           };
                           const prevSubAdmin = users?.find((u) => u.id === h.previousSubBranchAdminId)?.name ?? "-";
                           const newSubAdmin = users?.find((u) => u.id === (h as any).newSubBranchAdminId)?.name ?? "-";
-                          const prevAgent = users?.find((u) => u.id === h.previousAgentId)?.name ?? "-";
-                          const newAgent = users?.find((u) => u.id === h.newAgentId)?.name ?? "-";
-                          const assignedByName = users?.find((u) => u.id === h.assignedBy)?.name ?? "-";
+                          const prevAgent = formatUserWithRole(users?.find((u) => u.id === h.previousAgentId));
+                          const newAgent = formatUserWithRole(users?.find((u) => u.id === h.newAgentId));
+                          const assignedByName = formatUserWithRole(users?.find((u) => u.id === h.assignedBy));
                           return (
                             <tr key={h.id}>
                               <td className="p-3 text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString("ko-KR")}</td>
@@ -1014,20 +1017,30 @@ export default function CustomerDetail({ id }: { id: number }) {
       />
 
       {showChangeAgentModal && (
-        <Dialog open={true} onOpenChange={() => setShowChangeAgentModal(false)}>
+        <Dialog open={true} onOpenChange={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(false); }}>
           <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto">
             <DialogHeader><DialogTitle>담당자 변경 - {customer.name}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">현재 담당자: <strong>{agentName}</strong></p>
-              <Select onValueChange={(v) => changeAgentMutation.mutate({ customerId: id, newAgentId: Number(v) })}>
+              <Select value={selectedNewAgentId} onValueChange={setSelectedNewAgentId}>
                 <SelectTrigger className="h-9"><SelectValue placeholder="새 담당자 선택" /></SelectTrigger>
                 <SelectContent>
                   {(users ?? []).filter((u) => ((u as any).accountStatus === "active") && u.id !== customer.agentId).map((u) => (
-                    <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role === "team_leader" ? "팀장" : "팀원"})</SelectItem>
+                    <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="outline" size="sm" className="w-full" onClick={() => setShowChangeAgentModal(false)}>취소</Button>
+              <div className="sticky bottom-0 flex gap-2 bg-background pt-2">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(false); }}>취소</Button>
+                <Button
+                  size="sm"
+                  className="flex-1"
+                  disabled={!selectedNewAgentId || Number(selectedNewAgentId) === customer.agentId || changeAgentMutation.isPending}
+                  onClick={() => changeAgentMutation.mutate({ customerId: id, newAgentId: Number(selectedNewAgentId) })}
+                >
+                  {changeAgentMutation.isPending ? "변경 중..." : "변경 확정"}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -1502,7 +1515,7 @@ function ContractModal({ open, onClose, onSubmit, loading, contract, customerAge
   const productGroups = productGroupOptions?.map((item) => item.value).filter(Boolean) ?? [];
   const paymentStatuses = paymentStatusOptions?.length ? paymentStatusOptions.map((item) => item.value) : [form.paymentStatus];
   const contractStatuses = contractStatusOptions?.length ? contractStatusOptions.map((item) => item.value) : [form.contractStatus];
-  const agentOptions = (users ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "member"));
+  const agentOptions = (users ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "branch_admin" || u.role === "team_leader" || u.role === "member"));
   const requiresAgentSelection = !contract && !customerAgentId && currentUserRole !== "member";
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -1535,7 +1548,7 @@ function ContractModal({ open, onClose, onSubmit, loading, contract, customerAge
                 <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="기본 담당자" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="default">기본 담당자</SelectItem>
-                  {agentOptions.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                  {agentOptions.map((u) => <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>)}
                 </SelectContent>
               </Select>
               {requiresAgentSelection && (

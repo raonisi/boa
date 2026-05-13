@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { formatUserWithRole } from "@/lib/userRole";
 import { Target, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -43,10 +44,10 @@ export default function PerformanceGoals() {
     if (targetType === "team") return (teams ?? []).map((team: any) => ({ id: team.id, label: team.name }));
     if (targetType === "sub_branch") return (users ?? [])
       .filter((item: any) => item.role === "sub_branch_admin" && item.accountStatus === "active")
-      .map((item: any) => ({ id: item.id, label: item.name ?? `부지점 #${item.id}` }));
+      .map((item: any) => ({ id: item.id, label: formatUserWithRole(item) }));
     return (users ?? [])
-      .filter((item: any) => (item.role === "team_leader" || item.role === "member") && item.accountStatus === "active")
-      .map((item: any) => ({ id: item.id, label: item.name ?? `사용자 #${item.id}` }));
+      .filter((item: any) => (item.role === "branch_admin" || item.role === "team_leader" || item.role === "member") && item.accountStatus === "active")
+      .map((item: any) => ({ id: item.id, label: formatUserWithRole(item) }));
   }, [targetType, teams, users]);
 
   const createMutation = trpc.performanceGoals.create.useMutation({

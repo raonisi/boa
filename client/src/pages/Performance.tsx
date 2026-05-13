@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { formatUserWithRole } from "@/lib/userRole";
 import { useState, useMemo } from "react";
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
@@ -39,6 +40,7 @@ export default function Performance() {
   const [regionFilter, setRegionFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState(""); // YYYY-MM 형식
+  const [scopeFilter, setScopeFilter] = useState<"all" | "mine">("all");
 
   const { data: users } = trpc.users.list.useQuery();
   const { data: teams } = trpc.users.teams.useQuery();
@@ -60,7 +62,8 @@ export default function Performance() {
     company: companyFilter || undefined,
     region: regionFilter || undefined,
     source: sourceFilter || undefined,
-  }), [effectiveDateFrom, effectiveDateTo, agentIdFilter, teamIdFilter, productGroupFilter, companyFilter, regionFilter, sourceFilter]);
+    scope: user?.role === "branch_admin" ? scopeFilter : undefined,
+  }), [effectiveDateFrom, effectiveDateTo, agentIdFilter, teamIdFilter, productGroupFilter, companyFilter, regionFilter, sourceFilter, scopeFilter, user?.role]);
 
   const { data: stats } = trpc.performance.stats.useQuery(statsInput);
 
@@ -116,6 +119,18 @@ export default function Performance() {
                 <>
                   {user?.role === "branch_admin" && (
                     <div>
+                      <Label className="text-xs">실적 범위</Label>
+                      <Select value={scopeFilter} onValueChange={(value) => { setScopeFilter(value as "all" | "mine"); if (value === "mine") setAgentIdFilter("all"); }}>
+                        <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="실적 범위" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">전체 실적</SelectItem>
+                          <SelectItem value="mine">내 실적</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  {user?.role === "branch_admin" && (
+                    <div>
                       <Label className="text-xs">팀</Label>
                       <Select value={teamIdFilter} onValueChange={setTeamIdFilter}>
                         <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="전체 팀" /></SelectTrigger>
@@ -132,7 +147,7 @@ export default function Performance() {
                       <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="전체 팀원" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">전체 팀원</SelectItem>
-                        {agents.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                        {agents.map((u) => <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>

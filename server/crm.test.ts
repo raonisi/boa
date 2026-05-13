@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as db from "./db";
+import * as notifications from "./notifications";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 type AccountStatus = "active" | "inactive" | "resigned";
@@ -240,6 +241,115 @@ describe("RBAC - performance.stats", () => {
   });
 });
 
+describe("PR16 - branch_admin own scope and assignee handling", () => {
+  it("allows branch_admin to list all DB or only own DB", async () => {
+    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+    const caller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
+
+    await caller.customers.list({ scope: "all" });
+    await caller.customers.list({ scope: "mine" });
+
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(1, expect.not.objectContaining({ agentId: 1 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({ agentId: 1 }));
+  });
+
+  it("blocks non-branch_admin from requesting all DB scope", async () => {
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.list({ scope: "all" })).rejects.toThrow();
+  });
+
+  it("allows branch_admin to list all contracts or only own contracts", async () => {
+    const getAllContractsSpy = vi.spyOn(db, "getAllContracts").mockResolvedValue([]);
+    const caller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
+
+    await caller.contracts.list({ scope: "all" });
+    await caller.contracts.list({ scope: "mine" });
+
+    expect(getAllContractsSpy).toHaveBeenNthCalledWith(1, {});
+    expect(getAllContractsSpy).toHaveBeenNthCalledWith(2, { agentId: 1 });
+  });
+
+  it("blocks non-branch_admin from requesting all contract scope", async () => {
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).contracts.list({ scope: "all" })).rejects.toThrow();
+  });
+
+  it("scopes branch_admin performance stats to own agent when requested", async () => {
+    const getPerformanceStatsSpy = vi.spyOn(db, "getPerformanceStats").mockResolvedValue({ assigned: 0 } as any);
+    const caller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
+
+    await caller.performance.stats({ scope: "all" });
+    await caller.performance.stats({ scope: "mine" });
+
+    expect(getPerformanceStatsSpy).toHaveBeenNthCalledWith(1, expect.not.objectContaining({ agentId: 1 }));
+    expect(getPerformanceStatsSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({ agentId: 1 }));
+  });
+
+  it("blocks non-branch_admin from requesting all performance scope", async () => {
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).performance.stats({ scope: "all" })).rejects.toThrow();
+  });
+
+  it("allows branch_admin to assign a customer to self without team/sub-branch scope", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "Test Customer",
+      agentId: null,
+      assignedTeamId: 5,
+      subBranchAdminId: 20,
+      assignmentStatus: "unassigned",
+      isActive: true,
+    } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 1,
+      role: "branch_admin",
+      accountStatus: "active",
+      teamId: null,
+      subBranchAdminId: null,
+      name: "Branch Admin",
+    } as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
+    const historySpy = vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createNotification").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createUncontactedReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createBirthdayReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "refreshLongUnmanagedReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.assign({ customerId: 100, agentId: 1 });
+
+    expect(assignSpy).toHaveBeenCalledWith(100, 1, undefined, undefined, tx);
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      newAgentId: 1,
+      newTeamId: undefined,
+      newSubBranchAdminId: undefined,
+      assignmentType: "branch_to_agent",
+    }), tx);
+    expect(db.createActivityLog).toHaveBeenCalledWith(expect.objectContaining({ action: "CUSTOMER_SELF_ASSIGNED_BY_BRANCH_ADMIN" }), tx);
+  });
+
+  it("blocks changing to the same assignee", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "Test Customer",
+      agentId: 1,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      assignmentStatus: "assigned_to_agent",
+      isActive: true,
+    } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 1,
+      role: "branch_admin",
+      accountStatus: "active",
+      teamId: null,
+      subBranchAdminId: null,
+      name: "Branch Admin",
+    } as any);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.changeAgent({ customerId: 100, newAgentId: 1 })).rejects.toThrow();
+  });
+});
+
 describe("RBAC - contract agent target validation", () => {
   function mockContractCustomerAccess() {
     vi.spyOn(db, "getContractById").mockResolvedValue({
@@ -419,14 +529,15 @@ describe("customers assignment transaction flow", () => {
     vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
       if (id === 20) return { id, role: "sub_branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null } as any;
       if (id === 24) return { id, role: "member", accountStatus: "active", teamId: 5, subBranchAdminId: 20 } as any;
+      if (id === 27) return { id, role: "member", accountStatus: "active", teamId: 5, subBranchAdminId: 20 } as any;
       return null;
     });
 
-    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.changeAgent({ customerId: 100, newAgentId: 24 });
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.changeAgent({ customerId: 100, newAgentId: 27 });
 
     expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
       previousAgentId: 24,
-      newAgentId: 24,
+      newAgentId: 27,
       previousTeamId: 5,
       newTeamId: 5,
       previousSubBranchAdminId: 20,

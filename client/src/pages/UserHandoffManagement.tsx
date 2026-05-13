@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { formatUserWithRole } from "@/lib/userRole";
 import { ArrowRightLeft, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -98,7 +99,7 @@ export default function UserHandoffManagement() {
                     <SelectContent>
                       {sourceUsers.map((user: any) => (
                         <SelectItem key={user.id} value={String(user.id)}>
-                          {user.name ?? `사용자 #${user.id}`} · {roleLabel[user.role] ?? user.role} · {statusLabel[user.accountStatus] ?? user.accountStatus}
+                          {formatUserWithRole(user)} · {statusLabel[user.accountStatus] ?? user.accountStatus}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -111,7 +112,7 @@ export default function UserHandoffManagement() {
                     <SelectContent>
                       {targetUsers.map((user: any) => (
                         <SelectItem key={user.id} value={String(user.id)}>
-                          {user.name ?? `사용자 #${user.id}`} · {roleLabel[user.role] ?? user.role}
+                          {formatUserWithRole(user)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -209,11 +210,11 @@ export default function UserHandoffManagement() {
             <CardContent className="space-y-3 text-sm">
               <div>
                 <p className="text-xs text-muted-foreground">대상 사용자</p>
-                <p className="font-medium">{selectedSource ? `${selectedSource.name ?? "-"} · ${roleLabel[selectedSource.role] ?? selectedSource.role}` : "-"}</p>
+                <p className="font-medium">{selectedSource ? formatUserWithRole(selectedSource) : "-"}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">새 담당자</p>
-                <p className="font-medium">{selectedTarget ? `${selectedTarget.name ?? "-"} · ${roleLabel[selectedTarget.role] ?? selectedTarget.role}` : "-"}</p>
+                <p className="font-medium">{selectedTarget ? formatUserWithRole(selectedTarget) : "-"}</p>
               </div>
               <div className="rounded-md border p-3 text-xs text-muted-foreground">
                 새 담당자는 active 상태의 team_leader/member만 허용됩니다. 고객의 팀과 부지점장 범위는 새 담당자 기준으로 동기화됩니다.
