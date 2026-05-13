@@ -589,6 +589,63 @@ async function getAccessibleSchedules(user: { id: number; role: string; teamId: 
   return getSchedules({ userId: user.id });
 }
 
+async function getScopedDashboardData(user: { id: number; role: string; teamId: number | null }) {
+  if (user.role === "branch_admin") {
+    const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+      getCustomers({}),
+      getAllContracts({}),
+      getAccessibleSchedules(user),
+      getNotificationsFiltered({ limit: 200 }),
+    ]);
+    return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+  }
+
+  if (user.role === "sub_branch_admin") {
+    const subordinates = await getUsersBySubBranchAdminId(user.id);
+    const userIds = [user.id, ...subordinates.map((u) => u.id)];
+    const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+      getCustomers({ subBranchAdminId: user.id }),
+      getAllContracts({ subBranchAdminId: user.id }),
+      getAccessibleSchedules(user),
+      getNotificationsFiltered({ userIds, limit: 200 }),
+    ]);
+    return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+  }
+
+  if (user.role === "team_leader") {
+    if (user.teamId === null) return { customerList: [], contractList: [], scheduleList: [], notifications: [] };
+    const teamMembers = await getUsersByTeamId(user.teamId);
+    const userIds = [user.id, ...teamMembers.map((u) => u.id)];
+    const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+      getCustomers({ teamId: user.teamId }),
+      getAllContracts({ teamId: user.teamId }),
+      getAccessibleSchedules(user),
+      getNotificationsFiltered({ userIds, limit: 200 }),
+    ]);
+    return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+  }
+
+  const [customerList, contractList, scheduleList, notificationResult] = await Promise.all([
+    getCustomers({ agentId: user.id }),
+    getAllContracts({ agentId: user.id }),
+    getAccessibleSchedules(user),
+    getNotificationsFiltered({ userIds: [user.id], limit: 200 }),
+  ]);
+  return { customerList, contractList, scheduleList, notifications: notificationResult.items };
+}
+
+function isSameCalendarDay(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+}
+
+function isFinishedScheduleStatus(status: string) {
+  return ["완료", "취소", "노쇼"].includes(status);
+}
+
+function isUnreadNotification(notification: { isRead: boolean; processStatus?: string | null }) {
+  return !notification.isRead || notification.processStatus === "미확인";
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -1982,6 +2039,106 @@ export const appRouter = router({
   }),
 
   // ── Notifications ─────────────────────────────────────────────────────────
+  dashboard: router({
+    todayWork: activeUserProcedure
+      .input(z.object({ date: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const baseDate = input?.date ? new Date(input.date) : new Date();
+        const monthStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+        const nextMonthStart = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
+        const { customerList, contractList, scheduleList, notifications } = await getScopedDashboardData(ctx.user);
+        const customerMap = new Map(customerList.map((customer) => [customer.id, customer]));
+
+        const todaySchedules = scheduleList
+          .filter((schedule) => isSameCalendarDay(new Date(schedule.startTime), baseDate) && !isFinishedScheduleStatus(schedule.status))
+          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        const incompleteSchedules = scheduleList
+          .filter((schedule) => {
+            const deadline = schedule.endTime ?? schedule.startTime;
+            return new Date(deadline).getTime() <= baseDate.getTime() && !isFinishedScheduleStatus(schedule.status);
+          })
+          .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+        const pendingNotifications = notifications
+          .filter((notification) => isUnreadNotification(notification))
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+        const longUnmanagedCustomers = notifications
+          .filter((notification) => notification.type === "long_unmanaged_90" && notification.relatedType === "customer" && notification.relatedId)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+          .map((notification) => {
+            const customer = customerMap.get(notification.relatedId ?? 0);
+            if (!customer || !customer.isActive) return null;
+            return {
+              id: customer.id,
+              name: customer.name,
+              consultStatus: customer.consultStatus,
+              agentId: customer.agentId,
+              createdAt: notification.createdAt,
+            };
+          })
+          .filter((item) => item !== null)
+          .slice(0, 10);
+
+        const monthlyContracts = contractList.filter((contract) => {
+          if (!contract.contractDate) return false;
+          const contractDate = new Date(contract.contractDate);
+          return contract.isActive && contractDate >= monthStart && contractDate < nextMonthStart;
+        });
+        const monthlyPremiumSum = monthlyContracts.reduce((sum, contract) => sum + Number(contract.monthlyPremium ?? 0), 0);
+
+        return {
+          scope: ctx.user.role,
+          cards: {
+            todayScheduleCount: todaySchedules.length,
+            incompleteScheduleCount: incompleteSchedules.length,
+            pendingNotificationCount: pendingNotifications.length,
+            longUnmanagedCustomerCount: longUnmanagedCustomers.length,
+            monthlyContractCount: monthlyContracts.length,
+            monthlyPremiumSum,
+          },
+          todaySchedules: todaySchedules.slice(0, 8).map((schedule) => ({
+            id: schedule.id,
+            title: schedule.title,
+            type: schedule.type,
+            status: schedule.status,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            userId: schedule.userId,
+          })),
+          incompleteSchedules: incompleteSchedules.slice(0, 8).map((schedule) => ({
+            id: schedule.id,
+            title: schedule.title,
+            type: schedule.type,
+            status: schedule.status,
+            startTime: schedule.startTime,
+            endTime: schedule.endTime,
+            userId: schedule.userId,
+          })),
+          pendingNotifications: pendingNotifications.slice(0, 8).map((notification) => {
+            const customer = notification.relatedType === "customer" ? customerMap.get(notification.relatedId ?? 0) : undefined;
+            return {
+              id: notification.id,
+              type: notification.type,
+              title: notification.title,
+              processStatus: notification.processStatus,
+              isRead: notification.isRead,
+              createdAt: notification.createdAt,
+              relatedType: notification.relatedType,
+              relatedId: notification.relatedId,
+              customerName: customer?.name ?? null,
+            };
+          }),
+          longUnmanagedCustomers,
+          monthlyPerformance: {
+            contractCount: monthlyContracts.length,
+            monthlyPremiumSum,
+          },
+        };
+      }),
+  }),
+
   notifications: router({
     list: activeUserProcedure
       .input(z.object({

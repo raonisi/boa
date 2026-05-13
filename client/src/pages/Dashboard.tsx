@@ -49,6 +49,91 @@ function StatCard({
 }
 
 // ─── 부지점장 전용 대시보드 ───────────────────────────────────────────────────
+function formatWon(value: number | undefined) {
+  return `${(value ?? 0).toLocaleString()}원`;
+}
+
+function EmptyLine({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs text-muted-foreground py-2">{children}</p>;
+}
+
+function TodayWorkSection() {
+  const [, setLocation] = useLocation();
+  const { data, isLoading } = trpc.dashboard.todayWork.useQuery({});
+  const cards = data?.cards;
+
+  return (
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold">오늘 할 일</h2>
+        <p className="text-xs text-muted-foreground mt-1">권한 범위 안의 일정, 알림, 장기 미관리 고객, 이번 달 계약 현황입니다.</p>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+        <StatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} />
+        <StatCard title="미완료 일정" value={isLoading ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} color="text-orange-500" />
+        <StatCard title="미확인 알림" value={isLoading ? "-" : cards?.pendingNotificationCount} icon={Bell} color="text-red-500" />
+        <StatCard title="장기 미관리 고객" value={isLoading ? "-" : cards?.longUnmanagedCustomerCount} icon={Users} color="text-amber-600" />
+        <StatCard title="이번 달 계약" value={isLoading ? "-" : cards?.monthlyContractCount} icon={FileText} color="text-green-600" />
+        <StatCard title="이번 달 월납보험료" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} color="text-blue-600" />
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">오늘 일정</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {(data?.todaySchedules ?? []).length === 0 ? (
+              <EmptyLine>오늘 예정된 상담이 없습니다.</EmptyLine>
+            ) : data?.todaySchedules.map((schedule) => (
+              <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate">{schedule.title}</span>
+                  <StatusBadge status={schedule.status} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {new Date(schedule.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · {schedule.type}
+                </p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">미확인 알림</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {(data?.pendingNotifications ?? []).length === 0 ? (
+              <EmptyLine>미확인 알림이 없습니다.</EmptyLine>
+            ) : data?.pendingNotifications.map((notification) => (
+              <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate">{notification.title}</span>
+                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">{notification.processStatus}</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 truncate">
+                  {notification.customerName ? `${notification.customerName} · ` : ""}{notification.type}
+                </p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">장기 미관리 고객</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {(data?.longUnmanagedCustomers ?? []).length === 0 ? (
+              <EmptyLine>장기 미관리 고객이 없습니다.</EmptyLine>
+            ) : data?.longUnmanagedCustomers.filter((customer) => customer !== null).map((customer) => (
+              <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="w-full text-left rounded-md border p-2 hover:bg-accent">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium truncate">{customer.name}</span>
+                  <StatusBadge status={customer.consultStatus} />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">알림 생성일 {new Date(customer.createdAt).toLocaleDateString("ko-KR")}</p>
+              </button>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    </section>
+  );
+}
+
 function SubBranchAdminDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -78,6 +163,7 @@ function SubBranchAdminDashboard() {
           <h1 className="text-2xl font-bold">대시보드</h1>
           <p className="text-sm text-muted-foreground mt-1">{user?.name} (부지점장) · {today.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })}</p>
         </div>
+        <TodayWorkSection />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="배분받은 전체 DB" value={allDb.length} icon={Users} />
           <StatCard title="미배정 DB" value={assignedToSubBranch.length} icon={Users} color="text-orange-500" />
@@ -157,6 +243,8 @@ export default function Dashboard() {
             {user?.name} ({roleTitle}) · {new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })}
           </p>
         </div>
+
+        <TodayWorkSection />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
