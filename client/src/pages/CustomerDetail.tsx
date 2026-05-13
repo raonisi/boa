@@ -66,6 +66,10 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const [messageNextContactDate, setMessageNextContactDate] = useState("");
   const [messageTopic, setMessageTopic] = useState("");
+  const [handoffNoteTitle, setHandoffNoteTitle] = useState("");
+  const [handoffNoteType, setHandoffNoteType] = useState<"handoff" | "caution" | "approach" | "avoid" | "relationship" | "next_action">("handoff");
+  const [handoffNoteBody, setHandoffNoteBody] = useState("");
+  const [selectedScriptId, setSelectedScriptId] = useState<string>("");
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -78,6 +82,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: users } = trpc.users.list.useQuery();
   const { data: consultationTools } = trpc.consultationTools.listCustomerChecks.useQuery({ customerId: id });
   const { data: messageTemplates } = trpc.consultationTools.listMessageTemplates.useQuery({});
+  const { data: handoffNotes } = trpc.customerHandoffNotes.listByCustomer.useQuery({ customerId: id });
+  const { data: consultationScripts } = trpc.consultationScripts.list.useQuery({});
   const renderedMessageInput = {
     templateId: selectedTemplateId ? Number(selectedTemplateId) : 0,
     customerId: id,
@@ -205,10 +211,42 @@ export default function CustomerDetail({ id }: { id: number }) {
     onError: (err) => toast.error(err.message || "문구 복사 이력 기록에 실패했습니다."),
   });
 
+  const createHandoffNoteMutation = trpc.customerHandoffNotes.create.useMutation({
+    onSuccess: () => {
+      toast.success("인수인계 메모를 추가했습니다.");
+      setHandoffNoteTitle("");
+      setHandoffNoteBody("");
+      utils.customerHandoffNotes.listByCustomer.invalidate({ customerId: id });
+    },
+    onError: (err) => toast.error(err.message || "인수인계 메모 저장에 실패했습니다."),
+  });
+
+  const updateHandoffNoteMutation = trpc.customerHandoffNotes.update.useMutation({
+    onSuccess: () => {
+      toast.success("인수인계 메모를 변경했습니다.");
+      utils.customerHandoffNotes.listByCustomer.invalidate({ customerId: id });
+    },
+    onError: (err) => toast.error(err.message || "인수인계 메모 변경에 실패했습니다."),
+  });
+
+  const logScriptCopyMutation = trpc.consultationScripts.logCopy.useMutation({
+    onSuccess: () => toast.success("상담 스크립트 복사 이력을 기록했습니다."),
+    onError: (err) => toast.error(err.message || "상담 스크립트 복사 이력 기록에 실패했습니다."),
+  });
+
   const checklistTemplates = consultationTools?.templates ?? [];
   const checklistResultsById = new Map((consultationTools?.results ?? []).map((result) => [result.checklistId, result]));
   const checklistPhaseLabels = { before: "상담 전", during: "상담 중", after: "상담 후" } as const;
   const selectedTemplate = messageTemplates?.find((template) => template.id === Number(selectedTemplateId));
+  const selectedScript = consultationScripts?.find((script) => script.id === Number(selectedScriptId));
+  const handoffNoteTypeLabels = {
+    handoff: "인수인계",
+    caution: "주의사항",
+    approach: "추천 접근",
+    avoid: "피해야 할 말",
+    relationship: "관계관리",
+    next_action: "다음 액션",
+  } as const;
 
   if (!customer) return (
     <DashboardLayout>
@@ -456,6 +494,71 @@ export default function CustomerDetail({ id }: { id: number }) {
               onCancel={(followUpId) => cancelFollowUpMutation.mutate({ id: followUpId })}
               loading={completeFollowUpMutation.isPending || postponeFollowUpMutation.isPending || cancelFollowUpMutation.isPending}
             />
+            <Card>
+              <CardContent className="p-4 space-y-4">
+                <div>
+                  <h3 className="font-semibold">인수인계 메모</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    고객 성향, 주의사항, 피해야 할 말, 추천 접근 방식을 내부용으로 남깁니다. 주민등록번호, 계좌번호, 증권번호, 병력상세 등 민감정보는 입력하지 마세요.
+                  </p>
+                </div>
+                <div className="grid gap-2 md:grid-cols-5">
+                  <div>
+                    <Label className="text-xs">유형</Label>
+                    <Select value={handoffNoteType} onValueChange={(value) => setHandoffNoteType(value as any)}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(handoffNoteTypeLabels).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label className="text-xs">제목</Label>
+                    <Input className="mt-1" value={handoffNoteTitle} onChange={(event) => setHandoffNoteTitle(event.target.value)} placeholder="예: 추천 접근 방식" />
+                  </div>
+                  <div className="md:col-span-2 flex items-end justify-end">
+                    <Button
+                      type="button"
+                      disabled={!handoffNoteTitle.trim() || !handoffNoteBody.trim() || createHandoffNoteMutation.isPending}
+                      onClick={() => createHandoffNoteMutation.mutate({ customerId: id, noteType: handoffNoteType, title: handoffNoteTitle, body: handoffNoteBody })}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />메모 추가
+                    </Button>
+                  </div>
+                  <div className="md:col-span-5">
+                    <Label className="text-xs">내용</Label>
+                    <Textarea className="mt-1" rows={3} value={handoffNoteBody} onChange={(event) => setHandoffNoteBody(event.target.value)} placeholder="고객 응대에 필요한 최소 정보만 기록하세요." />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  {(handoffNotes ?? []).length === 0 ? (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">등록된 인수인계 메모가 없습니다.</div>
+                  ) : (
+                    (handoffNotes ?? []).map((note: any) => (
+                      <div key={note.id} className="rounded-md border p-3">
+                        <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <p className="text-sm font-medium">{note.title}</p>
+                            <p className="text-xs text-muted-foreground">{handoffNoteTypeLabels[note.noteType as keyof typeof handoffNoteTypeLabels] ?? note.noteType}</p>
+                            <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">{note.body}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="shrink-0"
+                            onClick={() => updateHandoffNoteMutation.mutate({ id: note.id, isActive: false })}
+                          >
+                            비활성
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* 상담기록 */}
@@ -666,6 +769,55 @@ export default function CustomerDetail({ id }: { id: number }) {
                     }}
                   >
                     <Copy className="h-4 w-4 mr-2" /> 문구 복사
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold">상담 스크립트</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      통화와 상담 흐름을 참고할 수 있는 내부용 스크립트입니다. 고객 상황에 맞게 조정해서 사용하세요.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">스크립트 선택</Label>
+                    <Select value={selectedScriptId} onValueChange={setSelectedScriptId}>
+                      <SelectTrigger><SelectValue placeholder="상황별 상담 스크립트 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {(consultationScripts ?? []).map((script) => (
+                          <SelectItem key={script.id} value={String(script.id)}>{script.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">미리보기</Label>
+                    <Textarea
+                      readOnly
+                      value={selectedScript?.scriptBody ?? ""}
+                      placeholder="스크립트를 선택하면 상담 흐름을 확인할 수 있습니다."
+                      className="mt-1 min-h-48 text-sm"
+                    />
+                  </div>
+                  {selectedScript?.complianceNote ? (
+                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">{selectedScript.complianceNote}</div>
+                  ) : (
+                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+                      가입 강요, 공포마케팅, 확정 표현은 사용하지 마세요. 고객 상황 확인과 기준 정리 중심으로 활용하세요.
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    disabled={!selectedScript?.scriptBody}
+                    onClick={async () => {
+                      if (!selectedScript?.scriptBody) return;
+                      await navigator.clipboard.writeText(selectedScript.scriptBody);
+                      logScriptCopyMutation.mutate({ scriptId: Number(selectedScriptId), customerId: id });
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" /> 스크립트 복사
                   </Button>
                 </CardContent>
               </Card>

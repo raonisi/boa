@@ -218,6 +218,9 @@ export default function UserHandoffManagement() {
               <div className="rounded-md border p-3 text-xs text-muted-foreground">
                 새 담당자는 active 상태의 team_leader/member만 허용됩니다. 고객의 팀과 부지점장 범위는 새 담당자 기준으로 동기화됩니다.
               </div>
+              <div className="rounded-md border p-3 text-xs text-muted-foreground">
+                고객별 인수인계 메모는 고객 상세 화면의 인수인계 메모 카드에서 작성할 수 있습니다. 민감정보는 메모에 입력하지 마세요.
+              </div>
             </CardContent>
           </Card>
         </div>

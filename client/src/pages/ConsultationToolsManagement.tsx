@@ -18,13 +18,32 @@ const phases = [
   { value: "after", label: "상담 후" },
 ] as const;
 
-const categories = [
-  "basic", "needs", "coverage", "premium", "family", "follow_up", "compliance",
-] as const;
+const categories = ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"] as const;
 
 const situations = [
-  "missed_call", "proposal_follow_up", "pre_contract_check", "post_contract_care", "long_unmanaged",
-  "birthday", "follow_up_schedule", "document_request", "after_consultation", "general_check",
+  "missed_call",
+  "proposal_follow_up",
+  "pre_contract_check",
+  "post_contract_care",
+  "long_unmanaged",
+  "birthday",
+  "follow_up_schedule",
+  "document_request",
+  "after_consultation",
+  "general_check",
+] as const;
+
+const scriptCategories = [
+  "first_call",
+  "missed_call",
+  "premium_burden",
+  "coverage_concern",
+  "family_responsibility",
+  "surrender_risk",
+  "proposal_follow_up",
+  "post_contract_care",
+  "long_unmanaged",
+  "general_check",
 ] as const;
 
 const channels = ["kakao", "sms", "both"] as const;
@@ -42,13 +61,19 @@ export default function ConsultationToolsManagement() {
   const [templateChannel, setTemplateChannel] = useState<(typeof channels)[number]>("both");
   const [templateBody, setTemplateBody] = useState("");
   const [templateNote, setTemplateNote] = useState("");
+  const [scriptTitle, setScriptTitle] = useState("");
+  const [scriptCategory, setScriptCategory] = useState<(typeof scriptCategories)[number]>("first_call");
+  const [scriptBody, setScriptBody] = useState("");
+  const [scriptNote, setScriptNote] = useState("");
+  const [scriptTags, setScriptTags] = useState("");
 
   const { data: checklists } = trpc.consultationTools.listChecklists.useQuery({ includeInactive: true });
   const { data: templates } = trpc.consultationTools.listMessageTemplates.useQuery({ includeInactive: true });
+  const { data: scripts } = trpc.consultationScripts.list.useQuery({ includeInactive: true });
 
   const createChecklist = trpc.consultationTools.createChecklist.useMutation({
     onSuccess: () => {
-      toast.success("체크리스트 항목이 추가되었습니다.");
+      toast.success("체크리스트 항목을 추가했습니다.");
       setCheckTitle("");
       setCheckDescription("");
       utils.consultationTools.listChecklists.invalidate();
@@ -68,7 +93,7 @@ export default function ConsultationToolsManagement() {
   });
   const createTemplate = trpc.consultationTools.createMessageTemplate.useMutation({
     onSuccess: () => {
-      toast.success("문구 템플릿이 추가되었습니다.");
+      toast.success("문구 템플릿을 추가했습니다.");
       setTemplateTitle("");
       setTemplateBody("");
       setTemplateNote("");
@@ -80,6 +105,28 @@ export default function ConsultationToolsManagement() {
     onSuccess: () => utils.consultationTools.listMessageTemplates.invalidate(),
     onError: (error) => toast.error(error.message),
   });
+  const seedScripts = trpc.consultationScripts.seedDefaults.useMutation({
+    onSuccess: (result) => {
+      toast.success(`기본 상담 스크립트 ${result.createdCount}건을 확인했습니다.`);
+      utils.consultationScripts.list.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const createScript = trpc.consultationScripts.create.useMutation({
+    onSuccess: () => {
+      toast.success("상담 스크립트를 추가했습니다.");
+      setScriptTitle("");
+      setScriptBody("");
+      setScriptNote("");
+      setScriptTags("");
+      utils.consultationScripts.list.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
+  const updateScript = trpc.consultationScripts.update.useMutation({
+    onSuccess: () => utils.consultationScripts.list.invalidate(),
+    onError: (error) => toast.error(error.message),
+  });
 
   return (
     <DashboardLayout>
@@ -87,7 +134,7 @@ export default function ConsultationToolsManagement() {
         <div>
           <h1 className="text-2xl font-bold">상담 도구 관리</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            상담 체크리스트와 카톡·문자 후속 문구를 관리합니다. 민감정보, 가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요.
+            상담 체크리스트, 후속 문구, 상담 스크립트를 관리합니다. 민감정보, 가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요.
           </p>
         </div>
 
@@ -95,6 +142,7 @@ export default function ConsultationToolsManagement() {
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="checklists">상담 체크리스트</TabsTrigger>
             <TabsTrigger value="templates">후속 문구 템플릿</TabsTrigger>
+            <TabsTrigger value="scripts">상담 스크립트</TabsTrigger>
           </TabsList>
 
           <TabsContent value="checklists" className="space-y-4">
@@ -116,7 +164,7 @@ export default function ConsultationToolsManagement() {
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-medium">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
-                      <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder}</p>
+                      <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {item.isActive ? "active" : "inactive"}</p>
                       {item.description ? <p className="mt-1 text-sm text-muted-foreground">{item.description}</p> : null}
                     </div>
                     <Button size="sm" variant="outline" onClick={() => updateChecklist.mutate({ id: item.id, isActive: !item.isActive })}>
@@ -151,6 +199,37 @@ export default function ConsultationToolsManagement() {
                       <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.body}</p>
                     </div>
                     <Button size="sm" variant="outline" onClick={() => updateTemplate.mutate({ id: item.id, isActive: !item.isActive })}>
+                      {item.isActive ? "비활성" : "재활성"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="scripts" className="space-y-4">
+            <Card>
+              <CardHeader><CardTitle className="text-base">상담 스크립트 추가</CardTitle></CardHeader>
+              <CardContent className="grid gap-3 md:grid-cols-4">
+                <div><Label>제목</Label><Input value={scriptTitle} onChange={(event) => setScriptTitle(event.target.value)} /></div>
+                <div><Label>카테고리</Label><Select value={scriptCategory} onValueChange={(value) => setScriptCategory(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>태그</Label><Input value={scriptTags} onChange={(event) => setScriptTags(event.target.value)} placeholder="쉼표로 구분" /></div>
+                <div className="flex items-end justify-end"><Button variant="outline" onClick={() => seedScripts.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
+                <div className="md:col-span-4"><Label>본문</Label><Textarea rows={8} value={scriptBody} onChange={(event) => setScriptBody(event.target.value)} placeholder="가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요." /></div>
+                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea value={scriptNote} onChange={(event) => setScriptNote(event.target.value)} /></div>
+                <div className="md:col-span-4 flex justify-end"><Button onClick={() => createScript.mutate({ title: scriptTitle, category: scriptCategory, scriptBody, complianceNote: scriptNote || undefined, tags: scriptTags || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />스크립트 추가</Button></div>
+              </CardContent>
+            </Card>
+            <div className="grid gap-3">
+              {(scripts ?? []).map((item: any) => (
+                <Card key={item.id}>
+                  <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
+                    <div className="min-w-0">
+                      <p className="font-medium">{item.title}</p>
+                      <p className="text-xs text-muted-foreground">{item.category} / {item.tags ?? "태그 없음"} / {item.isActive ? "active" : "inactive"}</p>
+                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{item.scriptBody}</p>
+                    </div>
+                    <Button size="sm" variant="outline" onClick={() => updateScript.mutate({ id: item.id, isActive: !item.isActive })}>
                       {item.isActive ? "비활성" : "재활성"}
                     </Button>
                   </CardContent>

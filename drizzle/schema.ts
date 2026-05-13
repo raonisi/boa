@@ -201,6 +201,43 @@ export const messageTemplates = mysqlTable("message_templates", {
 export type MessageTemplate = typeof messageTemplates.$inferSelect;
 export type InsertMessageTemplate = typeof messageTemplates.$inferInsert;
 
+export const customerHandoffNotes = mysqlTable("customer_handoff_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  noteType: mysqlEnum("noteType", ["handoff", "caution", "approach", "avoid", "relationship", "next_action"]).default("handoff").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  visibility: mysqlEnum("visibility", ["internal"]).default("internal").notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CustomerHandoffNote = typeof customerHandoffNotes.$inferSelect;
+export type InsertCustomerHandoffNote = typeof customerHandoffNotes.$inferInsert;
+
+export const consultationScripts = mysqlTable("consultation_scripts", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  category: mysqlEnum("category", [
+    "first_call", "missed_call", "premium_burden", "coverage_concern", "family_responsibility",
+    "surrender_risk", "proposal_follow_up", "post_contract_care", "long_unmanaged", "general_check",
+  ]).notNull(),
+  scriptBody: text("scriptBody").notNull(),
+  complianceNote: text("complianceNote"),
+  tags: text("tags"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ConsultationScript = typeof consultationScripts.$inferSelect;
+export type InsertConsultationScript = typeof consultationScripts.$inferInsert;
+
 // ─── Contracts ────────────────────────────────────────────────────────────────
 export const contracts = mysqlTable("contracts", {
   id: int("id").autoincrement().primaryKey(),

@@ -7,8 +7,10 @@ import {
   consultations,
   consultationChecklists,
   consultationCheckResults,
+  consultationScripts,
   contractHistory,
   contracts,
+  customerHandoffNotes,
   customers,
   deleteRequests,
   followUps,
@@ -20,9 +22,11 @@ import {
   InsertConsultation,
   InsertConsultationChecklist,
   InsertConsultationCheckResult,
+  InsertConsultationScript,
   InsertContract,
   InsertContractHistory,
   InsertCustomer,
+  InsertCustomerHandoffNote,
   InsertDeleteRequest,
   InsertFollowUp,
   InsertImportBatch,
@@ -1199,6 +1203,88 @@ export async function updateMessageTemplate(id: number, data: Partial<InsertMess
 }
 
 // ─── Contracts ────────────────────────────────────────────────────────────────
+export const DEFAULT_CONSULTATION_SCRIPTS = [
+  { title: "첫 통화 기본 흐름", category: "first_call", scriptBody: "안녕하세요, {담당자명}입니다.\n오늘 연락드린 이유는 가입을 권유드리기보다, 현재 보험 기준을 한 번 확인하실 수 있도록 안내드리기 위해서입니다.\n짧게 현재 상황만 확인하고, 필요하지 않은 내용은 권유드리지 않겠습니다.\n괜찮으시면 현재 보험료 부담이나 보장 관련해서 불편하신 부분이 있는지 먼저 여쭤봐도 될까요?" },
+  { title: "부재 고객 재연락 흐름", category: "missed_call", scriptBody: "고객님, 통화가 어려우셨던 것 같아 다시 연락드렸습니다.\n급한 내용은 아니고, 이전에 확인이 필요했던 보험 관련 기준을 정리해드리려고 했습니다.\n편하신 시간에 짧게 확인만 도와드리겠습니다." },
+  { title: "보험료 부담 상담 흐름", category: "premium_burden", scriptBody: "보험료가 부담스럽게 느껴지실 때는 무조건 줄이는 것보다, 줄여도 되는 부분과 유지해야 하는 부분을 나누어 보는 것이 중요합니다.\n해지부터 판단하기보다, 현재 보장 공백이 생기지 않는 범위에서 조정 가능한지 먼저 확인해보겠습니다." },
+  { title: "보장 불안 상담 흐름", category: "coverage_concern", scriptBody: "보장이 충분한지 불안하실 때는 상품 이름보다 실제 어떤 상황에서 보장이 되는지 확인하는 것이 중요합니다.\n암, 뇌, 심장, 실손, 수술비처럼 기본 보장 축을 기준으로 현재 공백이 있는지 차분히 확인해보겠습니다." },
+  { title: "가족 책임형 상담 흐름", category: "family_responsibility", scriptBody: "가족을 책임지고 계신 경우에는 본인 보장만 보는 것보다, 소득 공백이나 치료비 부담이 가족에게 어떻게 이어질 수 있는지 함께 확인하는 것이 중요합니다.\n현재 가족 구성과 경제적 책임 범위를 기준으로 필요한 부분만 점검해보겠습니다." },
+  { title: "해지 고민 상담 흐름", category: "surrender_risk", scriptBody: "보험 해지를 고민하실 때는 보험료 부담도 중요하지만, 해지 후 다시 준비하기 어려운 보장이 있는지도 확인해야 합니다.\n바로 해지 여부를 결정하기보다, 유지할 것과 줄일 것, 조정 가능한 부분을 나누어 확인해보겠습니다." },
+  { title: "설계안 발송 후 확인 흐름", category: "proposal_follow_up", scriptBody: "자료를 보셨을 때 가장 중요한 것은 전체 금액보다 왜 이 구성이 필요한지 이해되는지입니다.\n이해가 안 되는 부분이나 부담스러운 부분이 있으면 그 기준부터 다시 설명드리겠습니다." },
+  { title: "계약 후 사후관리 흐름", category: "post_contract_care", scriptBody: "계약 이후에는 가입 내용이 제대로 이해되었는지, 청구나 변경 시 어떤 기준으로 확인하면 되는지 아는 것이 중요합니다.\n앞으로 필요하실 때 헷갈리지 않도록 주요 내용만 정리해서 관리해드리겠습니다." },
+  { title: "장기 미관리 고객 재접촉 흐름", category: "long_unmanaged", scriptBody: "오랜만에 연락드리는 만큼 부담을 드리기보다, 그동안 상황이 달라진 부분이 있는지만 먼저 확인하고 싶습니다.\n직장, 가족 구성, 보험료 부담, 기존 보장 기준이 달라졌다면 점검이 필요할 수 있습니다." },
+  { title: "일반 보장 점검 흐름", category: "general_check", scriptBody: "보험은 새로 준비하는 것보다 현재 상황에 맞게 유지되고 있는지 확인하는 과정이 중요합니다.\n현재 기준에서 과한 부분, 부족한 부분, 조정이 필요한 부분이 있는지 차분히 점검해보겠습니다." },
+] as const;
+
+export async function getCustomerHandoffNotes(customerId: number, includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const condition = includeInactive ? eq(customerHandoffNotes.customerId, customerId) : and(eq(customerHandoffNotes.customerId, customerId), eq(customerHandoffNotes.isActive, true), isNull(customerHandoffNotes.deletedAt));
+  return db.select().from(customerHandoffNotes).where(condition).orderBy(desc(customerHandoffNotes.createdAt));
+}
+
+export async function getCustomerHandoffNoteById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(customerHandoffNotes).where(eq(customerHandoffNotes.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createCustomerHandoffNote(data: InsertCustomerHandoffNote) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(customerHandoffNotes).values(data);
+  const result = await db.select().from(customerHandoffNotes).orderBy(desc(customerHandoffNotes.id)).limit(1);
+  return result[0];
+}
+
+export async function updateCustomerHandoffNote(id: number, data: Partial<InsertCustomerHandoffNote>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(customerHandoffNotes).set(data).where(eq(customerHandoffNotes.id, id));
+}
+
+export async function ensureDefaultConsultationScripts(createdBy: number) {
+  const db = await getDb();
+  if (!db) return { createdCount: 0 };
+  let createdCount = 0;
+  for (const script of DEFAULT_CONSULTATION_SCRIPTS) {
+    const existing = await db.select().from(consultationScripts).where(and(eq(consultationScripts.title, script.title), eq(consultationScripts.category, script.category as any))).limit(1);
+    if (existing.length > 0) continue;
+    await db.insert(consultationScripts).values({ ...script, complianceNote: "상담 참고용 문구입니다. 고객 상황에 맞게 설명하고 가입 강요, 공포 표현, 확정 표현은 피하세요.", tags: null, createdBy, isActive: true } as InsertConsultationScript);
+    createdCount += 1;
+  }
+  return { createdCount };
+}
+
+export async function getConsultationScripts(includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const condition = includeInactive ? undefined : and(eq(consultationScripts.isActive, true), isNull(consultationScripts.deletedAt));
+  return db.select().from(consultationScripts).where(condition).orderBy(consultationScripts.category, consultationScripts.title);
+}
+
+export async function getConsultationScriptById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(consultationScripts).where(eq(consultationScripts.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createConsultationScript(data: InsertConsultationScript) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(consultationScripts).values(data);
+  const result = await db.select().from(consultationScripts).orderBy(desc(consultationScripts.id)).limit(1);
+  return result[0];
+}
+
+export async function updateConsultationScript(id: number, data: Partial<InsertConsultationScript>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(consultationScripts).set(data).where(eq(consultationScripts.id, id));
+}
+
 export async function getContractsByCustomer(customerId: number) {
   const db = await getDb();
   if (!db) return [];

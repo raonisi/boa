@@ -13,9 +13,11 @@ import {
   createConsentLog,
   createConsultation,
   createConsultationChecklistTemplate,
+  createConsultationScript,
   createContract,
   createContractHistoryEntry,
   createCustomer,
+  createCustomerHandoffNote,
   createDeleteRequest,
   createFollowUp,
   createImportBatch,
@@ -42,6 +44,8 @@ import {
   getConsultationChecklistTemplateById,
   getConsultationChecklistTemplates,
   getConsultationCheckResults,
+  getConsultationScriptById,
+  getConsultationScripts,
   getConsultationsByCustomer,
   getContractById,
   getContractPermanentDeleteBlockers,
@@ -50,6 +54,8 @@ import {
   getContractsByCustomerIncludingInactive,
   getCustomerPermanentDeleteBlockers,
   getCustomerById,
+  getCustomerHandoffNoteById,
+  getCustomerHandoffNotes,
   getCustomerTimeline,
   getCustomers,
   getDeletedContracts,
@@ -80,9 +86,11 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
   updateConsultationChecklistTemplate,
+  updateConsultationScript,
   updateConsultation,
   updateContract,
   updateCustomer,
+  updateCustomerHandoffNote,
   updateMessageTemplate,
   updateNotificationProcessStatus,
   updatePerformanceGoal,
@@ -107,6 +115,7 @@ import {
   invalidateAllUserSessions,
   invalidateUserSessions,
   linkUserOpenId,
+  ensureDefaultConsultationScripts,
   ensureDefaultMessageTemplates,
   listImportBatches,
   listPerformanceGoals,
@@ -444,6 +453,8 @@ const CHECKLIST_PHASES = ["before", "during", "after"] as const;
 const CHECKLIST_CATEGORIES = ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"] as const;
 const TEMPLATE_SITUATIONS = ["missed_call", "proposal_follow_up", "pre_contract_check", "post_contract_care", "long_unmanaged", "birthday", "follow_up_schedule", "document_request", "after_consultation", "general_check"] as const;
 const TEMPLATE_CHANNELS = ["kakao", "sms", "both"] as const;
+const HANDOFF_NOTE_TYPES = ["handoff", "caution", "approach", "avoid", "relationship", "next_action"] as const;
+const SCRIPT_CATEGORIES = ["first_call", "missed_call", "premium_burden", "coverage_concern", "family_responsibility", "surrender_risk", "proposal_follow_up", "post_contract_care", "long_unmanaged", "general_check"] as const;
 const ALLOWED_TEMPLATE_PLACEHOLDERS = new Set(["고객명", "담당자명", "다음연락일", "상담주제"]);
 const BANNED_TEMPLATE_PHRASES = ["무조건 보장", "반드시 가입", "지금 안 하면", "이 보험이 최고", "가장 저렴", "확정적으로 유리", "병에 걸리면 큰일", "안 하면 위험", "지금 가입", "누구나 받을", "무조건 유리"];
 
@@ -455,6 +466,17 @@ function validateMessageTemplateBody(body: string) {
   if (BANNED_TEMPLATE_PHRASES.some((phrase) => body.includes(phrase))) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "가입 강요, 공포마케팅, 확정 표현은 사용할 수 없습니다." });
   }
+}
+
+function validateScriptBody(body: string) {
+  if (body.length > 3000) throw new TRPCError({ code: "BAD_REQUEST", message: "스크립트 본문은 3000자 이하로 입력해주세요." });
+  for (const phrase of BANNED_TEMPLATE_PHRASES) {
+    if (body.includes(phrase)) throw new TRPCError({ code: "BAD_REQUEST", message: "가입 강요, 공포마케팅, 확정 표현은 사용할 수 없습니다." });
+  }
+}
+
+function validateHandoffNoteBody(body: string) {
+  if (body.length > 2000) throw new TRPCError({ code: "BAD_REQUEST", message: "인수인계 메모는 2000자 이하로 입력해주세요." });
 }
 
 function renderMessageBody(body: string, values: Record<string, string | null | undefined>) {
@@ -2541,6 +2563,121 @@ export const appRouter = router({
         const template = await getMessageTemplateById(input.templateId);
         if (!template || !template.isActive || template.deletedAt) throw new TRPCError({ code: "NOT_FOUND" });
         await log(ctx.user.id, "MESSAGE_TEMPLATE_COPIED", "customer", input.customerId, logDetails({ actor: ctx.user.id, targetType: "customer", targetId: input.customerId, metadata: { templateId: input.templateId, situation: template.situation, channel: input.channel } }));
+        return { success: true };
+      }),
+  }),
+
+  customerHandoffNotes: router({
+    listByCustomer: activeUserProcedure
+      .input(z.object({ customerId: z.number(), includeInactive: z.boolean().optional() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getCustomerHandoffNotes(input.customerId, input.includeInactive === true);
+      }),
+
+    create: activeUserProcedure
+      .input(z.object({
+        customerId: z.number(),
+        noteType: z.enum(HANDOFF_NOTE_TYPES).default("handoff"),
+        title: z.string().min(1).max(200),
+        body: z.string().min(1).max(2000),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 인수인계 메모를 작성할 수 없습니다." });
+        validateHandoffNoteBody(input.body);
+        const created = await createCustomerHandoffNote({ ...input, visibility: "internal", createdBy: ctx.user.id, isActive: true });
+        await log(ctx.user.id, "CUSTOMER_HANDOFF_NOTE_CREATED", "customer", input.customerId, logDetails({ actor: ctx.user.id, targetType: "customer", targetId: input.customerId, metadata: { noteId: created?.id, noteType: input.noteType, title: input.title } }));
+        return created;
+      }),
+
+    update: activeUserProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(200).optional(),
+        body: z.string().min(1).max(2000).optional(),
+        noteType: z.enum(HANDOFF_NOTE_TYPES).optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getCustomerHandoffNoteById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        await verifyCustomerAccess(ctx.user, existing.customerId);
+        if (input.body) validateHandoffNoteBody(input.body);
+        const { id, ...changes } = input;
+        await updateCustomerHandoffNote(id, { ...changes, updatedBy: ctx.user.id, deletedAt: input.isActive === false ? new Date() : input.isActive === true ? null : undefined });
+        await log(ctx.user.id, input.isActive === false ? "CUSTOMER_HANDOFF_NOTE_DEACTIVATED" : input.isActive === true ? "CUSTOMER_HANDOFF_NOTE_REACTIVATED" : "CUSTOMER_HANDOFF_NOTE_UPDATED", "customer", existing.customerId, logDetails({ actor: ctx.user.id, targetType: "customer", targetId: existing.customerId, metadata: { noteId: id, noteType: input.noteType ?? existing.noteType, title: input.title ?? existing.title } }));
+        return { success: true };
+      }),
+  }),
+
+  consultationScripts: router({
+    list: activeUserProcedure
+      .input(z.object({ includeInactive: z.boolean().optional(), category: z.enum(SCRIPT_CATEGORIES).optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const rows = await getConsultationScripts(ctx.user.role === "branch_admin" && input?.includeInactive === true);
+        return input?.category ? rows.filter((row) => row.category === input.category) : rows;
+      }),
+
+    seedDefaults: branchAdminProcedure.mutation(async ({ ctx }) => {
+      const result = await ensureDefaultConsultationScripts(ctx.user.id);
+      if (result.createdCount > 0) {
+        await log(ctx.user.id, "CONSULTATION_SCRIPT_DEFAULTS_SEEDED", "consultation_script", undefined, logDetails({ actor: ctx.user.id, targetType: "consultation_script", metadata: { createdCount: result.createdCount } }));
+      }
+      return result;
+    }),
+
+    create: branchAdminProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        category: z.enum(SCRIPT_CATEGORIES),
+        scriptBody: z.string().min(1).max(3000),
+        complianceNote: z.string().max(1000).optional(),
+        tags: z.string().max(500).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        validateScriptBody(input.scriptBody);
+        const created = await createConsultationScript({ ...input, createdBy: ctx.user.id, isActive: true });
+        await log(ctx.user.id, "CONSULTATION_SCRIPT_CREATED", "consultation_script", created?.id, logDetails({ actor: ctx.user.id, targetType: "consultation_script", targetId: created?.id, afterValue: { title: input.title, category: input.category } }));
+        return created;
+      }),
+
+    update: branchAdminProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(200).optional(),
+        category: z.enum(SCRIPT_CATEGORIES).optional(),
+        scriptBody: z.string().min(1).max(3000).optional(),
+        complianceNote: z.string().max(1000).nullable().optional(),
+        tags: z.string().max(500).nullable().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getConsultationScriptById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        if (input.scriptBody) validateScriptBody(input.scriptBody);
+        const { id, ...changes } = input;
+        await updateConsultationScript(id, { ...changes, updatedBy: ctx.user.id, deletedAt: input.isActive === false ? new Date() : input.isActive === true ? null : undefined });
+        await log(ctx.user.id, input.isActive === false ? "CONSULTATION_SCRIPT_DEACTIVATED" : input.isActive === true ? "CONSULTATION_SCRIPT_REACTIVATED" : "CONSULTATION_SCRIPT_UPDATED", "consultation_script", id, logDetails({ actor: ctx.user.id, targetType: "consultation_script", targetId: id, beforeValue: { title: existing.title, category: existing.category, isActive: existing.isActive }, afterValue: { ...changes, scriptBody: changes.scriptBody ? "[redacted]" : undefined } }));
+        return { success: true };
+      }),
+
+    render: activeUserProcedure
+      .input(z.object({ scriptId: z.number(), customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        const script = await getConsultationScriptById(input.scriptId);
+        if (!script || !script.isActive || script.deletedAt) throw new TRPCError({ code: "NOT_FOUND" });
+        return script;
+      }),
+
+    logCopy: activeUserProcedure
+      .input(z.object({ scriptId: z.number(), customerId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        const script = await getConsultationScriptById(input.scriptId);
+        if (!script || !script.isActive || script.deletedAt) throw new TRPCError({ code: "NOT_FOUND" });
+        await log(ctx.user.id, "CONSULTATION_SCRIPT_COPIED", "customer", input.customerId, logDetails({ actor: ctx.user.id, targetType: "customer", targetId: input.customerId, metadata: { scriptId: input.scriptId, category: script.category } }));
         return { success: true };
       }),
   }),
