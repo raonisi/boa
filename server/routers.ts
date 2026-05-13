@@ -168,6 +168,7 @@ import {
   createUncontactedReminder,
   refreshLongUnmanagedReminder,
 } from "./notifications";
+import * as pushNotifications from "./pushNotifications";
 
 // ─── 미들웨어 정의 ─────────────────────────────────────────────────────────────
 /** 지점장 전용 (branch_admin + accountStatus=active) */
@@ -1596,6 +1597,70 @@ export const appRouter = router({
   }),
 
   // ── Users ─────────────────────────────────────────────────────────────────
+  pushNotifications: router({
+    sendTestToMe: branchAdminProcedure.mutation(async ({ ctx }) => {
+      return pushNotifications.sendPushToUsers([ctx.user.id], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
+        type: "test",
+        sourceType: "user",
+        sourceId: ctx.user.id,
+        dedupeKey: `test:${ctx.user.id}:${Date.now()}`,
+      });
+    }),
+
+    sendTodayFollowUpReminders: branchAdminProcedure
+      .input(z.object({ date: z.string().optional() }).optional())
+      .mutation(async ({ input }) => {
+        const date = input?.date ? new Date(input.date) : new Date();
+        const dateKey = date.toISOString().slice(0, 10);
+        const rows = await getFollowUps({ statuses: ["scheduled", "postponed"], dueFrom: toDayStart(date), dueTo: toDayEnd(date) });
+        const results = [];
+        for (const row of rows) {
+          if (!row.assignedAgentId) continue;
+          results.push(await pushNotifications.sendPushToUsers([row.assignedAgentId], pushNotifications.SAFE_PUSH_PAYLOADS.todayFollowUp, {
+            type: "today_follow_up",
+            sourceType: "follow_up",
+            sourceId: row.id,
+            dedupeKey: `follow_up:${row.id}:${dateKey}:today`,
+          }));
+        }
+        return {
+          success: true,
+          targetCount: results.length,
+          sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),
+          skippedCount: results.reduce((sum, item) => sum + item.skippedCount + item.duplicateSkippedCount, 0),
+          failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
+        };
+      }),
+
+    sendSchedule30MinuteReminders: branchAdminProcedure
+      .input(z.object({ now: z.string().optional() }).optional())
+      .mutation(async ({ input }) => {
+        const now = input?.now ? new Date(input.now) : new Date();
+        const windowStart = new Date(now.getTime() + 29 * 60 * 1000);
+        const windowEnd = new Date(now.getTime() + 31 * 60 * 1000);
+        const rows = (await getSchedules({})).filter((schedule) => {
+          const start = new Date(schedule.startTime);
+          return start >= windowStart && start <= windowEnd && !isFinishedScheduleStatus(schedule.status);
+        });
+        const results = [];
+        for (const row of rows) {
+          results.push(await pushNotifications.sendPushToUsers([row.userId], pushNotifications.SAFE_PUSH_PAYLOADS.schedule30Minute, {
+            type: "schedule_30min",
+            sourceType: "schedule",
+            sourceId: row.id,
+            dedupeKey: `schedule:${row.id}:30min`,
+          }));
+        }
+        return {
+          success: true,
+          targetCount: results.length,
+          sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),
+          skippedCount: results.reduce((sum, item) => sum + item.skippedCount + item.duplicateSkippedCount, 0),
+          failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
+        };
+      }),
+  }),
+
   recommendations: router({
     priorityContacts: activeUserProcedure
       .input(z.object({
@@ -3768,6 +3833,10 @@ export const appRouter = router({
           targetType: "contract",
           metadata: { requestType: "contract_delete", expectedImpact: "performance_exclusion", reason: input.requestReason },
         }));
+        const createdRequest = await getPendingDeleteRequestForTarget("contract", input.contractId);
+        if (createdRequest) {
+          await pushNotifications.sendContractDeleteRequestPush(createdRequest.id);
+        }
         return { success: true };
       }),
 
