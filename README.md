@@ -47,6 +47,16 @@ The redirect URI must exactly match the value registered in Google Cloud Console
 
 Set the Google OAuth variables listed above in Railway. Do not add legacy Manus/WebDev OAuth portal variables for the current production deployment; the browser login button uses `VITE_GOOGLE_CLIENT_ID` and the Google authorize endpoint directly.
 
+### Railway Deploy Commands
+
+Use committed Drizzle migrations for production deploys. Do not run migration generation during Railway deploy.
+
+- Build Command: `pnpm install && pnpm build`
+- Pre-Deploy Command: `pnpm db:migrate`
+- Start Command: `pnpm start`
+
+`pnpm db:migrate` runs only `drizzle-kit migrate`, applying migration SQL files that are already committed in the repository. `pnpm db:push` is a development helper that runs `drizzle-kit generate && drizzle-kit migrate`; do not use `pnpm db:push` in Railway Pre-Deploy because it can generate new migration files during deployment.
+
 ## Development
 
 ```bash
@@ -67,17 +77,40 @@ pnpm test
 
 ## Database
 
+For production/Railway:
+
+```bash
+pnpm db:migrate
+```
+
+For local development when intentionally generating a new migration:
+
 ```bash
 pnpm db:push
 ```
 
 ### Migration Precautions
 
+- Migration SQL files must be committed in the PR before deployment.
+- Railway Pre-Deploy must use `pnpm db:migrate`, not `pnpm db:push`.
+- Railway must not run `drizzle-kit generate` during production deploy.
+- If migration fails, stop the deploy and inspect the failure before retrying.
 - Clean or reset staging/test databases can apply the full migration set from scratch.
 - If `assignment_history` columns were manually added to an existing database, inspect the current column state before applying migrations to avoid duplicate-column errors.
 - Never reset a production database as part of migration recovery.
+- Never run DROP, reset, or hard delete as part of normal production migration.
 - Validate migrations on staging/test before applying them to production.
 - Back up production data before any production migration.
+
+### Migration State Checks
+
+Use read-only checks before and after production migration. Do not print secret environment variable values or customer data.
+
+- Check applied Drizzle migrations: query `__drizzle_migrations` ordered by `id`.
+- Check PR2 import columns on `customers`: `importBatchId`, `importedBy`, `importedAt`.
+- Check PR2 import batch table: `import_batches`.
+- Check PR1 delete request table: `delete_requests`.
+- Check PR4 follow-up table: `follow_ups`.
 
 ## Permission Summary
 
