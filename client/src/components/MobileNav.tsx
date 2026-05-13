@@ -13,6 +13,7 @@ import {
   BarChart3,
   Bell,
   CalendarDays,
+  ClipboardCheck,
   Database,
   Download,
   FileText,
@@ -59,6 +60,7 @@ const moreItems: MobileMenuItem[] = [
   { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
   { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: Download, label: "데이터 다운로드", path: "/download", roles: ["branch_admin"] },
+  { icon: ClipboardCheck, label: "상담 도구 관리", path: "/consultation-tools", roles: ["branch_admin"] },
   { icon: Settings, label: "설정 관리", path: "/settings", roles: ["branch_admin"] },
 ];
 

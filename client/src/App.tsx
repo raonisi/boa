@@ -27,6 +27,7 @@ import ActivityLog from "./pages/ActivityLog";
 import AdminAuditDashboard from "./pages/AdminAuditDashboard";
 import Download from "./pages/Download";
 import Settings from "./pages/Settings";
+import ConsultationToolsManagement from "./pages/ConsultationToolsManagement";
 import DeletedDataManagement from "./pages/DeletedDataManagement";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
@@ -214,6 +215,13 @@ function Router() {
         <AuthGuard>
           <AdminGuard>
             <Settings />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/consultation-tools">
+        <AuthGuard>
+          <AdminGuard>
+            <ConsultationToolsManagement />
           </AdminGuard>
         </AuthGuard>
       </Route>

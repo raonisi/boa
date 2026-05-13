@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History } from "lucide-react";
+import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -62,6 +63,9 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(null);
   const [timelineFilter, setTimelineFilter] = useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
   const [timelineRange, setTimelineRange] = useState<"all" | "30" | "90">("all");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [messageNextContactDate, setMessageNextContactDate] = useState("");
+  const [messageTopic, setMessageTopic] = useState("");
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -72,6 +76,17 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: assignmentHistoryData } = trpc.customers.assignmentHistory.useQuery({ customerId: id });
   const { data: followUps, refetch: refetchFollowUps } = trpc.followUps.listByCustomer.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
+  const { data: consultationTools } = trpc.consultationTools.listCustomerChecks.useQuery({ customerId: id });
+  const { data: messageTemplates } = trpc.consultationTools.listMessageTemplates.useQuery({});
+  const renderedMessageInput = {
+    templateId: selectedTemplateId ? Number(selectedTemplateId) : 0,
+    customerId: id,
+    nextContactDate: messageNextContactDate || undefined,
+    consultationTopic: messageTopic || undefined,
+  };
+  const { data: renderedMessage } = trpc.consultationTools.renderMessageTemplate.useQuery(renderedMessageInput, {
+    enabled: Boolean(selectedTemplateId),
+  });
   const timelineInput = useMemo(() => {
     const selected = TIMELINE_FILTERS.find((filter) => filter.value === timelineFilter);
     const since = timelineRange === "all" ? undefined : new Date(Date.now() - Number(timelineRange) * 24 * 60 * 60 * 1000).toISOString();
@@ -175,6 +190,24 @@ export default function CustomerDetail({ id }: { id: number }) {
     },
     onError: (err) => toast.error(err.message || "후속관리 취소에 실패했습니다."),
   });
+
+  const updateChecklistResultMutation = trpc.consultationTools.updateCheckResult.useMutation({
+    onSuccess: () => {
+      utils.consultationTools.listCustomerChecks.invalidate({ customerId: id });
+      toast.success("체크리스트가 저장되었습니다.");
+    },
+    onError: (err) => toast.error(err.message || "체크리스트 저장에 실패했습니다."),
+  });
+
+  const logMessageCopyMutation = trpc.consultationTools.logMessageCopy.useMutation({
+    onSuccess: () => toast.success("문구 복사 이력을 기록했습니다."),
+    onError: (err) => toast.error(err.message || "문구 복사 이력 기록에 실패했습니다."),
+  });
+
+  const checklistTemplates = consultationTools?.templates ?? [];
+  const checklistResultsById = new Map((consultationTools?.results ?? []).map((result) => [result.checklistId, result]));
+  const checklistPhaseLabels = { before: "상담 전", during: "상담 중", after: "상담 후" } as const;
+  const selectedTemplate = messageTemplates?.find((template) => template.id === Number(selectedTemplateId));
 
   if (!customer) return (
     <DashboardLayout>
@@ -345,6 +378,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <TabsTrigger value="consult">상담기록 ({consultations?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="contract">계약정보 ({contracts?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="timeline">히스토리 ({timelineData?.totalCount ?? 0})</TabsTrigger>
+            <TabsTrigger value="tools">상담 도구</TabsTrigger>
             <TabsTrigger value="history">상태이력 ({statusHistoryData?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="consent">동의이력</TabsTrigger>
             <TabsTrigger value="assign_history">배정이력 ({assignmentHistoryData?.length ?? 0})</TabsTrigger>
@@ -490,6 +524,120 @@ export default function CustomerDetail({ id }: { id: number }) {
                   </Card>
                 ))
               )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="tools">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold">상담 체크리스트</h3>
+                    <p className="text-xs text-muted-foreground mt-1">상담 전/중/후 확인 항목을 체크하고 필요한 메모만 남깁니다.</p>
+                  </div>
+                  {(["before", "during", "after"] as const).map((phase) => {
+                    const templates = checklistTemplates.filter((template) => template.phase === phase);
+                    return (
+                      <div key={phase} className="space-y-2">
+                        <div className="text-sm font-medium">{checklistPhaseLabels[phase]}</div>
+                        {templates.length === 0 ? (
+                          <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">등록된 항목이 없습니다.</div>
+                        ) : (
+                          templates.map((template) => {
+                            const result = checklistResultsById.get(template.id);
+                            return (
+                              <div key={template.id} className="rounded-md border p-3 space-y-2">
+                                <label className="flex items-start gap-2 text-sm">
+                                  <Checkbox
+                                    checked={Boolean(result?.checked)}
+                                    disabled={updateChecklistResultMutation.isPending}
+                                    onCheckedChange={(checked) => updateChecklistResultMutation.mutate({
+                                      checklistId: template.id,
+                                      customerId: id,
+                                      checked: checked === true,
+                                      memo: result?.memo ?? undefined,
+                                    })}
+                                  />
+                                  <span>
+                                    <span className="font-medium">{template.title}</span>
+                                    {template.isRequired ? <span className="ml-1 text-xs text-red-500">필수</span> : null}
+                                    {template.description ? <span className="block text-xs text-muted-foreground mt-1">{template.description}</span> : null}
+                                  </span>
+                                </label>
+                                <Input
+                                  value={result?.memo ?? ""}
+                                  placeholder="체크 메모"
+                                  className="h-8 text-xs"
+                                  disabled={updateChecklistResultMutation.isPending}
+                                  onChange={(event) => updateChecklistResultMutation.mutate({
+                                    checklistId: template.id,
+                                    customerId: id,
+                                    checked: Boolean(result?.checked),
+                                    memo: event.target.value,
+                                  })}
+                                />
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold">카톡·문자 후속 문구</h3>
+                    <p className="text-xs text-muted-foreground mt-1">민감정보, 확정 표현, 가입 강요 표현은 문구에 넣지 마세요.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">문구 템플릿</Label>
+                    <Select value={selectedTemplateId} onValueChange={setSelectedTemplateId}>
+                      <SelectTrigger><SelectValue placeholder="상황별 문구 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {(messageTemplates ?? []).map((template) => (
+                          <SelectItem key={template.id} value={String(template.id)}>{template.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">다음 연락일</Label>
+                      <Input type="date" value={messageNextContactDate} onChange={(event) => setMessageNextContactDate(event.target.value)} className="mt-1" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">상담주제</Label>
+                      <Input value={messageTopic} onChange={(event) => setMessageTopic(event.target.value)} placeholder="예: 보장 점검" className="mt-1" />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">미리보기</Label>
+                    <Textarea
+                      readOnly
+                      value={renderedMessage?.body ?? ""}
+                      placeholder="템플릿을 선택하면 고객명과 담당자명이 반영된 문구를 확인할 수 있습니다."
+                      className="mt-1 min-h-48 text-sm"
+                    />
+                  </div>
+                  {selectedTemplate?.complianceNote ? (
+                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">{selectedTemplate.complianceNote}</div>
+                  ) : null}
+                  <Button
+                    type="button"
+                    disabled={!renderedMessage?.body}
+                    onClick={async () => {
+                      if (!renderedMessage?.body) return;
+                      await navigator.clipboard.writeText(renderedMessage.body);
+                      logMessageCopyMutation.mutate({ templateId: Number(selectedTemplateId), customerId: id, channel: renderedMessage.channel as any });
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" /> 문구 복사
+                  </Button>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 

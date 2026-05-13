@@ -12,12 +12,14 @@ import {
   createAssignmentHistory,
   createConsentLog,
   createConsultation,
+  createConsultationChecklistTemplate,
   createContract,
   createContractHistoryEntry,
   createCustomer,
   createDeleteRequest,
   createFollowUp,
   createImportBatch,
+  createMessageTemplate,
   createNotification,
   createPerformanceGoal,
   createSchedule,
@@ -37,6 +39,9 @@ import {
   getAssignmentHistory,
   getConsentLogs,
   getConsultationById,
+  getConsultationChecklistTemplateById,
+  getConsultationChecklistTemplates,
+  getConsultationCheckResults,
   getConsultationsByCustomer,
   getContractById,
   getContractPermanentDeleteBlockers,
@@ -60,6 +65,8 @@ import {
   getNotifications,
   getNotificationById,
   getPendingDeleteRequestForTarget,
+  getMessageTemplateById,
+  getMessageTemplates,
   getActivePerformanceGoal,
   getPerformanceGoalById,
   getPerformanceGoalDashboard,
@@ -72,9 +79,11 @@ import {
   getUserById,
   markAllNotificationsRead,
   markNotificationRead,
+  updateConsultationChecklistTemplate,
   updateConsultation,
   updateContract,
   updateCustomer,
+  updateMessageTemplate,
   updateNotificationProcessStatus,
   updatePerformanceGoal,
   updateSchedule,
@@ -98,6 +107,7 @@ import {
   invalidateAllUserSessions,
   invalidateUserSessions,
   linkUserOpenId,
+  ensureDefaultMessageTemplates,
   listImportBatches,
   listPerformanceGoals,
   getAllNotifications,
@@ -123,6 +133,7 @@ import {
   updateDeleteRequest,
   updateFollowUp,
   updateImportBatch,
+  upsertConsultationCheckResult,
   resetUserOAuthLink,
   softDeleteCustomersByImportBatch,
   BulkImportRow,
@@ -428,6 +439,30 @@ const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "�
 const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
 const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+
+const CHECKLIST_PHASES = ["before", "during", "after"] as const;
+const CHECKLIST_CATEGORIES = ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"] as const;
+const TEMPLATE_SITUATIONS = ["missed_call", "proposal_follow_up", "pre_contract_check", "post_contract_care", "long_unmanaged", "birthday", "follow_up_schedule", "document_request", "after_consultation", "general_check"] as const;
+const TEMPLATE_CHANNELS = ["kakao", "sms", "both"] as const;
+const ALLOWED_TEMPLATE_PLACEHOLDERS = new Set(["고객명", "담당자명", "다음연락일", "상담주제"]);
+const BANNED_TEMPLATE_PHRASES = ["무조건 보장", "반드시 가입", "지금 안 하면", "이 보험이 최고", "가장 저렴", "확정적으로 유리", "병에 걸리면 큰일", "안 하면 위험", "지금 가입", "누구나 받을", "무조건 유리"];
+
+function validateMessageTemplateBody(body: string) {
+  if (body.length > 2000) throw new TRPCError({ code: "BAD_REQUEST", message: "템플릿 본문은 2000자 이하로 입력해주세요." });
+  const placeholders = Array.from(body.matchAll(/\{([^}]+)\}/g)).map((match) => match[1]);
+  const invalid = placeholders.filter((placeholder) => !ALLOWED_TEMPLATE_PLACEHOLDERS.has(placeholder));
+  if (invalid.length > 0) throw new TRPCError({ code: "BAD_REQUEST", message: "허용되지 않은 placeholder가 포함되어 있습니다." });
+  if (BANNED_TEMPLATE_PHRASES.some((phrase) => body.includes(phrase))) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "가입 강요, 공포마케팅, 확정 표현은 사용할 수 없습니다." });
+  }
+}
+
+function renderMessageBody(body: string, values: Record<string, string | null | undefined>) {
+  return body.replace(/\{고객명\}/g, values.customerName ?? "")
+    .replace(/\{담당자명\}/g, values.agentName ?? "")
+    .replace(/\{다음연락일\}/g, values.nextContactDate ?? "")
+    .replace(/\{상담주제\}/g, values.consultationTopic ?? "");
+}
 
 const ALL_FORCE_LOGOUT_CONFIRM_TEXT = "\uC804\uCCB4\uB85C\uADF8\uC544\uC6C3";
 const OAUTH_RESET_CONFIRM_TEXT = "OAuth\uCD08\uAE30\uD654";
@@ -2078,6 +2113,167 @@ export const appRouter = router({
           actorId: ctx.user.id,
           reason: input.reason,
         });
+      }),
+  }),
+
+  consultationTools: router({
+    listChecklists: activeUserProcedure
+      .input(z.object({ includeInactive: z.boolean().optional() }).optional())
+      .query(async ({ ctx, input }) => getConsultationChecklistTemplates(ctx.user.role === "branch_admin" && input?.includeInactive === true)),
+
+    createChecklist: branchAdminProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        description: z.string().max(1000).optional(),
+        phase: z.enum(CHECKLIST_PHASES),
+        category: z.enum(CHECKLIST_CATEGORIES).default("basic"),
+        sortOrder: z.number().int().default(0),
+        isRequired: z.boolean().default(false),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const created = await createConsultationChecklistTemplate({ ...input, createdBy: ctx.user.id, isActive: true });
+        await log(ctx.user.id, "CONSULTATION_CHECKLIST_TEMPLATE_CREATED", "consultation_checklist", created?.id, logDetails({ actor: ctx.user.id, targetType: "consultation_checklist", targetId: created?.id, afterValue: input }));
+        return created;
+      }),
+
+    updateChecklist: branchAdminProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(200).optional(),
+        description: z.string().max(1000).nullable().optional(),
+        phase: z.enum(CHECKLIST_PHASES).optional(),
+        category: z.enum(CHECKLIST_CATEGORIES).optional(),
+        sortOrder: z.number().int().optional(),
+        isRequired: z.boolean().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getConsultationChecklistTemplateById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        const { id, ...changes } = input;
+        await updateConsultationChecklistTemplate(id, { ...changes, updatedBy: ctx.user.id, deletedAt: input.isActive === false ? new Date() : input.isActive === true ? null : undefined });
+        await log(ctx.user.id, input.isActive === false ? "CONSULTATION_CHECKLIST_TEMPLATE_DEACTIVATED" : input.isActive === true ? "CONSULTATION_CHECKLIST_TEMPLATE_REACTIVATED" : "CONSULTATION_CHECKLIST_TEMPLATE_UPDATED", "consultation_checklist", id, logDetails({ actor: ctx.user.id, targetType: "consultation_checklist", targetId: id, beforeValue: { title: existing.title, isActive: existing.isActive }, afterValue: changes }));
+        return { success: true };
+      }),
+
+    listCustomerChecks: activeUserProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        const [templates, results] = await Promise.all([
+          getConsultationChecklistTemplates(false),
+          getConsultationCheckResults(input.customerId),
+        ]);
+        return { templates, results };
+      }),
+
+    updateCheckResult: activeUserProcedure
+      .input(z.object({
+        customerId: z.number(),
+        checklistId: z.number(),
+        consultationId: z.number().nullable().optional(),
+        checked: z.boolean(),
+        memo: z.string().max(500).nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 체크리스트를 저장할 수 없습니다." });
+        const template = await getConsultationChecklistTemplateById(input.checklistId);
+        if (!template || !template.isActive || template.deletedAt) throw new TRPCError({ code: "NOT_FOUND" });
+        const saved = await upsertConsultationCheckResult({
+          customerId: input.customerId,
+          checklistId: input.checklistId,
+          consultationId: input.consultationId ?? null,
+          checked: input.checked,
+          checkedAt: input.checked ? new Date() : null,
+          checkedBy: input.checked ? ctx.user.id : null,
+          memo: input.memo ?? null,
+        });
+        await log(ctx.user.id, "CONSULTATION_CHECKLIST_RESULT_UPDATED", "customer", input.customerId, logDetails({ actor: ctx.user.id, targetType: "customer", targetId: input.customerId, metadata: { checklistId: input.checklistId, checked: input.checked } }));
+        return saved;
+      }),
+
+    listMessageTemplates: activeUserProcedure
+      .input(z.object({ includeInactive: z.boolean().optional() }).optional())
+      .query(async ({ ctx, input }) => getMessageTemplates(ctx.user.role === "branch_admin" && input?.includeInactive === true)),
+
+    seedDefaultMessageTemplates: branchAdminProcedure.mutation(async ({ ctx }) => {
+      const result = await ensureDefaultMessageTemplates(ctx.user.id);
+      if (result.createdCount > 0) {
+        await log(ctx.user.id, "MESSAGE_TEMPLATE_DEFAULTS_SEEDED", "message_template", undefined, logDetails({ actor: ctx.user.id, targetType: "message_template", metadata: { createdCount: result.createdCount } }));
+      }
+      return result;
+    }),
+
+    createMessageTemplate: branchAdminProcedure
+      .input(z.object({
+        title: z.string().min(1).max(200),
+        situation: z.enum(TEMPLATE_SITUATIONS),
+        channel: z.enum(TEMPLATE_CHANNELS),
+        body: z.string().min(1).max(2000),
+        complianceNote: z.string().max(1000).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        validateMessageTemplateBody(input.body);
+        const created = await createMessageTemplate({ ...input, createdBy: ctx.user.id, isActive: true });
+        await log(ctx.user.id, "MESSAGE_TEMPLATE_CREATED", "message_template", created?.id, logDetails({ actor: ctx.user.id, targetType: "message_template", targetId: created?.id, afterValue: { title: input.title, situation: input.situation, channel: input.channel } }));
+        return created;
+      }),
+
+    updateMessageTemplate: branchAdminProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().min(1).max(200).optional(),
+        situation: z.enum(TEMPLATE_SITUATIONS).optional(),
+        channel: z.enum(TEMPLATE_CHANNELS).optional(),
+        body: z.string().min(1).max(2000).optional(),
+        complianceNote: z.string().max(1000).nullable().optional(),
+        isActive: z.boolean().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await getMessageTemplateById(input.id);
+        if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
+        if (input.body) validateMessageTemplateBody(input.body);
+        const { id, ...changes } = input;
+        await updateMessageTemplate(id, { ...changes, updatedBy: ctx.user.id, deletedAt: input.isActive === false ? new Date() : input.isActive === true ? null : undefined });
+        await log(ctx.user.id, input.isActive === false ? "MESSAGE_TEMPLATE_DEACTIVATED" : input.isActive === true ? "MESSAGE_TEMPLATE_REACTIVATED" : "MESSAGE_TEMPLATE_UPDATED", "message_template", id, logDetails({ actor: ctx.user.id, targetType: "message_template", targetId: id, beforeValue: { title: existing.title, situation: existing.situation, channel: existing.channel, isActive: existing.isActive }, afterValue: { ...changes, body: changes.body ? "[redacted]" : undefined } }));
+        return { success: true };
+      }),
+
+    renderMessageTemplate: activeUserProcedure
+      .input(z.object({
+        templateId: z.number(),
+        customerId: z.number(),
+        nextContactDate: z.string().max(100).optional(),
+        consultationTopic: z.string().max(100).optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        const template = await getMessageTemplateById(input.templateId);
+        if (!template || !template.isActive || template.deletedAt) throw new TRPCError({ code: "NOT_FOUND" });
+        return {
+          templateId: template.id,
+          title: template.title,
+          situation: template.situation,
+          channel: template.channel,
+          body: renderMessageBody(template.body, {
+            customerName: customer.name,
+            agentName: ctx.user.name ?? "담당자",
+            nextContactDate: input.nextContactDate,
+            consultationTopic: input.consultationTopic,
+          }),
+          complianceNote: template.complianceNote,
+        };
+      }),
+
+    logMessageCopy: activeUserProcedure
+      .input(z.object({ templateId: z.number(), customerId: z.number(), channel: z.enum(TEMPLATE_CHANNELS) }))
+      .mutation(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        const template = await getMessageTemplateById(input.templateId);
+        if (!template || !template.isActive || template.deletedAt) throw new TRPCError({ code: "NOT_FOUND" });
+        await log(ctx.user.id, "MESSAGE_TEMPLATE_COPIED", "customer", input.customerId, logDetails({ actor: ctx.user.id, targetType: "customer", targetId: input.customerId, metadata: { templateId: input.templateId, situation: template.situation, channel: input.channel } }));
+        return { success: true };
       }),
   }),
 

@@ -5,6 +5,8 @@ import {
   assignmentHistory,
   consentLogs,
   consultations,
+  consultationChecklists,
+  consultationCheckResults,
   contractHistory,
   contracts,
   customers,
@@ -16,6 +18,8 @@ import {
   InsertAssignmentHistory,
   InsertConsentLog,
   InsertConsultation,
+  InsertConsultationChecklist,
+  InsertConsultationCheckResult,
   InsertContract,
   InsertContractHistory,
   InsertCustomer,
@@ -25,6 +29,8 @@ import {
   InsertNotification,
   InsertSchedule,
   InsertStatusHistory,
+  InsertMessageTemplate,
+  messageTemplates,
   notifications,
   performanceGoals,
   reminders,
@@ -1028,6 +1034,168 @@ export async function updateConsultation(id: number, data: Partial<InsertConsult
   const db = await getDb();
   if (!db) return;
   await db.update(consultations).set(data).where(eq(consultations.id, id));
+}
+
+export const DEFAULT_MESSAGE_TEMPLATES = [
+  {
+    title: "부재 후 재연락",
+    situation: "missed_call",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n방금 연락드렸는데 통화가 어려우신 것 같아 문자 남깁니다.\n\n급한 내용은 아니고,\n이전에 확인이 필요했던 보험 관련 내용이 있어 연락드렸습니다.\n\n편하실 때 통화 가능하신 시간 알려주시면 맞춰 연락드리겠습니다.",
+  },
+  {
+    title: "설계안 발송 후 확인",
+    situation: "proposal_follow_up",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n말씀 나눴던 내용 기준으로 자료를 정리해드렸습니다.\n\n보시다가 이해가 어려운 부분이나\n추가로 확인하고 싶은 부분이 있으시면 편하게 말씀해주세요.\n\n현재 기준을 함께 확인하기 위한 자료로 봐주시면 됩니다.",
+  },
+  {
+    title: "계약 전 확인",
+    situation: "pre_contract_check",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n진행 전 마지막으로\n보장 내용, 보험료, 납입기간, 유의사항을 한 번 더 확인드리려고 합니다.\n\n충분히 이해하신 뒤 결정하시는 것이 가장 중요합니다.\n\n궁금한 부분은 편하게 말씀해주세요.",
+  },
+  {
+    title: "계약 후 사후관리",
+    situation: "post_contract_care",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n오늘 진행하신 내용은 이후에도 필요하실 때 다시 확인하실 수 있도록 관리하겠습니다.\n\n보장 내용, 청구, 변경사항이 궁금하실 때\n편하게 연락주시면 확인 도와드리겠습니다.",
+  },
+  {
+    title: "장기 미관리 고객 재접촉",
+    situation: "long_unmanaged",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n오랜만에 연락드립니다.\n\n그동안 상황이나 가족 구성, 직장, 보험료 부담 등이 달라졌을 수 있어\n기존 보장 기준을 한 번 점검해보시면 좋을 시점이라 연락드렸습니다.\n\n부담 없이 현재 기준만 확인해보셔도 괜찮습니다.",
+  },
+  {
+    title: "생일 관리",
+    situation: "birthday",
+    channel: "both",
+    body: "{고객명}님, 생일 진심으로 축하드립니다.\n\n오늘 하루는 바쁜 일보다\n편안하고 기분 좋은 일들이 더 많으셨으면 좋겠습니다.\n\n필요하실 때 보험 관련해서 편하게 물어보실 수 있도록\n앞으로도 잘 관리하겠습니다.",
+  },
+  {
+    title: "다음 연락일 안내",
+    situation: "follow_up_schedule",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n오늘 말씀드린 내용은 제가 정리해두고,\n{다음연락일}에 다시 한 번 확인 연락드리겠습니다.\n\n그 전에 궁금한 점이 생기시면 편하게 메시지 남겨주세요.",
+  },
+  {
+    title: "자료 요청",
+    situation: "document_request",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n정확한 확인을 위해 필요한 자료가 있어 안내드립니다.\n\n가능하실 때 관련 자료를 보내주시면,\n현재 상황에 맞게 필요한 부분만 정리해서 말씀드리겠습니다.\n\n민감한 정보는 가려서 보내주셔도 괜찮습니다.",
+  },
+  {
+    title: "상담 후 요약",
+    situation: "after_consultation",
+    channel: "both",
+    body: "{고객명}님, 오늘 상담 내용 간단히 정리드립니다.\n\n오늘 확인한 핵심은\n현재 보험료 부담, 필요한 보장 범위,\n앞으로 점검해야 할 부분이었습니다.\n\n제가 정리한 기준으로 다시 확인드리고,\n필요한 내용은 다음 연락 때 이어서 안내드리겠습니다.",
+  },
+  {
+    title: "일반 점검 안내",
+    situation: "general_check",
+    channel: "both",
+    body: "{고객명}님, 안녕하세요. {담당자명}입니다.\n\n보험은 가입보다\n현재 상황에 맞게 유지되고 있는지 확인하는 과정이 중요합니다.\n\n최근 상황이 달라진 부분이 있다면\n기존 보장 기준을 한 번 점검해보셔도 좋습니다.",
+  },
+] as const;
+
+export async function getConsultationChecklistTemplates(includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const condition = includeInactive ? undefined : and(eq(consultationChecklists.isActive, true), isNull(consultationChecklists.deletedAt));
+  return db.select().from(consultationChecklists).where(condition).orderBy(consultationChecklists.phase, consultationChecklists.sortOrder);
+}
+
+export async function createConsultationChecklistTemplate(data: InsertConsultationChecklist) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(consultationChecklists).values(data);
+  const result = await db.select().from(consultationChecklists).orderBy(desc(consultationChecklists.id)).limit(1);
+  return result[0];
+}
+
+export async function updateConsultationChecklistTemplate(id: number, data: Partial<InsertConsultationChecklist>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(consultationChecklists).set(data).where(eq(consultationChecklists.id, id));
+}
+
+export async function getConsultationChecklistTemplateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(consultationChecklists).where(eq(consultationChecklists.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getConsultationCheckResults(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(consultationCheckResults).where(eq(consultationCheckResults.customerId, customerId));
+}
+
+export async function upsertConsultationCheckResult(data: InsertConsultationCheckResult) {
+  const db = await getDb();
+  if (!db) return null;
+  const existing = await db.select().from(consultationCheckResults)
+    .where(and(eq(consultationCheckResults.customerId, data.customerId), eq(consultationCheckResults.checklistId, data.checklistId)))
+    .limit(1);
+  if (existing[0]) {
+    await db.update(consultationCheckResults).set(data).where(eq(consultationCheckResults.id, existing[0].id));
+    return { ...existing[0], ...data };
+  }
+  await db.insert(consultationCheckResults).values(data);
+  const result = await db.select().from(consultationCheckResults).orderBy(desc(consultationCheckResults.id)).limit(1);
+  return result[0];
+}
+
+export async function ensureDefaultMessageTemplates(createdBy: number) {
+  const db = await getDb();
+  if (!db) return { createdCount: 0 };
+  let createdCount = 0;
+  for (const template of DEFAULT_MESSAGE_TEMPLATES) {
+    const existing = await db.select().from(messageTemplates)
+      .where(and(eq(messageTemplates.title, template.title), eq(messageTemplates.situation, template.situation as any), eq(messageTemplates.channel, template.channel as any)))
+      .limit(1);
+    if (existing.length > 0) continue;
+    await db.insert(messageTemplates).values({
+      ...template,
+      situation: template.situation as any,
+      channel: template.channel as any,
+      complianceNote: "고객 이해를 돕기 위한 안내 문구입니다. 확정 표현, 공포마케팅, 가입 강요 표현을 사용하지 마세요.",
+      createdBy,
+      isActive: true,
+    });
+    createdCount++;
+  }
+  return { createdCount };
+}
+
+export async function getMessageTemplates(includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const condition = includeInactive ? undefined : and(eq(messageTemplates.isActive, true), isNull(messageTemplates.deletedAt));
+  return db.select().from(messageTemplates).where(condition).orderBy(messageTemplates.situation, messageTemplates.title);
+}
+
+export async function getMessageTemplateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(messageTemplates).where(eq(messageTemplates.id, id)).limit(1);
+  return result[0];
+}
+
+export async function createMessageTemplate(data: InsertMessageTemplate) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(messageTemplates).values(data);
+  const result = await db.select().from(messageTemplates).orderBy(desc(messageTemplates.id)).limit(1);
+  return result[0];
+}
+
+export async function updateMessageTemplate(id: number, data: Partial<InsertMessageTemplate>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(messageTemplates).set(data).where(eq(messageTemplates.id, id));
 }
 
 // ─── Contracts ────────────────────────────────────────────────────────────────

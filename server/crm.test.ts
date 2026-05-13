@@ -1185,6 +1185,138 @@ describe("PR10-4 performance goals", () => {
   });
 });
 
+describe("PR11 consultation tools", () => {
+  const activeCustomer = {
+    id: 100,
+    name: "[TEST] Customer",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    consultStatus: "미상담",
+    isActive: true,
+    deletedAt: null,
+  } as any;
+
+  it("allows only branch_admin to manage checklist templates", async () => {
+    const created = { id: 701, title: "고객 기본정보 확인", phase: "before", category: "basic", sortOrder: 1, isRequired: true, isActive: true } as any;
+    vi.spyOn(db, "createConsultationChecklistTemplate").mockResolvedValue(created);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.createChecklist({
+      title: "고객 기본정보 확인",
+      phase: "before",
+      category: "basic",
+      sortOrder: 1,
+      isRequired: true,
+    })).resolves.toEqual(created);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "CONSULTATION_CHECKLIST_TEMPLATE_CREATED", targetId: 701 }), undefined);
+
+    await expect(appRouter.createCaller(createCtx("member")).consultationTools.createChecklist({
+      title: "차단",
+      phase: "before",
+      category: "basic",
+      sortOrder: 1,
+      isRequired: false,
+    })).rejects.toThrow();
+    await expect(appRouter.createCaller(createInactiveCtx("branch_admin")).consultationTools.createChecklist({
+      title: "차단",
+      phase: "before",
+      category: "basic",
+      sortOrder: 1,
+      isRequired: false,
+    })).rejects.toThrow();
+  });
+
+  it("stores checklist result only inside customer access scope", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getConsultationChecklistTemplateById").mockResolvedValue({ id: 701, isActive: true, deletedAt: null } as any);
+    vi.spyOn(db, "upsertConsultationCheckResult").mockResolvedValue({ id: 801, customerId: 100, checklistId: 701, checked: true } as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultationTools.updateCheckResult({
+      customerId: 100,
+      checklistId: 701,
+      checked: true,
+      memo: "[TEST] checked",
+    })).resolves.toMatchObject({ id: 801, checked: true });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "CONSULTATION_CHECKLIST_RESULT_UPDATED", targetType: "customer", targetId: 100 }), undefined);
+
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, agentId: 99 });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultationTools.updateCheckResult({
+      customerId: 100,
+      checklistId: 701,
+      checked: true,
+    })).rejects.toThrow();
+  });
+
+  it("seeds default message templates without duplicate rows", async () => {
+    vi.spyOn(db, "ensureDefaultMessageTemplates").mockResolvedValue({ createdCount: 10 });
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.seedDefaultMessageTemplates()).resolves.toEqual({ createdCount: 10 });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "MESSAGE_TEMPLATE_DEFAULTS_SEEDED" }), undefined);
+    await expect(appRouter.createCaller(createCtx("member")).consultationTools.seedDefaultMessageTemplates()).rejects.toThrow();
+  });
+
+  it("manages message templates with compliance guards", async () => {
+    vi.spyOn(db, "createMessageTemplate").mockResolvedValue({ id: 901, title: "부재 후 재연락", situation: "missed_call", channel: "both", body: "안녕하세요 {고객명}님", isActive: true } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.createMessageTemplate({
+      title: "부재 후 재연락",
+      situation: "missed_call",
+      channel: "both",
+      body: "안녕하세요 {고객명}님. {담당자명}입니다.",
+    })).resolves.toMatchObject({ id: 901 });
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.createMessageTemplate({
+      title: "금지 문구",
+      situation: "missed_call",
+      channel: "both",
+      body: "지금 가입해야 합니다.",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.createMessageTemplate({
+      title: "잘못된 placeholder",
+      situation: "missed_call",
+      channel: "both",
+      body: "{연락처}로 연락주세요.",
+    })).rejects.toThrow();
+  });
+
+  it("renders and logs message copy without storing full body in activity log", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getMessageTemplateById").mockResolvedValue({
+      id: 901,
+      title: "부재 후 재연락",
+      situation: "missed_call",
+      channel: "both",
+      body: "{고객명}님, 안녕하세요. {담당자명}입니다. {상담주제}",
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const rendered = await appRouter.createCaller(createCtx("member", { userId: 4 })).consultationTools.renderMessageTemplate({
+      templateId: 901,
+      customerId: 100,
+      consultationTopic: "보장 점검",
+    });
+    expect(rendered.body).toContain("[TEST] Customer");
+    expect(rendered.body).toContain("보장 점검");
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultationTools.logMessageCopy({
+      templateId: 901,
+      customerId: 100,
+      channel: "both",
+    })).resolves.toEqual({ success: true });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "MESSAGE_TEMPLATE_COPIED",
+      details: expect.not.stringContaining("안녕하세요"),
+    }), undefined);
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,

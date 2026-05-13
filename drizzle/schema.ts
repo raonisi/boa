@@ -148,6 +148,59 @@ export const consultations = mysqlTable("consultations", {
 export type Consultation = typeof consultations.$inferSelect;
 export type InsertConsultation = typeof consultations.$inferInsert;
 
+export const consultationChecklists = mysqlTable("consultation_checklists", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  phase: mysqlEnum("phase", ["before", "during", "after"]).notNull(),
+  category: mysqlEnum("category", ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"]).default("basic").notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isRequired: boolean("isRequired").default(false).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ConsultationChecklist = typeof consultationChecklists.$inferSelect;
+export type InsertConsultationChecklist = typeof consultationChecklists.$inferInsert;
+
+export const consultationCheckResults = mysqlTable("consultation_check_results", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  checklistId: int("checklistId").notNull(),
+  consultationId: int("consultationId"),
+  checked: boolean("checked").default(false).notNull(),
+  checkedAt: timestamp("checkedAt"),
+  checkedBy: int("checkedBy"),
+  memo: text("memo"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ConsultationCheckResult = typeof consultationCheckResults.$inferSelect;
+export type InsertConsultationCheckResult = typeof consultationCheckResults.$inferInsert;
+
+export const messageTemplates = mysqlTable("message_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  title: varchar("title", { length: 200 }).notNull(),
+  situation: mysqlEnum("situation", [
+    "missed_call", "proposal_follow_up", "pre_contract_check", "post_contract_care", "long_unmanaged",
+    "birthday", "follow_up_schedule", "document_request", "after_consultation", "general_check",
+  ]).notNull(),
+  channel: mysqlEnum("channel", ["kakao", "sms", "both"]).default("both").notNull(),
+  body: text("body").notNull(),
+  complianceNote: text("complianceNote"),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type MessageTemplate = typeof messageTemplates.$inferSelect;
+export type InsertMessageTemplate = typeof messageTemplates.$inferInsert;
+
 // ─── Contracts ────────────────────────────────────────────────────────────────
 export const contracts = mysqlTable("contracts", {
   id: int("id").autoincrement().primaryKey(),

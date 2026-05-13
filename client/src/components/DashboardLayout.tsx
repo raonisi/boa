@@ -38,6 +38,7 @@ import {
   RotateCcw,
   Settings,
   ShieldCheck,
+  ClipboardCheck,
   Target,
   Upload,
   Users,
@@ -75,6 +76,7 @@ const menuItems: NavItem[] = [
   { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },
   { icon: BookOpen, label: "데이터 다운로드", path: "/download", roles: ["branch_admin"] },
+  { icon: ClipboardCheck, label: "상담 도구 관리", path: "/consultation-tools", roles: ["branch_admin"] },
   { icon: Settings, label: "설정 관리", path: "/settings", roles: ["branch_admin"] },
 ];
 const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";
