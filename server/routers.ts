@@ -1225,6 +1225,13 @@ async function buildWorkRhythmReport(
   const openOverdueFollowUps = followUpList.filter((followUp) => isOpenFollowUpStatus(followUp.status) && new Date(followUp.nextContactDate) <= toDayEnd(new Date()));
   const contractsInPeriod = contractList.filter((contract) => isDateInRange(getContractDateValue(contract), range.dateFrom, range.dateTo));
   const monthlyContracts = contractList.filter((contract) => isDateInRange(getContractDateValue(contract), monthStart, monthEnd));
+  const isNewContractMetricTarget = (contract: any) =>
+    contract.contractStatus !== "철회" &&
+    contract.contractStatus !== "해지" &&
+    contract.paymentStatus !== "실효" &&
+    contract.paymentStatus !== "해지";
+  const newContractsInPeriod = contractsInPeriod.filter(isNewContractMetricTarget);
+  const monthlyNewContracts = monthlyContracts.filter(isNewContractMetricTarget);
   const priorityACustomers = customerList.filter((customer) => customer.priority === "A");
   const managedSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
   const managedCustomerIds = new Set([
@@ -1243,7 +1250,7 @@ async function buildWorkRhythmReport(
   const goalDashboard = await getPerformanceGoalDashboard(user as any, range.dateTo.getFullYear(), range.dateTo.getMonth() + 1);
   const goalItem = goalItemForScope(goalDashboard.items, requestedScope);
   const goal = goalItem?.goal ?? null;
-  const actualContractCount = monthlyContracts.length;
+  const actualContractCount = monthlyNewContracts.length;
   const actualMonthlyPremium = monthlyContracts.reduce((sum, contract) => sum + Number(contract.monthlyPremium ?? 0), 0);
   const contractCountGoal = Number(goal?.contractCountGoal ?? 0);
   const monthlyPremiumGoal = Number(goal?.monthlyPremiumGoal ?? 0);
@@ -1273,14 +1280,16 @@ async function buildWorkRhythmReport(
     followUpCompletionRate,
     pendingFollowUpCount: followUpList.filter((followUp) => isOpenFollowUpStatus(followUp.status)).length,
     overdueFollowUpCount: openOverdueFollowUps.length,
-    contractCount: contractsInPeriod.length,
+    contractCount: newContractsInPeriod.length,
+    newContractCount: newContractsInPeriod.length,
     monthlyPremiumSum: contractsInPeriod.reduce((sum, contract) => sum + Number(contract.monthlyPremium ?? 0), 0),
+    monthlyPremiumTotal: contractsInPeriod.reduce((sum, contract) => sum + Number(contract.monthlyPremium ?? 0), 0),
     longUnmanagedCustomerCount,
     priorityACustomerCount: priorityACustomers.length,
     priorityAManagedCount,
     priorityAManagementRate: priorityACustomers.length > 0 ? Math.round((priorityAManagedCount / priorityACustomers.length) * 100) : null,
     goal: goal ? { id: goal.id, targetType: goal.targetType, targetId: goal.targetId, contractCountGoal, monthlyPremiumGoal } : null,
-    actual: { contractCount: actualContractCount, monthlyPremium: actualMonthlyPremium },
+    actual: { contractCount: actualContractCount, newContractCount: actualContractCount, monthlyPremium: actualMonthlyPremium, monthlyPremiumTotal: actualMonthlyPremium },
     remaining: { contractCount: remainingContractCount, monthlyPremium: remainingMonthlyPremium },
     remainingDays,
     dailyRequired: {

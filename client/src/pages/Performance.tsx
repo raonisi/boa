@@ -8,7 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { useState, useMemo } from "react";
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
+  Bar, BarChart, CartesianGrid, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 
@@ -73,12 +73,7 @@ export default function Performance() {
     { name: "통화완료", value: stats?.called ?? 0 },
     { name: "상담예정", value: stats?.scheduled ?? 0 },
     { name: "설계중", value: stats?.designing ?? 0 },
-    { name: "계약", value: stats?.contracted ?? 0 },
-  ];
-
-  const pieData = [
-    { name: "유지계약", value: stats?.activeContracts ?? 0 },
-    { name: "해지·실효", value: stats?.canceledContracts ?? 0 },
+    { name: "신규 계약", value: stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted ?? 0 },
   ];
 
   const rateData = [
@@ -164,9 +159,9 @@ export default function Performance() {
         {/* 핵심 지표 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="배정 DB 수" value={stats?.assigned} highlight />
-          <StatCard title="계약건수" value={stats?.contracted} highlight />
-          <StatCard title="월납보험료 합계" value={stats?.monthlyPremiumSum?.toLocaleString()} suffix="원" highlight />
-          <StatCard title="유지계약 수" value={stats?.activeContracts} highlight />
+          <StatCard title="신규 계약" value={stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted} highlight />
+          <StatCard title="월납보험료 실적" value={(stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum)?.toLocaleString()} suffix="원" highlight />
+          <StatCard title="신규 계약률" value={stats?.contractRate} suffix="%" highlight />
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -178,7 +173,7 @@ export default function Performance() {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="설계중 수" value={stats?.designing} />
-          <StatCard title="해지·실효 수" value={stats?.canceledContracts} />
+          <StatCard title="월납보험료 기준" value="GA 본사 전산 기준 병행" />
           <StatCard title="상담률" value={stats?.consultRate} suffix="%" />
           <StatCard title="계약률" value={stats?.contractRate} suffix="%" />
         </div>
@@ -203,16 +198,19 @@ export default function Performance() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">계약 유지/해지 현황</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie data={pieData} cx="50%" cy="50%" innerRadius={60} outerRadius={90} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
-                    {pieData.map((_, i) => <Cell key={i} fill={i === 0 ? "#10b981" : "#ef4444"} />)}
-                  </Pie>
-                  <Tooltip /><Legend />
-                </PieChart>
-              </ResponsiveContainer>
+            <CardHeader className="pb-2"><CardTitle className="text-sm">신규 계약 / 월납보험료 요약</CardTitle></CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-md border p-4">
+                <p className="text-xs text-muted-foreground">신규 계약</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted ?? 0}</p>
+              </div>
+              <div className="rounded-md border p-4">
+                <p className="text-xs text-muted-foreground">월납보험료 실적</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{(stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum ?? 0).toLocaleString()}원</p>
+              </div>
+              <p className="sm:col-span-2 text-xs text-muted-foreground">
+                유지/미유지 계약 상태는 GA 본사 전산 기준으로 확인하고, BOA CRM은 신규 영업 성과와 월납보험료 실적을 중심으로 표시합니다.
+              </p>
             </CardContent>
           </Card>
         </div>

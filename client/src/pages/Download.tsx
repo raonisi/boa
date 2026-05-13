@@ -70,7 +70,7 @@ export default function Download() {
     { type: "customers" as DownloadType, label: "고객 DB", desc: "전체 고객 정보 (이름, 연락처, 지역, 유입경로, 상담상태 등)", icon: Users },
     { type: "contracts" as DownloadType, label: "계약정보", desc: "전체 계약 정보 (보험사, 상품명, 월보험료, 계약상태 등)", icon: FileText },
     { type: "schedules" as DownloadType, label: "일정정보", desc: "전체 일정 정보 (제목, 유형, 상태, 시작시간 등)", icon: FileText },
-    { type: "performance" as DownloadType, label: "실적정보", desc: "전체 실적 집계 (계약건수, 월납보험료, 상담률, 계약률 등)", icon: FileText },
+    { type: "performance" as DownloadType, label: "실적정보", desc: "전체 실적 집계 (신규 계약, 월납보험료, 상담률, 계약률 등)", icon: FileText },
   ];
 
   return (

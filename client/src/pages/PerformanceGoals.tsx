@@ -76,7 +76,7 @@ export default function PerformanceGoals() {
         <div>
           <h1 className="text-2xl font-bold">목표관리</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            월간 계약 건수와 월납보험료 목표를 설정하고, 권한 범위 안에서 목표 대비 성과를 확인합니다.
+            월간 신규 계약과 월납보험료 목표를 설정하고, 권한 범위 안에서 목표 대비 성과를 확인합니다.
           </p>
         </div>
 
@@ -218,7 +218,7 @@ export default function PerformanceGoals() {
                 </div>
               )}
               <div>
-                <Label className="text-xs">계약 건수 목표</Label>
+                <Label className="text-xs">신규 계약 목표</Label>
                 <Input type="number" min={0} value={contractCountGoal} onChange={(event) => setContractCountGoal(Number(event.target.value))} className="mt-1" />
               </div>
               <div>
@@ -255,7 +255,7 @@ export default function PerformanceGoals() {
                   <TableHead>대상</TableHead>
                   <TableHead>유형</TableHead>
                   <TableHead>계약</TableHead>
-                  <TableHead>계약 달성률</TableHead>
+                  <TableHead>신규 계약 달성률</TableHead>
                   <TableHead>월납보험료</TableHead>
                   <TableHead>월납 달성률</TableHead>
                   <TableHead>부족분</TableHead>

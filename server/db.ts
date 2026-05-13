@@ -2213,6 +2213,11 @@ export async function getPerformanceStats(filter: {
 
   const total = customerList.length;
   const statusCount = (s: string) => customerList.filter((c) => c.consultStatus === s).length;
+  const isNewContractMetricTarget = (contract: typeof contracts.$inferSelect) =>
+    contract.contractStatus !== "철회" &&
+    contract.contractStatus !== "해지" &&
+    contract.paymentStatus !== "실효" &&
+    contract.paymentStatus !== "해지";
 
   const assigned = total;
   const uncontacted = statusCount("미상담");
@@ -2224,6 +2229,7 @@ export async function getPerformanceStats(filter: {
   const held = statusCount("보류");
   const rejected = statusCount("거절");
 
+  const newContractCount = contracted;
   const activeContracts = contractList.filter((c) => c.contractStatus === "유지");
   const canceledContracts = contractList.filter((c) => c.contractStatus === "해지" || c.paymentStatus === "실효");
   const monthlyPremiumSum = activeContracts.reduce((sum, c) => sum + (c.monthlyPremium ?? 0), 0);
@@ -2236,7 +2242,10 @@ export async function getPerformanceStats(filter: {
     scheduled,
     designing,
     contracted,
+    contractCount: newContractCount,
+    newContractCount,
     monthlyPremiumSum,
+    monthlyPremiumTotal: monthlyPremiumSum,
     consultRate: total > 0 ? Math.round(((total - uncontacted) / total) * 100) : 0,
     contractRate: total > 0 ? Math.round((contracted / total) * 100) : 0,
     absentRate: total > 0 ? Math.round((absent / total) * 100) : 0,
@@ -2270,9 +2279,9 @@ function daysRemainingInMonth(year: number, month: number) {
   return Math.max(1, Math.ceil((monthEnd.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1);
 }
 
-function buildGoalProgress(goal: typeof performanceGoals.$inferSelect, actual: { activeContracts?: number; monthlyPremiumSum?: number } | null, targetLabel: string) {
-  const actualContractCount = Number(actual?.activeContracts ?? 0);
-  const actualMonthlyPremium = Number(actual?.monthlyPremiumSum ?? 0);
+function buildGoalProgress(goal: typeof performanceGoals.$inferSelect, actual: { newContractCount?: number; contractCount?: number; contracted?: number; activeContracts?: number; monthlyPremiumTotal?: number; monthlyPremiumSum?: number } | null, targetLabel: string) {
+  const actualContractCount = Number(actual?.newContractCount ?? actual?.contractCount ?? actual?.contracted ?? actual?.activeContracts ?? 0);
+  const actualMonthlyPremium = Number(actual?.monthlyPremiumTotal ?? actual?.monthlyPremiumSum ?? 0);
   const contractGoal = Number(goal.contractCountGoal ?? 0);
   const premiumGoal = Number(goal.monthlyPremiumGoal ?? 0);
   const remainingContractCount = Math.max(0, contractGoal - actualContractCount);
@@ -2281,7 +2290,7 @@ function buildGoalProgress(goal: typeof performanceGoals.$inferSelect, actual: {
   return {
     goal,
     targetLabel,
-    actual: { contractCount: actualContractCount, monthlyPremium: actualMonthlyPremium },
+    actual: { contractCount: actualContractCount, newContractCount: actualContractCount, monthlyPremium: actualMonthlyPremium, monthlyPremiumTotal: actualMonthlyPremium },
     achievementRate: {
       contractCount: contractGoal > 0 ? Math.round((actualContractCount / contractGoal) * 100) : null,
       monthlyPremium: premiumGoal > 0 ? Math.round((actualMonthlyPremium / premiumGoal) * 100) : null,

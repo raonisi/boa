@@ -239,6 +239,25 @@ describe("RBAC - performance.stats", () => {
   it("keeps member without filters scoped to self", async () => {
     await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).performance.stats()).resolves.toBeDefined();
   });
+
+  it("preserves contractCount and exposes newContractCount/monthlyPremiumTotal aliases", async () => {
+    vi.spyOn(db, "getPerformanceStats").mockResolvedValue({
+      contractCount: 2,
+      newContractCount: 2,
+      monthlyPremiumSum: 150000,
+      monthlyPremiumTotal: 150000,
+    } as any);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).performance.stats();
+
+    expect(result.contractCount).toBe(2);
+    expect(result.newContractCount).toBe(2);
+    expect(result.monthlyPremiumSum).toBe(150000);
+    expect(result.monthlyPremiumTotal).toBe(150000);
+    expect(result).not.toHaveProperty("maintenanceContractCount");
+    expect(result).not.toHaveProperty("activeContractCount");
+    expect(result).not.toHaveProperty("validContractCount");
+  });
 });
 
 describe("PR16 - branch_admin own scope and assignee handling", () => {
@@ -2034,8 +2053,12 @@ describe("PR14 work rhythm report", () => {
     expect(result.followUpCreatedCount).toBe(2);
     expect(result.followUpCompletedCount).toBe(1);
     expect(result.contractCount).toBe(1);
+    expect(result.newContractCount).toBe(1);
     expect(result.monthlyPremiumSum).toBe(100000);
+    expect(result.monthlyPremiumTotal).toBe(100000);
     expect(result.remaining.contractCount).toBe(2);
+    expect(result).not.toHaveProperty("maintenanceContractCount");
+    expect(result).not.toHaveProperty("activeContractCount");
     expect(JSON.stringify(result)).not.toContain("do not expose memo");
     expect(JSON.stringify(result)).not.toContain("010");
   });

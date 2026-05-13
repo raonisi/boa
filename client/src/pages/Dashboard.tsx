@@ -228,7 +228,7 @@ function PerformanceGoalSummaryCard() {
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div>
-              <p className="text-xs text-muted-foreground">계약 달성률</p>
+              <p className="text-xs text-muted-foreground">신규 계약 달성률</p>
               <p className="font-semibold">{firstGoal.achievementRate.contractCount ?? "-"}%</p>
             </div>
             <div>
@@ -236,7 +236,7 @@ function PerformanceGoalSummaryCard() {
               <p className="font-semibold">{firstGoal.achievementRate.monthlyPremium ?? "-"}%</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">부족 계약</p>
+              <p className="text-xs text-muted-foreground">부족 신규 계약</p>
               <p className="font-semibold">{firstGoal.remaining.contractCount}건</p>
             </div>
             <div>
@@ -283,7 +283,7 @@ function WorkRhythmSummaryCard() {
         </div>
         <div className="grid gap-2 text-xs md:grid-cols-3">
           <div className="rounded-md border p-2">
-            <p className="text-muted-foreground">목표까지 부족 계약</p>
+            <p className="text-muted-foreground">목표까지 부족 신규 계약</p>
             <p className="mt-1 font-semibold">{data?.remaining?.contractCount ?? 0}건</p>
           </div>
           <div className="rounded-md border p-2">
@@ -291,7 +291,7 @@ function WorkRhythmSummaryCard() {
             <p className="mt-1 font-semibold">{(data?.remaining?.monthlyPremium ?? 0).toLocaleString()}원</p>
           </div>
           <div className="rounded-md border p-2">
-            <p className="text-muted-foreground">일평균 필요 계약</p>
+            <p className="text-muted-foreground">일평균 필요 신규 계약</p>
             <p className="mt-1 font-semibold">{data?.dailyRequired?.contractCount ?? 0}건</p>
           </div>
         </div>
@@ -346,7 +346,7 @@ function SubBranchAdminDashboard() {
           <StatCard title="배분받은 전체 DB" value={allDb.length} icon={Users} />
           <StatCard title="미배정 DB" value={assignedToSubBranch.length} icon={Users} color="text-orange-500" />
           <StatCard title="배정 완료 DB" value={assignedToAgent.length} icon={Users} color="text-green-600" />
-          <StatCard title="산하 계약건수" value={stats?.contracted} icon={FileText} color="text-blue-600" />
+          <StatCard title="산하 신규 계약" value={stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted} icon={FileText} color="text-blue-600" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="월납보험료 합계" value={stats?.monthlyPremiumSum?.toLocaleString()} icon={TrendingUp} suffix="원" color="text-blue-600" />
@@ -431,8 +431,8 @@ export default function Dashboard() {
         {user?.role === "branch_admin" && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <StatCard title="내 DB" value={myBranchAdminCustomers?.length ?? 0} icon={Users} color="text-sky-600" />
-            <StatCard title="내 계약" value={myBranchAdminStats?.contracted ?? 0} icon={FileText} color="text-green-600" />
-            <StatCard title="내 월납보험료" value={myBranchAdminStats?.monthlyPremiumSum?.toLocaleString() ?? 0} icon={TrendingUp} suffix="원" color="text-blue-600" />
+            <StatCard title="내 신규 계약" value={myBranchAdminStats?.newContractCount ?? myBranchAdminStats?.contractCount ?? myBranchAdminStats?.contracted ?? 0} icon={FileText} color="text-green-600" />
+            <StatCard title="내 월납보험료 실적" value={(myBranchAdminStats?.monthlyPremiumTotal ?? myBranchAdminStats?.monthlyPremiumSum)?.toLocaleString() ?? 0} icon={TrendingUp} suffix="원" color="text-blue-600" />
             <StatCard title="전체 DB" value={customers?.length ?? 0} icon={Users} />
           </div>
         )}
@@ -441,15 +441,15 @@ export default function Dashboard() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="배정 DB" value={stats?.assigned} icon={Users} />
           <StatCard title="미상담" value={stats?.uncontacted} icon={AlertCircle} color="text-orange-500" />
-          <StatCard title="계약건수" value={stats?.contracted} icon={FileText} color="text-green-600" />
-          <StatCard title="월납보험료" value={stats?.monthlyPremiumSum?.toLocaleString()} icon={TrendingUp} suffix="원" color="text-blue-600" />
+          <StatCard title="신규 계약" value={stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted} icon={FileText} color="text-green-600" />
+          <StatCard title="월납보험료 실적" value={(stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum)?.toLocaleString()} icon={TrendingUp} suffix="원" color="text-blue-600" />
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="상담률" value={stats?.consultRate} icon={Phone} suffix="%" />
           <StatCard title="계약률" value={stats?.contractRate} icon={BarChart3} suffix="%" color="text-green-600" />
           <StatCard title="부재율" value={stats?.absentRate} icon={AlertCircle} suffix="%" color="text-orange-500" />
-          <StatCard title="유지계약" value={stats?.activeContracts} icon={FileText} color="text-emerald-600" />
+          <StatCard title="신규 계약률" value={stats?.contractRate} icon={BarChart3} suffix="%" color="text-green-600" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -555,11 +555,9 @@ export default function Dashboard() {
                 { label: "통화완료", value: stats?.called },
                 { label: "상담예정", value: stats?.scheduled },
                 { label: "설계중", value: stats?.designing },
-                { label: "계약", value: stats?.contracted },
+                { label: "신규 계약", value: stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted },
                 { label: "보류", value: undefined },
                 { label: "거절", value: undefined },
-                { label: "유지", value: stats?.activeContracts },
-                { label: "해지·실효", value: stats?.canceledContracts },
               ].map((item) => (
                 <div key={item.label} className="text-center p-2 rounded-lg bg-muted">
                   <p className="text-lg font-bold">{item.value ?? 0}</p>
