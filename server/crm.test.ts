@@ -1625,6 +1625,104 @@ describe("dashboard.todayWork", () => {
   });
 });
 
+describe("PR12 recommendations", () => {
+  const baseDate = "2026-05-13T09:00:00.000Z";
+  const recommendedCustomer = {
+    id: 100,
+    name: "[TEST] Priority",
+    phone: "01012345678",
+    memo: "private memo",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    consultStatus: "상담예정",
+    priority: "A",
+    customerTags: JSON.stringify(["해지위험", "사후관리필요"]),
+    nextAction: "재연락",
+    isActive: true,
+    deletedAt: null,
+    createdAt: new Date("2026-05-01T00:00:00.000Z"),
+  };
+  const otherCustomer = {
+    id: 200,
+    name: "[TEST] Other",
+    phone: "01099998888",
+    agentId: 9,
+    assignedTeamId: 99,
+    subBranchAdminId: 8,
+    consultStatus: "미상담",
+    priority: "unclassified",
+    customerTags: null,
+    nextAction: null,
+    isActive: true,
+    deletedAt: null,
+    createdAt: new Date("2026-05-01T00:00:00.000Z"),
+  };
+
+  function mockRecommendationData(customers = [recommendedCustomer]) {
+    vi.spyOn(db, "getCustomers").mockResolvedValue(customers as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([
+      { id: 10, customerId: 100, agentId: 4, contractDate: new Date("2026-04-01T00:00:00.000Z"), monthlyPremium: 100000, isActive: true, deletedAt: null },
+      { id: 11, customerId: 100, agentId: 4, contractDate: new Date("2026-04-01T00:00:00.000Z"), monthlyPremium: 100000, isActive: false, deletedAt: new Date() },
+    ] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([]);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
+      items: [{ id: 20, userId: 4, type: "general", title: "[TEST] Notice", isRead: false, processStatus: "미확인", relatedType: "customer", relatedId: 100, createdAt: new Date("2026-05-13T08:00:00.000Z") }],
+      totalCount: 1,
+      hasMore: false,
+    } as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue([
+      { id: 30, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: new Date("2026-05-12T11:00:00.000Z"), reason: "[TEST] Overdue", nextAction: "전화", status: "scheduled", deletedAt: null },
+      { id: 31, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: new Date("2026-05-13T11:00:00.000Z"), reason: "[TEST] Today", nextAction: "전화", status: "scheduled", deletedAt: null },
+    ] as any);
+    vi.spyOn(db, "getConsultationsByCustomer").mockResolvedValue([]);
+  }
+
+  it("returns scored priority contacts without phone or memo", async () => {
+    mockRecommendationData();
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).recommendations.priorityContacts({ date: baseDate, limit: 10 });
+
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentId: 4 });
+    expect(result[0].customerId).toBe(100);
+    expect(result[0].urgency).toBe("high");
+    expect(result[0].warnings.map((warning) => warning.warningType)).toContain("overdue_follow_up");
+    expect(result[0].reasons).toContain("A등급 고객");
+    expect(JSON.stringify(result)).not.toContain("01012345678");
+    expect(JSON.stringify(result)).not.toContain("private memo");
+  });
+
+  it("uses role scopes and blocks inactive users", async () => {
+    mockRecommendationData();
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 4 }] as any);
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).recommendations.dashboardSummary({ date: baseDate });
+    expect(db.getCustomers).toHaveBeenCalledWith({ teamId: 10 });
+
+    vi.restoreAllMocks();
+    mockRecommendationData();
+    vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([{ id: 4 }] as any);
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).recommendations.dashboardSummary({ date: baseDate });
+    expect(db.getCustomers).toHaveBeenCalledWith({ subBranchAdminId: 2 });
+
+    await expect(appRouter.createCaller(createInactiveCtx()).recommendations.priorityContacts({ date: baseDate })).rejects.toThrow();
+  });
+
+  it("returns safe contact reasons and warning details for an accessible customer", async () => {
+    mockRecommendationData();
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(recommendedCustomer as any);
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).recommendations.customerContactReasons({ customerId: 100 });
+
+    expect(result.reasons.length).toBeGreaterThan(0);
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(JSON.stringify(result)).not.toMatch(/무조건|반드시 가입|지금 안 하면|큰일/);
+  });
+
+  it("does not recommend soft deleted customers", async () => {
+    mockRecommendationData([{ ...recommendedCustomer, isActive: false, deletedAt: new Date() }]);
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).recommendations.priorityContacts({ date: baseDate });
+    expect(result).toEqual([]);
+  });
+});
+
 describe("followUps", () => {
   const activeCustomer = {
     id: 100,

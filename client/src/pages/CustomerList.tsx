@@ -52,6 +52,7 @@ export default function CustomerList() {
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [nextActionFilter, setNextActionFilter] = useState<string>("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
+  const [recommendationFilter, setRecommendationFilter] = useState<string>("all");
   const [assignedDateFrom, setAssignedDateFrom] = useState("");
   const [assignedDateTo, setAssignedDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -67,6 +68,7 @@ export default function CustomerList() {
     assignedDateTo: assignedDateTo || undefined,
   });
   const { data: allUsers } = trpc.users.list.useQuery();
+  const { data: priorityContacts } = trpc.recommendations.priorityContacts.useQuery({ limit: 50, includeWarnings: true });
 
   const createMutation = trpc.customers.create.useMutation({
     onSuccess: () => { toast.success("고객이 등록되었습니다."); setShowCreate(false); refetch(); },
@@ -84,16 +86,23 @@ export default function CustomerList() {
 
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
   const canDeactivateCustomer = user?.role === "branch_admin";
+  const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
 
   const filtered = (customers ?? []).filter((c) => {
     const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
     const matchRegion = !regionFilter || (c.region ?? "").includes(regionFilter);
     const matchSource = !sourceFilter || (c.source ?? "").includes(sourceFilter);
     const matchAgent = agentFilter === "all" || String(c.agentId) === agentFilter;
-    return matchSearch && matchRegion && matchSource && matchAgent;
+    const recommendation = recommendationByCustomerId.get(c.id);
+    const matchRecommendation =
+      recommendationFilter === "all" ||
+      (recommendationFilter === "recommended" && Boolean(recommendation)) ||
+      (recommendationFilter === "warning" && Boolean(recommendation?.warnings?.length)) ||
+      (recommendationFilter === "high" && recommendation?.urgency === "high");
+    return matchSearch && matchRegion && matchSource && matchAgent && matchRecommendation;
   });
 
-  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all";
+  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all";
 
   const clearFilters = () => {
     setStatusFilter("all");
@@ -103,6 +112,7 @@ export default function CustomerList() {
     setTagFilter("all");
     setNextActionFilter("all");
     setAgentFilter("all");
+    setRecommendationFilter("all");
     setAssignedDateFrom("");
     setAssignedDateTo("");
   };
@@ -197,6 +207,15 @@ export default function CustomerList() {
                     {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
                   </SelectContent>
                 </Select>
+                <Select value={recommendationFilter} onValueChange={setRecommendationFilter}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="추천/경고" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 추천</SelectItem>
+                    <SelectItem value="recommended">우선 연락 추천</SelectItem>
+                    <SelectItem value="warning">경고 있음</SelectItem>
+                    <SelectItem value="high">긴급 추천</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="h-8 text-xs" title="배정일 시작" />
                 <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="h-8 text-xs" title="배정일 종료" />
                 {(user?.role === "branch_admin" || user?.role === "team_leader") && (
@@ -219,7 +238,9 @@ export default function CustomerList() {
             {filtered.length === 0 ? (
               <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">고객 데이터가 없습니다.</CardContent></Card>
             ) : (
-              filtered.map((c) => (
+              filtered.map((c) => {
+                const recommendation = recommendationByCustomerId.get(c.id);
+                return (
                 <Card key={c.id} className="cursor-pointer active:bg-muted/70" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-3">
                     <div className="flex items-start justify-between gap-2">
@@ -228,6 +249,7 @@ export default function CustomerList() {
                           <span className="font-semibold text-sm">{c.name}</span>
                           <StatusBadge status={c.consultStatus} />
                           <span className="text-[10px] rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span>
+                          {recommendation && <span className={`text-[10px] rounded-full px-2 py-0.5 ${recommendation.urgency === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>우선 연락</span>}
                         </div>
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
@@ -236,6 +258,9 @@ export default function CustomerList() {
                           {(c as any).nextAction && <span className="text-[10px] rounded-full border px-2 py-0.5">다음: {(c as any).nextAction}</span>}
                         </div>
                         <div className="flex items-center gap-3 mt-1">
+                          {recommendation?.warnings?.slice(0, 1).map((warning) => (
+                            <span key={warning.warningType} className="text-xs text-red-600">{warning.message}</span>
+                          ))}
                           {c.phone && (
                             <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                               <Phone className="h-3 w-3" /> {maskPhone(c.phone)}
@@ -273,7 +298,8 @@ export default function CustomerList() {
                     </div>
                   </CardContent>
                 </Card>
-              ))
+                );
+              })
             )}
           </div>
         ) : (
@@ -302,9 +328,16 @@ export default function CustomerList() {
                         <TableCell colSpan={10} className="text-center text-muted-foreground py-8">고객 데이터가 없습니다.</TableCell>
                       </TableRow>
                     ) : (
-                      filtered.map((c) => (
+                      filtered.map((c) => {
+                        const recommendation = recommendationByCustomerId.get(c.id);
+                        return (
                         <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setLocation(`/customers/${c.id}`)}>
-                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="font-medium">
+                            <div className="flex flex-col gap-1">
+                              <span>{c.name}</span>
+                              {recommendation && <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] ${recommendation.urgency === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>우선 연락 · {recommendation.totalScore}</span>}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline flex items-center gap-1">
                               <Phone className="h-3 w-3" />{c.phone ?? "-"}
@@ -324,7 +357,11 @@ export default function CustomerList() {
                             </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {c.assignedAt ? new Date(c.assignedAt).toLocaleDateString("ko-KR") : "-"}
+                            {recommendation?.warnings?.[0] ? (
+                              <span className="text-red-600">{recommendation.warnings[0].message}</span>
+                            ) : (
+                              c.assignedAt ? new Date(c.assignedAt).toLocaleDateString("ko-KR") : "-"
+                            )}
                           </TableCell>
                           <TableCell className="text-right">
                             {c.expectedPremium ? `${c.expectedPremium.toLocaleString()}원` : "-"}
@@ -346,7 +383,8 @@ export default function CustomerList() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
