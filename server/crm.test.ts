@@ -376,6 +376,134 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
   });
 });
 
+describe("PR19-2 - FCM device token registration", () => {
+  const token = "fcm_test_registration_token_1234567890";
+
+  it("allows active users to register an Android device token without logging plaintext token", async () => {
+    const savedToken = {
+      id: 10,
+      userId: 4,
+      platform: "android",
+      token,
+      deviceId: "device-1",
+      appVersion: "1.0.0",
+      deviceModel: "Android Test",
+      osVersion: "13",
+      isActive: true,
+      lastSeenAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      revokedAt: null,
+    };
+    const upsertSpy = vi.spyOn(db, "upsertUserDeviceToken").mockResolvedValue(savedToken as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).deviceTokens.register({
+      token,
+      platform: "android",
+      deviceId: "device-1",
+      appVersion: "1.0.0",
+      deviceModel: "Android Test",
+      osVersion: "13",
+    });
+
+    expect(result).toMatchObject({ success: true, id: 10 });
+    expect(upsertSpy).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 4,
+      token,
+      platform: "android",
+      isActive: true,
+    }));
+    const details = String(logSpy.mock.calls[0]?.[0]?.details ?? "");
+    expect(details).not.toContain(token);
+    expect(details).toContain("tokenHash");
+  });
+
+  it("blocks inactive users from registering device tokens", async () => {
+    await expect(
+      appRouter.createCaller(createInactiveCtx("member")).deviceTokens.register({
+        token,
+        platform: "android",
+      })
+    ).rejects.toThrow("계정이 비활성화되었습니다.");
+  });
+
+  it("blocks resigned users from registering device tokens", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("member", { accountStatus: "resigned" })).deviceTokens.register({
+        token,
+        platform: "android",
+      })
+    ).rejects.toThrow();
+  });
+
+  it("uses upsert behavior for repeated token registration", async () => {
+    const upsertSpy = vi.spyOn(db, "upsertUserDeviceToken").mockResolvedValue({
+      id: 11,
+      userId: 4,
+      platform: "android",
+      token,
+      isActive: true,
+      lastSeenAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      revokedAt: null,
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(createCtx("member", { userId: 4 }));
+
+    await caller.deviceTokens.register({ token, platform: "android" });
+    await caller.deviceTokens.register({ token, platform: "android" });
+
+    expect(upsertSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("deactivates only the current user's token without logging plaintext token", async () => {
+    const deactivateSpy = vi.spyOn(db, "deactivateUserDeviceToken").mockResolvedValue(1);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).deviceTokens.deactivate({ token });
+
+    expect(result).toEqual({ success: true, affectedCount: 1 });
+    expect(deactivateSpy).toHaveBeenCalledWith(4, token);
+    const details = String(logSpy.mock.calls[0]?.[0]?.details ?? "");
+    expect(details).not.toContain(token);
+    expect(details).toContain("tokenHash");
+  });
+
+  it("does not expose plaintext tokens in listMine", async () => {
+    vi.spyOn(db, "listUserDeviceTokens").mockResolvedValue([
+      {
+        id: 12,
+        userId: 4,
+        platform: "android",
+        token,
+        deviceId: "device-1",
+        appVersion: "1.0.0",
+        deviceModel: "Android Test",
+        osVersion: "13",
+        isActive: true,
+        lastSeenAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        revokedAt: null,
+      },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).deviceTokens.listMine();
+
+    expect(result[0]).not.toHaveProperty("token");
+    expect(result[0].tokenMasked).not.toBe(token);
+    expect(JSON.stringify(result)).not.toContain(token);
+  });
+
+  it("blocks attempts to deactivate malformed or short tokens", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("member", { userId: 4 })).deviceTokens.deactivate({ token: "short-token" })
+    ).rejects.toThrow();
+  });
+});
+
 // ─── RBAC - branch_admin only ─────────────────────────────────────────────────
 describe("RBAC - updateRole (branch_admin only)", () => {
   it("blocks member from updating user role", async () => {

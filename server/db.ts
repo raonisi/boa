@@ -34,6 +34,7 @@ import {
   InsertSchedule,
   InsertStatusHistory,
   InsertMessageTemplate,
+  InsertUserDeviceToken,
   messageTemplates,
   notifications,
   performanceGoals,
@@ -42,6 +43,7 @@ import {
   settings,
   statusHistory,
   teams,
+  userDeviceTokens,
   Team,
   users,
   User,
@@ -1880,6 +1882,61 @@ export async function getActivityLogs(limit = 500, subBranchAdminId?: number, te
   }
 
   return db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(limit);
+}
+
+// ─── User Device Tokens ──────────────────────────────────────────────────────
+export async function upsertUserDeviceToken(data: InsertUserDeviceToken) {
+  const db = await getDb();
+  if (!db) return null;
+  const now = new Date();
+  await db.insert(userDeviceTokens).values({
+    ...data,
+    platform: "android",
+    isActive: true,
+    lastSeenAt: now,
+    revokedAt: null,
+  }).onDuplicateKeyUpdate({
+    set: {
+      deviceId: data.deviceId ?? null,
+      appVersion: data.appVersion ?? null,
+      deviceModel: data.deviceModel ?? null,
+      osVersion: data.osVersion ?? null,
+      isActive: true,
+      revokedAt: null,
+      lastSeenAt: now,
+      updatedAt: now,
+    },
+  });
+  const rows = await db.select().from(userDeviceTokens)
+    .where(and(eq(userDeviceTokens.userId, data.userId), eq(userDeviceTokens.token, data.token)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function deactivateUserDeviceToken(userId: number, token: string) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.update(userDeviceTokens)
+    .set({ isActive: false, revokedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(userDeviceTokens.userId, userId), eq(userDeviceTokens.token, token)));
+  return Number((result as any)?.[0]?.affectedRows ?? (result as any)?.affectedRows ?? 0);
+}
+
+export async function deactivateAllUserDeviceTokens(userId: number) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.update(userDeviceTokens)
+    .set({ isActive: false, revokedAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(userDeviceTokens.userId, userId), eq(userDeviceTokens.isActive, true)));
+  return Number((result as any)?.[0]?.affectedRows ?? (result as any)?.affectedRows ?? 0);
+}
+
+export async function listUserDeviceTokens(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userDeviceTokens)
+    .where(eq(userDeviceTokens.userId, userId))
+    .orderBy(desc(userDeviceTokens.lastSeenAt));
 }
 
 // ─── Performance Stats ────────────────────────────────────────────────────────

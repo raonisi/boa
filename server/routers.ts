@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { createHash } from "node:crypto";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -111,6 +112,8 @@ import {
   getUserByEmail,
   getAllUsersByEmail,
   createUser,
+  deactivateAllUserDeviceTokens,
+  deactivateUserDeviceToken,
   executeUserHandoff,
   getHandoffHistories,
   getHandoffPreview,
@@ -145,7 +148,9 @@ import {
   updateDeleteRequest,
   updateFollowUp,
   updateImportBatch,
+  listUserDeviceTokens,
   upsertConsultationCheckResult,
+  upsertUserDeviceToken,
   resetUserOAuthLink,
   softDeleteCustomersByImportBatch,
   BulkImportRow,
@@ -375,6 +380,15 @@ function maskPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.length < 7) return "[masked-phone]";
   return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+}
+
+function hashDeviceToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function maskDeviceToken(token: string) {
+  if (token.length <= 12) return "[masked-token]";
+  return `${token.slice(0, 6)}...${token.slice(-6)}`;
 }
 
 function sanitizeLogValue(value: unknown): unknown {
@@ -1508,6 +1522,79 @@ export const appRouter = router({
     }),
   }),
 
+  deviceTokens: router({
+    register: activeUserProcedure
+      .input(z.object({
+        token: z.string().min(20).max(512),
+        platform: z.enum(["android"]).default("android"),
+        deviceId: z.string().max(128).optional(),
+        appVersion: z.string().max(50).optional(),
+        deviceModel: z.string().max(200).optional(),
+        osVersion: z.string().max(100).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const tokenHash = hashDeviceToken(input.token);
+        const saved = await upsertUserDeviceToken({
+          userId: ctx.user.id,
+          platform: "android",
+          token: input.token,
+          deviceId: input.deviceId ?? null,
+          appVersion: input.appVersion ?? null,
+          deviceModel: input.deviceModel ?? null,
+          osVersion: input.osVersion ?? null,
+          isActive: true,
+          lastSeenAt: new Date(),
+        });
+        await log(ctx.user.id, "DEVICE_TOKEN_REGISTERED", "user_device_token", saved?.id, logDetails({
+          actor: ctx.user.id,
+          targetType: "user_device_token",
+          targetId: saved?.id ?? null,
+          metadata: {
+            platform: "android",
+            tokenHash,
+            tokenMasked: maskDeviceToken(input.token),
+            deviceId: input.deviceId ?? null,
+            appVersion: input.appVersion ?? null,
+          },
+        }));
+        return { success: true, id: saved?.id ?? null, tokenMasked: maskDeviceToken(input.token) };
+      }),
+
+    deactivate: activeUserProcedure
+      .input(z.object({ token: z.string().min(20).max(512) }))
+      .mutation(async ({ ctx, input }) => {
+        const affectedCount = await deactivateUserDeviceToken(ctx.user.id, input.token);
+        await log(ctx.user.id, "DEVICE_TOKEN_DEACTIVATED", "user_device_token", undefined, logDetails({
+          actor: ctx.user.id,
+          targetType: "user_device_token",
+          metadata: {
+            affectedCount,
+            tokenHash: hashDeviceToken(input.token),
+            tokenMasked: maskDeviceToken(input.token),
+          },
+        }));
+        return { success: true, affectedCount };
+      }),
+
+    listMine: activeUserProcedure.query(async ({ ctx }) => {
+      const items = await listUserDeviceTokens(ctx.user.id);
+      return items.map((item) => ({
+        id: item.id,
+        platform: item.platform,
+        deviceId: item.deviceId,
+        appVersion: item.appVersion,
+        deviceModel: item.deviceModel,
+        osVersion: item.osVersion,
+        isActive: item.isActive,
+        lastSeenAt: item.lastSeenAt,
+        createdAt: item.createdAt,
+        updatedAt: item.updatedAt,
+        revokedAt: item.revokedAt,
+        tokenMasked: maskDeviceToken(item.token),
+      }));
+    }),
+  }),
+
   // ── Users ─────────────────────────────────────────────────────────────────
   recommendations: router({
     priorityContacts: activeUserProcedure
@@ -1875,13 +1962,14 @@ export const appRouter = router({
 
         const invalidatedAt = new Date();
         const affectedSessionCount = await invalidateUserSessions(input.userId, invalidatedAt);
+        const deactivatedDeviceTokenCount = await deactivateAllUserDeviceTokens(input.userId);
         await log(ctx.user.id, "USER_FORCE_LOGOUT", "user", input.userId, logDetails({
           actor: ctx.user.id,
           targetId: input.userId,
           targetType: "user",
           beforeValue: { sessionInvalidatedAt: target.sessionInvalidatedAt ?? null },
           afterValue: { sessionInvalidatedAt: invalidatedAt },
-          metadata: { reason: input.reason, affectedSessionCount },
+          metadata: { reason: input.reason, affectedSessionCount, deactivatedDeviceTokenCount },
         }));
 
         return { success: true, affectedSessionCount };
@@ -1899,10 +1987,15 @@ export const appRouter = router({
 
         const invalidatedAt = new Date();
         const affectedSessionCount = await invalidateAllUserSessions(invalidatedAt);
+        const users = await getAllUsers();
+        let deactivatedDeviceTokenCount = 0;
+        for (const user of users) {
+          deactivatedDeviceTokenCount += await deactivateAllUserDeviceTokens(user.id);
+        }
         await log(ctx.user.id, "ALL_USERS_FORCE_LOGOUT", "user", ctx.user.id, logDetails({
           actor: ctx.user.id,
           targetType: "user",
-          metadata: { reason: input.reason, affectedSessionCount, sessionInvalidatedAt: invalidatedAt },
+          metadata: { reason: input.reason, affectedSessionCount, deactivatedDeviceTokenCount, sessionInvalidatedAt: invalidatedAt },
         }));
 
         return { success: true, affectedSessionCount };

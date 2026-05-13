@@ -1,4 +1,5 @@
 import { getLoginUrlResult } from "@/const";
+import { FCM_TOKEN_STORAGE_KEY } from "@/lib/deviceToken";
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useEffect, useMemo } from "react";
@@ -22,9 +23,20 @@ export function useAuth(options?: UseAuthOptions) {
       utils.auth.me.setData(undefined, null);
     },
   });
+  const deactivateDeviceTokenMutation = trpc.deviceTokens.deactivate.useMutation();
 
   const logout = useCallback(async () => {
     try {
+      const deviceToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY);
+      if (deviceToken) {
+        try {
+          await deactivateDeviceTokenMutation.mutateAsync({ token: deviceToken });
+        } catch (error) {
+          console.warn("[FCM] Failed to deactivate device token during logout.", error);
+        } finally {
+          localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
+        }
+      }
       await logoutMutation.mutateAsync();
     } catch (error: unknown) {
       if (
@@ -38,7 +50,7 @@ export function useAuth(options?: UseAuthOptions) {
       utils.auth.me.setData(undefined, null);
       await utils.auth.me.invalidate();
     }
-  }, [logoutMutation, utils]);
+  }, [deactivateDeviceTokenMutation, logoutMutation, utils]);
 
   const state = useMemo(() => {
     localStorage.setItem(

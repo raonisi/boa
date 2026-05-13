@@ -22,6 +22,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { getLoginUrlResult } from "@/const";
+import { useFcmDeviceTokenRegistration } from "@/hooks/useFcmDeviceTokenRegistration";
 import { trpc } from "@/lib/trpc";
 import {
   Activity,
@@ -128,6 +129,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   });
   const { loading, user } = useAuth();
   const [loginConfigMessage, setLoginConfigMessage] = useState<string | null>(null);
+  useFcmDeviceTokenRegistration(user);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());

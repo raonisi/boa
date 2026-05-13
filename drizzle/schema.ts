@@ -490,3 +490,25 @@ export const activityLogs = mysqlTable("activity_logs", {
 });
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
+
+// ─── Device Tokens (FCM 준비) ────────────────────────────────────────────────
+export const userDeviceTokens = mysqlTable("user_device_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  platform: mysqlEnum("platform", ["android"]).default("android").notNull(),
+  token: varchar("token", { length: 512 }).notNull(),
+  deviceId: varchar("deviceId", { length: 128 }),
+  appVersion: varchar("appVersion", { length: 50 }),
+  deviceModel: varchar("deviceModel", { length: 200 }),
+  osVersion: varchar("osVersion", { length: 100 }),
+  isActive: boolean("isActive").default(true).notNull(),
+  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  revokedAt: timestamp("revokedAt"),
+},
+(table) => ({
+  uniqueUserToken: unique("uq_user_device_token").on(table.userId, table.token),
+}));
+export type UserDeviceToken = typeof userDeviceTokens.$inferSelect;
+export type InsertUserDeviceToken = typeof userDeviceTokens.$inferInsert;
