@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Search, XCircle } from "lucide-react";
+import { FileText, Search, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
@@ -74,33 +74,48 @@ export default function ContractList() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">계약관리</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="space-y-5">
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Contracts</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">계약관리</h1>
+              <p className="mt-1 text-sm text-slate-500">
             {user?.role === "sub_branch_admin" ? "부지점장 산하 계약관리" :
              user?.role === "team_leader" ? "본인 팀 계약관리" :
              user?.role === "member" ? "내 계약관리" : "전체 계약관리"}
-            {" · "}{filtered.length}건 · 월납보험료 합계: {totalPremium.toLocaleString()}원
-          </p>
-        </div>
+              {" · "}{filtered.length}건
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-sm sm:min-w-[280px]">
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500"><FileText className="h-3.5 w-3.5" /> 표시 계약</div>
+                <p className="mt-1 text-xl font-bold text-slate-950">{filtered.length}건</p>
+              </div>
+              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3">
+                <div className="flex items-center gap-2 text-xs text-slate-500"><WalletCards className="h-3.5 w-3.5" /> 월납보험료</div>
+                <p className="mt-1 text-xl font-bold text-slate-950">{totalPremium.toLocaleString()}원</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Card>
-          <CardContent className="p-3">
-            <div className="flex flex-col sm:flex-row gap-2">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="보험사 또는 상품명 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9" />
+                <Input placeholder="보험사 또는 상품명 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-8" />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-32 h-9"><SelectValue placeholder="계약상태" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full rounded-xl sm:w-36"><SelectValue placeholder="계약상태" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
                   {["청약", "승낙", "철회", "유지", "해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={paymentFilter} onValueChange={setPaymentFilter}>
-                <SelectTrigger className="w-full sm:w-32 h-9"><SelectValue placeholder="납입상태" /></SelectTrigger>
+                <SelectTrigger className="h-10 w-full rounded-xl sm:w-36"><SelectValue placeholder="결제상태" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
                   {["정상", "미납", "실효", "해지"].map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
@@ -108,7 +123,7 @@ export default function ContractList() {
               </Select>
               {user?.role === "branch_admin" && (
                 <Select value={scopeFilter} onValueChange={(value) => setScopeFilter(value as "all" | "mine")}>
-                  <SelectTrigger className="w-full sm:w-32 h-9"><SelectValue placeholder="계약 범위" /></SelectTrigger>
+                  <SelectTrigger className="h-10 w-full rounded-xl sm:w-36"><SelectValue placeholder="계약 범위" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 계약</SelectItem>
                     <SelectItem value="mine">내 계약</SelectItem>
@@ -120,24 +135,24 @@ export default function ContractList() {
         </Card>
 
         {isMobile ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filtered.length === 0 ? (
-              <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">계약 데이터가 없습니다.</CardContent></Card>
+              <Card className="border-dashed border-slate-200 bg-white/90"><CardContent className="py-10 text-center text-sm text-slate-500">표시할 계약이 없습니다.</CardContent></Card>
             ) : (
               filtered.map((c) => (
-                <Card key={c.id} className="cursor-pointer active:bg-muted/70" onClick={() => setLocation(`/customers/${c.customerId}`)}>
-                  <CardContent className="space-y-3 p-3">
+                <Card key={c.id} className="cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition active:bg-slate-50" onClick={() => setLocation(`/customers/${c.customerId}`)}>
+                  <CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold">{c.productName ?? "-"}</p>
+                        <p className="truncate text-sm font-semibold text-slate-950">{c.productName ?? "-"}</p>
                         <p className="mt-0.5 truncate text-xs text-muted-foreground">{c.company ?? "-"} · {c.productGroup ?? "-"}</p>
                       </div>
                       <StatusBadge status={c.contractStatus ?? "청약"} />
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div><p className="text-muted-foreground">계약일</p><p className="font-medium">{c.contractDate ? new Date(c.contractDate).toLocaleDateString("ko-KR") : "-"}</p></div>
-                      <div><p className="text-muted-foreground">월보험료</p><p className="font-medium">{c.monthlyPremium ? `${c.monthlyPremium.toLocaleString()}원` : "-"}</p></div>
-                      <div><p className="text-muted-foreground">납입상태</p><StatusBadge status={c.paymentStatus ?? "정상"} /></div>
+                      <div><p className="text-muted-foreground">월납보험료</p><p className="font-semibold text-slate-950">{c.monthlyPremium ? `${c.monthlyPremium.toLocaleString()}원` : "-"}</p></div>
+                      <div><p className="text-muted-foreground">결제상태</p><StatusBadge status={c.paymentStatus ?? "정상"} /></div>
                       <div><p className="text-muted-foreground">상태</p><StatusBadge status={c.contractStatus ?? "청약"} /></div>
                     </div>
                     {(canDeactivate || canRequestDelete) && (
@@ -159,18 +174,18 @@ export default function ContractList() {
             )}
           </div>
         ) : (
-          <Card>
+          <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead>보험사</TableHead>
                     <TableHead>상품명</TableHead>
                     <TableHead>상품군</TableHead>
                     <TableHead>계약일</TableHead>
-                    <TableHead className="text-right">월보험료</TableHead>
-                    <TableHead>납입상태</TableHead>
+                    <TableHead className="text-right">월납보험료</TableHead>
+                    <TableHead>결제상태</TableHead>
                     <TableHead>계약상태</TableHead>
                     <TableHead>메모</TableHead>
                     {(canDeactivate || canRequestDelete) && <TableHead className="w-24" />}
@@ -179,16 +194,16 @@ export default function ContractList() {
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={canDeactivate || canRequestDelete ? 9 : 8} className="text-center text-muted-foreground py-8">계약 데이터가 없습니다.</TableCell>
+                      <TableCell colSpan={canDeactivate || canRequestDelete ? 9 : 8} className="py-10 text-center text-sm text-slate-500">표시할 계약이 없습니다.</TableCell>
                     </TableRow>
                   ) : (
                     filtered.map((c) => (
-                      <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setLocation(`/customers/${c.customerId}`)}>
+                      <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => setLocation(`/customers/${c.customerId}`)}>
                         <TableCell>{c.company ?? "-"}</TableCell>
                         <TableCell className="font-medium">{c.productName ?? "-"}</TableCell>
                         <TableCell>{c.productGroup ?? "-"}</TableCell>
                         <TableCell className="text-xs">{c.contractDate ? new Date(c.contractDate).toLocaleDateString("ko-KR") : "-"}</TableCell>
-                        <TableCell className="text-right">{c.monthlyPremium ? `${c.monthlyPremium.toLocaleString()}원` : "-"}</TableCell>
+                        <TableCell className="text-right font-semibold text-slate-950">{c.monthlyPremium ? `${c.monthlyPremium.toLocaleString()}원` : "-"}</TableCell>
                         <TableCell><StatusBadge status={c.paymentStatus ?? "정상"} /></TableCell>
                         <TableCell><StatusBadge status={c.contractStatus ?? "청약"} /></TableCell>
                         <TableCell className="text-xs text-muted-foreground max-w-32 truncate">{c.memo ?? "-"}</TableCell>

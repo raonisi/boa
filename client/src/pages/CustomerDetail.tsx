@@ -303,23 +303,27 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Header */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button variant="ghost" size="sm" onClick={() => setLocation("/customers")}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> 목록
-          </Button>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl font-bold">{customer.name}</h1>
-              <StatusBadge status={customer.consultStatus} />
-              {!customer.isActive && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-200 text-gray-600">비활성</span>
-              )}
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <Button variant="ghost" size="sm" className="mt-0.5 shrink-0" onClick={() => setLocation("/customers")}>
+                <ArrowLeft className="h-4 w-4 mr-1" /> 목록
+              </Button>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Customer Detail</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <h1 className="text-2xl font-bold text-slate-950">{customer.name}</h1>
+                  <StatusBadge status={customer.consultStatus} />
+                  {!customer.isActive && (
+                    <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">비활성</span>
+                  )}
+                </div>
+                <p className="mt-1 text-sm text-slate-500">담당: {agentName}</p>
+              </div>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">담당: {agentName}</p>
-          </div>
-          <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-wrap gap-2">
             {customer.phone && (
               <a href={`tel:${customer.phone}`}>
                 <Button variant="outline" size="sm" className="h-8">
@@ -343,10 +347,11 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 고객 삭제
               </Button>
             )}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
-        <Card>
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
@@ -354,8 +359,8 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <p className="text-xs text-muted-foreground">우선순위, 성향 태그, 다음 액션은 권한 범위 내에서만 수정됩니다.</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs rounded-full border px-2 py-1 bg-muted">우선순위 {priorityLabel((customer as any).priority)}</span>
-                {(customer as any).nextAction && <span className="text-xs rounded-full border px-2 py-1">다음: {(customer as any).nextAction}</span>}
+                <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-1 text-xs text-[#7a5d1d]">우선순위 {priorityLabel((customer as any).priority)}</span>
+                {(customer as any).nextAction && <span className="rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-600">다음: {(customer as any).nextAction}</span>}
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
@@ -414,7 +419,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Card className="border-amber-200">
+        <Card className="border-amber-100 bg-white/95 shadow-sm">
           <CardContent className="p-4 space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
@@ -434,7 +439,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             )}
             <div className="grid gap-2 md:grid-cols-2">
               {(contactReasons?.reasons ?? []).slice(0, 4).map((reason) => (
-                <div key={reason.reasonType} className="rounded-md border p-3">
+                <div key={reason.reasonType} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
                   <div className="text-sm font-medium">{reason.title}</div>
                   <p className="mt-1 text-xs text-muted-foreground">{reason.description}</p>
                   {reason.situation && <p className="mt-2 text-[11px] text-primary">추천 문구 상황: {reason.situation}</p>}
@@ -444,8 +449,8 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="info">
-          <TabsList className="flex-wrap h-auto">
+        <Tabs defaultValue="info" className="space-y-4">
+          <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
             <TabsTrigger value="info">기본정보</TabsTrigger>
             <TabsTrigger value="consult">상담기록 ({consultations?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="contract">계약정보 ({contracts?.length ?? 0})</TabsTrigger>
@@ -1018,12 +1023,12 @@ export default function CustomerDetail({ id }: { id: number }) {
 
       {showChangeAgentModal && (
         <Dialog open={true} onOpenChange={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(false); }}>
-          <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto">
+          <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto rounded-2xl">
             <DialogHeader><DialogTitle>담당자 변경 - {customer.name}</DialogTitle></DialogHeader>
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">현재 담당자: <strong>{agentName}</strong></p>
+              <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">현재 담당자: <strong>{agentName}</strong></p>
               <Select value={selectedNewAgentId} onValueChange={setSelectedNewAgentId}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="새 담당자 선택" /></SelectTrigger>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="새 담당자 선택" /></SelectTrigger>
                 <SelectContent>
                   {(users ?? []).filter((u) => ((u as any).accountStatus === "active") && u.id !== customer.agentId).map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>

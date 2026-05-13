@@ -512,7 +512,7 @@ export default function Dashboard() {
             </div>
             <div className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs text-slate-300">
               <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-300" />
-              BOA CRM은 신규 계약과 월납보험료 실적을 중심으로 표시합니다. 유지/미유지 계약 상태는 GA 본사 전산 기준으로 확인합니다.
+              BOA CRM은 신규 계약과 월납보험료 실적을 중심으로 표시합니다. 계약 유지 상태는 GA 본사 전산 기준으로 확인합니다.
             </div>
           </CardContent>
         </Card>

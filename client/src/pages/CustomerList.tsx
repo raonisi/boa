@@ -131,60 +131,63 @@ export default function CustomerList() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">고객 DB 관리</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+      <div className="space-y-5">
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Customer Database</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">고객 DB</h1>
+              <p className="mt-1 text-sm text-slate-500">
               {user?.role === "sub_branch_admin" ? "부지점장 산하 고객 관리" :
                user?.role === "team_leader" ? "본인 팀 고객 관리" :
                user?.role === "member" ? "내 고객 관리" : "전체 고객 관리"}
-              {" · "}열 {filtered.length}명
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+              {" · "}표시 고객 {filtered.length}명
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
             {user?.role === "branch_admin" && (
               <>
-                <Button variant="outline" size="sm" onClick={() => setLocation("/customers/assign")}>
+                <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/customers/assign")}>
                   <UserPlus className="h-4 w-4 mr-1" /> DB 배정
                 </Button>
                 <Button size="sm" onClick={() => setShowCreate(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> 고객 등록
+                  <Plus className="h-4 w-4 mr-1" /> 신규 고객 등록
                 </Button>
               </>
             )}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 검색 및 필터 */}
-        <Card>
-          <CardContent className="p-3 space-y-2">
-            <div className="flex gap-2">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="이름 또는 연락처 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-8 h-9" />
+                <Input placeholder="고객 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-8" />
               </div>
               <Button
                 variant={hasActiveFilters ? "default" : "outline"}
                 size="sm"
-                className="h-9 shrink-0"
+                className="h-10 shrink-0 rounded-xl"
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="h-4 w-4 mr-1" />
                 필터{hasActiveFilters ? " ●" : ""}
               </Button>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" className="h-9" onClick={clearFilters}>
+                <Button variant="ghost" size="sm" className="h-10 rounded-xl" onClick={clearFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
 
             {showFilters && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 md:grid-cols-4">
                 {user?.role === "branch_admin" && (
                   <Select value={scopeFilter} onValueChange={(value) => setScopeFilter(value as "all" | "mine")}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="DB 범위" /></SelectTrigger>
+                    <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="DB 범위" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">전체 DB</SelectItem>
                       <SelectItem value="mine">내 DB</SelectItem>
@@ -192,37 +195,37 @@ export default function CustomerList() {
                   </Select>
                 )}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="상담상태" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="상담상태" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 상태</SelectItem>
                     {CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-8 text-xs" />
-                <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-8 text-xs" />
+                <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-9 rounded-xl bg-white text-xs" />
+                <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-9 rounded-xl bg-white text-xs" />
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="우선순위" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="우선순위" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 우선순위</SelectItem>
                     {CUSTOMER_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{priorityLabel(p)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={tagFilter} onValueChange={setTagFilter}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="성향 태그" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="성향 태그" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 태그</SelectItem>
                     {CUSTOMER_TAGS.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={nextActionFilter} onValueChange={setNextActionFilter}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="다음 액션" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="다음 액션" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 액션</SelectItem>
                     {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={recommendationFilter} onValueChange={setRecommendationFilter}>
-                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="추천/경고" /></SelectTrigger>
+                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="추천/경고" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 추천</SelectItem>
                     <SelectItem value="recommended">우선 연락 추천</SelectItem>
@@ -230,11 +233,11 @@ export default function CustomerList() {
                     <SelectItem value="high">긴급 추천</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="h-8 text-xs" title="배정일 시작" />
-                <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="h-8 text-xs" title="배정일 종료" />
+                <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="h-9 rounded-xl bg-white text-xs" title="배정일 시작" />
+                <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="h-9 rounded-xl bg-white text-xs" title="배정일 종료" />
                 {(user?.role === "branch_admin" || user?.role === "team_leader") && (
                   <Select value={agentFilter} onValueChange={setAgentFilter}>
-                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>
+                    <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">전체 담당자</SelectItem>
                       {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{formatUserWithRole(a)}</SelectItem>)}
@@ -248,28 +251,28 @@ export default function CustomerList() {
 
         {/* 모바일 카드 뷰 */}
         {isMobile ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {filtered.length === 0 ? (
-              <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">고객 데이터가 없습니다.</CardContent></Card>
+              <Card className="border-dashed border-slate-200 bg-white/90"><CardContent className="py-10 text-center text-sm text-slate-500">표시할 고객이 없습니다.</CardContent></Card>
             ) : (
               filtered.map((c) => {
                 const recommendation = recommendationByCustomerId.get(c.id);
                 return (
-                <Card key={c.id} className="cursor-pointer active:bg-muted/70" onClick={() => setLocation(`/customers/${c.id}`)}>
-                  <CardContent className="p-3">
+                <Card key={c.id} className="cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition active:bg-slate-50" onClick={() => setLocation(`/customers/${c.id}`)}>
+                  <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{c.name}</span>
+                          <span className="text-sm font-semibold text-slate-950">{c.name}</span>
                           <StatusBadge status={c.consultStatus} />
                           <span className="text-[10px] rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span>
                           {recommendation && <span className={`text-[10px] rounded-full px-2 py-0.5 ${recommendation.urgency === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>우선 연락</span>}
                         </div>
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
-                            <span key={tag} className="text-[10px] rounded-full bg-secondary px-2 py-0.5">{tag}</span>
+                            <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">{tag}</span>
                           ))}
-                          {(c as any).nextAction && <span className="text-[10px] rounded-full border px-2 py-0.5">다음: {(c as any).nextAction}</span>}
+                          {(c as any).nextAction && <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-0.5 text-[10px] text-[#7a5d1d]">다음: {(c as any).nextAction}</span>}
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           {recommendation?.warnings?.slice(0, 1).map((warning) => (
@@ -319,11 +322,11 @@ export default function CustomerList() {
           </div>
         ) : (
           /* 데스크톱 테이블 뷰 */
-          <Card>
+          <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-slate-50/80">
                     <TableRow>
                       <TableHead>이름</TableHead>
                       <TableHead>연락처</TableHead>
@@ -341,13 +344,13 @@ export default function CustomerList() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="text-center text-muted-foreground py-8">고객 데이터가 없습니다.</TableCell>
+                        <TableCell colSpan={11} className="py-10 text-center text-sm text-slate-500">표시할 고객이 없습니다.</TableCell>
                       </TableRow>
                     ) : (
                       filtered.map((c) => {
                         const recommendation = recommendationByCustomerId.get(c.id);
                         return (
-                        <TableRow key={c.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setLocation(`/customers/${c.id}`)}>
+                        <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => setLocation(`/customers/${c.id}`)}>
                           <TableCell className="font-medium">
                             <div className="flex flex-col gap-1">
                               <span>{c.name}</span>
@@ -366,9 +369,9 @@ export default function CustomerList() {
                           <TableCell className="max-w-[220px]">
                             <div className="flex gap-1 flex-wrap">
                               {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
-                                <span key={tag} className="text-[10px] rounded-full bg-secondary px-2 py-0.5">{tag}</span>
+                                <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">{tag}</span>
                               ))}
-                              {(c as any).nextAction && <span className="text-[10px] rounded-full border px-2 py-0.5">다음: {(c as any).nextAction}</span>}
+                              {(c as any).nextAction && <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-0.5 text-[10px] text-[#7a5d1d]">다음: {(c as any).nextAction}</span>}
                               {parseCustomerTags((c as any).customerTags).length === 0 && !(c as any).nextAction && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>

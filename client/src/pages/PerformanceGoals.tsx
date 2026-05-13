@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
-import { Target, TrendingUp } from "lucide-react";
+import { Activity, Target, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -73,33 +73,43 @@ export default function PerformanceGoals() {
   return (
     <DashboardLayout>
       <div className="space-y-5 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold">목표관리</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            월간 신규 계약과 월납보험료 목표를 설정하고, 권한 범위 안에서 목표 대비 성과를 확인합니다.
-          </p>
-        </div>
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Goals</p>
+            <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-950">목표관리</h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  월간 신규 계약 목표와 월납보험료 목표를 설정하고 목표 대비 실적을 확인합니다.
+                </p>
+              </div>
+              <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+                신규 계약 + 월납보험료 중심
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-3 md:grid-cols-4">
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">목표 수</p>
               <p className="mt-1 text-2xl font-bold">{dashboard?.summary?.totalGoals ?? 0}</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">계약 평균 달성률</p>
+              <p className="text-xs text-muted-foreground">신규 계약 평균 달성률</p>
               <p className="mt-1 text-2xl font-bold">{dashboard?.summary?.averageContractRate ?? "-"}%</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">월납 평균 달성률</p>
+              <p className="text-xs text-muted-foreground">월납보험료 평균 달성률</p>
               <p className="mt-1 text-2xl font-bold">{dashboard?.summary?.averagePremiumRate ?? "-"}%</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">달성 / 진행</p>
               <p className="mt-1 text-2xl font-bold">{dashboard?.summary?.achievedGoals ?? 0} / {dashboard?.summary?.pendingGoals ?? 0}</p>
@@ -108,7 +118,7 @@ export default function PerformanceGoals() {
         </div>
 
         {firstGoal && (
-          <Card className="border-primary/30">
+          <Card className="border-[#d9c99f] bg-white/95 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <TrendingUp className="h-4 w-4 text-primary" /> 이번 달 핵심 목표
@@ -120,11 +130,11 @@ export default function PerformanceGoals() {
                 <p className="font-medium">{firstGoal.targetLabel}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">계약</p>
+                <p className="text-xs text-muted-foreground">신규 계약</p>
                 <p className="font-medium">{firstGoal.actual.contractCount} / {firstGoal.goal.contractCountGoal}건</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">월납보험료</p>
+                <p className="text-xs text-muted-foreground">월납보험료 목표</p>
                 <p className="font-medium">{formatWon(firstGoal.actual.monthlyPremium)} / {formatWon(firstGoal.goal.monthlyPremiumGoal)}</p>
               </div>
               <div>
@@ -135,7 +145,7 @@ export default function PerformanceGoals() {
           </Card>
         )}
 
-        <Card className="border-sky-200">
+        <Card className="border-sky-100 bg-white/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">업무 리듬 리포트</CardTitle>
           </CardHeader>
@@ -158,7 +168,7 @@ export default function PerformanceGoals() {
             </div>
             <div className="md:col-span-4 grid gap-2 text-xs md:grid-cols-3">
               <div className="rounded-md bg-muted p-2">
-                <p className="text-muted-foreground">부족 계약 수</p>
+                <p className="text-muted-foreground">부족 신규 계약</p>
                 <p className="mt-1 font-semibold">{workRhythm?.remaining?.contractCount ?? 0}건</p>
               </div>
               <div className="rounded-md bg-muted p-2">
@@ -179,25 +189,25 @@ export default function PerformanceGoals() {
         </Card>
 
         {user?.role === "branch_admin" && (
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Target className="h-4 w-4" /> 목표 추가
+              <CardTitle className="flex items-center gap-2 text-base text-slate-900">
+                <Target className="h-4 w-4 text-[#b99b5f]" /> 목표 추가
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-6">
               <div>
                 <Label className="text-xs">연도</Label>
-                <Input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1" />
+                <Input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
               </div>
               <div>
                 <Label className="text-xs">월</Label>
-                <Input type="number" min={1} max={12} value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1" />
+                <Input type="number" min={1} max={12} value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
               </div>
               <div>
                 <Label className="text-xs">대상 유형</Label>
                 <Select value={targetType} onValueChange={(value) => { setTargetType(value as any); setTargetId("none"); }}>
-                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="branch">지점</SelectItem>
                     <SelectItem value="sub_branch">부지점</SelectItem>
@@ -210,7 +220,7 @@ export default function PerformanceGoals() {
                 <div>
                   <Label className="text-xs">대상</Label>
                   <Select value={targetId} onValueChange={setTargetId}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="대상 선택" /></SelectTrigger>
+                    <SelectTrigger className="mt-1 rounded-xl bg-slate-50"><SelectValue placeholder="대상 선택" /></SelectTrigger>
                     <SelectContent>
                       {targetOptions.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.label}</SelectItem>)}
                     </SelectContent>
@@ -219,11 +229,11 @@ export default function PerformanceGoals() {
               )}
               <div>
                 <Label className="text-xs">신규 계약 목표</Label>
-                <Input type="number" min={0} value={contractCountGoal} onChange={(event) => setContractCountGoal(Number(event.target.value))} className="mt-1" />
+                <Input type="number" min={0} value={contractCountGoal} onChange={(event) => setContractCountGoal(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
               </div>
               <div>
                 <Label className="text-xs">월납보험료 목표</Label>
-                <Input type="number" min={0} value={monthlyPremiumGoal} onChange={(event) => setMonthlyPremiumGoal(Number(event.target.value))} className="mt-1" />
+                <Input type="number" min={0} value={monthlyPremiumGoal} onChange={(event) => setMonthlyPremiumGoal(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
               </div>
               <div className="md:col-span-6 flex justify-end">
                 <Button
@@ -244,19 +254,21 @@ export default function PerformanceGoals() {
           </Card>
         )}
 
-        <Card>
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardHeader>
-            <CardTitle className="text-base">{year}년 {month}월 목표 대비 성과</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base text-slate-900">
+              <Activity className="h-4 w-4 text-[#b99b5f]" /> {year}년 {month}월 목표 대비 실적
+            </CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="bg-slate-50/80">
                 <TableRow>
                   <TableHead>대상</TableHead>
                   <TableHead>유형</TableHead>
-                  <TableHead>계약</TableHead>
+                  <TableHead>신규 계약</TableHead>
                   <TableHead>신규 계약 달성률</TableHead>
-                  <TableHead>월납보험료</TableHead>
+                  <TableHead>월납보험료 목표</TableHead>
                   <TableHead>월납 달성률</TableHead>
                   <TableHead>부족분</TableHead>
                   <TableHead>남은 기간</TableHead>
