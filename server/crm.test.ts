@@ -446,6 +446,133 @@ describe("consultations.list - 권한 검증", () => {
   });
 });
 
+describe("admin security controls", () => {
+  it("allows branch_admin to force logout a user and records an audit log", async () => {
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      openId: "google-sub",
+      name: "[TEST] Member",
+      email: "member@test.local",
+      loginMethod: "google",
+      role: "member",
+      accountStatus: "active",
+      loginStatus: "linked",
+      teamId: 10,
+      subBranchAdminId: 2,
+      sessionInvalidatedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    } as any);
+    const invalidateSpy = vi.spyOn(db, "invalidateUserSessions").mockResolvedValue(1);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).adminSecurity.forceLogoutUser({
+      userId: 4,
+      reason: "[TEST] security review",
+    });
+
+    expect(result).toEqual({ success: true, affectedSessionCount: 1 });
+    expect(invalidateSpy).toHaveBeenCalledWith(4, expect.any(Date));
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "USER_FORCE_LOGOUT",
+      targetType: "user",
+      targetId: 4,
+    }), undefined);
+  });
+
+  it("blocks non-admin users from force logout APIs", async () => {
+    await expect(appRouter.createCaller(createCtx("member")).adminSecurity.forceLogoutUser({
+      userId: 4,
+      reason: "[TEST] no permission",
+    })).rejects.toThrow();
+    await expect(appRouter.createCaller(createInactiveCtx("branch_admin")).adminSecurity.forceLogoutAll({
+      reason: "[TEST] inactive",
+      confirmText: "전체로그아웃",
+    })).rejects.toThrow();
+  });
+
+  it("requires confirm text for full force logout and records affected sessions", async () => {
+    const invalidateSpy = vi.spyOn(db, "invalidateAllUserSessions").mockResolvedValue(3);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminSecurity.forceLogoutAll({
+      reason: "[TEST] missing confirm",
+      confirmText: "logout",
+    })).rejects.toThrow();
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).adminSecurity.forceLogoutAll({
+      reason: "[TEST] emergency",
+      confirmText: "전체로그아웃",
+    });
+
+    expect(result).toEqual({ success: true, affectedSessionCount: 3 });
+    expect(invalidateSpy).toHaveBeenCalledWith(expect.any(Date));
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "ALL_USERS_FORCE_LOGOUT",
+    }), undefined);
+  });
+
+  it("resets OAuth link without changing role or account status", async () => {
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      openId: "google-sub",
+      name: "[TEST] Member",
+      email: "member@test.local",
+      loginMethod: "google",
+      role: "member",
+      accountStatus: "inactive",
+      loginStatus: "linked",
+      teamId: 10,
+      subBranchAdminId: 2,
+      sessionInvalidatedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    } as any);
+    const resetSpy = vi.spyOn(db, "resetUserOAuthLink").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminSecurity.resetOAuthLink({
+      userId: 4,
+      reason: "[TEST] wrong Google account",
+      confirmText: "wrong",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminSecurity.resetOAuthLink({
+      userId: 4,
+      reason: "[TEST] wrong Google account",
+      confirmText: "OAuth초기화",
+    })).resolves.toEqual({ success: true });
+
+    expect(resetSpy).toHaveBeenCalledWith(4);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "USER_OAUTH_RESET",
+      targetType: "user",
+      targetId: 4,
+    }), undefined);
+  });
+
+  it("returns masked login history only to branch_admin", async () => {
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      { id: 1, userId: 1, action: "USER_LOGIN", targetType: "user", targetId: 4, details: "{}", createdAt: new Date() },
+      { id: 2, userId: 1, action: "CUSTOMER_CREATED", targetType: "customer", targetId: 100, details: "{}", createdAt: new Date() },
+    ] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 1, name: "[TEST] Admin", email: "admin@test.local", role: "branch_admin", accountStatus: "active", loginStatus: "linked" },
+      { id: 4, name: "[TEST] Member", email: "member@test.local", role: "member", accountStatus: "active", loginStatus: "linked" },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).adminSecurity.loginHistory({ limit: 10 });
+
+    expect(result).toHaveLength(1);
+    expect(result[0].action).toBe("USER_LOGIN");
+    expect(result[0].user?.email).not.toBe("member@test.local");
+    expect(result[0].user?.email).toContain("***");
+    await expect(appRouter.createCaller(createCtx("member")).adminSecurity.loginHistory({ limit: 10 })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,

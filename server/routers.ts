@@ -85,6 +85,8 @@ import {
   getUserByEmail,
   getAllUsersByEmail,
   createUser,
+  invalidateAllUserSessions,
+  invalidateUserSessions,
   linkUserOpenId,
   listImportBatches,
   getAllNotifications,
@@ -107,6 +109,7 @@ import {
   updateDeleteRequest,
   updateFollowUp,
   updateImportBatch,
+  resetUserOAuthLink,
   softDeleteCustomersByImportBatch,
   BulkImportRow,
   BulkImportValidationResult,
@@ -411,6 +414,18 @@ const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "�
 const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
 const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+
+const ALL_FORCE_LOGOUT_CONFIRM_TEXT = "\uC804\uCCB4\uB85C\uADF8\uC544\uC6C3";
+const OAUTH_RESET_CONFIRM_TEXT = "OAuth\uCD08\uAE30\uD654";
+const LOGIN_HISTORY_ACTIONS = new Set([
+  "USER_LOGIN",
+  "LOGIN_BLOCKED",
+  "USER_OAUTH_LINKED",
+  "USER_OAUTH_LINK_CONFLICT",
+  "USER_OAUTH_RESET",
+  "USER_FORCE_LOGOUT",
+  "ALL_USERS_FORCE_LOGOUT",
+]);
 
 function encodeCustomerTags(tags?: string[]) {
   if (!tags) return undefined;
@@ -925,6 +940,134 @@ export const appRouter = router({
             metadata: { deleteMode: "soft" },
           }));
         return { success: true };
+      }),
+  }),
+
+  // ── Admin Security ────────────────────────────────────────────────────────
+  adminSecurity: router({
+    forceLogoutUser: branchAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        reason: z.string().min(1).max(500),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const target = await getUserById(input.userId);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+
+        const invalidatedAt = new Date();
+        const affectedSessionCount = await invalidateUserSessions(input.userId, invalidatedAt);
+        await log(ctx.user.id, "USER_FORCE_LOGOUT", "user", input.userId, logDetails({
+          actor: ctx.user.id,
+          targetId: input.userId,
+          targetType: "user",
+          beforeValue: { sessionInvalidatedAt: target.sessionInvalidatedAt ?? null },
+          afterValue: { sessionInvalidatedAt: invalidatedAt },
+          metadata: { reason: input.reason, affectedSessionCount },
+        }));
+
+        return { success: true, affectedSessionCount };
+      }),
+
+    forceLogoutAll: branchAdminProcedure
+      .input(z.object({
+        reason: z.string().min(1).max(500),
+        confirmText: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== ALL_FORCE_LOGOUT_CONFIRM_TEXT) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "확인 문구가 일치하지 않습니다." });
+        }
+
+        const invalidatedAt = new Date();
+        const affectedSessionCount = await invalidateAllUserSessions(invalidatedAt);
+        await log(ctx.user.id, "ALL_USERS_FORCE_LOGOUT", "user", ctx.user.id, logDetails({
+          actor: ctx.user.id,
+          targetType: "user",
+          metadata: { reason: input.reason, affectedSessionCount, sessionInvalidatedAt: invalidatedAt },
+        }));
+
+        return { success: true, affectedSessionCount };
+      }),
+
+    resetOAuthLink: branchAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        reason: z.string().min(1).max(500),
+        confirmText: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== OAUTH_RESET_CONFIRM_TEXT) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "확인 문구가 일치하지 않습니다." });
+        }
+
+        const target = await getUserById(input.userId);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+
+        const beforeLoginStatus = target.loginStatus ?? null;
+        const beforeOpenIdState = target.openId?.startsWith("invited_") ? "invited" : target.openId ? "linked" : "empty";
+        await resetUserOAuthLink(input.userId);
+        await log(ctx.user.id, "USER_OAUTH_RESET", "user", input.userId, logDetails({
+          actor: ctx.user.id,
+          targetId: input.userId,
+          targetType: "user",
+          beforeValue: { loginStatus: beforeLoginStatus, openIdState: beforeOpenIdState },
+          afterValue: { loginStatus: "invited", openIdState: "invited", sessionInvalidated: true },
+          metadata: { reason: input.reason, openIdReset: true },
+        }));
+
+        return { success: true };
+      }),
+
+    loginHistory: branchAdminProcedure
+      .input(z.object({
+        action: z.string().optional(),
+        userId: z.number().optional(),
+        search: z.string().optional(),
+        limit: z.number().min(1).max(500).default(100),
+      }).optional())
+      .query(async ({ input }) => {
+        const entries = await getActivityLogs(1000);
+        const users = await getAllUsers();
+        const usersById = new Map(users.map((user) => [user.id, user]));
+        const search = input?.search?.trim().toLowerCase();
+
+        return entries
+          .filter((entry) => LOGIN_HISTORY_ACTIONS.has(entry.action))
+          .filter((entry) => !input?.action || entry.action === input.action)
+          .filter((entry) => !input?.userId || entry.userId === input.userId || entry.targetId === input.userId)
+          .map((entry) => {
+            const targetUser = usersById.get(entry.targetId ?? entry.userId);
+            const actor = usersById.get(entry.userId);
+            let details: Record<string, unknown> = {};
+            try {
+              details = entry.details ? JSON.parse(entry.details) : {};
+            } catch {
+              details = {};
+            }
+            return {
+              id: entry.id,
+              createdAt: entry.createdAt,
+              action: entry.action,
+              targetId: entry.targetId,
+              targetType: entry.targetType,
+              user: targetUser ? {
+                id: targetUser.id,
+                name: targetUser.name,
+                email: targetUser.email ? maskEmail(targetUser.email) : null,
+                role: targetUser.role,
+                accountStatus: targetUser.accountStatus,
+                loginStatus: targetUser.loginStatus,
+              } : null,
+              actor: actor ? { id: actor.id, name: actor.name, role: actor.role } : null,
+              details,
+            };
+          })
+          .filter((entry) => {
+            if (!search) return true;
+            return [entry.action, entry.user?.name ?? "", entry.user?.email ?? "", entry.actor?.name ?? ""]
+              .some((value) => value.toLowerCase().includes(search));
+          })
+          .slice(0, input?.limit ?? 100);
       }),
   }),
 

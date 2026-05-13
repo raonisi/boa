@@ -1,8 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import { COOKIE_NAME } from "../shared/const";
 import type { TrpcContext } from "./_core/context";
 import { getSessionCookieOptions } from "./_core/cookies";
+import { ENV } from "./_core/env";
+import { sdk } from "./_core/sdk";
+import * as db from "./db";
 
 type CookieCall = {
   name: string;
@@ -10,6 +13,10 @@ type CookieCall = {
 };
 
 type AuthenticatedUser = NonNullable<TrpcContext["user"]>;
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] } {
   const clearedCookies: CookieCall[] = [];
@@ -100,5 +107,33 @@ describe("session cookie options", () => {
     } finally {
       process.env.NODE_ENV = previousNodeEnv;
     }
+  });
+});
+
+describe("session invalidation", () => {
+  it("rejects a session issued before the user's invalidation timestamp", async () => {
+    ENV.cookieSecret = "test-session-secret";
+    ENV.appId = "test-app";
+    const token = await sdk.createSessionToken("google-sub", { name: "[TEST] Admin" });
+    vi.spyOn(db, "getUserByOpenId").mockResolvedValue({
+      id: 1,
+      openId: "google-sub",
+      email: "admin@test.local",
+      name: "[TEST] Admin",
+      loginMethod: "google",
+      role: "branch_admin",
+      accountStatus: "active",
+      loginStatus: "linked",
+      teamId: null,
+      subBranchAdminId: null,
+      sessionInvalidatedAt: new Date(Date.now() + 1000),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      lastSignedIn: new Date(),
+    } as any);
+
+    await expect(sdk.authenticateRequest({
+      headers: { cookie: `${COOKIE_NAME}=${token}` },
+    } as any)).rejects.toThrow("Session has been invalidated");
   });
 });
