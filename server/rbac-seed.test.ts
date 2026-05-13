@@ -23,6 +23,7 @@ const users = [
   { id: 41, openId: "seed-member-a1", name: "[TEST] Member A1", email: "member-a1@test.local", role: "member", accountStatus: "active", teamId: 101, subBranchAdminId: 21 },
   { id: 42, openId: "seed-member-a2", name: "[TEST] Member A2", email: "member-a2@test.local", role: "member", accountStatus: "active", teamId: 101, subBranchAdminId: 21 },
   { id: 43, openId: "seed-member-b1", name: "[TEST] Member B1", email: "member-b1@test.local", role: "member", accountStatus: "active", teamId: 102, subBranchAdminId: 22 },
+  { id: 98, openId: "seed-resigned", name: "[TEST] Resigned", email: "resigned@test.local", role: "member", accountStatus: "resigned", teamId: 101, subBranchAdminId: 21 },
   { id: 99, openId: "seed-inactive", name: "[TEST] Inactive", email: "inactive@test.local", role: "member", accountStatus: "inactive", teamId: 101, subBranchAdminId: 21 },
 ] as any[];
 
@@ -154,28 +155,75 @@ describe("seed-backed RBAC integration", () => {
     await expect(appRouter.createCaller(ctx(41)).users.organizationTree()).rejects.toThrow();
   });
 
-  it("allows branch_admin to update hierarchy parent and blocks invalid parent assignments", async () => {
+  it("allows branch_admin to update supported hierarchy parent shapes", async () => {
     setupSeedDb();
     const updateSpy = vi.spyOn(db, "updateUserOrganization").mockResolvedValue(undefined);
     const logSpy = vi.mocked(db.createActivityLog);
 
     await appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 1 });
     expect(updateSpy).toHaveBeenCalledWith(31, expect.objectContaining({ parentUserId: 1 }));
+
+    await appRouter.createCaller(ctx(1)).users.updateParent({ userId: 41, parentUserId: 1 });
+    expect(updateSpy).toHaveBeenCalledWith(41, expect.objectContaining({ parentUserId: 1 }));
+
+    await appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 21 });
+    expect(updateSpy).toHaveBeenCalledWith(31, expect.objectContaining({ parentUserId: 21 }));
+
+    await appRouter.createCaller(ctx(1)).users.updateParent({ userId: 42, parentUserId: 21 });
+    expect(updateSpy).toHaveBeenCalledWith(42, expect.objectContaining({ parentUserId: 21 }));
+
+    await appRouter.createCaller(ctx(1)).users.updateParent({ userId: 42, parentUserId: 31 });
+    expect(updateSpy).toHaveBeenCalledWith(42, expect.objectContaining({ parentUserId: 31 }));
+
     expect(logSpy.mock.calls.at(-1)?.[0]).toMatchObject({ action: "USER_ORG_PARENT_CHANGED" });
+  });
+
+  it("blocks invalid, inactive, resigned, and circular hierarchy parent assignments", async () => {
+    setupSeedDb();
 
     await expect(appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 31 })).rejects.toThrow();
     await expect(appRouter.createCaller(ctx(41)).users.updateParent({ userId: 31, parentUserId: 1 })).rejects.toThrow();
+    await expect(appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 41 })).rejects.toThrow();
+    await expect(appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 98 })).rejects.toThrow();
+    await expect(appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 99 })).rejects.toThrow();
+
+    const cyclicUsers = users.map((user) => {
+      if (user.id === 31) return { ...user, parentUserId: 21 };
+      if (user.id === 41) return { ...user, parentUserId: 31 };
+      return { ...user };
+    });
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(cyclicUsers);
+    vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => cyclicUsers.find((u) => u.id === id) ?? null);
+    await expect(appRouter.createCaller(ctx(1)).users.updateParent({ userId: 31, parentUserId: 41 })).rejects.toThrow();
   });
 
-  it("allows team_leader to assign customers only to descendant members", async () => {
+  it("allows sub_branch_admin to assign only to descendant users", async () => {
     setupSeedDb();
     vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
     const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
     vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
     vi.spyOn(db, "createNotification").mockResolvedValue(undefined);
 
+    await appRouter.createCaller(ctx(21)).customers.assign({ customerId: 1002, agentId: 31 });
+    expect(assignSpy).toHaveBeenCalledWith(1002, 31, 101, 21, {});
+
+    await appRouter.createCaller(ctx(21)).customers.assign({ customerId: 1002, agentId: 41 });
+    expect(assignSpy).toHaveBeenCalledWith(1002, 41, 101, 21, {});
+
+    await expect(appRouter.createCaller(ctx(21)).customers.assign({ customerId: 1002, agentId: 43 })).rejects.toThrow();
+  });
+
+  it("allows team_leader to assign customers only to descendant members", async () => {
+    setupSeedDb();
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
+    const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.mocked(db.createActivityLog);
+    vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    vi.spyOn(db, "createNotification").mockResolvedValue(undefined);
+
     await appRouter.createCaller(ctx(31)).customers.assign({ customerId: 1002, agentId: 41 });
     expect(assignSpy).toHaveBeenCalledWith(1002, 41, 101, 21, {});
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "DB_ASSIGNED_BY_TEAM_LEADER" }), {});
 
     await expect(appRouter.createCaller(ctx(31)).customers.assign({ customerId: 1001, agentId: 43 })).rejects.toThrow();
     await expect(appRouter.createCaller(ctx(41)).customers.assign({ customerId: 1001, agentId: 42 })).rejects.toThrow();

@@ -2503,7 +2503,13 @@ export const appRouter = router({
         const nextSubBranchAdminId = isBranchAdminSelfAssignment ? null : agent?.subBranchAdminId ?? null;
 
         // DB 배정 로그 분리 (역할 및 assignmentType 기반)
-        const assignLogAction = isBranchAdminSelfAssignment ? "CUSTOMER_SELF_ASSIGNED_BY_BRANCH_ADMIN" : user.role === "branch_admin" ? "DB_ASSIGNED_BY_BRANCH_ADMIN" : "DB_ASSIGNED_BY_SUB_BRANCH_ADMIN";
+        const assignLogAction = isBranchAdminSelfAssignment
+          ? "CUSTOMER_SELF_ASSIGNED_BY_BRANCH_ADMIN"
+          : user.role === "branch_admin"
+            ? "DB_ASSIGNED_BY_BRANCH_ADMIN"
+            : user.role === "team_leader"
+              ? "DB_ASSIGNED_BY_TEAM_LEADER"
+              : "DB_ASSIGNED_BY_SUB_BRANCH_ADMIN";
         const agentAssignmentDetails = logDetails({
           actor: ctx.user.id,
           targetId: input.customerId,
