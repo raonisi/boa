@@ -52,7 +52,7 @@ export default function CustomerList() {
   });
 
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
-  const canDeactivateCustomer = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
+  const canDeactivateCustomer = user?.role === "branch_admin";
 
   const filtered = (customers ?? []).filter((c) => {
     const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);

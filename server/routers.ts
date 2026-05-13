@@ -15,12 +15,14 @@ import {
   createContract,
   createContractHistoryEntry,
   createCustomer,
+  createDeleteRequest,
   createNotification,
   createSchedule,
   createStatusHistory,
   createTeam,
   completeSchedule,
   deactivateContract,
+  deactivateContractWithClient,
   deactivateTeam,
   softDeleteSchedule,
   softDeleteCustomer,
@@ -33,15 +35,25 @@ import {
   getConsultationById,
   getConsultationsByCustomer,
   getContractById,
+  getContractPermanentDeleteBlockers,
   getContractHistory,
   getContractsByCustomer,
+  getContractsByCustomerIncludingInactive,
+  getCustomerPermanentDeleteBlockers,
   getCustomerById,
   getCustomers,
+  getDeletedContracts,
+  getDeletedCustomers,
+  getDeletedTeams,
+  getDeleteRequestById,
+  getDeleteRequests,
   getNotifications,
   getNotificationById,
+  getPendingDeleteRequestForTarget,
   getPerformanceStats,
   getSchedules,
   getStatusHistory,
+  getTeamPermanentDeleteBlockers,
   getTeamById,
   getUnreadCount,
   getUserById,
@@ -77,7 +89,14 @@ import {
   findTeamByNameAndSubBranch,
   validateBulkImportRow,
   getAllActiveCustomerPhones,
+  permanentlyDeleteContract,
+  permanentlyDeleteCustomer,
+  permanentlyDeleteTeam,
+  restoreContract,
+  restoreCustomer,
+  restoreTeam,
   bulkCreateCustomers,
+  updateDeleteRequest,
   BulkImportRow,
   BulkImportValidationResult,
 } from "./db";
@@ -207,6 +226,77 @@ async function verifyContractDeleteAccess(
   }
   await verifyCustomerAccess(user, contract.customerId);
   return contract;
+}
+
+async function verifyContractDeleteRequestAccess(
+  user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string },
+  contractId: number,
+) {
+  if (user.role === "branch_admin") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "branch_admin은 삭제 요청 대신 관리자 삭제/승인 기능을 사용하세요." });
+  }
+  const contract = await getContractById(contractId);
+  if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+  if ((contract as any).isActive === false || (contract as any).deletedAt) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "이미 비활성 처리된 계약은 삭제 요청할 수 없습니다." });
+  }
+  await verifyCustomerAccess(user, contract.customerId);
+  return contract;
+}
+
+function isSoftDeleted(row: { isActive?: boolean | null; deletedAt?: Date | null }) {
+  return row.isActive === false || !!row.deletedAt;
+}
+
+const PERMANENT_DELETE_CONFIRM_TEXT = "\uC644\uC804\uC0AD\uC81C";
+const PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE = "\uD655\uC778 \uBB38\uAD6C\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
+const TEAM_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uC5F0\uACB0\uB41C \uC0AC\uC6A9\uC790, \uACE0\uAC1D, \uC77C\uC815 \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC788\uC5B4 \uD300\uC744 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601 \uC774\uB825 \uBCF4\uC874\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
+const CUSTOMER_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uC5F0\uACB0\uB41C \uACC4\uC57D, \uC77C\uC815, \uC0C1\uB2F4\uAE30\uB85D, \uC54C\uB9BC \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC788\uC5B4 \uACE0\uAC1D\uC744 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601 \uC774\uB825 \uBCF4\uC874\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
+const CONTRACT_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uACC4\uC57D \uC774\uB825 \uB610\uB294 \uC54C\uB9BC \uC774\uB825\uC774 \uB0A8\uC544 \uC788\uC5B4 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uAC10\uC0AC \uCD94\uC801\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
+
+async function requireSoftDeletedTeam(teamId: number) {
+  const team = await getTeamById(teamId);
+  if (!team) throw new TRPCError({ code: "NOT_FOUND" });
+  if (!isSoftDeleted(team)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "활성 팀은 복구/완전삭제 대상이 아닙니다." });
+  }
+  return team;
+}
+
+async function requireSoftDeletedCustomer(customerId: number) {
+  const customer = await getCustomerById(customerId);
+  if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+  if (!isSoftDeleted(customer)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "활성 고객은 복구/완전삭제 대상이 아닙니다." });
+  }
+  return customer;
+}
+
+async function requireSoftDeletedContract(contractId: number) {
+  const contract = await getContractById(contractId);
+  if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+  if (!isSoftDeleted(contract)) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "활성 계약은 복구/완전삭제 대상이 아닙니다." });
+  }
+  return contract;
+}
+
+async function buildDeleteRequestView(request: Awaited<ReturnType<typeof getDeleteRequests>>[number]) {
+  const contract = await getContractById(request.targetId);
+  const customer = request.customerId ? await getCustomerById(request.customerId) : undefined;
+  const requester = request.requestedBy ? await getUserById(request.requestedBy) : undefined;
+  return {
+    ...request,
+    contract,
+    customer: customer ? { id: customer.id, name: customer.name } : null,
+    requester: requester ? {
+      id: requester.id,
+      name: requester.name,
+      role: requester.role,
+      teamId: requester.teamId,
+      subBranchAdminId: requester.subBranchAdminId,
+    } : null,
+  };
 }
 
 async function log(userId: number, action: string, targetType?: string, targetId?: number, details?: string, client?: Parameters<typeof createActivityLog>[1]) {
@@ -828,7 +918,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    deactivate: subBranchAdminOrAboveProcedure
+    deactivate: branchAdminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const existing = await verifyCustomerDeleteAccess(ctx.user, input.id);
@@ -1431,7 +1521,7 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    deactivate: subBranchAdminOrAboveProcedure
+    deactivate: branchAdminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const existing = await verifyContractDeleteAccess(ctx.user, input.id);
@@ -1457,6 +1547,236 @@ export const appRouter = router({
   }),
 
   // ── Schedules ─────────────────────────────────────────────────────────────
+  deletedData: router({
+    listTeams: branchAdminProcedure.query(async () => getDeletedTeams()),
+    listCustomers: branchAdminProcedure.query(async () => getDeletedCustomers()),
+    listContracts: branchAdminProcedure.query(async () => getDeletedContracts()),
+
+    restoreTeam: branchAdminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await requireSoftDeletedTeam(input.id);
+        await runDbTransaction(async (tx) => {
+          await restoreTeam(input.id, tx);
+          await log(ctx.user.id, "TEAM_RESTORED", "team", input.id, logDetails({
+            actor: ctx.user.id,
+            targetId: input.id,
+            targetType: "team",
+            beforeValue: { isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null },
+            afterValue: { isActive: true, deletedAt: null },
+          }), tx);
+        });
+        return { success: true };
+      }),
+
+    restoreCustomer: branchAdminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await requireSoftDeletedCustomer(input.id);
+        if (existing.phone) {
+          const dup = await checkPhoneDuplicate(existing.phone, input.id);
+          if (dup) throw new TRPCError({ code: "CONFLICT", message: "동일 연락처의 활성 고객이 있어 복구할 수 없습니다." });
+        }
+        await runDbTransaction(async (tx) => {
+          await restoreCustomer(input.id, tx);
+          await log(ctx.user.id, "CUSTOMER_RESTORED", "customer", input.id, logDetails({
+            actor: ctx.user.id,
+            targetId: input.id,
+            targetType: "customer",
+            beforeValue: { isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null },
+            afterValue: { isActive: true, deletedAt: null },
+          }), tx);
+        });
+        return { success: true };
+      }),
+
+    restoreContract: branchAdminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const existing = await requireSoftDeletedContract(input.id);
+        const customer = await getCustomerById(existing.customerId);
+        if (!customer || !customer.isActive || (customer as any).deletedAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "연결 고객이 비활성 상태라 계약을 복구할 수 없습니다." });
+        }
+        await runDbTransaction(async (tx) => {
+          await restoreContract(input.id, tx);
+          await createContractHistoryEntry({ contractId: input.id, changedBy: ctx.user.id, fieldName: "isActive", beforeValue: String(existing.isActive), afterValue: "true" }, tx);
+          await log(ctx.user.id, "CONTRACT_RESTORED", "contract", input.id, logDetails({
+            actor: ctx.user.id,
+            targetId: input.id,
+            targetType: "contract",
+            beforeValue: { isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null },
+            afterValue: { isActive: true, deletedAt: null },
+          }), tx);
+        });
+        return { success: true };
+      }),
+
+    permanentDeleteTeam: branchAdminProcedure
+      .input(z.object({ id: z.number(), confirmText: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== PERMANENT_DELETE_CONFIRM_TEXT) throw new TRPCError({ code: "BAD_REQUEST", message: PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE });
+        const existing = await requireSoftDeletedTeam(input.id);
+        const blockers = await getTeamPermanentDeleteBlockers(input.id);
+        const hasBlockers = Object.values(blockers).some((count) => count > 0);
+        if (hasBlockers) {
+          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "team", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "team", metadata: { reason: "linked_operational_history_exists", blockers } }));
+          throw new TRPCError({ code: "BAD_REQUEST", message: TEAM_PERMANENT_DELETE_BLOCKED_MESSAGE });
+        }
+        await runDbTransaction(async (tx) => {
+          await log(ctx.user.id, "TEAM_PERMANENTLY_DELETED", "team", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "team", beforeValue: { id: existing.id, isActive: existing.isActive } }), tx);
+          await permanentlyDeleteTeam(input.id, tx);
+        });
+        return { success: true };
+      }),
+
+    permanentDeleteCustomer: branchAdminProcedure
+      .input(z.object({ id: z.number(), confirmText: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== PERMANENT_DELETE_CONFIRM_TEXT) throw new TRPCError({ code: "BAD_REQUEST", message: PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE });
+        const existing = await requireSoftDeletedCustomer(input.id);
+        const blockers = await getCustomerPermanentDeleteBlockers(input.id);
+        const hasBlockers = Object.values(blockers).some((count) => count > 0);
+        if (hasBlockers) {
+          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "customer", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "customer", metadata: { reason: "linked_operational_history_exists", blockers } }));
+          throw new TRPCError({ code: "BAD_REQUEST", message: CUSTOMER_PERMANENT_DELETE_BLOCKED_MESSAGE });
+        }
+        await runDbTransaction(async (tx) => {
+          await log(ctx.user.id, "CUSTOMER_PERMANENTLY_DELETED", "customer", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "customer", beforeValue: { id: existing.id, isActive: existing.isActive } }), tx);
+          await permanentlyDeleteCustomer(input.id, tx);
+        });
+        return { success: true };
+      }),
+
+    permanentDeleteContract: branchAdminProcedure
+      .input(z.object({ id: z.number(), confirmText: z.string() }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== PERMANENT_DELETE_CONFIRM_TEXT) throw new TRPCError({ code: "BAD_REQUEST", message: PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE });
+        const existing = await requireSoftDeletedContract(input.id);
+        const blockers = await getContractPermanentDeleteBlockers(input.id);
+        const hasBlockers = Object.values(blockers).some((count) => count > 0);
+        if (hasBlockers) {
+          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "contract", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "contract", metadata: { reason: "linked_operational_history_exists", blockers } }));
+          throw new TRPCError({ code: "BAD_REQUEST", message: CONTRACT_PERMANENT_DELETE_BLOCKED_MESSAGE });
+        }
+        await runDbTransaction(async (tx) => {
+          await log(ctx.user.id, "CONTRACT_PERMANENTLY_DELETED", "contract", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "contract", beforeValue: { id: existing.id, isActive: existing.isActive } }), tx);
+          await permanentlyDeleteContract(input.id, tx);
+        });
+        return { success: true };
+      }),
+  }),
+
+  deleteRequests: router({
+    createContractDeleteRequest: activeUserProcedure
+      .input(z.object({ contractId: z.number(), requestReason: z.string().min(1), requestMemo: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const contract = await verifyContractDeleteRequestAccess(ctx.user, input.contractId);
+        const existingPending = await getPendingDeleteRequestForTarget("contract", input.contractId);
+        if (existingPending) throw new TRPCError({ code: "CONFLICT", message: "이미 처리 대기 중인 삭제 요청이 있습니다." });
+        await createDeleteRequest({
+          requestType: "contract_delete",
+          targetType: "contract",
+          targetId: input.contractId,
+          customerId: contract.customerId,
+          requestedBy: ctx.user.id,
+          requestReason: input.requestReason,
+          requestMemo: input.requestMemo,
+          expectedImpact: "performance_exclusion",
+          status: "pending",
+        });
+        await log(ctx.user.id, "DELETE_REQUEST_CREATED", "delete_request", input.contractId, logDetails({
+          actor: ctx.user.id,
+          targetId: input.contractId,
+          targetType: "contract",
+          metadata: { requestType: "contract_delete", expectedImpact: "performance_exclusion", reason: input.requestReason },
+        }));
+        return { success: true };
+      }),
+
+    listMyRequests: activeUserProcedure.query(async ({ ctx }) => {
+      const requests = await getDeleteRequests({ requestedBy: ctx.user.id });
+      return Promise.all(requests.map(buildDeleteRequestView));
+    }),
+
+    listAllRequestsForAdmin: branchAdminProcedure
+      .input(z.object({ status: z.enum(["pending", "approved", "rejected", "cancelled"]).optional() }).optional())
+      .query(async ({ input }) => {
+        const requests = await getDeleteRequests({ status: input?.status });
+        return Promise.all(requests.map(buildDeleteRequestView));
+      }),
+
+    approve: branchAdminProcedure
+      .input(z.object({ id: z.number(), reviewComment: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        const request = await getDeleteRequestById(input.id);
+        if (!request) throw new TRPCError({ code: "NOT_FOUND" });
+        if (request.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "pending 상태의 요청만 승인할 수 있습니다." });
+        const contract = await getContractById(request.targetId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+        if (!contract.isActive || (contract as any).deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "이미 비활성 처리된 계약입니다." });
+        await runDbTransaction(async (tx) => {
+          await deactivateContractWithClient(contract.id, tx);
+          await createContractHistoryEntry({ contractId: contract.id, changedBy: ctx.user.id, fieldName: "isActive", beforeValue: String(contract.isActive), afterValue: "false" }, tx);
+          await updateDeleteRequest(input.id, { status: "approved", reviewedBy: ctx.user.id, reviewedAt: new Date(), reviewComment: input.reviewComment }, tx);
+          await log(ctx.user.id, "DELETE_REQUEST_APPROVED", "delete_request", input.id, logDetails({
+            actor: ctx.user.id,
+            targetId: input.id,
+            targetType: "delete_request",
+            beforeValue: { status: request.status },
+            afterValue: { status: "approved", reviewedBy: ctx.user.id },
+            metadata: { contractId: contract.id, expectedImpact: request.expectedImpact },
+          }), tx);
+          await log(ctx.user.id, "CONTRACT_DEACTIVATED_BY_REQUEST", "contract", contract.id, logDetails({
+            actor: ctx.user.id,
+            targetId: contract.id,
+            targetType: "contract",
+            beforeValue: { isActive: contract.isActive, deletedAt: (contract as any).deletedAt ?? null },
+            afterValue: { isActive: false },
+            metadata: { deleteRequestId: input.id, expectedImpact: "performance_exclusion" },
+          }), tx);
+        });
+        return { success: true };
+      }),
+
+    reject: branchAdminProcedure
+      .input(z.object({ id: z.number(), reviewComment: z.string().min(1) }))
+      .mutation(async ({ ctx, input }) => {
+        const request = await getDeleteRequestById(input.id);
+        if (!request) throw new TRPCError({ code: "NOT_FOUND" });
+        if (request.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "pending 상태의 요청만 반려할 수 있습니다." });
+        await updateDeleteRequest(input.id, { status: "rejected", reviewedBy: ctx.user.id, reviewedAt: new Date(), reviewComment: input.reviewComment });
+        await log(ctx.user.id, "DELETE_REQUEST_REJECTED", "delete_request", input.id, logDetails({
+          actor: ctx.user.id,
+          targetId: input.id,
+          targetType: "delete_request",
+          beforeValue: { status: request.status },
+          afterValue: { status: "rejected", reviewedBy: ctx.user.id },
+          metadata: { contractId: request.targetId },
+        }));
+        return { success: true };
+      }),
+
+    cancelMyRequest: activeUserProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const request = await getDeleteRequestById(input.id);
+        if (!request) throw new TRPCError({ code: "NOT_FOUND" });
+        if (request.requestedBy !== ctx.user.id) throw new TRPCError({ code: "FORBIDDEN" });
+        if (request.status !== "pending") throw new TRPCError({ code: "BAD_REQUEST", message: "pending 상태의 요청만 취소할 수 있습니다." });
+        await updateDeleteRequest(input.id, { status: "cancelled" });
+        await log(ctx.user.id, "DELETE_REQUEST_CANCELLED", "delete_request", input.id, logDetails({
+          actor: ctx.user.id,
+          targetId: input.id,
+          targetType: "delete_request",
+          beforeValue: { status: request.status },
+          afterValue: { status: "cancelled" },
+          metadata: { contractId: request.targetId },
+        }));
+        return { success: true };
+      }),
+  }),
+
   schedules: router({
     list: activeUserProcedure.query(async ({ ctx }) => {
       return getAccessibleSchedules(ctx.user);

@@ -156,6 +156,26 @@ export const contracts = mysqlTable("contracts", {
 export type Contract = typeof contracts.$inferSelect;
 export type InsertContract = typeof contracts.$inferInsert;
 
+export const deleteRequests = mysqlTable("delete_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  requestType: mysqlEnum("requestType", ["contract_delete"]).default("contract_delete").notNull(),
+  targetType: mysqlEnum("targetType", ["contract"]).default("contract").notNull(),
+  targetId: int("targetId").notNull(),
+  customerId: int("customerId").notNull(),
+  requestedBy: int("requestedBy").notNull(),
+  requestReason: varchar("requestReason", { length: 100 }).notNull(),
+  requestMemo: text("requestMemo"),
+  expectedImpact: mysqlEnum("expectedImpact", ["performance_exclusion"]).default("performance_exclusion").notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"]).default("pending").notNull(),
+  reviewedBy: int("reviewedBy"),
+  reviewedAt: timestamp("reviewedAt"),
+  reviewComment: text("reviewComment"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type DeleteRequest = typeof deleteRequests.$inferSelect;
+export type InsertDeleteRequest = typeof deleteRequests.$inferInsert;
+
 // ─── Schedules ────────────────────────────────────────────────────────────────
 export const schedules = mysqlTable("schedules", {
   id: int("id").autoincrement().primaryKey(),

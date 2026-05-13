@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -23,6 +24,9 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null);
   const [editingContractId, setEditingContractId] = useState<number | null>(null);
+  const [requestContractId, setRequestContractId] = useState<number | null>(null);
+  const [requestReason, setRequestReason] = useState("");
+  const [requestMemo, setRequestMemo] = useState("");
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -61,6 +65,18 @@ export default function CustomerDetail({ id }: { id: number }) {
     onError: (err) => toast.error(err.message || "계약 삭제에 실패했습니다."),
   });
 
+  const requestDeleteMutation = trpc.deleteRequests.createContractDeleteRequest.useMutation({
+    onSuccess: () => {
+      toast.success("삭제 요청이 관리자에게 전달되었습니다.");
+      setRequestContractId(null);
+      setRequestReason("");
+      setRequestMemo("");
+      refetchContracts();
+      utils.deleteRequests.listMyRequests.invalidate();
+    },
+    onError: (err) => toast.error(err.message || "삭제 요청에 실패했습니다."),
+  });
+
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
     onSuccess: () => { toast.success("담당자가 변경되었습니다."); setShowChangeAgentModal(false); refetchCustomer(); },
   });
@@ -73,14 +89,48 @@ export default function CustomerDetail({ id }: { id: number }) {
   if (!customer) return (
     <DashboardLayout>
       <div className="flex items-center justify-center h-64 text-muted-foreground">로딩 중...</div>
+
+
+      <Dialog open={requestContractId !== null} onOpenChange={(open) => { if (!open) setRequestContractId(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>계약 삭제 요청</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              이 계약의 삭제를 관리자에게 요청합니다. 승인되면 해당 계약은 비활성 처리되며, 실적 집계에서 제외됩니다.
+            </p>
+            <div>
+              <Label>요청 사유 *</Label>
+              <Select value={requestReason} onValueChange={setRequestReason}>
+                <SelectTrigger className="mt-1"><SelectValue placeholder="사유 선택" /></SelectTrigger>
+                <SelectContent>
+                  {["중복 입력", "오입력", "계약 취소", "테스트 입력", "기타"].map((reason) => (
+                    <SelectItem key={reason} value={reason}>{reason}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>상세 메모</Label>
+              <Textarea value={requestMemo} onChange={(e) => setRequestMemo(e.target.value)} className="mt-1" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setRequestContractId(null)}>취소</Button>
+              <Button disabled={!requestReason || requestDeleteMutation.isPending} onClick={() => requestContractId && requestDeleteMutation.mutate({ contractId: requestContractId, requestReason, requestMemo: requestMemo || undefined })}>
+                삭제 요청 보내기
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 
   const agentName = users?.find((u) => u.id === customer.agentId)?.name ?? "-";
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
   const canChangeAgent = user?.role === "branch_admin" || user?.role === "team_leader";
-  const canDeactivateCustomer = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
-  const canDeactivateContract = user?.role === "branch_admin" || user?.role === "sub_branch_admin";
+  const canDeactivateCustomer = user?.role === "branch_admin";
+  const canDeactivateContract = user?.role === "branch_admin";
+  const canRequestContractDelete = user?.role === "sub_branch_admin" || user?.role === "team_leader" || user?.role === "member";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
   const editingContract = contracts?.find((c) => c.id === editingContractId);
 
@@ -250,6 +300,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                             }}
                           >
                             <Trash2 className="h-3 w-3 mr-1" /> 계약 삭제
+                          </Button>
+                        )}
+                        {canRequestContractDelete && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setRequestContractId(c.id)}
+                          >
+                            삭제 요청
                           </Button>
                         )}
                       </div>
