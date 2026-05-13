@@ -21,6 +21,7 @@ import PerformanceGoals from "./pages/PerformanceGoals";
 import Notifications from "./pages/Notifications";
 import Calendar from "./pages/Calendar";
 import UserManagement from "./pages/UserManagement";
+import OrganizationManagement from "./pages/OrganizationManagement";
 import UserHandoffManagement from "./pages/UserHandoffManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
@@ -111,9 +112,9 @@ function Router() {
       </Route>
       <Route path="/customers/assign">
         <AuthGuard>
-          <SubBranchAdminOrAboveGuard>
+          <ManagerGuard>
             <CustomerAssign />
-          </SubBranchAdminOrAboveGuard>
+          </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/bulk-import">
@@ -172,6 +173,13 @@ function Router() {
           <AdminGuard>
             <UserHandoffManagement />
           </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/organization">
+        <AuthGuard>
+          <ManagerGuard>
+            <OrganizationManagement />
+          </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/users">

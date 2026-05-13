@@ -22,6 +22,7 @@ export const users = mysqlTable("users", {
   loginStatus: mysqlEnum("loginStatus", ["invited", "linked"]).default("linked"),
   phone: varchar("phone", { length: 20 }),
   memo: text("memo"),
+  parentUserId: int("parentUserId"),
   teamId: int("teamId"),
   subBranchAdminId: int("subBranchAdminId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
