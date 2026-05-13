@@ -127,6 +127,13 @@
       "when": 1778673600000,
       "tag": "0017_boa_org_parent_user",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "5",
+      "when": 1778756400000,
+      "tag": "0018_user_device_tokens",
+      "breakpoints": true
     }
   ]
 }
