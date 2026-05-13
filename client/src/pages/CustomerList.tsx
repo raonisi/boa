@@ -15,6 +15,24 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
+const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
+
+function parseCustomerTags(value?: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  }
+}
+
+function priorityLabel(priority?: string | null) {
+  return priority && priority !== "unclassified" ? priority : "미분류";
+}
+
 export default function CustomerList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -23,6 +41,9 @@ export default function CustomerList() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [regionFilter, setRegionFilter] = useState("");
   const [sourceFilter, setSourceFilter] = useState("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("all");
+  const [tagFilter, setTagFilter] = useState<string>("all");
+  const [nextActionFilter, setNextActionFilter] = useState<string>("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [assignedDateFrom, setAssignedDateFrom] = useState("");
   const [assignedDateTo, setAssignedDateTo] = useState("");
@@ -32,6 +53,9 @@ export default function CustomerList() {
   const utils = trpc.useUtils();
   const { data: customers, refetch } = trpc.customers.list.useQuery({
     status: statusFilter === "all" ? undefined : statusFilter,
+    priority: priorityFilter === "all" ? undefined : priorityFilter as any,
+    tag: tagFilter === "all" ? undefined : tagFilter as any,
+    nextAction: nextActionFilter === "all" ? undefined : nextActionFilter as any,
     assignedDateFrom: assignedDateFrom || undefined,
     assignedDateTo: assignedDateTo || undefined,
   });
@@ -62,12 +86,15 @@ export default function CustomerList() {
     return matchSearch && matchRegion && matchSource && matchAgent;
   });
 
-  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || agentFilter !== "all";
+  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all";
 
   const clearFilters = () => {
     setStatusFilter("all");
     setRegionFilter("");
     setSourceFilter("");
+    setPriorityFilter("all");
+    setTagFilter("all");
+    setNextActionFilter("all");
     setAgentFilter("all");
     setAssignedDateFrom("");
     setAssignedDateTo("");
@@ -142,6 +169,27 @@ export default function CustomerList() {
                 </Select>
                 <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-8 text-xs" />
                 <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-8 text-xs" />
+                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="우선순위" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 우선순위</SelectItem>
+                    {CUSTOMER_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{priorityLabel(p)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={tagFilter} onValueChange={setTagFilter}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="성향 태그" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 태그</SelectItem>
+                    {CUSTOMER_TAGS.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={nextActionFilter} onValueChange={setNextActionFilter}>
+                  <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="다음 액션" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체 액션</SelectItem>
+                    {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
+                  </SelectContent>
+                </Select>
                 <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="h-8 text-xs" title="배정일 시작" />
                 <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="h-8 text-xs" title="배정일 종료" />
                 {(user?.role === "branch_admin" || user?.role === "team_leader") && (
@@ -172,6 +220,13 @@ export default function CustomerList() {
                         <div className="flex items-center gap-2">
                           <span className="font-semibold text-sm">{c.name}</span>
                           <StatusBadge status={c.consultStatus} />
+                          <span className="text-[10px] rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span>
+                        </div>
+                        <div className="flex gap-1 mt-1 flex-wrap">
+                          {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
+                            <span key={tag} className="text-[10px] rounded-full bg-secondary px-2 py-0.5">{tag}</span>
+                          ))}
+                          {(c as any).nextAction && <span className="text-[10px] rounded-full border px-2 py-0.5">다음: {(c as any).nextAction}</span>}
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           {c.phone && (
@@ -213,6 +268,8 @@ export default function CustomerList() {
                       <TableHead>지역</TableHead>
                       <TableHead>유입경로</TableHead>
                       <TableHead>상담상태</TableHead>
+                      <TableHead>우선순위</TableHead>
+                      <TableHead>성향/다음 액션</TableHead>
                       <TableHead>배정일</TableHead>
                       <TableHead>예상보험료</TableHead>
                       <TableHead className="w-20"></TableHead>
@@ -221,7 +278,7 @@ export default function CustomerList() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground py-8">고객 데이터가 없습니다.</TableCell>
+                        <TableCell colSpan={10} className="text-center text-muted-foreground py-8">고객 데이터가 없습니다.</TableCell>
                       </TableRow>
                     ) : (
                       filtered.map((c) => (
@@ -235,6 +292,16 @@ export default function CustomerList() {
                           <TableCell>{c.region ?? "-"}</TableCell>
                           <TableCell>{c.source ?? "-"}</TableCell>
                           <TableCell><StatusBadge status={c.consultStatus} /></TableCell>
+                          <TableCell><span className="text-xs rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span></TableCell>
+                          <TableCell className="max-w-[220px]">
+                            <div className="flex gap-1 flex-wrap">
+                              {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
+                                <span key={tag} className="text-[10px] rounded-full bg-secondary px-2 py-0.5">{tag}</span>
+                              ))}
+                              {(c as any).nextAction && <span className="text-[10px] rounded-full border px-2 py-0.5">다음: {(c as any).nextAction}</span>}
+                              {parseCustomerTags((c as any).customerTags).length === 0 && !(c as any).nextAction && <span className="text-xs text-muted-foreground">-</span>}
+                            </div>
+                          </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {c.assignedAt ? new Date(c.assignedAt).toLocaleDateString("ko-KR") : "-"}
                           </TableCell>

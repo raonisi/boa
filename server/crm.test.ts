@@ -446,6 +446,98 @@ describe("consultations.list - 권한 검증", () => {
   });
 });
 
+describe("consultation UX metadata and customer management meta", () => {
+  const activeCustomer = {
+    id: 100,
+    name: "[TEST] 고객",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    consultStatus: "미상담",
+    priority: "unclassified",
+    customerTags: null,
+    nextAction: null,
+    isActive: true,
+    deletedAt: null,
+  } as any;
+
+  it("allows member to create structured consultation for own customer without logging detailed memo", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    const createSpy = vi.spyOn(db, "createConsultation").mockResolvedValue(undefined);
+    const updateCustomerSpy = vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultations.create({
+      customerId: 100,
+      status: "미상담",
+      consultationType: "전화",
+      customerNeed: "보험료 부담",
+      nextAction: "재연락",
+      summary: "[TEST] 보험료 재상담",
+      content: "[TEST] 상세 상담 메모",
+    })).resolves.toEqual({ success: true });
+
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 100,
+      agentId: 4,
+      consultationType: "전화",
+      customerNeed: "보험료 부담",
+      nextAction: "재연락",
+      summary: "[TEST] 보험료 재상담",
+      content: "[TEST] 상세 상담 메모",
+    }));
+    expect(updateCustomerSpy).toHaveBeenCalledWith(100, { nextAction: "재연락" });
+    const consultationLog = logSpy.mock.calls.find((call) => call[0]?.action === "CONSULTATION_CREATED")?.[0];
+    expect(consultationLog?.details).toContain("[TEST] 보험료 재상담");
+    expect(consultationLog?.details).not.toContain("[TEST] 상세 상담 메모");
+  });
+
+  it("blocks member from creating consultation for another member customer", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, agentId: 5 });
+    const createSpy = vi.spyOn(db, "createConsultation").mockResolvedValue(undefined);
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultations.create({
+      customerId: 100,
+      status: "미상담",
+      consultationType: "전화",
+      customerNeed: "기타",
+      nextAction: "재연락",
+    })).rejects.toThrow();
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it("updates priority, tags, and nextAction with audit logs", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    const updateSpy = vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.updateManagementMeta({
+      customerId: 100,
+      priority: "A",
+      customerTags: ["가격민감형", "장기관리"],
+      nextAction: "설계안 발송",
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalledWith(100, expect.objectContaining({
+      priority: "A",
+      customerTags: JSON.stringify(["가격민감형", "장기관리"]),
+      nextAction: "설계안 발송",
+    }));
+    expect(logSpy.mock.calls.map((call) => call[0]?.action)).toEqual(expect.arrayContaining([
+      "CUSTOMER_PRIORITY_UPDATED",
+      "CUSTOMER_TAGS_UPDATED",
+      "CUSTOMER_NEXT_ACTION_UPDATED",
+    ]));
+  });
+
+  it("rejects invalid priority values", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.updateManagementMeta({
+      customerId: 100,
+      priority: "VIP" as any,
+    })).rejects.toThrow();
+  });
+});
+
 describe("contracts.listByCustomer - 권한 검증", () => {
   it("returns NOT_FOUND for non-existent customerId", async () => {
     const ctx = createCtx("member", { userId: 3 });

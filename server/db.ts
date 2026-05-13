@@ -252,13 +252,16 @@ export async function getCustomers(filter: {
   includeInactive?: boolean;
   region?: string;
   source?: string;
+  priority?: string;
+  tag?: string;
+  nextAction?: string;
   assignedDateFrom?: Date;
   assignedDateTo?: Date;
 }) {
   const db = await getDb();
   if (!db) return [];
 
-  const conditions: ReturnType<typeof eq>[] = [];
+  const conditions: any[] = [];
 
   if (!filter.includeInactive) {
     conditions.push(eq(customers.isActive, true));
@@ -280,6 +283,9 @@ export async function getCustomers(filter: {
   if (filter.status) conditions.push(eq(customers.consultStatus, filter.status as any));
   if (filter.region) conditions.push(eq(customers.region, filter.region));
   if (filter.source) conditions.push(eq(customers.source, filter.source));
+  if (filter.priority) conditions.push(eq(customers.priority, filter.priority as any));
+  if (filter.nextAction) conditions.push(eq(customers.nextAction, filter.nextAction));
+  if (filter.tag) conditions.push(sql`${customers.customerTags} like ${`%${filter.tag}%`}` as any);
   if (filter.assignedDateFrom) conditions.push(gte(customers.assignedAt, filter.assignedDateFrom) as any);
   if (filter.assignedDateTo) conditions.push(lte(customers.assignedAt, filter.assignedDateTo) as any);
 
@@ -422,7 +428,7 @@ export async function createConsultation(data: InsertConsultation) {
   await db.update(customers).set({ consultStatus: data.status }).where(eq(customers.id, data.customerId));
 }
 
-export async function updateConsultation(id: number, data: { content?: string; status?: typeof consultations.$inferSelect["status"]; nextContactAt?: Date | null }) {
+export async function updateConsultation(id: number, data: Partial<InsertConsultation>) {
   const db = await getDb();
   if (!db) return;
   await db.update(consultations).set(data).where(eq(consultations.id, id));

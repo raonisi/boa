@@ -15,6 +15,26 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
+const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "보장분석", "계약상담", "사후관리", "기타"] as const;
+const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
+const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
+const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+
+function parseCustomerTags(value?: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  }
+}
+
+function priorityLabel(priority?: string | null) {
+  return priority && priority !== "unclassified" ? priority : "미분류";
+}
+
 export default function CustomerDetail({ id }: { id: number }) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -43,6 +63,11 @@ export default function CustomerDetail({ id }: { id: number }) {
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => { toast.success("고객 정보가 수정되었습니다."); setShowEditModal(false); refetchCustomer(); },
     onError: () => toast.error("수정에 실패했습니다."),
+  });
+
+  const updateMetaMutation = trpc.customers.updateManagementMeta.useMutation({
+    onSuccess: () => { toast.success("고객 관리 정보가 저장되었습니다."); refetchCustomer(); utils.customers.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "고객 관리 정보 저장에 실패했습니다."),
   });
 
   const createConsultMutation = trpc.consultations.create.useMutation({
@@ -174,6 +199,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const canRequestContractDelete = user?.role === "sub_branch_admin" || user?.role === "team_leader" || user?.role === "member";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
   const editingContract = contracts?.find((c) => c.id === editingContractId);
+  const customerTags = parseCustomerTags((customer as any).customerTags);
+  const latestConsult = (consultations ?? [])[0] as any;
 
   return (
     <DashboardLayout>
@@ -219,6 +246,74 @@ export default function CustomerDetail({ id }: { id: number }) {
             )}
           </div>
         </div>
+
+        <Card>
+          <CardContent className="p-4 space-y-4">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <p className="text-sm font-semibold">고객 관리 정보</p>
+                <p className="text-xs text-muted-foreground">우선순위, 성향 태그, 다음 액션은 권한 범위 내에서만 수정됩니다.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs rounded-full border px-2 py-1 bg-muted">우선순위 {priorityLabel((customer as any).priority)}</span>
+                {(customer as any).nextAction && <span className="text-xs rounded-full border px-2 py-1">다음: {(customer as any).nextAction}</span>}
+              </div>
+            </div>
+            <div className="grid md:grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">우선순위</Label>
+                <Select
+                  value={(customer as any).priority ?? "unclassified"}
+                  onValueChange={(priority) => updateMetaMutation.mutate({ customerId: id, priority: priority as any })}
+                >
+                  <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CUSTOMER_PRIORITIES.map((priority) => <SelectItem key={priority} value={priority}>{priorityLabel(priority)}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">다음 액션</Label>
+                <Select
+                  value={(customer as any).nextAction ?? "none"}
+                  onValueChange={(nextAction) => updateMetaMutation.mutate({ customerId: id, nextAction: nextAction === "none" ? null as any : nextAction as any })}
+                >
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="선택" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">선택 안 함</SelectItem>
+                    {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs">최근 상담 요약</Label>
+                <p className="text-sm mt-2 line-clamp-2">{latestConsult?.summary ?? latestConsult?.content ?? "등록된 상담 요약이 없습니다."}</p>
+              </div>
+            </div>
+            <div>
+              <Label className="text-xs">고객 성향 태그</Label>
+              <div className="flex gap-1.5 mt-2 flex-wrap">
+                {CUSTOMER_TAGS.map((tag) => {
+                  const selected = customerTags.includes(tag);
+                  const nextTags = selected ? customerTags.filter((item) => item !== tag) : [...customerTags, tag];
+                  return (
+                    <Button
+                      key={tag}
+                      type="button"
+                      variant={selected ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={updateMetaMutation.isPending}
+                      onClick={() => updateMetaMutation.mutate({ customerId: id, customerTags: nextTags as any })}
+                    >
+                      {tag}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Tabs defaultValue="info">
           <TabsList className="flex-wrap h-auto">
@@ -292,8 +387,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <StatusBadge status={c.status} />
+                            {(c as any).consultationType && <span className="text-[10px] rounded-full border px-2 py-0.5">{(c as any).consultationType}</span>}
+                            {(c as any).customerNeed && <span className="text-[10px] rounded-full bg-secondary px-2 py-0.5">{(c as any).customerNeed}</span>}
+                            {(c as any).nextAction && <span className="text-[10px] rounded-full border px-2 py-0.5">다음: {(c as any).nextAction}</span>}
                             <span className="text-xs text-muted-foreground">{new Date(c.createdAt).toLocaleString("ko-KR")}</span>
                           </div>
+                          {(c as any).summary && <p className="text-sm font-medium mb-1">{(c as any).summary}</p>}
                           <p className="text-sm whitespace-pre-wrap">{c.content ?? "(내용 없음)"}</p>
                           {c.nextContactAt && (
                             <p className="text-xs text-primary mt-2">재상담 예정: {new Date(c.nextContactAt).toLocaleString("ko-KR")}</p>
@@ -761,7 +860,15 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
 }) {
   const { data: consultStatusOptions } = trpc.settings.formOptions.useQuery({ category: "consultStatus" });
   const consultStatuses = consultStatusOptions?.length ? consultStatusOptions.map((item) => item.value) : CONSULT_STATUSES;
-  const [form, setForm] = useState({ status: currentStatus, content: "", nextContactAt: "" });
+  const [form, setForm] = useState({
+    status: currentStatus,
+    consultationType: "전화",
+    customerNeed: "기타",
+    nextAction: "재연락",
+    summary: "",
+    content: "",
+    nextContactAt: "",
+  });
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -774,9 +881,37 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
                 <SelectContent>{consultStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">상담유형</Label>
+              <Select value={form.consultationType} onValueChange={(v) => setForm({ ...form, consultationType: v })}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{CONSULTATION_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">고객 니즈</Label>
+              <Select value={form.customerNeed} onValueChange={(v) => setForm({ ...form, customerNeed: v })}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{CUSTOMER_NEEDS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
           <div>
-            <Label className="text-xs">상담내용</Label>
+            <Label className="text-xs">다음 액션</Label>
+            <Select value={form.nextAction} onValueChange={(v) => setForm({ ...form, nextAction: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>{CUSTOMER_NEXT_ACTIONS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">상담 요약</Label>
+            <Input value={form.summary} maxLength={200} onChange={(e) => setForm({ ...form, summary: e.target.value })} className="h-9 mt-1" placeholder="한 줄 요약" />
+          </div>
+          <div>
+            <Label className="text-xs">상세 메모</Label>
             <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24" placeholder="상담 내용을 입력하세요..." />
+            <p className="text-[11px] text-muted-foreground mt-1">주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.</p>
           </div>
           <div>
             <Label className="text-xs">재상담 예정일</Label>
@@ -784,7 +919,7 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading} onClick={() => onSubmit(form)}>{loading ? "저장 중..." : "저장"}</Button>
+            <Button size="sm" disabled={loading} onClick={() => onSubmit({ ...form, summary: form.summary || undefined, content: form.content || undefined, nextContactAt: form.nextContactAt || undefined })}>{loading ? "저장 중..." : "저장"}</Button>
           </div>
         </div>
       </DialogContent>
@@ -798,6 +933,10 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
 }) {
   const [form, setForm] = useState({
     status: consult.status,
+    consultationType: consult.consultationType ?? "전화",
+    customerNeed: consult.customerNeed ?? "기타",
+    nextAction: consult.nextAction ?? "재연락",
+    summary: consult.summary ?? "",
     content: consult.content ?? "",
     nextContactAt: consult.nextContactAt ? new Date(consult.nextContactAt).toISOString().slice(0, 16) : "",
   });
@@ -813,9 +952,37 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
               <SelectContent>{CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs">상담유형</Label>
+              <Select value={form.consultationType} onValueChange={(v) => setForm({ ...form, consultationType: v })}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{CONSULTATION_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">고객 니즈</Label>
+              <Select value={form.customerNeed} onValueChange={(v) => setForm({ ...form, customerNeed: v })}>
+                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>{CUSTOMER_NEEDS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+          </div>
           <div>
-            <Label className="text-xs">상담내용</Label>
+            <Label className="text-xs">다음 액션</Label>
+            <Select value={form.nextAction} onValueChange={(v) => setForm({ ...form, nextAction: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>{CUSTOMER_NEXT_ACTIONS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs">상담 요약</Label>
+            <Input value={form.summary} maxLength={200} onChange={(e) => setForm({ ...form, summary: e.target.value })} className="h-9 mt-1" />
+          </div>
+          <div>
+            <Label className="text-xs">상세 메모</Label>
             <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24" />
+            <p className="text-[11px] text-muted-foreground mt-1">주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.</p>
           </div>
           <div>
             <Label className="text-xs">재상담 예정일</Label>
@@ -823,7 +990,7 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading} onClick={() => onSubmit({ status: form.status, content: form.content || undefined, nextContactAt: form.nextContactAt || null })}>
+            <Button size="sm" disabled={loading} onClick={() => onSubmit({ status: form.status, consultationType: form.consultationType, customerNeed: form.customerNeed, nextAction: form.nextAction, summary: form.summary || undefined, content: form.content || undefined, nextContactAt: form.nextContactAt || null })}>
               {loading ? "저장 중..." : "수정 저장"}
             </Button>
           </div>
