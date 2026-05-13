@@ -22,6 +22,7 @@ import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
 import Download from "./pages/Download";
 import Settings from "./pages/Settings";
+import DeletedDataManagement from "./pages/DeletedDataManagement";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
 
@@ -175,6 +176,13 @@ function Router() {
         <AuthGuard>
           <AdminGuard>
             <Settings />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/deleted-data">
+        <AuthGuard>
+          <AdminGuard>
+            <DeletedDataManagement />
           </AdminGuard>
         </AuthGuard>
       </Route>

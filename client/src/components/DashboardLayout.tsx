@@ -1,4 +1,4 @@
-import { useAuth } from "@/_core/hooks/useAuth";
+﻿import { useAuth } from "@/_core/hooks/useAuth";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,6 +33,7 @@ import {
   FileText,
   Home,
   LogOut,
+  RotateCcw,
   Settings,
   Upload,
   Users,
@@ -55,7 +56,7 @@ const menuItems: NavItem[] = [
   { icon: Home, label: "대시보드", path: "/" },
   { icon: Users, label: "고객 DB", path: "/customers" },
   { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", roles: ["branch_admin"] },
-  { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin"] }, // 부지점장도 접근 가능
+  { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin"] },
   { icon: FileText, label: "계약관리", path: "/contracts" },
   { icon: BarChart3, label: "실적관리", path: "/performance" },
   { icon: CalendarDays, label: "일정 캘린더", path: "/calendar" },
@@ -63,10 +64,10 @@ const menuItems: NavItem[] = [
   { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
   { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
   { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+  { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },
   { icon: BookOpen, label: "데이터 다운로드", path: "/download", roles: ["branch_admin"] },
   { icon: Settings, label: "설정 관리", path: "/settings", roles: ["branch_admin"] },
 ];
-
 const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";
 const DEFAULT_WIDTH = 220;
 const MIN_WIDTH = 180;
@@ -109,14 +110,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full">
           <Building2 className="h-12 w-12 text-primary" />
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">보험 영업 사내 전산</h1>
-            <p className="text-sm text-muted-foreground mt-2">로그인이 필요합니다.</p>
+            <h1 className="text-2xl font-bold tracking-tight">蹂댄뿕 ?곸뾽 ?щ궡 ?꾩궛</h1>
+            <p className="text-sm text-muted-foreground mt-2">濡쒓렇?몄씠 ?꾩슂?⑸땲??</p>
           </div>
           {loginConfigMessage ? (
             <p className="text-sm text-destructive text-center">{loginConfigMessage}</p>
           ) : null}
           <Button onClick={handleLogin} size="lg" className="w-full">
-            로그인
+            濡쒓렇??
           </Button>
         </div>
       </div>
@@ -248,7 +249,7 @@ function DashboardLayoutContent({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  로그아웃
+                  濡쒓렇?꾩썐
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -286,3 +287,4 @@ function DashboardLayoutContent({
     </>
   );
 }
+

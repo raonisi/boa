@@ -8,6 +8,7 @@ import {
   contractHistory,
   contracts,
   customers,
+  deleteRequests,
   InsertActivityLog,
   InsertAssignmentHistory,
   InsertConsentLog,
@@ -15,10 +16,12 @@ import {
   InsertContract,
   InsertContractHistory,
   InsertCustomer,
+  InsertDeleteRequest,
   InsertNotification,
   InsertSchedule,
   InsertStatusHistory,
   notifications,
+  reminders,
   schedules,
   settings,
   statusHistory,
@@ -214,6 +217,26 @@ export async function deactivateTeam(id: number) {
   await db.update(teams).set({ isActive: false, deletedAt: new Date() }).where(eq(teams.id, id));
 }
 
+export async function getDeletedTeams() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(teams)
+    .where(or(eq(teams.isActive, false), sql`${teams.deletedAt} is not null`))
+    .orderBy(desc(teams.createdAt));
+}
+
+export async function restoreTeam(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(teams).set({ isActive: true, deletedAt: null }).where(eq(teams.id, id));
+}
+
+export async function permanentlyDeleteTeam(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.delete(teams).where(eq(teams.id, id));
+}
+
 // ─── Customers ───────────────────────────────────────────────────────────────
 /** 역할별 고객 목록 조회 */
 export async function getCustomers(filter: {
@@ -284,6 +307,26 @@ export async function softDeleteCustomer(id: number) {
   const db = await getDb();
   if (!db) return;
   await db.update(customers).set({ isActive: false, deletedAt: new Date() }).where(eq(customers.id, id));
+}
+
+export async function getDeletedCustomers() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customers)
+    .where(or(eq(customers.isActive, false), sql`${customers.deletedAt} is not null`))
+    .orderBy(desc(customers.createdAt));
+}
+
+export async function restoreCustomer(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(customers).set({ isActive: true, deletedAt: null }).where(eq(customers.id, id));
+}
+
+export async function permanentlyDeleteCustomer(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.delete(customers).where(eq(customers.id, id));
 }
 
 export async function checkPhoneDuplicate(phone: string, excludeId?: number) {
@@ -390,6 +433,14 @@ export async function getContractsByCustomer(customerId: number) {
     .orderBy(desc(contracts.createdAt));
 }
 
+export async function getContractsByCustomerIncludingInactive(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contracts)
+    .where(eq(contracts.customerId, customerId))
+    .orderBy(desc(contracts.createdAt));
+}
+
 export async function getAllContracts(filter: { agentId?: number; teamId?: number; subBranchAdminId?: number }) {
   const db = await getDb();
   if (!db) return [];
@@ -430,6 +481,123 @@ export async function deactivateContract(id: number) {
   await db.update(contracts).set({ isActive: false, deletedAt: new Date() }).where(eq(contracts.id, id));
 }
 
+export async function deactivateContractWithClient(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(contracts).set({ isActive: false, deletedAt: new Date() }).where(eq(contracts.id, id));
+}
+
+export async function getDeletedContracts() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contracts)
+    .where(or(eq(contracts.isActive, false), sql`${contracts.deletedAt} is not null`))
+    .orderBy(desc(contracts.createdAt));
+}
+
+export async function restoreContract(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(contracts).set({ isActive: true, deletedAt: null }).where(eq(contracts.id, id));
+}
+
+export async function permanentlyDeleteContract(id: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.delete(contracts).where(eq(contracts.id, id));
+}
+
+export async function getCustomerPermanentDeleteBlockers(customerId: number) {
+  const db = await getDb();
+  if (!db) {
+    return {
+      contracts: 0,
+      consultations: 0,
+      statusHistory: 0,
+      consentLogs: 0,
+      assignmentHistory: 0,
+      deleteRequests: 0,
+      notifications: 0,
+      reminders: 0,
+    };
+  }
+  const [
+    contractRows,
+    consultationRows,
+    statusRows,
+    consentRows,
+    assignmentRows,
+    requestRows,
+    notificationRows,
+    reminderRows,
+  ] = await Promise.all([
+    db.select({ id: contracts.id }).from(contracts).where(eq(contracts.customerId, customerId)).limit(1),
+    db.select({ id: consultations.id }).from(consultations).where(eq(consultations.customerId, customerId)).limit(1),
+    db.select({ id: statusHistory.id }).from(statusHistory).where(eq(statusHistory.customerId, customerId)).limit(1),
+    db.select({ id: consentLogs.id }).from(consentLogs).where(eq(consentLogs.customerId, customerId)).limit(1),
+    db.select({ id: assignmentHistory.id }).from(assignmentHistory).where(eq(assignmentHistory.customerId, customerId)).limit(1),
+    db.select({ id: deleteRequests.id }).from(deleteRequests).where(eq(deleteRequests.customerId, customerId)).limit(1),
+    db.select({ id: notifications.id }).from(notifications)
+      .where(and(eq(notifications.relatedType, "customer"), eq(notifications.relatedId, customerId)))
+      .limit(1),
+    db.select({ id: reminders.id }).from(reminders)
+      .where(and(eq(reminders.relatedType, "customer"), eq(reminders.relatedId, customerId)))
+      .limit(1),
+  ]);
+  return {
+    contracts: contractRows.length,
+    consultations: consultationRows.length,
+    statusHistory: statusRows.length,
+    consentLogs: consentRows.length,
+    assignmentHistory: assignmentRows.length,
+    deleteRequests: requestRows.length,
+    notifications: notificationRows.length,
+    reminders: reminderRows.length,
+  };
+}
+
+export async function getContractPermanentDeleteBlockers(contractId: number) {
+  const db = await getDb();
+  if (!db) return { contractHistory: 0, deleteRequests: 0, notifications: 0, reminders: 0 };
+  const [historyRows, requestRows, notificationRows, reminderRows] = await Promise.all([
+    db.select({ id: contractHistory.id }).from(contractHistory).where(eq(contractHistory.contractId, contractId)).limit(1),
+    db.select({ id: deleteRequests.id }).from(deleteRequests)
+      .where(and(eq(deleteRequests.targetType, "contract"), eq(deleteRequests.targetId, contractId)))
+      .limit(1),
+    db.select({ id: notifications.id }).from(notifications)
+      .where(and(eq(notifications.relatedType, "contract"), eq(notifications.relatedId, contractId)))
+      .limit(1),
+    db.select({ id: reminders.id }).from(reminders)
+      .where(and(eq(reminders.relatedType, "contract"), eq(reminders.relatedId, contractId)))
+      .limit(1),
+  ]);
+  return {
+    contractHistory: historyRows.length,
+    deleteRequests: requestRows.length,
+    notifications: notificationRows.length,
+    reminders: reminderRows.length,
+  };
+}
+
+export async function getTeamPermanentDeleteBlockers(teamId: number) {
+  const db = await getDb();
+  if (!db) return { users: 0, customers: 0, schedules: 0, assignmentHistory: 0 };
+  const [userRows, customerRows, scheduleRows, assignmentRows] = await Promise.all([
+    db.select({ id: users.id }).from(users).where(eq(users.teamId, teamId)).limit(1),
+    db.select({ id: customers.id }).from(customers).where(eq(customers.assignedTeamId, teamId)).limit(1),
+    db.select({ id: schedules.id }).from(schedules).where(eq(schedules.teamId, teamId)).limit(1),
+    db.select({ id: assignmentHistory.id }).from(assignmentHistory)
+      .where(or(eq(assignmentHistory.previousTeamId, teamId), eq(assignmentHistory.newTeamId, teamId)))
+      .limit(1),
+  ]);
+  return {
+    users: userRows.length,
+    customers: customerRows.length,
+    schedules: scheduleRows.length,
+    assignmentHistory: assignmentRows.length,
+  };
+}
+
 export async function getContractById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -438,8 +606,8 @@ export async function getContractById(id: number) {
 }
 
 // ─── Contract History ─────────────────────────────────────────────────────────
-export async function createContractHistoryEntry(data: InsertContractHistory) {
-  const db = await getDb();
+export async function createContractHistoryEntry(data: InsertContractHistory, client?: DbExecutor) {
+  const db = client ?? await getDb();
   if (!db) return;
   await db.insert(contractHistory).values(data);
 }
@@ -448,6 +616,49 @@ export async function getContractHistory(contractId: number) {
   const db = await getDb();
   if (!db) return [];
   return db.select().from(contractHistory).where(eq(contractHistory.contractId, contractId)).orderBy(desc(contractHistory.createdAt));
+}
+
+export async function createDeleteRequest(data: InsertDeleteRequest, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.insert(deleteRequests).values(data);
+}
+
+export async function getDeleteRequestById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(deleteRequests).where(eq(deleteRequests.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getPendingDeleteRequestForTarget(targetType: "contract", targetId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(deleteRequests)
+    .where(and(eq(deleteRequests.targetType, targetType), eq(deleteRequests.targetId, targetId), eq(deleteRequests.status, "pending")))
+    .limit(1);
+  return result[0];
+}
+
+export async function getDeleteRequests(filter: { requestedBy?: number; status?: "pending" | "approved" | "rejected" | "cancelled" } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (filter.requestedBy !== undefined) conditions.push(eq(deleteRequests.requestedBy, filter.requestedBy));
+  if (filter.status) conditions.push(eq(deleteRequests.status, filter.status));
+  return db.select().from(deleteRequests)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(deleteRequests.createdAt));
+}
+
+export async function updateDeleteRequest(
+  id: number,
+  data: Partial<typeof deleteRequests.$inferInsert>,
+  client?: DbExecutor,
+) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(deleteRequests).set(data).where(eq(deleteRequests.id, id));
 }
 
 // ─── Schedules ────────────────────────────────────────────────────────────────
