@@ -92,6 +92,13 @@
       "when": 1778644713771,
       "tag": "0012_optimal_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1778645879661,
+      "tag": "0013_majestic_the_fallen",
+      "breakpoints": true
     }
   ]
 }

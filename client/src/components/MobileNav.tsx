@@ -9,6 +9,7 @@ import {
 import { trpc } from "@/lib/trpc";
 import {
   Activity,
+  ArrowRightLeft,
   BarChart3,
   Bell,
   CalendarDays,
@@ -49,6 +50,7 @@ const moreItems: MobileMenuItem[] = [
   { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
   { icon: Database, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin"] },
   { icon: Users, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
+  { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },
   { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
   { icon: ShieldCheck, label: "운영 점검", path: "/admin-audit", roles: ["branch_admin"] },
   { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },
@@ -118,10 +120,10 @@ export function MobileNav() {
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="bottom" className="max-h-[82vh] rounded-t-2xl pb-5 pt-2 md:hidden">
-          <SheetHeader className="px-4 pb-1 pt-5 text-left">
+          <SheetHeader className="text-left">
             <SheetTitle>더보기</SheetTitle>
           </SheetHeader>
-          <div className="grid grid-cols-2 gap-2 overflow-y-auto px-4 pb-3">
+          <div className="mt-4 grid grid-cols-2 gap-2 overflow-y-auto pb-4">
             {visibleMoreItems.map((item) => {
               const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
               return (
@@ -129,12 +131,12 @@ export function MobileNav() {
                   <button
                     type="button"
                     onClick={() => goTo(item.path)}
-                    className={`flex min-h-12 items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
-                      isActive ? "border-primary bg-primary/10 text-primary" : "hover:bg-accent"
+                    className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 text-left text-sm transition-colors ${
+                      isActive ? "border-primary bg-primary/10 text-primary" : "bg-background"
                     }`}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
-                    <span className="min-w-0 truncate">{item.label}</span>
+                    <span className="truncate">{item.label}</span>
                   </button>
                 </SheetClose>
               );
@@ -145,10 +147,10 @@ export function MobileNav() {
                 setMoreOpen(false);
                 logout();
               }}
-              className="col-span-2 flex min-h-12 items-center justify-center gap-2 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-medium text-destructive"
+              className="flex min-h-14 items-center gap-3 rounded-lg border px-3 text-left text-sm text-red-600"
             >
-              <LogOut className="h-4 w-4" />
-              로그아웃
+              <LogOut className="h-4 w-4 shrink-0" />
+              <span>로그아웃</span>
             </button>
           </div>
         </SheetContent>

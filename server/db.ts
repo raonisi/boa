@@ -10,6 +10,7 @@ import {
   customers,
   deleteRequests,
   followUps,
+  handoffHistories,
   importBatches,
   InsertActivityLog,
   InsertAssignmentHistory,
@@ -37,7 +38,7 @@ import {
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
-type DbExecutor = NonNullable<typeof _db>;
+type DbExecutor = any;
 
 export type CustomerTimelineEvent = {
   id: string;
@@ -72,6 +73,34 @@ export type CustomerMergeStats = {
   statusHistory: number;
   consentLogs: number;
   assignmentHistory: number;
+};
+
+export type HandoffPreview = {
+  sourceUser: Pick<User, "id" | "name" | "email" | "role" | "accountStatus" | "teamId" | "subBranchAdminId">;
+  counts: {
+    activeCustomers: number;
+    softDeletedCustomers: number;
+    activeContracts: number;
+    pendingFollowUps: number;
+    pendingSchedules: number;
+    pendingNotifications: number;
+    consultations: number;
+    recentActivityLogs: number;
+  };
+};
+
+export type HandoffExecuteInput = {
+  sourceUserId: number;
+  targetUserId: number;
+  executedBy: number;
+  transferCustomers: boolean;
+  transferFollowUps: boolean;
+  transferSchedules: boolean;
+  transferNotifications: boolean;
+  updateSourceAccountStatus: "keep" | "inactive" | "resigned";
+  forceLogoutSource: boolean;
+  resetOAuthSource: boolean;
+  reason: string;
 };
 
 export async function getDb() {
@@ -248,6 +277,278 @@ export async function resetUserOAuthLink(id: number) {
 }
 
 // ─── Teams ───────────────────────────────────────────────────────────────────
+function publicUserSnapshot(user: User) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    accountStatus: user.accountStatus,
+    teamId: user.teamId,
+    subBranchAdminId: user.subBranchAdminId,
+  };
+}
+
+async function getHandoffSourceCustomerIds(sourceUserId: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return [];
+  const rows = await db.select({ id: customers.id }).from(customers)
+    .where(and(eq(customers.agentId, sourceUserId), eq(customers.isActive, true), isNull(customers.deletedAt)));
+  return rows.map((row: { id: number }) => row.id);
+}
+
+async function countRows(table: any, condition: any, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`COUNT(*)` }).from(table).where(condition);
+  return Number(result[0]?.count ?? 0);
+}
+
+export async function getHandoffPreview(sourceUserId: number): Promise<HandoffPreview | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const source = await getUserById(sourceUserId);
+  if (!source) return undefined;
+  const activeCustomerIds = await getHandoffSourceCustomerIds(sourceUserId, db);
+  const recentCutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const [softDeletedCustomers, activeContracts, pendingFollowUps, pendingSchedules, pendingNotifications, consultationsCount, recentActivityLogs] = await Promise.all([
+    countRows(customers, and(eq(customers.agentId, sourceUserId), or(eq(customers.isActive, false), sql`${customers.deletedAt} is not null`)), db),
+    activeCustomerIds.length > 0 ? countRows(contracts, and(inArray(contracts.customerId, activeCustomerIds), eq(contracts.isActive, true), isNull(contracts.deletedAt)), db) : Promise.resolve(0),
+    countRows(followUps, and(eq(followUps.assignedAgentId, sourceUserId), or(eq(followUps.status, "scheduled"), eq(followUps.status, "postponed")), isNull(followUps.deletedAt)), db),
+    countRows(schedules, and(eq(schedules.userId, sourceUserId), eq(schedules.isActive, true), isNull(schedules.completedAt)), db),
+    countRows(notifications, and(eq(notifications.userId, sourceUserId), eq(notifications.isRead, false)), db),
+    activeCustomerIds.length > 0 ? countRows(consultations, inArray(consultations.customerId, activeCustomerIds), db) : Promise.resolve(0),
+    countRows(activityLogs, and(eq(activityLogs.userId, sourceUserId), gte(activityLogs.createdAt, recentCutoff)), db),
+  ]);
+
+  return {
+    sourceUser: publicUserSnapshot(source),
+    counts: {
+      activeCustomers: activeCustomerIds.length,
+      softDeletedCustomers,
+      activeContracts,
+      pendingFollowUps,
+      pendingSchedules,
+      pendingNotifications,
+      consultations: consultationsCount,
+      recentActivityLogs,
+    },
+  };
+}
+
+export async function getHandoffHistories(filter?: { sourceUserId?: number; targetUserId?: number; limit?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (filter?.sourceUserId !== undefined) conditions.push(eq(handoffHistories.sourceUserId, filter.sourceUserId));
+  if (filter?.targetUserId !== undefined) conditions.push(eq(handoffHistories.targetUserId, filter.targetUserId));
+  return db.select().from(handoffHistories)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(handoffHistories.createdAt))
+    .limit(filter?.limit ?? 50);
+}
+
+export async function executeUserHandoff(input: HandoffExecuteInput) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const source = await getUserById(input.sourceUserId);
+  const target = await getUserById(input.targetUserId);
+  if (!source || !target) return undefined;
+  const now = new Date();
+  const afterStatus = input.updateSourceAccountStatus === "keep" ? source.accountStatus : input.updateSourceAccountStatus;
+
+  return db.transaction(async (tx) => {
+    const client = tx as DbExecutor;
+    const activeCustomerIds = await getHandoffSourceCustomerIds(input.sourceUserId, client);
+    const movedCounts = { customers: 0, contracts: 0, followUps: 0, schedules: 0, notifications: 0 };
+
+    if (input.transferCustomers && activeCustomerIds.length > 0) {
+      const sourceCustomers = await client.select({
+        id: customers.id,
+        previousAgentId: customers.agentId,
+        previousTeamId: customers.assignedTeamId,
+        previousSubBranchAdminId: customers.subBranchAdminId,
+      }).from(customers).where(inArray(customers.id, activeCustomerIds));
+
+      await client.update(customers).set({
+        agentId: input.targetUserId,
+        assignedTeamId: target.teamId ?? null,
+        subBranchAdminId: target.subBranchAdminId ?? null,
+        assignmentStatus: "assigned_to_agent",
+        assignedAt: now,
+      }).where(inArray(customers.id, activeCustomerIds));
+      movedCounts.customers = sourceCustomers.length;
+
+      await client.update(contracts).set({ agentId: input.targetUserId })
+        .where(and(inArray(contracts.customerId, activeCustomerIds), eq(contracts.agentId, input.sourceUserId)));
+      movedCounts.contracts = await countRows(contracts, and(inArray(contracts.customerId, activeCustomerIds), eq(contracts.agentId, input.targetUserId), eq(contracts.isActive, true), isNull(contracts.deletedAt)), client);
+
+      for (const customer of sourceCustomers) {
+        await createAssignmentHistory({
+          customerId: customer.id,
+          previousSubBranchAdminId: customer.previousSubBranchAdminId ?? null,
+          newSubBranchAdminId: target.subBranchAdminId ?? null,
+          previousTeamId: customer.previousTeamId ?? null,
+          newTeamId: target.teamId ?? null,
+          previousAgentId: customer.previousAgentId ?? null,
+          newAgentId: input.targetUserId,
+          assignedBy: input.executedBy,
+          assignmentType: "reassignment",
+          assignmentReason: "handoff",
+        }, client);
+        await createActivityLog({
+          userId: input.executedBy,
+          action: "CUSTOMER_TRANSFERRED_BY_HANDOFF",
+          targetType: "customer",
+          targetId: customer.id,
+          details: JSON.stringify({ actor: input.executedBy, targetType: "customer", targetId: customer.id, metadata: { sourceUserId: input.sourceUserId, targetUserId: input.targetUserId, reason: input.reason } }),
+        }, client);
+      }
+    }
+
+    if (input.transferFollowUps) {
+      const pending = await client.select({ id: followUps.id }).from(followUps)
+        .where(and(eq(followUps.assignedAgentId, input.sourceUserId), or(eq(followUps.status, "scheduled"), eq(followUps.status, "postponed")), isNull(followUps.deletedAt)));
+      if (pending.length > 0) {
+        await client.update(followUps).set({ assignedAgentId: input.targetUserId, teamId: target.teamId ?? null, subBranchAdminId: target.subBranchAdminId ?? null })
+          .where(inArray(followUps.id, pending.map((item: { id: number }) => item.id)));
+      }
+      movedCounts.followUps = pending.length;
+    }
+
+    if (input.transferSchedules) {
+      const pending = await client.select({ id: schedules.id }).from(schedules)
+        .where(and(eq(schedules.userId, input.sourceUserId), eq(schedules.isActive, true), isNull(schedules.completedAt)));
+      if (pending.length > 0) {
+        await client.update(schedules).set({ userId: input.targetUserId, teamId: target.teamId ?? null })
+          .where(inArray(schedules.id, pending.map((item: { id: number }) => item.id)));
+      }
+      movedCounts.schedules = pending.length;
+    }
+
+    if (input.transferNotifications) {
+      const pending = await client.select({ id: notifications.id }).from(notifications)
+        .where(and(eq(notifications.userId, input.sourceUserId), eq(notifications.isRead, false)));
+      if (pending.length > 0) {
+        await client.update(notifications).set({ userId: input.targetUserId })
+          .where(inArray(notifications.id, pending.map((item: { id: number }) => item.id)));
+      }
+      movedCounts.notifications = pending.length;
+    }
+
+    const aggregateTransferLogs = [
+      { action: "FOLLOW_UP_TRANSFERRED_BY_HANDOFF", targetType: "follow_up", count: movedCounts.followUps },
+      { action: "SCHEDULE_TRANSFERRED_BY_HANDOFF", targetType: "schedule", count: movedCounts.schedules },
+      { action: "NOTIFICATION_TRANSFERRED_BY_HANDOFF", targetType: "notification", count: movedCounts.notifications },
+    ];
+    for (const entry of aggregateTransferLogs) {
+      if (entry.count > 0) {
+        await createActivityLog({
+          userId: input.executedBy,
+          action: entry.action,
+          targetType: entry.targetType,
+          details: JSON.stringify({
+            actor: input.executedBy,
+            targetType: entry.targetType,
+            metadata: {
+              sourceUserId: input.sourceUserId,
+              targetUserId: input.targetUserId,
+              reason: input.reason,
+              transferredCount: entry.count,
+            },
+          }),
+        }, client);
+      }
+    }
+
+    if (input.updateSourceAccountStatus !== "keep" || input.forceLogoutSource || input.resetOAuthSource) {
+      const updateData: Partial<typeof users.$inferInsert> = {};
+      if (input.updateSourceAccountStatus !== "keep") updateData.accountStatus = input.updateSourceAccountStatus;
+      if (input.forceLogoutSource || input.resetOAuthSource) updateData.sessionInvalidatedAt = now;
+      if (input.resetOAuthSource) {
+        updateData.openId = `invited_handoff_${input.sourceUserId}_${Date.now().toString(36)}`;
+        updateData.loginStatus = "invited";
+      }
+      await client.update(users).set(updateData).where(eq(users.id, input.sourceUserId));
+    }
+
+    await client.insert(handoffHistories).values({
+      sourceUserId: input.sourceUserId,
+      targetUserId: input.targetUserId,
+      executedBy: input.executedBy,
+      reason: input.reason,
+      transferredCustomerCount: movedCounts.customers,
+      transferredContractCount: movedCounts.contracts,
+      transferredFollowUpCount: movedCounts.followUps,
+      transferredScheduleCount: movedCounts.schedules,
+      transferredNotificationCount: movedCounts.notifications,
+      sourceAccountStatusBefore: source.accountStatus,
+      sourceAccountStatusAfter: afterStatus,
+      forceLogoutSource: input.forceLogoutSource,
+      resetOAuthSource: input.resetOAuthSource,
+    });
+
+    await createActivityLog({
+      userId: input.executedBy,
+      action: "USER_HANDOFF_EXECUTED",
+      targetType: "user",
+      targetId: input.sourceUserId,
+      details: JSON.stringify({
+        actor: input.executedBy,
+        targetType: "user",
+        targetId: input.sourceUserId,
+        metadata: {
+          sourceUserId: input.sourceUserId,
+          targetUserId: input.targetUserId,
+          reason: input.reason,
+          transferredCustomerCount: movedCounts.customers,
+          transferredContractCount: movedCounts.contracts,
+          transferredFollowUpCount: movedCounts.followUps,
+          transferredScheduleCount: movedCounts.schedules,
+          transferredNotificationCount: movedCounts.notifications,
+          accountStatusBefore: source.accountStatus,
+          accountStatusAfter: afterStatus,
+          forceLogoutSource: input.forceLogoutSource,
+          resetOAuthSource: input.resetOAuthSource,
+        },
+      }),
+    }, client);
+
+    if (input.updateSourceAccountStatus !== "keep") {
+      await createActivityLog({
+        userId: input.executedBy,
+        action: "USER_STATUS_UPDATED_BY_HANDOFF",
+        targetType: "user",
+        targetId: input.sourceUserId,
+        details: JSON.stringify({ actor: input.executedBy, targetType: "user", targetId: input.sourceUserId, beforeValue: { accountStatus: source.accountStatus }, afterValue: { accountStatus: afterStatus }, metadata: { reason: input.reason } }),
+      }, client);
+    }
+
+    if (input.forceLogoutSource) {
+      await createActivityLog({
+        userId: input.executedBy,
+        action: "USER_FORCE_LOGOUT",
+        targetType: "user",
+        targetId: input.sourceUserId,
+        details: JSON.stringify({ actor: input.executedBy, targetType: "user", targetId: input.sourceUserId, metadata: { reason: input.reason, source: "handoff", affectedSessionCount: 1 } }),
+      }, client);
+    }
+
+    if (input.resetOAuthSource) {
+      await createActivityLog({
+        userId: input.executedBy,
+        action: "USER_OAUTH_RESET",
+        targetType: "user",
+        targetId: input.sourceUserId,
+        details: JSON.stringify({ actor: input.executedBy, targetType: "user", targetId: input.sourceUserId, metadata: { reason: input.reason, source: "handoff", openIdReset: true } }),
+      }, client);
+    }
+
+    return { success: true, sourceUserId: input.sourceUserId, targetUserId: input.targetUserId, counts: movedCounts, sourceAccountStatusBefore: source.accountStatus, sourceAccountStatusAfter: afterStatus };
+  });
+}
+
 export async function getAllTeams() {
   const db = await getDb();
   if (!db) return [];

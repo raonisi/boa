@@ -929,6 +929,160 @@ describe("PR10-2 customer merge workflow", () => {
   });
 });
 
+describe("PR10-3 user handoff workflow", () => {
+  const sourceUser = {
+    id: 20,
+    name: "Source Member",
+    email: "source@example.test",
+    role: "member",
+    accountStatus: "active",
+    teamId: 10,
+    subBranchAdminId: 2,
+    openId: "source-open",
+    loginStatus: "linked",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSignedIn: new Date(),
+  } as any;
+  const targetUser = {
+    id: 30,
+    name: "Target Member",
+    email: "target@example.test",
+    role: "member",
+    accountStatus: "active",
+    teamId: 11,
+    subBranchAdminId: 3,
+    openId: "target-open",
+    loginStatus: "linked",
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSignedIn: new Date(),
+  } as any;
+
+  it("allows only branch_admin to preview user handoff", async () => {
+    vi.spyOn(db, "getHandoffPreview").mockResolvedValue({
+      sourceUser,
+      counts: {
+        activeCustomers: 2,
+        softDeletedCustomers: 1,
+        activeContracts: 1,
+        pendingFollowUps: 1,
+        pendingSchedules: 1,
+        pendingNotifications: 1,
+        consultations: 3,
+        recentActivityLogs: 4,
+      },
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminHandoff.preview({ sourceUserId: 20 })).resolves.toMatchObject({
+      counts: { activeCustomers: 2 },
+    });
+    await expect(appRouter.createCaller(createCtx("member")).adminHandoff.preview({ sourceUserId: 20 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createInactiveCtx("branch_admin")).adminHandoff.preview({ sourceUserId: 20 })).rejects.toThrow();
+  });
+
+  it("blocks invalid handoff execution requests", async () => {
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).adminHandoff.execute({
+      sourceUserId: 20,
+      targetUserId: 30,
+      transferCustomers: true,
+      transferFollowUps: true,
+      transferSchedules: true,
+      transferNotifications: true,
+      updateSourceAccountStatus: "inactive",
+      forceLogoutSource: true,
+      resetOAuthSource: false,
+      reason: "퇴사 처리",
+      confirmText: "wrong",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 20 })).adminHandoff.execute({
+      sourceUserId: 20,
+      targetUserId: 30,
+      transferCustomers: true,
+      transferFollowUps: true,
+      transferSchedules: true,
+      transferNotifications: true,
+      updateSourceAccountStatus: "inactive",
+      forceLogoutSource: true,
+      resetOAuthSource: false,
+      reason: "퇴사 처리",
+      confirmText: "인수인계",
+    })).rejects.toThrow();
+  });
+
+  it("executes handoff only to active team_leader/member targets", async () => {
+    vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
+      if (id === 20) return sourceUser;
+      if (id === 30) return targetUser;
+      return undefined;
+    });
+    const executeSpy = vi.spyOn(db, "executeUserHandoff").mockResolvedValue({
+      success: true,
+      sourceUserId: 20,
+      targetUserId: 30,
+      counts: { customers: 2, contracts: 1, followUps: 1, schedules: 1, notifications: 1 },
+      sourceAccountStatusBefore: "active",
+      sourceAccountStatusAfter: "resigned",
+    } as any);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).adminHandoff.execute({
+      sourceUserId: 20,
+      targetUserId: 30,
+      transferCustomers: true,
+      transferFollowUps: true,
+      transferSchedules: true,
+      transferNotifications: true,
+      updateSourceAccountStatus: "resigned",
+      forceLogoutSource: true,
+      resetOAuthSource: true,
+      reason: "퇴사로 인한 고객 이관",
+      confirmText: "인수인계",
+    })).resolves.toMatchObject({ success: true, sourceUserId: 20, targetUserId: 30 });
+
+    expect(executeSpy).toHaveBeenCalledWith(expect.objectContaining({
+      sourceUserId: 20,
+      targetUserId: 30,
+      executedBy: 1,
+      updateSourceAccountStatus: "resigned",
+      forceLogoutSource: true,
+      resetOAuthSource: true,
+    }));
+  });
+
+  it("blocks handoff to inactive or administrative target users", async () => {
+    vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
+      if (id === 20) return sourceUser;
+      if (id === 31) return { ...targetUser, id: 31, accountStatus: "inactive" };
+      if (id === 32) return { ...targetUser, id: 32, role: "branch_admin", teamId: null, subBranchAdminId: null };
+      return undefined;
+    });
+    const payload = {
+      sourceUserId: 20,
+      transferCustomers: true,
+      transferFollowUps: true,
+      transferSchedules: true,
+      transferNotifications: true,
+      updateSourceAccountStatus: "inactive" as const,
+      forceLogoutSource: true,
+      resetOAuthSource: false,
+      reason: "비활성 처리",
+      confirmText: "인수인계",
+    };
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).adminHandoff.execute({ ...payload, targetUserId: 31 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).adminHandoff.execute({ ...payload, targetUserId: 32 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader")).adminHandoff.execute({ ...payload, targetUserId: 31 })).rejects.toThrow();
+  });
+
+  it("allows branch_admin to view handoff history and blocks non-admin", async () => {
+    vi.spyOn(db, "getHandoffHistories").mockResolvedValue([{ id: 1, sourceUserId: 20, targetUserId: 30 }] as any);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminHandoff.history({ limit: 10 })).resolves.toHaveLength(1);
+    await expect(appRouter.createCaller(createCtx("member")).adminHandoff.history({ limit: 10 })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,
