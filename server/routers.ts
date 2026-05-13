@@ -138,6 +138,8 @@ import {
   validateBulkImportRow,
   mergeCustomers,
   getAllActiveCustomerPhones,
+  getPushNotificationOperationSummary,
+  getPushNotificationPreference,
   permanentlyDeleteContract,
   permanentlyDeleteCustomer,
   permanentlyDeleteTeam,
@@ -149,6 +151,8 @@ import {
   updateFollowUp,
   updateImportBatch,
   listUserDeviceTokens,
+  listPushNotificationLogs,
+  updatePushNotificationPreference,
   upsertConsultationCheckResult,
   upsertUserDeviceToken,
   resetUserOAuthLink,
@@ -1598,12 +1602,64 @@ export const appRouter = router({
 
   // ── Users ─────────────────────────────────────────────────────────────────
   pushNotifications: router({
-    sendTestToMe: branchAdminProcedure.mutation(async ({ ctx }) => {
+    getPreferences: activeUserProcedure.query(async ({ ctx }) => {
+      return getPushNotificationPreference(ctx.user.id);
+    }),
+
+    updatePreferences: activeUserProcedure
+      .input(z.object({
+        followUpTodayEnabled: z.boolean().optional(),
+        scheduleReminderEnabled: z.boolean().optional(),
+        deleteRequestEnabled: z.boolean().optional(),
+        testNotificationEnabled: z.boolean().optional(),
+        quietHoursEnabled: z.boolean().optional(),
+        quietHoursStart: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+        quietHoursEnd: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+        timezone: z.string().max(64).default("Asia/Seoul").optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        return updatePushNotificationPreference(ctx.user.id, input);
+      }),
+
+    operationSummary: branchAdminProcedure
+      .input(z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => getPushNotificationOperationSummary(
+        input?.dateFrom ? new Date(input.dateFrom) : undefined,
+        input?.dateTo ? new Date(input.dateTo) : undefined,
+      )),
+
+    logs: branchAdminProcedure
+      .input(z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        type: z.string().optional(),
+        status: z.string().optional(),
+        userId: z.number().optional(),
+        sourceType: z.string().optional(),
+        limit: z.number().min(1).max(200).default(100),
+      }).optional())
+      .query(async ({ input }) => listPushNotificationLogs({
+        dateFrom: input?.dateFrom ? new Date(input.dateFrom) : undefined,
+        dateTo: input?.dateTo ? new Date(input.dateTo) : undefined,
+        type: input?.type,
+        status: input?.status,
+        userId: input?.userId,
+        sourceType: input?.sourceType,
+        limit: input?.limit ?? 100,
+      })),
+
+    sendTestToMe: branchAdminProcedure
+      .input(z.object({ force: z.boolean().default(false) }).optional())
+      .mutation(async ({ ctx, input }) => {
       return pushNotifications.sendPushToUsers([ctx.user.id], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
         type: "test",
         sourceType: "user",
         sourceId: ctx.user.id,
         dedupeKey: `test:${ctx.user.id}:${Date.now()}`,
+        force: input?.force ?? false,
       });
     }),
 
@@ -1621,6 +1677,7 @@ export const appRouter = router({
             sourceType: "follow_up",
             sourceId: row.id,
             dedupeKey: `follow_up:${row.id}:${dateKey}:today`,
+            now: date,
           }));
         }
         return {
@@ -1649,6 +1706,7 @@ export const appRouter = router({
             sourceType: "schedule",
             sourceId: row.id,
             dedupeKey: `schedule:${row.id}:30min`,
+            now,
           }));
         }
         return {

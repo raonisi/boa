@@ -28,6 +28,8 @@ import ActivityLog from "./pages/ActivityLog";
 import AdminAuditDashboard from "./pages/AdminAuditDashboard";
 import Download from "./pages/Download";
 import Settings from "./pages/Settings";
+import PushNotificationPreferences from "./pages/PushNotificationPreferences";
+import PushNotificationOperations from "./pages/PushNotificationOperations";
 import ConsultationToolsManagement from "./pages/ConsultationToolsManagement";
 import DeletedDataManagement from "./pages/DeletedDataManagement";
 import Blocked from "./pages/Blocked";
@@ -161,6 +163,18 @@ function Router() {
       <Route path="/notifications">
         <AuthGuard>
           <Notifications />
+        </AuthGuard>
+      </Route>
+      <Route path="/notification-preferences">
+        <AuthGuard>
+          <PushNotificationPreferences />
+        </AuthGuard>
+      </Route>
+      <Route path="/push-notifications">
+        <AuthGuard>
+          <AdminGuard>
+            <PushNotificationOperations />
+          </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/calendar">

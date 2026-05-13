@@ -520,7 +520,17 @@ export const pushNotificationLogs = mysqlTable("push_notification_logs", {
   sourceType: varchar("sourceType", { length: 50 }),
   sourceId: int("sourceId"),
   dedupeKey: varchar("dedupeKey", { length: 200 }).notNull(),
-  status: mysqlEnum("status", ["sent", "skipped", "failed"]).default("skipped").notNull(),
+  status: mysqlEnum("status", [
+    "sent",
+    "skipped",
+    "failed",
+    "skipped_no_token",
+    "skipped_disabled",
+    "skipped_quiet_hours",
+    "skipped_missing_config",
+    "duplicate_skipped",
+    "invalid_token_deactivated",
+  ]).default("skipped").notNull(),
   errorCode: varchar("errorCode", { length: 100 }),
   sentAt: timestamp("sentAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -530,3 +540,23 @@ export const pushNotificationLogs = mysqlTable("push_notification_logs", {
 }));
 export type PushNotificationLog = typeof pushNotificationLogs.$inferSelect;
 export type InsertPushNotificationLog = typeof pushNotificationLogs.$inferInsert;
+
+export const pushNotificationPreferences = mysqlTable("push_notification_preferences", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  followUpTodayEnabled: boolean("followUpTodayEnabled").default(true).notNull(),
+  scheduleReminderEnabled: boolean("scheduleReminderEnabled").default(true).notNull(),
+  deleteRequestEnabled: boolean("deleteRequestEnabled").default(true).notNull(),
+  testNotificationEnabled: boolean("testNotificationEnabled").default(true).notNull(),
+  quietHoursEnabled: boolean("quietHoursEnabled").default(true).notNull(),
+  quietHoursStart: varchar("quietHoursStart", { length: 5 }).default("21:00").notNull(),
+  quietHoursEnd: varchar("quietHoursEnd", { length: 5 }).default("08:00").notNull(),
+  timezone: varchar("timezone", { length: 64 }).default("Asia/Seoul").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+},
+(table) => ({
+  uniquePushPreferenceUser: unique("uq_push_notification_preferences_user").on(table.userId),
+}));
+export type PushNotificationPreference = typeof pushNotificationPreferences.$inferSelect;
+export type InsertPushNotificationPreference = typeof pushNotificationPreferences.$inferInsert;
