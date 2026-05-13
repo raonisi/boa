@@ -1,6 +1,9 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { AlertTriangle, Download as DownloadIcon, FileText, Users } from "lucide-react";
 import { useState } from "react";
@@ -31,27 +34,31 @@ function downloadCSV(data: any[], filename: string) {
 
 export default function Download() {
   const [downloading, setDownloading] = useState<DownloadType | null>(null);
+  const [pendingType, setPendingType] = useState<DownloadType | null>(null);
+  const [downloadReason, setDownloadReason] = useState("");
 
   const utils = trpc.useUtils();
 
-  const handleDownload = async (type: DownloadType) => {
+  const handleDownload = async (type: DownloadType, reason: string) => {
     setDownloading(type);
     try {
       let data: any[] = [];
       const now = new Date().toISOString().slice(0, 10);
       if (type === "customers") {
-        data = await utils.download.customers.fetch();
+        data = await utils.download.customers.fetch({ reason });
         downloadCSV(data, `고객DB_${now}.csv`);
       } else if (type === "contracts") {
-        data = await utils.download.contracts.fetch();
+        data = await utils.download.contracts.fetch({ reason });
         downloadCSV(data, `계약정보_${now}.csv`);
       } else if (type === "schedules") {
-        data = await utils.download.schedules.fetch();
+        data = await utils.download.schedules.fetch({ reason });
         downloadCSV(data, `일정정보_${now}.csv`);
       } else if (type === "performance") {
-        const stats = await utils.download.performance.fetch();
+        const stats = await utils.download.performance.fetch({ reason });
         downloadCSV(stats ? [stats] : [], `실적정보_${now}.csv`);
       }
+      setPendingType(null);
+      setDownloadReason("");
     } catch (e) {
       toast.error("다운로드에 실패했습니다.");
     } finally {
@@ -109,7 +116,7 @@ export default function Download() {
                     size="sm"
                     variant="outline"
                     disabled={downloading === type}
-                    onClick={() => handleDownload(type)}
+                    onClick={() => { setPendingType(type); setDownloadReason(""); }}
                     className="shrink-0"
                   >
                     <DownloadIcon className="h-4 w-4 mr-1" />
@@ -125,6 +132,43 @@ export default function Download() {
           * 다운로드 시 DATA_DOWNLOAD 로그가 기록됩니다. 활동 로그에서 확인할 수 있습니다.
         </p>
       </div>
+      <Dialog open={pendingType !== null} onOpenChange={(open) => !open && setPendingType(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>데이터 다운로드 사유 입력</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              고객정보가 포함될 수 있는 데이터를 다운로드합니다. 다운로드 사유는 활동 로그에 기록됩니다.
+            </p>
+            <p className="text-xs text-destructive">
+              주민등록번호, 증권번호, 계좌번호, 병력상세, 비밀번호 등 민감정보는 사유에 입력하지 마세요.
+            </p>
+            <div>
+              <Label className="text-xs">다운로드 사유 *</Label>
+              <Textarea
+                value={downloadReason}
+                onChange={(e) => setDownloadReason(e.target.value)}
+                rows={4}
+                maxLength={300}
+                className="mt-1"
+                placeholder="예: 파일럿 운영 전 고객 DB 정합성 점검"
+              />
+              <p className="text-[11px] text-muted-foreground mt-1">5자 이상 300자 이하로 입력해주세요.</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => setPendingType(null)}>취소</Button>
+              <Button
+                size="sm"
+                disabled={!pendingType || downloadReason.trim().length < 5 || downloading !== null}
+                onClick={() => pendingType && handleDownload(pendingType, downloadReason.trim())}
+              >
+                다운로드 실행
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

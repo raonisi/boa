@@ -20,6 +20,7 @@ import {
   Menu,
   RotateCcw,
   Settings,
+  ShieldCheck,
   Upload,
   Users,
 } from "lucide-react";
@@ -47,6 +48,7 @@ const moreItems: MobileMenuItem[] = [
   { icon: Database, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin"] },
   { icon: Users, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
   { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
+  { icon: ShieldCheck, label: "운영 점검", path: "/admin-audit", roles: ["branch_admin"] },
   { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },
   { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
   { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },

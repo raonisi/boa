@@ -573,6 +573,86 @@ describe("admin security controls", () => {
   });
 });
 
+describe("admin audit and download reason controls", () => {
+  it("allows only branch_admin to access operational audit summary", async () => {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 1, role: "branch_admin", accountStatus: "active" },
+      { id: 2, role: "member", accountStatus: "inactive" },
+      { id: 3, role: "member", accountStatus: "resigned" },
+    ] as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue([
+      { id: 100, isActive: true, createdAt: new Date() },
+    ] as any);
+    vi.spyOn(db, "getDeletedCustomers").mockResolvedValue([{ id: 101, isActive: false }] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([
+      { id: 10, isActive: true, createdAt: new Date() },
+    ] as any);
+    vi.spyOn(db, "getDeletedContracts").mockResolvedValue([{ id: 11, isActive: false }] as any);
+    vi.spyOn(db, "getAllNotifications").mockResolvedValue([
+      { id: 1, isRead: false, processStatus: "미확인" },
+    ] as any);
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      { id: 1, userId: 1, action: "DATA_DOWNLOAD", targetType: "customers", targetId: null, details: JSON.stringify({ metadata: { reason: "[TEST] audit", rowCount: 1 } }), createdAt: new Date() },
+      { id: 2, userId: 1, action: "LOGIN_BLOCKED", targetType: "user", targetId: 2, details: "{}", createdAt: new Date() },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).adminAudit.summary();
+
+    expect(result.cards.activeUsers).toBe(1);
+    expect(result.cards.inactiveUsers).toBe(1);
+    expect(result.cards.softDeletedCustomers).toBe(1);
+    expect(result.cards.recentDownloads).toBe(1);
+    expect(result.recentRiskEvents[0].action).toBe("DATA_DOWNLOAD");
+    await expect(appRouter.createCaller(createCtx("member")).adminAudit.summary()).rejects.toThrow();
+  });
+
+  it("filters audit logs by action, targetType, risk and pagination", async () => {
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      { id: 1, userId: 1, action: "DATA_DOWNLOAD", targetType: "customers", targetId: null, details: JSON.stringify({ metadata: { reason: "[TEST] export", rowCount: 2 } }), createdAt: new Date() },
+      { id: 2, userId: 2, action: "CUSTOMER_CREATED", targetType: "customer", targetId: 100, details: "{}", createdAt: new Date() },
+      { id: 3, userId: 1, action: "USER_OAUTH_RESET", targetType: "user", targetId: 4, details: JSON.stringify({ metadata: { reason: "[TEST] reset" } }), createdAt: new Date() },
+    ] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 1, name: "[TEST] Admin", email: "admin@test.local", role: "branch_admin" },
+      { id: 2, name: "[TEST] Member", email: "member@test.local", role: "member" },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).adminAudit.logSearch({
+      riskOnly: true,
+      targetType: "customers",
+      limit: 1,
+      offset: 0,
+    });
+
+    expect(result.total).toBe(1);
+    expect(result.items[0].action).toBe("DATA_DOWNLOAD");
+    expect(result.items[0].riskLevel).toBe("high");
+    expect(result.items[0].actor?.email).toContain("***");
+  });
+
+  it("requires a download reason and records it in DATA_DOWNLOAD metadata", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{ id: 100, name: "[TEST] Customer" }] as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).download.customers({ reason: "" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).download.customers({ reason: "짧음" })).rejects.toThrow();
+
+    const data = await appRouter.createCaller(createCtx("branch_admin")).download.customers({ reason: "[TEST] 파일럿 점검" });
+
+    expect(data).toHaveLength(1);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "DATA_DOWNLOAD",
+      targetType: "customers",
+    }), undefined);
+    const details = JSON.parse(String(logSpy.mock.calls[0]?.[0].details));
+    expect(details.metadata.reason).toBe("[TEST] 파일럿 점검");
+  });
+
+  it("keeps download APIs branch_admin only", async () => {
+    await expect(appRouter.createCaller(createCtx("member")).download.customers({ reason: "[TEST] no permission" })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,

@@ -21,6 +21,7 @@ import Calendar from "./pages/Calendar";
 import UserManagement from "./pages/UserManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
+import AdminAuditDashboard from "./pages/AdminAuditDashboard";
 import Download from "./pages/Download";
 import Settings from "./pages/Settings";
 import DeletedDataManagement from "./pages/DeletedDataManagement";
@@ -171,6 +172,13 @@ function Router() {
           <ManagerGuard>
             <ActivityLog />
           </ManagerGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/admin-audit">
+        <AuthGuard>
+          <AdminGuard>
+            <AdminAuditDashboard />
+          </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/download">
