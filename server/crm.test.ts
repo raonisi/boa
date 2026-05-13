@@ -1860,6 +1860,92 @@ describe("PR12 recommendations", () => {
   });
 });
 
+describe("PR14 work rhythm report", () => {
+  const dateFrom = "2026-05-01T00:00:00";
+  const dateTo = "2026-05-31T23:59:59";
+  const customers = [
+    { id: 100, name: "[TEST] A", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, priority: "A", isActive: true, deletedAt: null, createdAt: new Date("2026-04-01") },
+    { id: 101, name: "[TEST] B", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, priority: "B", isActive: true, deletedAt: null, createdAt: new Date("2026-04-02") },
+  ] as any[];
+  const contracts = [
+    { id: 11, customerId: 100, agentId: 4, contractDate: new Date("2026-05-10"), monthlyPremium: 100000, isActive: true, deletedAt: null },
+    { id: 12, customerId: 101, agentId: 4, contractDate: new Date("2026-05-11"), monthlyPremium: 50000, isActive: false, deletedAt: new Date("2026-05-12") },
+  ] as any[];
+  const followUps = [
+    { id: 21, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "completed", nextContactDate: new Date("2026-05-10"), completedAt: new Date("2026-05-10"), createdAt: new Date("2026-05-09"), deletedAt: null },
+    { id: 22, customerId: 101, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "scheduled", nextContactDate: new Date("2026-05-01"), createdAt: new Date("2026-05-01"), deletedAt: null },
+  ] as any[];
+
+  function mockWorkRhythmData() {
+    vi.spyOn(db, "getCustomers").mockResolvedValue(customers as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue(contracts as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([]);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 200 } as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue(followUps as any);
+    vi.spyOn(db, "getConsultationsByCustomer").mockImplementation(async (customerId: number) => (
+      customerId === 100
+        ? [{ id: 31, customerId, createdAt: new Date("2026-05-13"), content: "do not expose memo" }] as any
+        : []
+    ));
+    vi.spyOn(db, "getPerformanceGoalDashboard").mockResolvedValue({
+      items: [{
+        goal: { id: 41, targetType: "user", targetId: 4, contractCountGoal: 3, monthlyPremiumGoal: 300000 },
+        targetLabel: "Test member",
+        actual: { contractCount: 1, monthlyPremium: 100000 },
+        remaining: { contractCount: 2, monthlyPremium: 200000 },
+        remainingDays: 10,
+        dailyRequired: { contractCount: 0.2, monthlyPremium: 20000 },
+        achievementRate: { contractCount: 33, monthlyPremium: 33 },
+        status: "in_progress",
+      }],
+      summary: {},
+    } as any);
+  }
+
+  it("returns scoped aggregation and goal action recommendations without customer private fields", async () => {
+    mockWorkRhythmData();
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).workRhythm.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+    });
+
+    expect(result.consultationCount).toBe(1);
+    expect(result.followUpCreatedCount).toBe(2);
+    expect(result.followUpCompletedCount).toBe(1);
+    expect(result.contractCount).toBe(1);
+    expect(result.monthlyPremiumSum).toBe(100000);
+    expect(result.remaining.contractCount).toBe(2);
+    expect(JSON.stringify(result)).not.toContain("do not expose memo");
+    expect(JSON.stringify(result)).not.toContain("010");
+  });
+
+  it("blocks member target-user escalation and inactive users", async () => {
+    mockWorkRhythmData();
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 5, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 } as any);
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).workRhythm.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      targetUserId: 5,
+    })).rejects.toThrow();
+    await expect(appRouter.createCaller(createInactiveCtx()).workRhythm.summary({ period: "month" })).rejects.toThrow();
+  });
+
+  it("allows team_leader to request own team report and applies team filters", async () => {
+    mockWorkRhythmData();
+    vi.spyOn(db, "getTeamById").mockResolvedValue({ id: 10, name: "[TEST] Team", subBranchAdminId: 2 } as any);
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 4 }, { id: 5 }] as any);
+
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).workRhythm.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      teamId: 10,
+    })).resolves.toMatchObject({ scope: expect.objectContaining({ teamId: 10 }) });
+  });
+});
+
 describe("followUps", () => {
   const activeCustomer = {
     id: 100,

@@ -253,6 +253,61 @@ function PerformanceGoalSummaryCard() {
   );
 }
 
+function WorkRhythmSummaryCard() {
+  const [, setLocation] = useLocation();
+  const { data, isLoading } = trpc.workRhythm.summary.useQuery({ period: "week" });
+
+  return (
+    <Card className="border-sky-200">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">업무 리듬 리포트</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+          <div className="rounded-md bg-muted p-2">
+            <p className="text-xs text-muted-foreground">이번 주 상담기록</p>
+            <p className="text-lg font-semibold">{isLoading ? "-" : data?.consultationCount ?? 0}</p>
+          </div>
+          <div className="rounded-md bg-muted p-2">
+            <p className="text-xs text-muted-foreground">후속관리 완료율</p>
+            <p className="text-lg font-semibold">{data?.followUpCompletionRate ?? "-"}%</p>
+          </div>
+          <div className="rounded-md bg-muted p-2">
+            <p className="text-xs text-muted-foreground">미처리 후속관리</p>
+            <p className="text-lg font-semibold">{isLoading ? "-" : data?.overdueFollowUpCount ?? 0}</p>
+          </div>
+          <div className="rounded-md bg-muted p-2">
+            <p className="text-xs text-muted-foreground">오늘 필요 상담</p>
+            <p className="text-lg font-semibold">{isLoading ? "-" : data?.recommendedTodayActions?.suggestedConsultationCount ?? 0}</p>
+          </div>
+        </div>
+        <div className="grid gap-2 text-xs md:grid-cols-3">
+          <div className="rounded-md border p-2">
+            <p className="text-muted-foreground">목표까지 부족 계약</p>
+            <p className="mt-1 font-semibold">{data?.remaining?.contractCount ?? 0}건</p>
+          </div>
+          <div className="rounded-md border p-2">
+            <p className="text-muted-foreground">목표까지 부족 월납보험료</p>
+            <p className="mt-1 font-semibold">{(data?.remaining?.monthlyPremium ?? 0).toLocaleString()}원</p>
+          </div>
+          <div className="rounded-md border p-2">
+            <p className="text-muted-foreground">일평균 필요 계약</p>
+            <p className="mt-1 font-semibold">{data?.dailyRequired?.contractCount ?? 0}건</p>
+          </div>
+        </div>
+        {(data?.insights ?? []).length > 0 ? (
+          <div className="space-y-1 rounded-md bg-sky-50 p-3 text-xs text-sky-800">
+            {data?.insights.slice(0, 3).map((item) => <p key={item}>• {item}</p>)}
+          </div>
+        ) : null}
+        <button type="button" onClick={() => setLocation("/performance/goals")} className="text-xs text-primary hover:underline">
+          목표관리에서 자세히 보기
+        </button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SubBranchAdminDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -284,6 +339,7 @@ function SubBranchAdminDashboard() {
         </div>
         <TodayWorkSection />
         <PerformanceGoalSummaryCard />
+        <WorkRhythmSummaryCard />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="배분받은 전체 DB" value={allDb.length} icon={Users} />
           <StatCard title="미배정 DB" value={assignedToSubBranch.length} icon={Users} color="text-orange-500" />
@@ -366,6 +422,7 @@ export default function Dashboard() {
 
         <TodayWorkSection />
         <PerformanceGoalSummaryCard />
+        <WorkRhythmSummaryCard />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
