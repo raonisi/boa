@@ -653,6 +653,133 @@ describe("admin audit and download reason controls", () => {
   });
 });
 
+describe("PR9 full role permission QA", () => {
+  it("allows branch_admin to access high-risk admin-only surfaces with required audit inputs", async () => {
+    vi.spyOn(db, "getDeletedCustomers").mockResolvedValue([]);
+    vi.spyOn(db, "listImportBatches").mockResolvedValue([]);
+    vi.spyOn(db, "getDeleteRequests").mockResolvedValue([]);
+    vi.spyOn(db, "getSettings").mockResolvedValue([]);
+    vi.spyOn(db, "getPerformanceStats").mockResolvedValue({ contractCount: 0 } as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([{ id: 1, role: "branch_admin", accountStatus: "active" }] as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+    vi.spyOn(db, "getDeletedContracts").mockResolvedValue([]);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([]);
+    vi.spyOn(db, "getAllNotifications").mockResolvedValue([]);
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue([]);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, openId: "test-member", loginStatus: "linked", role: "member", accountStatus: "active" } as any);
+    vi.spyOn(db, "invalidateUserSessions").mockResolvedValue(1);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.listCustomers()).resolves.toEqual([]);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).imports.listBatches({})).resolves.toEqual([]);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deleteRequests.listAllRequestsForAdmin({})).resolves.toEqual([]);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).settings.list({ category: "region" })).resolves.toEqual([]);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminAudit.summary()).resolves.toBeDefined();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).download.performance({ reason: "[TEST] 권한 QA" })).resolves.toBeDefined();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).adminSecurity.forceLogoutUser({ userId: 4, reason: "[TEST] 권한 QA" })).resolves.toEqual({ success: true, affectedSessionCount: 1 });
+  });
+
+  it("blocks non-admin roles from high-risk admin-only APIs", async () => {
+    const roles: Role[] = ["sub_branch_admin", "team_leader", "member"];
+    for (const role of roles) {
+      const caller = appRouter.createCaller(createCtx(role));
+      await expect(caller.deletedData.listCustomers()).rejects.toThrow();
+      await expect(caller.deletedData.restoreCustomer({ id: 100 })).rejects.toThrow();
+      await expect(caller.deletedData.permanentDeleteCustomer({ id: 100, confirmText: "완전삭제" })).rejects.toThrow();
+      await expect(caller.imports.listBatches({})).rejects.toThrow();
+      await expect(caller.imports.cancelBatch({ importBatchId: "batch_test", confirmText: "BATCH취소" })).rejects.toThrow();
+      await expect(caller.adminAudit.summary()).rejects.toThrow();
+      await expect(caller.adminAudit.logSearch({ riskOnly: true })).rejects.toThrow();
+      await expect(caller.download.customers({ reason: "[TEST] 권한 QA" })).rejects.toThrow();
+      await expect(caller.adminSecurity.loginHistory({ limit: 10 })).rejects.toThrow();
+      await expect(caller.adminSecurity.resetOAuthLink({ userId: 4, reason: "[TEST] 권한 QA", confirmText: "OAuth초기화" })).rejects.toThrow();
+      await expect(caller.users.updateRole({ userId: 4, role: "member" })).rejects.toThrow();
+      await expect(caller.settings.list({ category: "region" })).rejects.toThrow();
+    }
+  });
+
+  it("blocks inactive and resigned users from protected PR1-PR8 APIs", async () => {
+    for (const accountStatus of ["inactive", "resigned"] as const) {
+      const caller = appRouter.createCaller(createCtx("branch_admin", { accountStatus }));
+      await expect(caller.dashboard.todayWork({ date: "2026-05-13T00:00:00.000Z" })).rejects.toThrow();
+      await expect(caller.customers.list({})).rejects.toThrow();
+      await expect(caller.contracts.list()).rejects.toThrow();
+      await expect(caller.followUps.listToday()).rejects.toThrow();
+      await expect(caller.consultations.list({ customerId: 100 })).rejects.toThrow();
+      await expect(caller.deleteRequests.listAllRequestsForAdmin({})).rejects.toThrow();
+      await expect(caller.deletedData.listCustomers()).rejects.toThrow();
+      await expect(caller.imports.listBatches({})).rejects.toThrow();
+      await expect(caller.adminAudit.summary()).rejects.toThrow();
+      await expect(caller.download.customers({ reason: "[TEST] 권한 QA" })).rejects.toThrow();
+    }
+  });
+
+  it("keeps customer management metadata, consultations and follow-ups inside role scope", async () => {
+    const scopedCustomer = {
+      id: 100,
+      name: "[TEST] Customer",
+      agentId: 4,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+      consultStatus: "미상담",
+      priority: "unclassified",
+      customerTags: "[]",
+      nextAction: null,
+      isActive: true,
+      deletedAt: null,
+    } as any;
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(scopedCustomer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, teamId: 10, role: "member", accountStatus: "active" } as any);
+    vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+    vi.spyOn(db, "createConsultation").mockResolvedValue(undefined);
+    vi.spyOn(db, "createFollowUp").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "getConsultationsByCustomer").mockResolvedValue([]);
+
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.updateManagementMeta({ customerId: 100, priority: "A" })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).consultations.create({ customerId: 100, status: "상담예정", summary: "[TEST] summary" })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.create({ customerId: 100, nextContactDate: "2026-05-14T10:00:00.000Z", reason: "[TEST] follow", nextAction: "전화" })).resolves.toEqual({ success: true });
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...scopedCustomer, agentId: 99, assignedTeamId: 99, subBranchAdminId: 99 });
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 99, teamId: 99, role: "member", accountStatus: "active" } as any);
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.updateManagementMeta({ customerId: 100, priority: "A" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).consultations.list({ customerId: 100 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.listByCustomer({ customerId: 100 })).rejects.toThrow();
+  });
+
+  it("keeps delete request scope limited to subordinate, team, and own contracts", async () => {
+    const contract = { id: 10, customerId: 100, agentId: 4, isActive: true, deletedAt: null } as any;
+    const customer = {
+      id: 100,
+      name: "[TEST] Customer",
+      agentId: 4,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+      isActive: true,
+      deletedAt: null,
+    } as any;
+    vi.spyOn(db, "getContractById").mockResolvedValue(contract);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(customer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, teamId: 10, role: "member", accountStatus: "active" } as any);
+    vi.spyOn(db, "getPendingDeleteRequestForTarget").mockResolvedValue(undefined);
+    vi.spyOn(db, "createDeleteRequest").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).deleteRequests.createContractDeleteRequest({ contractId: 10, requestReason: "오입력" })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).deleteRequests.createContractDeleteRequest({ contractId: 10, requestReason: "오입력" })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).deleteRequests.createContractDeleteRequest({ contractId: 10, requestReason: "오입력" })).resolves.toEqual({ success: true });
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getContractById").mockResolvedValue(contract);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...customer, agentId: 99, assignedTeamId: 99, subBranchAdminId: 99 });
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 99, teamId: 99, role: "member", accountStatus: "active" } as any);
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).deleteRequests.createContractDeleteRequest({ contractId: 10, requestReason: "오입력" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).deleteRequests.createContractDeleteRequest({ contractId: 10, requestReason: "오입력" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).deleteRequests.createContractDeleteRequest({ contractId: 10, requestReason: "오입력" })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,
