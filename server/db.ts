@@ -1124,6 +1124,53 @@ export async function updateConsultationChecklistTemplate(id: number, data: Part
   await db.update(consultationChecklists).set(data).where(eq(consultationChecklists.id, id));
 }
 
+export const DEFAULT_CONSULTATION_CHECKLISTS = [
+  { phase: "before", category: "basic", sortOrder: 10, isRequired: false, title: "고객 기본정보 확인", description: "고객 기본정보를 확인했습니다." },
+  { phase: "before", category: "basic", sortOrder: 20, isRequired: false, title: "기존 상담기록 확인", description: "기존 상담기록을 확인했습니다." },
+  { phase: "before", category: "coverage", sortOrder: 30, isRequired: false, title: "기존 계약 또는 보장 현황 확인", description: "기존 계약 또는 보장 현황을 확인했습니다." },
+  { phase: "before", category: "follow_up", sortOrder: 40, isRequired: false, title: "오늘 상담 목적 정리", description: "오늘 상담 목적을 정리했습니다." },
+  { phase: "during", category: "needs", sortOrder: 10, isRequired: false, title: "현재 고민 확인", description: "고객의 현재 고민을 확인했습니다." },
+  { phase: "during", category: "premium", sortOrder: 20, isRequired: false, title: "보험료 부담 확인", description: "보험료 부담 여부를 확인했습니다." },
+  { phase: "during", category: "coverage", sortOrder: 30, isRequired: false, title: "보장 공백 우려 확인", description: "보장 공백 우려를 확인했습니다." },
+  { phase: "during", category: "family", sortOrder: 40, isRequired: false, title: "가족 구성과 책임 범위 확인", description: "가족 구성과 책임 범위를 확인했습니다." },
+  { phase: "during", category: "needs", sortOrder: 50, isRequired: false, title: "상담 방향 확인", description: "고객이 원하는 상담 방향을 확인했습니다." },
+  { phase: "after", category: "basic", sortOrder: 10, isRequired: false, title: "상담 요약 기록", description: "상담 요약을 기록했습니다." },
+  { phase: "after", category: "follow_up", sortOrder: 20, isRequired: false, title: "다음 액션 설정", description: "다음 액션을 설정했습니다." },
+  { phase: "after", category: "follow_up", sortOrder: 30, isRequired: false, title: "다음 연락일 설정", description: "다음 연락일을 설정했습니다." },
+  { phase: "after", category: "follow_up", sortOrder: 40, isRequired: false, title: "자료 또는 설계안 전달 기록", description: "필요한 자료 또는 설계안 전달 여부를 기록했습니다." },
+  { phase: "after", category: "compliance", sortOrder: 50, isRequired: true, title: "민감정보 기록 여부 확인", description: "민감정보를 상담 메모에 남기지 않았는지 확인했습니다." },
+] as const;
+
+export async function ensureDefaultConsultationChecklists(createdBy: number) {
+  const db = await getDb();
+  if (!db) return { createdCount: 0, reactivatedCount: 0 };
+  let createdCount = 0;
+  let reactivatedCount = 0;
+  for (const checklist of DEFAULT_CONSULTATION_CHECKLISTS) {
+    const existing = await db.select().from(consultationChecklists)
+      .where(and(eq(consultationChecklists.title, checklist.title), eq(consultationChecklists.phase, checklist.phase as any)))
+      .limit(1);
+    if (existing[0]) {
+      if (!existing[0].isActive || existing[0].deletedAt) {
+        await db.update(consultationChecklists)
+          .set({ isActive: true, deletedAt: null, updatedBy: createdBy })
+          .where(eq(consultationChecklists.id, existing[0].id));
+        reactivatedCount++;
+      }
+      continue;
+    }
+    await db.insert(consultationChecklists).values({
+      ...checklist,
+      phase: checklist.phase as any,
+      category: checklist.category as any,
+      createdBy,
+      isActive: true,
+    });
+    createdCount++;
+  }
+  return { createdCount, reactivatedCount };
+}
+
 export async function getConsultationChecklistTemplateById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
@@ -1154,13 +1201,22 @@ export async function upsertConsultationCheckResult(data: InsertConsultationChec
 
 export async function ensureDefaultMessageTemplates(createdBy: number) {
   const db = await getDb();
-  if (!db) return { createdCount: 0 };
+  if (!db) return { createdCount: 0, reactivatedCount: 0 };
   let createdCount = 0;
+  let reactivatedCount = 0;
   for (const template of DEFAULT_MESSAGE_TEMPLATES) {
     const existing = await db.select().from(messageTemplates)
       .where(and(eq(messageTemplates.title, template.title), eq(messageTemplates.situation, template.situation as any), eq(messageTemplates.channel, template.channel as any)))
       .limit(1);
-    if (existing.length > 0) continue;
+    if (existing[0]) {
+      if (!existing[0].isActive || existing[0].deletedAt) {
+        await db.update(messageTemplates)
+          .set({ isActive: true, deletedAt: null, updatedBy: createdBy })
+          .where(eq(messageTemplates.id, existing[0].id));
+        reactivatedCount++;
+      }
+      continue;
+    }
     await db.insert(messageTemplates).values({
       ...template,
       situation: template.situation as any,
@@ -1171,7 +1227,7 @@ export async function ensureDefaultMessageTemplates(createdBy: number) {
     });
     createdCount++;
   }
-  return { createdCount };
+  return { createdCount, reactivatedCount };
 }
 
 export async function getMessageTemplates(includeInactive = false) {

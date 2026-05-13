@@ -115,6 +115,7 @@ import {
   invalidateAllUserSessions,
   invalidateUserSessions,
   linkUserOpenId,
+  ensureDefaultConsultationChecklists,
   ensureDefaultConsultationScripts,
   ensureDefaultMessageTemplates,
   listImportBatches,
@@ -2683,6 +2684,14 @@ export const appRouter = router({
         return { templates, results };
       }),
 
+    seedDefaultChecklists: branchAdminProcedure.mutation(async ({ ctx }) => {
+      const result = await ensureDefaultConsultationChecklists(ctx.user.id);
+      if (result.createdCount > 0 || result.reactivatedCount > 0) {
+        await log(ctx.user.id, "CONSULTATION_CHECKLIST_DEFAULTS_SEEDED", "consultation_checklist", undefined, logDetails({ actor: ctx.user.id, targetType: "consultation_checklist", metadata: result }));
+      }
+      return result;
+    }),
+
     updateCheckResult: activeUserProcedure
       .input(z.object({
         customerId: z.number(),
@@ -2715,8 +2724,8 @@ export const appRouter = router({
 
     seedDefaultMessageTemplates: branchAdminProcedure.mutation(async ({ ctx }) => {
       const result = await ensureDefaultMessageTemplates(ctx.user.id);
-      if (result.createdCount > 0) {
-        await log(ctx.user.id, "MESSAGE_TEMPLATE_DEFAULTS_SEEDED", "message_template", undefined, logDetails({ actor: ctx.user.id, targetType: "message_template", metadata: { createdCount: result.createdCount } }));
+      if (result.createdCount > 0 || result.reactivatedCount > 0) {
+        await log(ctx.user.id, "MESSAGE_TEMPLATE_DEFAULTS_SEEDED", "message_template", undefined, logDetails({ actor: ctx.user.id, targetType: "message_template", metadata: result }));
       }
       return result;
     }),

@@ -1361,12 +1361,21 @@ describe("PR11 consultation tools", () => {
   });
 
   it("seeds default message templates without duplicate rows", async () => {
-    vi.spyOn(db, "ensureDefaultMessageTemplates").mockResolvedValue({ createdCount: 10 });
+    vi.spyOn(db, "ensureDefaultMessageTemplates").mockResolvedValue({ createdCount: 10, reactivatedCount: 0 });
     const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
-    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.seedDefaultMessageTemplates()).resolves.toEqual({ createdCount: 10 });
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.seedDefaultMessageTemplates()).resolves.toEqual({ createdCount: 10, reactivatedCount: 0 });
     expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "MESSAGE_TEMPLATE_DEFAULTS_SEEDED" }), undefined);
     await expect(appRouter.createCaller(createCtx("member")).consultationTools.seedDefaultMessageTemplates()).rejects.toThrow();
+  });
+
+  it("seeds default consultation checklists without duplicate rows", async () => {
+    vi.spyOn(db, "ensureDefaultConsultationChecklists").mockResolvedValue({ createdCount: 14, reactivatedCount: 0 });
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.seedDefaultChecklists()).resolves.toEqual({ createdCount: 14, reactivatedCount: 0 });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "CONSULTATION_CHECKLIST_DEFAULTS_SEEDED" }), undefined);
+    await expect(appRouter.createCaller(createCtx("member")).consultationTools.seedDefaultChecklists()).rejects.toThrow();
   });
 
   it("manages message templates with compliance guards", async () => {

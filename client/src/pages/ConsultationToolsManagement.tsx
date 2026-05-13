@@ -84,6 +84,13 @@ export default function ConsultationToolsManagement() {
     onSuccess: () => utils.consultationTools.listChecklists.invalidate(),
     onError: (error) => toast.error(error.message),
   });
+  const seedChecklists = trpc.consultationTools.seedDefaultChecklists.useMutation({
+    onSuccess: (result) => {
+      toast.success(`기본 체크리스트 ${result.createdCount}건 생성, ${result.reactivatedCount}건 재활성 확인`);
+      utils.consultationTools.listChecklists.invalidate();
+    },
+    onError: (error) => toast.error(error.message),
+  });
   const seedTemplates = trpc.consultationTools.seedDefaultMessageTemplates.useMutation({
     onSuccess: (result) => {
       toast.success(`기본 템플릿 ${result.createdCount}건을 확인했습니다.`);
@@ -149,6 +156,9 @@ export default function ConsultationToolsManagement() {
             <Card>
               <CardHeader><CardTitle className="text-base">체크리스트 항목 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-6">
+                <div className="md:col-span-6 flex justify-end">
+                  <Button variant="outline" onClick={() => seedChecklists.mutate()} disabled={seedChecklists.isPending}><RefreshCw className="h-4 w-4 mr-1" />기본 체크리스트 확인</Button>
+                </div>
                 <div className="md:col-span-2"><Label>제목</Label><Input value={checkTitle} onChange={(event) => setCheckTitle(event.target.value)} /></div>
                 <div><Label>단계</Label><Select value={checkPhase} onValueChange={(value) => setCheckPhase(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
                 <div><Label>카테고리</Label><Select value={checkCategory} onValueChange={(value) => setCheckCategory(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
