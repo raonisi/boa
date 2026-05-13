@@ -9,6 +9,7 @@ import {
   contracts,
   customers,
   deleteRequests,
+  followUps,
   importBatches,
   InsertActivityLog,
   InsertAssignmentHistory,
@@ -18,6 +19,7 @@ import {
   InsertContractHistory,
   InsertCustomer,
   InsertDeleteRequest,
+  InsertFollowUp,
   InsertImportBatch,
   InsertNotification,
   InsertSchedule,
@@ -664,6 +666,51 @@ export async function updateDeleteRequest(
 }
 
 // ─── Schedules ────────────────────────────────────────────────────────────────
+export async function createFollowUp(data: InsertFollowUp, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.insert(followUps).values(data);
+}
+
+export async function getFollowUpById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(followUps).where(eq(followUps.id, id)).limit(1);
+  return result[0];
+}
+
+export async function getFollowUps(filter: {
+  customerId?: number;
+  agentId?: number;
+  teamId?: number;
+  subBranchAdminId?: number;
+  statuses?: Array<"scheduled" | "completed" | "postponed" | "cancelled">;
+  dueFrom?: Date;
+  dueTo?: Date;
+  includeDeleted?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (!filter.includeDeleted) conditions.push(isNull(followUps.deletedAt));
+  if (filter.customerId !== undefined) conditions.push(eq(followUps.customerId, filter.customerId));
+  if (filter.agentId !== undefined) conditions.push(eq(followUps.assignedAgentId, filter.agentId));
+  if (filter.teamId !== undefined) conditions.push(eq(followUps.teamId, filter.teamId));
+  if (filter.subBranchAdminId !== undefined) conditions.push(eq(followUps.subBranchAdminId, filter.subBranchAdminId));
+  if (filter.statuses && filter.statuses.length > 0) conditions.push(or(...filter.statuses.map((status) => eq(followUps.status, status))));
+  if (filter.dueFrom) conditions.push(gte(followUps.nextContactDate, filter.dueFrom));
+  if (filter.dueTo) conditions.push(lte(followUps.nextContactDate, filter.dueTo));
+  return db.select().from(followUps)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(followUps.nextContactDate);
+}
+
+export async function updateFollowUp(id: number, data: Partial<InsertFollowUp>, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(followUps).set(data).where(eq(followUps.id, id));
+}
+
 export async function getSchedules(filter: { userId?: number; teamId?: number; subBranchAdminId?: number }) {
   const db = await getDb();
   if (!db) return [];
