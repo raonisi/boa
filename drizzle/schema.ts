@@ -352,6 +352,26 @@ export const handoffHistories = mysqlTable("handoff_histories", {
 export type HandoffHistory = typeof handoffHistories.$inferSelect;
 export type InsertHandoffHistory = typeof handoffHistories.$inferInsert;
 
+export const performanceGoals = mysqlTable("performance_goals", {
+  id: int("id").autoincrement().primaryKey(),
+  year: int("year").notNull(),
+  month: int("month").notNull(),
+  targetType: mysqlEnum("targetType", ["branch", "sub_branch", "team", "user"]).notNull(),
+  targetId: int("targetId"),
+  contractCountGoal: int("contractCountGoal").default(0).notNull(),
+  monthlyPremiumGoal: int("monthlyPremiumGoal").default(0).notNull(),
+  consultationGoal: int("consultationGoal").default(0).notNull(),
+  followUpGoal: int("followUpGoal").default(0).notNull(),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  isActive: boolean("isActive").default(true).notNull(),
+  deletedAt: timestamp("deletedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type PerformanceGoal = typeof performanceGoals.$inferSelect;
+export type InsertPerformanceGoal = typeof performanceGoals.$inferInsert;
+
 // ─── Contract History ─────────────────────────────────────────────────────────
 export const contractHistory = mysqlTable("contract_history", {
   id: int("id").autoincrement().primaryKey(),

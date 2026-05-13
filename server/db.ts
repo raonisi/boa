@@ -26,6 +26,7 @@ import {
   InsertSchedule,
   InsertStatusHistory,
   notifications,
+  performanceGoals,
   reminders,
   schedules,
   settings,
@@ -102,6 +103,8 @@ export type HandoffExecuteInput = {
   resetOAuthSource: boolean;
   reason: string;
 };
+
+export type PerformanceGoalTargetType = "branch" | "sub_branch" | "team" | "user";
 
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
@@ -1936,6 +1939,162 @@ export async function getPerformanceStats(filter: {
 
 // ─── Bulk Import Helpers ─────────────────────────────────────────────────────
 /** 연락처 정규화 (숫자만 추출) */
+function monthRange(year: number, month: number) {
+  const dateFrom = new Date(year, month - 1, 1);
+  const dateTo = new Date(year, month, 0, 23, 59, 59, 999);
+  return { dateFrom, dateTo };
+}
+
+function performanceScopeForGoal(goal: typeof performanceGoals.$inferSelect) {
+  if (goal.targetType === "sub_branch") return { subBranchAdminId: goal.targetId ?? undefined };
+  if (goal.targetType === "team") return { teamId: goal.targetId ?? undefined };
+  if (goal.targetType === "user") return { agentId: goal.targetId ?? undefined };
+  return {};
+}
+
+function daysRemainingInMonth(year: number, month: number) {
+  const now = new Date();
+  const monthEnd = new Date(year, month, 0);
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (now.getFullYear() !== year || now.getMonth() + 1 !== month) return Math.max(0, monthEnd.getDate());
+  return Math.max(1, Math.ceil((monthEnd.getTime() - start.getTime()) / (24 * 60 * 60 * 1000)) + 1);
+}
+
+function buildGoalProgress(goal: typeof performanceGoals.$inferSelect, actual: { activeContracts?: number; monthlyPremiumSum?: number } | null, targetLabel: string) {
+  const actualContractCount = Number(actual?.activeContracts ?? 0);
+  const actualMonthlyPremium = Number(actual?.monthlyPremiumSum ?? 0);
+  const contractGoal = Number(goal.contractCountGoal ?? 0);
+  const premiumGoal = Number(goal.monthlyPremiumGoal ?? 0);
+  const remainingContractCount = Math.max(0, contractGoal - actualContractCount);
+  const remainingMonthlyPremium = Math.max(0, premiumGoal - actualMonthlyPremium);
+  const remainingDays = daysRemainingInMonth(goal.year, goal.month);
+  return {
+    goal,
+    targetLabel,
+    actual: { contractCount: actualContractCount, monthlyPremium: actualMonthlyPremium },
+    achievementRate: {
+      contractCount: contractGoal > 0 ? Math.round((actualContractCount / contractGoal) * 100) : null,
+      monthlyPremium: premiumGoal > 0 ? Math.round((actualMonthlyPremium / premiumGoal) * 100) : null,
+    },
+    remaining: { contractCount: remainingContractCount, monthlyPremium: remainingMonthlyPremium },
+    remainingDays,
+    dailyRequired: {
+      contractCount: remainingDays > 0 ? Math.ceil(remainingContractCount / remainingDays) : remainingContractCount,
+      monthlyPremium: remainingDays > 0 ? Math.ceil(remainingMonthlyPremium / remainingDays) : remainingMonthlyPremium,
+    },
+    status: contractGoal === 0 && premiumGoal === 0 ? "goal_unset" : (remainingContractCount === 0 && remainingMonthlyPremium === 0 ? "achieved" : "in_progress"),
+  };
+}
+
+async function getGoalTargetLabel(goal: typeof performanceGoals.$inferSelect, userMap: Map<number, User>, teamMap: Map<number, Team>) {
+  if (goal.targetType === "branch") return "지점 전체";
+  if (goal.targetType === "team") return goal.targetId ? (teamMap.get(goal.targetId)?.name ?? `팀 #${goal.targetId}`) : "팀";
+  if (goal.targetType === "sub_branch") return goal.targetId ? (userMap.get(goal.targetId)?.name ?? `부지점 #${goal.targetId}`) : "부지점";
+  return goal.targetId ? (userMap.get(goal.targetId)?.name ?? `사용자 #${goal.targetId}`) : "개인";
+}
+
+export async function getActivePerformanceGoal(target: { year: number; month: number; targetType: PerformanceGoalTargetType; targetId?: number | null }) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const conditions: any[] = [
+    eq(performanceGoals.year, target.year),
+    eq(performanceGoals.month, target.month),
+    eq(performanceGoals.targetType, target.targetType),
+    eq(performanceGoals.isActive, true),
+    isNull(performanceGoals.deletedAt),
+  ];
+  if (target.targetId == null) conditions.push(isNull(performanceGoals.targetId));
+  else conditions.push(eq(performanceGoals.targetId, target.targetId));
+  const result = await db.select().from(performanceGoals).where(and(...conditions)).limit(1);
+  return result[0];
+}
+
+export async function createPerformanceGoal(data: typeof performanceGoals.$inferInsert) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(performanceGoals).values(data);
+  return getActivePerformanceGoal({ year: data.year, month: data.month, targetType: data.targetType as PerformanceGoalTargetType, targetId: data.targetId });
+}
+
+export async function updatePerformanceGoal(id: number, data: Partial<typeof performanceGoals.$inferInsert>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(performanceGoals).set(data).where(eq(performanceGoals.id, id));
+}
+
+export async function deactivatePerformanceGoal(id: number, updatedBy: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(performanceGoals).set({ isActive: false, deletedAt: new Date(), updatedBy }).where(eq(performanceGoals.id, id));
+}
+
+export async function getPerformanceGoalById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(performanceGoals).where(eq(performanceGoals.id, id)).limit(1);
+  return result[0];
+}
+
+export async function listPerformanceGoals(filter: { year?: number; month?: number; includeInactive?: boolean } = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (!filter.includeInactive) {
+    conditions.push(eq(performanceGoals.isActive, true));
+    conditions.push(isNull(performanceGoals.deletedAt));
+  }
+  if (filter.year) conditions.push(eq(performanceGoals.year, filter.year));
+  if (filter.month) conditions.push(eq(performanceGoals.month, filter.month));
+  return db.select().from(performanceGoals)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(performanceGoals.createdAt));
+}
+
+export async function getPerformanceGoalDashboard(user: User, year: number, month: number) {
+  const [goals, allUsers, allTeams] = await Promise.all([
+    listPerformanceGoals({ year, month }),
+    getAllUsers(),
+    getAllTeams(),
+  ]);
+  const userMap = new Map(allUsers.map((item) => [item.id, item]));
+  const teamMap = new Map(allTeams.map((item) => [item.id, item]));
+  const visibleGoals = goals.filter((goal) => {
+    if (user.role === "branch_admin") return true;
+    if (user.role === "sub_branch_admin") {
+      if (goal.targetType === "sub_branch") return goal.targetId === user.id;
+      if (goal.targetType === "team") return goal.targetId != null && teamMap.get(goal.targetId)?.subBranchAdminId === user.id;
+      if (goal.targetType === "user") return goal.targetId != null && userMap.get(goal.targetId)?.subBranchAdminId === user.id;
+      return false;
+    }
+    if (user.role === "team_leader") {
+      if (goal.targetType === "team") return goal.targetId === user.teamId;
+      if (goal.targetType === "user") return goal.targetId != null && userMap.get(goal.targetId)?.teamId === user.teamId;
+      return false;
+    }
+    return goal.targetType === "user" && goal.targetId === user.id;
+  });
+
+  const range = monthRange(year, month);
+  const items = [];
+  for (const goal of visibleGoals) {
+    const actual = await getPerformanceStats({ ...performanceScopeForGoal(goal), ...range });
+    items.push(buildGoalProgress(goal, actual, await getGoalTargetLabel(goal, userMap, teamMap)));
+  }
+  return {
+    year,
+    month,
+    scope: user.role,
+    items,
+    summary: {
+      totalGoals: items.length,
+      achievedGoals: items.filter((item) => item.status === "achieved").length,
+      pendingGoals: items.filter((item) => item.status !== "achieved").length,
+      averageContractRate: items.length > 0 ? Math.round(items.reduce((sum, item) => sum + Number(item.achievementRate.contractCount ?? 0), 0) / items.length) : null,
+      averagePremiumRate: items.length > 0 ? Math.round(items.reduce((sum, item) => sum + Number(item.achievementRate.monthlyPremium ?? 0), 0) / items.length) : null,
+    },
+  };
+}
+
 export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
 }

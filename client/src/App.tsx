@@ -17,6 +17,7 @@ import CustomerMergeManagement from "./pages/CustomerMergeManagement";
 import ImportBatchManagement from "./pages/ImportBatchManagement";
 import ContractList from "./pages/ContractList";
 import Performance from "./pages/Performance";
+import PerformanceGoals from "./pages/PerformanceGoals";
 import Notifications from "./pages/Notifications";
 import Calendar from "./pages/Calendar";
 import UserManagement from "./pages/UserManagement";
@@ -145,6 +146,11 @@ function Router() {
       <Route path="/contracts">
         <AuthGuard>
           <ContractList />
+        </AuthGuard>
+      </Route>
+      <Route path="/performance/goals">
+        <AuthGuard>
+          <PerformanceGoals />
         </AuthGuard>
       </Route>
       <Route path="/performance">

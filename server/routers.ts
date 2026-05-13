@@ -19,12 +19,14 @@ import {
   createFollowUp,
   createImportBatch,
   createNotification,
+  createPerformanceGoal,
   createSchedule,
   createStatusHistory,
   createTeam,
   completeSchedule,
   deactivateContract,
   deactivateContractWithClient,
+  deactivatePerformanceGoal,
   deactivateTeam,
   softDeleteSchedule,
   softDeleteCustomer,
@@ -58,6 +60,9 @@ import {
   getNotifications,
   getNotificationById,
   getPendingDeleteRequestForTarget,
+  getActivePerformanceGoal,
+  getPerformanceGoalById,
+  getPerformanceGoalDashboard,
   getPerformanceStats,
   getSchedules,
   getStatusHistory,
@@ -71,6 +76,7 @@ import {
   updateContract,
   updateCustomer,
   updateNotificationProcessStatus,
+  updatePerformanceGoal,
   updateSchedule,
   updateTeam,
   updateUserAccountStatus,
@@ -93,6 +99,7 @@ import {
   invalidateUserSessions,
   linkUserOpenId,
   listImportBatches,
+  listPerformanceGoals,
   getAllNotifications,
   getNotificationsFiltered,
   normalizePhone,
@@ -3108,6 +3115,79 @@ export const appRouter = router({
   }),
 
   // ── Performance ───────────────────────────────────────────────────────────
+  performanceGoals: router({
+    create: branchAdminProcedure
+      .input(z.object({
+        year: z.number().int().min(2000).max(2100),
+        month: z.number().int().min(1).max(12),
+        targetType: z.enum(["branch", "sub_branch", "team", "user"]),
+        targetId: z.number().nullable().optional(),
+        contractCountGoal: z.number().int().min(0),
+        monthlyPremiumGoal: z.number().int().min(0),
+        consultationGoal: z.number().int().min(0).default(0),
+        followUpGoal: z.number().int().min(0).default(0),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const targetId = input.targetType === "branch" ? null : input.targetId;
+        if (input.targetType !== "branch" && !targetId) throw new TRPCError({ code: "BAD_REQUEST", message: "대상 ID가 필요합니다." });
+        if (input.targetType === "team" && targetId && !await getTeamById(targetId)) throw new TRPCError({ code: "NOT_FOUND", message: "팀을 찾을 수 없습니다." });
+        if ((input.targetType === "user" || input.targetType === "sub_branch") && targetId) {
+          const targetUser = await getUserById(targetId);
+          if (!targetUser) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+          if (input.targetType === "sub_branch" && targetUser.role !== "sub_branch_admin") throw new TRPCError({ code: "BAD_REQUEST", message: "부지점 목표 대상은 sub_branch_admin이어야 합니다." });
+          if (input.targetType === "user" && targetUser.role !== "team_leader" && targetUser.role !== "member") throw new TRPCError({ code: "BAD_REQUEST", message: "개인 목표 대상은 team_leader 또는 member여야 합니다." });
+        }
+        const duplicate = await getActivePerformanceGoal({ year: input.year, month: input.month, targetType: input.targetType, targetId });
+        if (duplicate) throw new TRPCError({ code: "BAD_REQUEST", message: "같은 월과 대상의 active 목표가 이미 있습니다." });
+        const created = await createPerformanceGoal({ ...input, targetId, createdBy: ctx.user.id });
+        await log(ctx.user.id, "PERFORMANCE_GOAL_CREATED", "performance_goal", created?.id, logDetails({ actor: ctx.user.id, targetType: "performance_goal", targetId: created?.id, afterValue: { ...input, targetId } }));
+        return created;
+      }),
+
+    update: branchAdminProcedure
+      .input(z.object({ id: z.number(), contractCountGoal: z.number().int().min(0), monthlyPremiumGoal: z.number().int().min(0), consultationGoal: z.number().int().min(0).default(0), followUpGoal: z.number().int().min(0).default(0) }))
+      .mutation(async ({ ctx, input }) => {
+        const goal = await getPerformanceGoalById(input.id);
+        if (!goal) throw new TRPCError({ code: "NOT_FOUND", message: "목표를 찾을 수 없습니다." });
+        await updatePerformanceGoal(input.id, { contractCountGoal: input.contractCountGoal, monthlyPremiumGoal: input.monthlyPremiumGoal, consultationGoal: input.consultationGoal, followUpGoal: input.followUpGoal, updatedBy: ctx.user.id });
+        await log(ctx.user.id, "PERFORMANCE_GOAL_UPDATED", "performance_goal", input.id, logDetails({
+          actor: ctx.user.id,
+          targetType: "performance_goal",
+          targetId: input.id,
+          beforeValue: { contractCountGoal: goal.contractCountGoal, monthlyPremiumGoal: goal.monthlyPremiumGoal, consultationGoal: goal.consultationGoal, followUpGoal: goal.followUpGoal },
+          afterValue: { contractCountGoal: input.contractCountGoal, monthlyPremiumGoal: input.monthlyPremiumGoal, consultationGoal: input.consultationGoal, followUpGoal: input.followUpGoal },
+        }));
+        return { success: true };
+      }),
+
+    deactivate: branchAdminProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const goal = await getPerformanceGoalById(input.id);
+        if (!goal) throw new TRPCError({ code: "NOT_FOUND", message: "목표를 찾을 수 없습니다." });
+        if (!goal.isActive || goal.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "이미 비활성 처리된 목표입니다." });
+        await deactivatePerformanceGoal(input.id, ctx.user.id);
+        await log(ctx.user.id, "PERFORMANCE_GOAL_DEACTIVATED", "performance_goal", input.id, logDetails({ actor: ctx.user.id, targetType: "performance_goal", targetId: input.id, beforeValue: { isActive: goal.isActive }, afterValue: { isActive: false } }));
+        return { success: true };
+      }),
+
+    list: activeUserProcedure
+      .input(z.object({ year: z.number().int().optional(), month: z.number().int().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role === "branch_admin") return listPerformanceGoals(input ?? {});
+        const now = new Date();
+        const dashboard = await getPerformanceGoalDashboard(ctx.user as any, input?.year ?? now.getFullYear(), input?.month ?? now.getMonth() + 1);
+        return dashboard.items.map((item) => item.goal);
+      }),
+
+    dashboard: activeUserProcedure
+      .input(z.object({ year: z.number().int().min(2000).max(2100).optional(), month: z.number().int().min(1).max(12).optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const now = new Date();
+        return getPerformanceGoalDashboard(ctx.user as any, input?.year ?? now.getFullYear(), input?.month ?? now.getMonth() + 1);
+      }),
+  }),
+
   performance: router({
     stats: activeUserProcedure
       .input(z.object({

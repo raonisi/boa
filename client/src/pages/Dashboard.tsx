@@ -10,6 +10,7 @@ import {
   CalendarDays,
   FileText,
   Phone,
+  Target,
   TrendingUp,
   Users,
 } from "lucide-react";
@@ -152,6 +153,67 @@ function TodayWorkSection() {
   );
 }
 
+function PerformanceGoalSummaryCard() {
+  const [, setLocation] = useLocation();
+  const { data } = trpc.performanceGoals.dashboard.useQuery({});
+  const firstGoal = data?.items?.[0];
+
+  if (!firstGoal) {
+    return (
+      <Card>
+        <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">이번 달 목표</p>
+            <p className="mt-1 text-xs text-muted-foreground">설정된 목표가 없습니다.</p>
+          </div>
+          <button type="button" onClick={() => setLocation("/performance/goals")} className="text-xs text-primary hover:underline">
+            목표관리 보기
+          </button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-primary/20">
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Target className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold">이번 달 목표 대비 성과</p>
+              <p className="text-xs text-muted-foreground">{firstGoal.targetLabel}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <div>
+              <p className="text-xs text-muted-foreground">계약 달성률</p>
+              <p className="font-semibold">{firstGoal.achievementRate.contractCount ?? "-"}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">월납 달성률</p>
+              <p className="font-semibold">{firstGoal.achievementRate.monthlyPremium ?? "-"}%</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">부족 계약</p>
+              <p className="font-semibold">{firstGoal.remaining.contractCount}건</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">남은 기간</p>
+              <p className="font-semibold">{firstGoal.remainingDays}일</p>
+            </div>
+          </div>
+          <button type="button" onClick={() => setLocation("/performance/goals")} className="text-xs text-primary hover:underline">
+            자세히 보기
+          </button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SubBranchAdminDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -182,6 +244,7 @@ function SubBranchAdminDashboard() {
           <p className="text-sm text-muted-foreground mt-1">{user?.name} (부지점장) · {today.toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" })}</p>
         </div>
         <TodayWorkSection />
+        <PerformanceGoalSummaryCard />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="배분받은 전체 DB" value={allDb.length} icon={Users} />
           <StatCard title="미배정 DB" value={assignedToSubBranch.length} icon={Users} color="text-orange-500" />
@@ -263,6 +326,7 @@ export default function Dashboard() {
         </div>
 
         <TodayWorkSection />
+        <PerformanceGoalSummaryCard />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

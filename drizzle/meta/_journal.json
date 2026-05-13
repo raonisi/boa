@@ -99,6 +99,13 @@
       "when": 1778645879661,
       "tag": "0013_majestic_the_fallen",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1778647423445,
+      "tag": "0014_fearless_mimic",
+      "breakpoints": true
     }
   ]
 }
