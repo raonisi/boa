@@ -91,6 +91,33 @@ const roleLabel: Record<string, string> = {
   member: "팀원",
 };
 
+const pageTitles: Array<{ prefix: string; title: string }> = [
+  { prefix: "/customers/assign", title: "DB 배정" },
+  { prefix: "/customers/bulk-import", title: "고객 일괄 등록" },
+  { prefix: "/customers/import-batches", title: "업로드 이력 관리" },
+  { prefix: "/customers/merge", title: "중복 고객 관리" },
+  { prefix: "/customers", title: "고객 DB" },
+  { prefix: "/contracts", title: "계약관리" },
+  { prefix: "/performance/goals", title: "목표관리" },
+  { prefix: "/performance", title: "실적관리" },
+  { prefix: "/notifications", title: "알림센터" },
+  { prefix: "/calendar", title: "일정 캘린더" },
+  { prefix: "/users/handoff", title: "인수인계 관리" },
+  { prefix: "/users", title: "사용자 관리" },
+  { prefix: "/teams", title: "팀 관리" },
+  { prefix: "/admin-audit", title: "운영 점검" },
+  { prefix: "/logs", title: "활동 로그" },
+  { prefix: "/deleted-data", title: "삭제 데이터 관리" },
+  { prefix: "/download", title: "데이터 다운로드" },
+  { prefix: "/consultation-tools", title: "상담 도구 관리" },
+  { prefix: "/settings", title: "설정 관리" },
+];
+
+function getPageTitle(path: string) {
+  if (path === "/") return "대시보드";
+  return pageTitles.find((item) => path.startsWith(item.prefix))?.title ?? "BOA CRM";
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
@@ -191,23 +218,23 @@ function DashboardLayoutContent({
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-          <SidebarHeader className="h-14 justify-center border-b border-sidebar-border">
+        <Sidebar collapsible="icon" className="border-r border-slate-800/80 bg-sidebar text-sidebar-foreground">
+          <SidebarHeader className="h-16 justify-center border-b border-white/10">
             <div className="flex items-center gap-2 px-2">
-              <div className="h-8 w-8 rounded-lg bg-sidebar-primary flex items-center justify-center shrink-0">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300 text-slate-950 shadow-sm">
                 <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
               </div>
               {!isCollapsed && (
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-sidebar-foreground truncate">BOA 지점관리</p>
-                  <p className="text-xs text-sidebar-foreground/60 truncate">Best Of All CRM</p>
+                  <p className="truncate text-sm font-bold tracking-tight text-white">BOA 지점관리</p>
+                  <p className="truncate text-[11px] font-medium text-amber-200/80">Premium CRM</p>
                 </div>
               )}
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 py-2">
-            <SidebarMenu className="px-2 gap-0.5">
+          <SidebarContent className="gap-0 py-3">
+            <SidebarMenu className="gap-1 px-2">
               {visibleItems.map((item) => {
                 const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
                 const isNotif = item.path === "/notifications";
@@ -217,12 +244,14 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className="h-9 relative"
+                      className={`relative h-10 rounded-xl text-sidebar-foreground/80 hover:bg-white/10 hover:text-white ${
+                        isActive ? "bg-white/10 text-white before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r-full before:bg-amber-300" : ""
+                      }`}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
                       <span className="text-sm">{item.label}</span>
                       {isNotif && unreadCount && unreadCount > 0 ? (
-                        <Badge className="ml-auto h-4 min-w-4 px-1 text-[10px] bg-red-500 text-white">
+                        <Badge className="ml-auto h-4 min-w-4 border-0 bg-red-500 px-1 text-[10px] text-white">
                           {unreadCount > 99 ? "99+" : unreadCount}
                         </Badge>
                       ) : null}
@@ -233,19 +262,19 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
-          <SidebarFooter className="p-2 border-t border-sidebar-border">
+          <SidebarFooter className="border-t border-white/10 p-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-sidebar-accent transition-colors w-full text-left focus:outline-none">
+                <button className="flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-2 py-2 text-left transition-colors hover:bg-white/10 focus:outline-none">
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="text-xs font-semibold bg-sidebar-primary text-sidebar-primary-foreground">
+                    <AvatarFallback className="bg-amber-300 text-xs font-bold text-slate-950">
                       {user?.name?.charAt(0).toUpperCase() ?? "U"}
                     </AvatarFallback>
                   </Avatar>
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-sidebar-foreground truncate">{user?.name ?? "-"}</p>
-                      <p className="text-[10px] text-sidebar-foreground/60 truncate">
+                      <p className="truncate text-xs font-semibold text-white">{user?.name ?? "-"}</p>
+                      <p className="truncate text-[10px] text-amber-200/75">
                         {roleLabel[user?.role ?? "member"]}
                       </p>
                     </div>
@@ -260,7 +289,7 @@ function DashboardLayoutContent({
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
-                  濡쒓렇?꾩썐
+                  로그아웃
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -275,12 +304,18 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        <header className="flex h-14 items-center gap-2 border-b bg-background/95 backdrop-blur px-4 sticky top-0 z-40">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur">
           <SidebarTrigger className="h-8 w-8" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-950">{getPageTitle(location)}</p>
+            <p className="hidden text-xs text-muted-foreground sm:block">
+              {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}
+            </p>
+          </div>
           <div className="flex-1" />
           <button
             onClick={() => setLocation("/notifications")}
-            className="relative h-8 w-8 flex items-center justify-center rounded-lg hover:bg-accent transition-colors"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-accent"
           >
             <Bell className="h-4 w-4" />
             {unreadCount && unreadCount > 0 ? (
@@ -290,7 +325,7 @@ function DashboardLayoutContent({
             ) : null}
           </button>
         </header>
-        <main className="flex-1 p-4 md:p-6 bg-background min-h-[calc(100vh-3.5rem)] pb-20 md:pb-6">
+        <main className="boa-page min-h-[calc(100vh-4rem)] flex-1 p-4 pb-20 md:p-7 md:pb-7">
           {children}
         </main>
         <MobileNav />

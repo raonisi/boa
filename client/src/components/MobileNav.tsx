@@ -83,7 +83,7 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-background/95 backdrop-blur md:hidden">
+      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-slate-800/80 bg-slate-950/96 text-white shadow-[0_-16px_36px_rgba(15,23,42,0.22)] backdrop-blur md:hidden">
         <div className="grid h-16 grid-cols-5 px-1 pb-[env(safe-area-inset-bottom)]">
           {primaryItems.map((item) => {
             const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
@@ -93,11 +93,11 @@ export function MobileNav() {
                 key={item.path}
                 type="button"
                 onClick={() => goTo(item.path)}
-                className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-medium transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground"
+                className={`relative flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors ${
+                  isActive ? "text-amber-300" : "text-slate-300"
                 }`}
               >
-                <span className="relative">
+                <span className={`relative rounded-xl p-1.5 ${isActive ? "bg-amber-300/12" : ""}`}>
                   <item.icon className="h-5 w-5" />
                   {isNotif && unreadCount && unreadCount > 0 ? (
                     <span className="absolute -right-2 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
@@ -112,20 +112,22 @@ export function MobileNav() {
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-medium transition-colors ${
-              moreOpen ? "text-primary" : "text-muted-foreground"
+            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 text-[10px] font-semibold transition-colors ${
+              moreOpen ? "text-amber-300" : "text-slate-300"
             }`}
           >
-            <Menu className="h-5 w-5" />
+            <span className={`rounded-xl p-1.5 ${moreOpen ? "bg-amber-300/12" : ""}`}>
+              <Menu className="h-5 w-5" />
+            </span>
             <span className="w-full truncate text-center">더보기</span>
           </button>
         </div>
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[82vh] rounded-t-2xl pb-5 pt-2 md:hidden">
+        <SheetContent side="bottom" className="max-h-[82vh] rounded-t-3xl border-slate-200 bg-slate-50 pb-5 pt-3 md:hidden">
           <SheetHeader className="text-left">
-            <SheetTitle>더보기</SheetTitle>
+            <SheetTitle className="text-base">더보기</SheetTitle>
           </SheetHeader>
           <div className="mt-4 grid grid-cols-2 gap-2 overflow-y-auto pb-4">
             {visibleMoreItems.map((item) => {
@@ -135,8 +137,8 @@ export function MobileNav() {
                   <button
                     type="button"
                     onClick={() => goTo(item.path)}
-                    className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 text-left text-sm transition-colors ${
-                      isActive ? "border-primary bg-primary/10 text-primary" : "bg-background"
+                    className={`flex min-h-14 items-center gap-3 rounded-2xl border px-3 text-left text-sm font-medium transition-colors ${
+                      isActive ? "border-amber-300 bg-amber-50 text-slate-950" : "border-slate-200 bg-white text-slate-700"
                     }`}
                   >
                     <item.icon className="h-4 w-4 shrink-0" />
@@ -151,7 +153,7 @@ export function MobileNav() {
                 setMoreOpen(false);
                 logout();
               }}
-              className="flex min-h-14 items-center gap-3 rounded-lg border px-3 text-left text-sm text-red-600"
+              className="flex min-h-14 items-center gap-3 rounded-2xl border border-red-100 bg-white px-3 text-left text-sm font-medium text-red-600"
             >
               <LogOut className="h-4 w-4 shrink-0" />
               <span>로그아웃</span>
