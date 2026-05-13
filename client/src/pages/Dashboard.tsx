@@ -312,10 +312,12 @@ function SubBranchAdminDashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { data: stats } = trpc.performance.stats.useQuery();
+  const { data: myBranchAdminStats } = trpc.performance.stats.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
   const { data: notifResult } = trpc.notifications.list.useQuery({});
   const notifications = notifResult?.items ?? [];
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: customers } = trpc.customers.list.useQuery({});
+  const { data: myBranchAdminCustomers } = trpc.customers.list.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
   const { data: allUsers } = trpc.users.list.useQuery();
 
   const today = new Date();
@@ -392,10 +394,12 @@ export default function Dashboard() {
 
   const [, setLocation] = useLocation();
   const { data: stats } = trpc.performance.stats.useQuery();
+  const { data: myBranchAdminStats } = trpc.performance.stats.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
   const { data: notifResult } = trpc.notifications.list.useQuery({});
   const notifications = notifResult?.items ?? [];
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: customers } = trpc.customers.list.useQuery({});
+  const { data: myBranchAdminCustomers } = trpc.customers.list.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
 
   const unreadNotifs = notifications.filter((n: any) => !n.isRead);
   const todaySchedules = schedules?.filter((s) => {
@@ -423,6 +427,15 @@ export default function Dashboard() {
         <TodayWorkSection />
         <PerformanceGoalSummaryCard />
         <WorkRhythmSummaryCard />
+
+        {user?.role === "branch_admin" && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <StatCard title="내 DB" value={myBranchAdminCustomers?.length ?? 0} icon={Users} color="text-sky-600" />
+            <StatCard title="내 계약" value={myBranchAdminStats?.contracted ?? 0} icon={FileText} color="text-green-600" />
+            <StatCard title="내 월납보험료" value={myBranchAdminStats?.monthlyPremiumSum?.toLocaleString() ?? 0} icon={TrendingUp} suffix="원" color="text-blue-600" />
+            <StatCard title="전체 DB" value={customers?.length ?? 0} icon={Users} />
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

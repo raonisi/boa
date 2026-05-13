@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
+import { formatUserWithRole } from "@/lib/userRole";
 import { UserPlus, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -55,12 +56,13 @@ function BranchAdminAssign() {
 // ─── 팀원에게 직접 배정 ───────────────────────────────────────────────────────
 function AssignToAgent() {
   const utils = trpc.useUtils();
+  const { user } = useAuth();
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
 
   const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true });
   const { data: allUsers } = trpc.users.list.useQuery();
-  const agents = (allUsers ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "member"));
+  const agents = (allUsers ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "member" || (u.role === "branch_admin" && u.id === user?.id)));
 
   const assignMutation = trpc.customers.assign.useMutation({
     onSuccess: () => { refetch(); utils.customers.list.invalidate(); },
@@ -85,7 +87,7 @@ function AssignToAgent() {
           <Select value={selectedAgent} onValueChange={setSelectedAgent}>
             <SelectTrigger className="w-48 h-9"><SelectValue placeholder="담당 설계사 선택" /></SelectTrigger>
             <SelectContent>
-              {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.name} ({a.role === "team_leader" ? "팀장" : "팀원"})</SelectItem>)}
+              {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{formatUserWithRole(a)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>
@@ -133,7 +135,7 @@ function AssignToSubBranch() {
             <SelectContent>
               {subBranchAdmins.length === 0
                 ? <SelectItem value="none" disabled>부지점장 없음</SelectItem>
-                : subBranchAdmins.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                : subBranchAdmins.map((u) => <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button size="sm" disabled={!selectedSubBranchAdmin || selectedCustomers.length === 0 || assignToSubBranchMutation.isPending} onClick={handleAssign}>
@@ -193,7 +195,7 @@ function SubBranchAdminAssign() {
             <SelectContent>
               {myTeamMembers.length === 0
                 ? <SelectItem value="none" disabled>산하 팀원 없음</SelectItem>
-                : myTeamMembers.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name} ({u.role === "team_leader" ? "팀장" : "팀원"})</SelectItem>)}
+                : myTeamMembers.map((u) => <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>)}
             </SelectContent>
           </Select>
           <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>

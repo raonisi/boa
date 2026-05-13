@@ -638,7 +638,8 @@ async function verifyAgentTarget(
   if (target.accountStatus !== "active") {
     throw new TRPCError({ code: "FORBIDDEN", message: "비활성 계정에는 배정할 수 없습니다." });
   }
-  if (target.role !== "team_leader" && target.role !== "member") {
+  const isBranchAdminSelfTarget = actor.role === "branch_admin" && target.id === actor.id && target.role === "branch_admin";
+  if (!isBranchAdminSelfTarget && target.role !== "team_leader" && target.role !== "member") {
     throw new TRPCError({ code: "FORBIDDEN", message: "팀장 또는 팀원만 담당자로 지정할 수 있습니다." });
   }
   if (target.teamId) {
@@ -770,12 +771,19 @@ async function verifyTeamFilterAccess(
 
 async function buildPerformanceScope(
   user: { id: number; role: string; teamId: number | null },
-  input?: { agentIdFilter?: number; teamIdFilter?: number }
+  input?: { agentIdFilter?: number; teamIdFilter?: number; scope?: "all" | "mine" }
 ) {
   const agentId = input?.agentIdFilter;
   const teamId = input?.teamIdFilter;
 
-  if (user.role === "branch_admin") return { agentId, teamId };
+  if (input?.scope === "all" && user.role !== "branch_admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "전체 범위는 지점장만 조회할 수 있습니다." });
+  }
+
+  if (user.role === "branch_admin") {
+    if (input?.scope === "mine") return { agentId: user.id, teamId };
+    return { agentId, teamId };
+  }
 
   if (agentId !== undefined) {
     const target = await verifyTargetUserAccess(user, agentId);
@@ -952,6 +960,60 @@ function buildSafeContactReason(type: string) {
   return reasonMap[type] ?? { title: "고객 상태 점검", description: "최근 고객 상태를 기준으로 필요한 내용을 확인할 수 있습니다.", situation: "general_check" };
 }
 
+function getReportRange(input?: { period?: "week" | "month" | "custom"; dateFrom?: string; dateTo?: string }) {
+  const now = new Date();
+  if (input?.period === "custom") {
+    const dateFrom = input.dateFrom ? new Date(input.dateFrom) : undefined;
+    const dateTo = input.dateTo ? new Date(input.dateTo) : undefined;
+    if (!dateFrom || Number.isNaN(dateFrom.getTime()) || !dateTo || Number.isNaN(dateTo.getTime())) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "기간이 올바르지 않습니다." });
+    }
+    return { dateFrom: toDayStart(dateFrom), dateTo: toDayEnd(dateTo), period: "custom" as const };
+  }
+  if (input?.period === "month") {
+    return {
+      dateFrom: new Date(now.getFullYear(), now.getMonth(), 1),
+      dateTo: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999),
+      period: "month" as const,
+    };
+  }
+  const day = now.getDay();
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset);
+  const weekEnd = new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 6, 23, 59, 59, 999);
+  return { dateFrom: weekStart, dateTo: weekEnd, period: "week" as const };
+}
+
+function isDateInRange(value: unknown, dateFrom: Date, dateTo: Date) {
+  if (!value) return false;
+  const date = value instanceof Date ? value : new Date(value as any);
+  return !Number.isNaN(date.getTime()) && date >= dateFrom && date <= dateTo;
+}
+
+function getContractDateValue(contract: any) {
+  return contract.contractDate ?? contract.createdAt;
+}
+
+function getFollowUpCreatedValue(followUp: any) {
+  return followUp.createdAt ?? followUp.nextContactDate;
+}
+
+function getFollowUpCompletedValue(followUp: any) {
+  return followUp.completedAt ?? followUp.updatedAt;
+}
+
+function daysRemainingFromToday(date = new Date()) {
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+  return Math.max(1, daysBetween(date, end) + 1);
+}
+
+function goalItemForScope(items: any[], scope: { targetUserId?: number; teamId?: number; subBranchAdminId?: number }) {
+  if (scope.targetUserId !== undefined) return items.find((item) => item.goal.targetType === "user" && item.goal.targetId === scope.targetUserId);
+  if (scope.teamId !== undefined) return items.find((item) => item.goal.targetType === "team" && item.goal.targetId === scope.teamId);
+  if (scope.subBranchAdminId !== undefined) return items.find((item) => item.goal.targetType === "sub_branch" && item.goal.targetId === scope.subBranchAdminId);
+  return items.find((item) => item.goal.targetType === "branch") ?? items[0];
+}
+
 async function buildRecommendationItems(user: { id: number; role: string; teamId: number | null }, baseDate: Date) {
   const { customerList, contractList, notifications, followUpList } = await getScopedDashboardData(user);
   const activeCustomers = customerList.filter((customer) => customer.isActive && !customer.deletedAt);
@@ -1104,6 +1166,135 @@ async function buildRecommendationItems(user: { id: number; role: string; teamId
   });
 }
 
+async function buildWorkRhythmReport(
+  user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string },
+  input?: { period?: "week" | "month" | "custom"; dateFrom?: string; dateTo?: string; targetUserId?: number; teamId?: number; subBranchAdminId?: number }
+) {
+  const range = getReportRange(input);
+  const monthStart = new Date(range.dateTo.getFullYear(), range.dateTo.getMonth(), 1);
+  const monthEnd = new Date(range.dateTo.getFullYear(), range.dateTo.getMonth() + 1, 0, 23, 59, 59, 999);
+  const scoped = await getScopedDashboardData(user);
+  let customerList = scoped.customerList.filter((customer) => customer.isActive && !customer.deletedAt);
+  let contractList = scoped.contractList.filter((contract) => contract.isActive && !contract.deletedAt);
+  const followUpScope = await getFollowUpScope(user);
+  let followUpList = await getFollowUps({ ...followUpScope, statuses: ["scheduled", "postponed", "completed", "cancelled"] });
+  const requestedScope: { targetUserId?: number; teamId?: number; subBranchAdminId?: number } = {};
+
+  if (input?.targetUserId !== undefined) {
+    const target = await verifyTargetUserAccess(user, input.targetUserId);
+    if (target.role !== "team_leader" && target.role !== "member") {
+      throw new TRPCError({ code: "FORBIDDEN", message: "팀장 또는 팀원 리포트만 조회할 수 있습니다." });
+    }
+    requestedScope.targetUserId = input.targetUserId;
+    customerList = customerList.filter((customer) => customer.agentId === input.targetUserId);
+    contractList = contractList.filter((contract) => contract.agentId === input.targetUserId);
+    followUpList = followUpList.filter((followUp) => followUp.assignedAgentId === input.targetUserId);
+  }
+
+  if (input?.teamId !== undefined) {
+    await verifyTeamFilterAccess(user, input.teamId);
+    requestedScope.teamId = input.teamId;
+    customerList = customerList.filter((customer) => customer.assignedTeamId === input.teamId);
+    const teamMembers = await getUsersByTeamId(input.teamId);
+    const teamUserIds = new Set(teamMembers.map((item) => item.id));
+    contractList = contractList.filter((contract) => teamUserIds.has(contract.agentId ?? -1));
+    followUpList = followUpList.filter((followUp) => followUp.teamId === input.teamId);
+  }
+
+  if (input?.subBranchAdminId !== undefined) {
+    if (user.role !== "branch_admin" && !(user.role === "sub_branch_admin" && input.subBranchAdminId === user.id)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "해당 부지점 리포트를 조회할 권한이 없습니다." });
+    }
+    requestedScope.subBranchAdminId = input.subBranchAdminId;
+    customerList = customerList.filter((customer) => customer.subBranchAdminId === input.subBranchAdminId);
+    const subUsers = await getUsersBySubBranchAdminId(input.subBranchAdminId);
+    const subUserIds = new Set(subUsers.map((item) => item.id));
+    contractList = contractList.filter((contract) => subUserIds.has(contract.agentId ?? -1));
+    followUpList = followUpList.filter((followUp) => followUp.subBranchAdminId === input.subBranchAdminId);
+  }
+
+  const consultationEntries = await Promise.all(customerList.map(async (customer) => ({
+    customer,
+    consultations: await getConsultationsByCustomer(customer.id),
+  })));
+  const allConsultations = consultationEntries.flatMap((entry) => entry.consultations.map((consultation) => ({ ...consultation, customerId: entry.customer.id })));
+  const consultationsInPeriod = allConsultations.filter((consultation) => isDateInRange(consultation.createdAt, range.dateFrom, range.dateTo));
+  const followUpsCreated = followUpList.filter((followUp) => isDateInRange(getFollowUpCreatedValue(followUp), range.dateFrom, range.dateTo));
+  const followUpsCompleted = followUpList.filter((followUp) => followUp.status === "completed" && isDateInRange(getFollowUpCompletedValue(followUp), range.dateFrom, range.dateTo));
+  const openOverdueFollowUps = followUpList.filter((followUp) => isOpenFollowUpStatus(followUp.status) && new Date(followUp.nextContactDate) <= toDayEnd(new Date()));
+  const contractsInPeriod = contractList.filter((contract) => isDateInRange(getContractDateValue(contract), range.dateFrom, range.dateTo));
+  const monthlyContracts = contractList.filter((contract) => isDateInRange(getContractDateValue(contract), monthStart, monthEnd));
+  const priorityACustomers = customerList.filter((customer) => customer.priority === "A");
+  const managedSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const managedCustomerIds = new Set([
+    ...allConsultations.filter((consultation) => isDateInRange(consultation.createdAt, managedSince, new Date())).map((consultation) => consultation.customerId),
+    ...followUpList.filter((followUp) => followUp.status === "completed" && isDateInRange(getFollowUpCompletedValue(followUp), managedSince, new Date())).map((followUp) => followUp.customerId),
+  ]);
+  const priorityAManagedCount = priorityACustomers.filter((customer) => managedCustomerIds.has(customer.id)).length;
+  const longUnmanagedCustomerCount = customerList.filter((customer) => {
+    const latestConsult = allConsultations
+      .filter((consultation) => consultation.customerId === customer.id)
+      .map((consultation) => new Date(consultation.createdAt).getTime())
+      .filter((time) => !Number.isNaN(time))
+      .sort((a, b) => b - a)[0];
+    return !latestConsult || daysBetween(new Date(latestConsult), new Date()) >= 90;
+  }).length;
+  const goalDashboard = await getPerformanceGoalDashboard(user as any, range.dateTo.getFullYear(), range.dateTo.getMonth() + 1);
+  const goalItem = goalItemForScope(goalDashboard.items, requestedScope);
+  const goal = goalItem?.goal ?? null;
+  const actualContractCount = monthlyContracts.length;
+  const actualMonthlyPremium = monthlyContracts.reduce((sum, contract) => sum + Number(contract.monthlyPremium ?? 0), 0);
+  const contractCountGoal = Number(goal?.contractCountGoal ?? 0);
+  const monthlyPremiumGoal = Number(goal?.monthlyPremiumGoal ?? 0);
+  const remainingContractCount = Math.max(0, contractCountGoal - actualContractCount);
+  const remainingMonthlyPremium = Math.max(0, monthlyPremiumGoal - actualMonthlyPremium);
+  const remainingDays = daysRemainingFromToday();
+  const priorityContacts = (await buildRecommendationItems(user, new Date())).filter((item) => customerList.some((customer) => customer.id === item.customerId));
+  const followUpCompletionRate = followUpsCreated.length > 0 ? Math.round((followUpsCompleted.length / followUpsCreated.length) * 100) : null;
+  const insights: string[] = [];
+  if (followUpCompletionRate !== null && followUpCompletionRate < 60) insights.push("이번 기간 후속관리 완료율이 낮습니다.");
+  if (priorityACustomers.length > priorityAManagedCount) insights.push("A등급 고객 중 최근 관리 이력이 없는 고객이 있습니다.");
+  if (remainingContractCount > 0 || remainingMonthlyPremium > 0) insights.push("목표까지 부족한 계약 수 또는 월납보험료가 남아 있습니다.");
+  if (priorityContacts.length > 0) insights.push("오늘 우선 연락 고객을 먼저 확인해보세요.");
+
+  return {
+    scope: {
+      role: user.role,
+      userId: user.id,
+      targetUserId: requestedScope.targetUserId ?? null,
+      teamId: requestedScope.teamId ?? null,
+      subBranchAdminId: requestedScope.subBranchAdminId ?? null,
+    },
+    period: { type: range.period, dateFrom: range.dateFrom.toISOString(), dateTo: range.dateTo.toISOString() },
+    consultationCount: consultationsInPeriod.length,
+    followUpCreatedCount: followUpsCreated.length,
+    followUpCompletedCount: followUpsCompleted.length,
+    followUpCompletionRate,
+    pendingFollowUpCount: followUpList.filter((followUp) => isOpenFollowUpStatus(followUp.status)).length,
+    overdueFollowUpCount: openOverdueFollowUps.length,
+    contractCount: contractsInPeriod.length,
+    monthlyPremiumSum: contractsInPeriod.reduce((sum, contract) => sum + Number(contract.monthlyPremium ?? 0), 0),
+    longUnmanagedCustomerCount,
+    priorityACustomerCount: priorityACustomers.length,
+    priorityAManagedCount,
+    priorityAManagementRate: priorityACustomers.length > 0 ? Math.round((priorityAManagedCount / priorityACustomers.length) * 100) : null,
+    goal: goal ? { id: goal.id, targetType: goal.targetType, targetId: goal.targetId, contractCountGoal, monthlyPremiumGoal } : null,
+    actual: { contractCount: actualContractCount, monthlyPremium: actualMonthlyPremium },
+    remaining: { contractCount: remainingContractCount, monthlyPremium: remainingMonthlyPremium },
+    remainingDays,
+    dailyRequired: {
+      contractCount: Number((remainingContractCount / remainingDays).toFixed(1)),
+      monthlyPremium: Math.ceil(remainingMonthlyPremium / remainingDays),
+    },
+    recommendedTodayActions: {
+      priorityContactCount: priorityContacts.length,
+      highUrgencyContactCount: priorityContacts.filter((item) => item.urgency === "high").length,
+      suggestedConsultationCount: Math.max(priorityContacts.filter((item) => item.urgency === "high").length, Math.ceil(remainingContractCount / remainingDays) * 3),
+    },
+    insights,
+  };
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -1186,6 +1377,19 @@ export const appRouter = router({
           topContacts: scored.sort((a, b) => b.totalScore - a.totalScore).slice(0, 5),
         };
       }),
+  }),
+
+  workRhythm: router({
+    summary: activeUserProcedure
+      .input(z.object({
+        period: z.enum(["week", "month", "custom"]).default("week"),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        targetUserId: z.number().optional(),
+        teamId: z.number().optional(),
+        subBranchAdminId: z.number().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => buildWorkRhythmReport(ctx.user, input ?? { period: "week" })),
   }),
 
   users: router({
@@ -1765,9 +1969,13 @@ export const appRouter = router({
         agentIdFilter: z.number().optional(),
         assignedDateFrom: z.string().optional(),
         assignedDateTo: z.string().optional(),
+        scope: z.enum(["all", "mine"]).optional(),
       }))
       .query(async ({ ctx, input }) => {
         const user = ctx.user;
+        if (input.scope === "all" && user.role !== "branch_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "전체 DB는 지점장만 조회할 수 있습니다." });
+        }
         const baseFilter = {
           status: input.status,
           unassigned: input.unassigned,
@@ -1779,7 +1987,10 @@ export const appRouter = router({
           assignedDateFrom: input.assignedDateFrom ? new Date(input.assignedDateFrom) : undefined,
           assignedDateTo: input.assignedDateTo ? new Date(input.assignedDateTo) : undefined,
         };
-        if (user.role === "branch_admin") return getCustomers({ ...baseFilter, agentId: input.agentIdFilter });
+        if (user.role === "branch_admin") {
+          const scopedAgentId = input.scope === "mine" ? user.id : input.agentIdFilter;
+          return getCustomers({ ...baseFilter, agentId: scopedAgentId });
+        }
         if (user.role === "sub_branch_admin") return getCustomers({ ...baseFilter, subBranchAdminId: user.id });
         if (user.role === "team_leader") {
           if (user.teamId === null) return [];
@@ -2010,9 +2221,15 @@ export const appRouter = router({
         }
 
         const prevAgentId = customer.agentId;
+        if (prevAgentId === input.agentId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "현재 담당자와 동일한 사용자는 선택할 수 없습니다." });
+        }
+        const isBranchAdminSelfAssignment = user.role === "branch_admin" && agent.id === user.id && agent.role === "branch_admin";
+        const nextTeamId = isBranchAdminSelfAssignment ? null : agent?.teamId ?? null;
+        const nextSubBranchAdminId = isBranchAdminSelfAssignment ? null : agent?.subBranchAdminId ?? null;
 
         // DB 배정 로그 분리 (역할 및 assignmentType 기반)
-        const assignLogAction = user.role === "branch_admin" ? "DB_ASSIGNED_BY_BRANCH_ADMIN" : "DB_ASSIGNED_BY_SUB_BRANCH_ADMIN";
+        const assignLogAction = isBranchAdminSelfAssignment ? "CUSTOMER_SELF_ASSIGNED_BY_BRANCH_ADMIN" : user.role === "branch_admin" ? "DB_ASSIGNED_BY_BRANCH_ADMIN" : "DB_ASSIGNED_BY_SUB_BRANCH_ADMIN";
         const agentAssignmentDetails = logDetails({
           actor: ctx.user.id,
           targetId: input.customerId,
@@ -2024,19 +2241,19 @@ export const appRouter = router({
           },
           afterValue: {
             newAgentId: input.agentId,
-            newSubBranchAdminId: agent?.subBranchAdminId ?? null,
-            newTeamId: agent?.teamId ?? null,
+            newSubBranchAdminId: nextSubBranchAdminId,
+            newTeamId: nextTeamId,
           },
-          metadata: { assignmentType: user.role === "branch_admin" ? "branch_to_agent" : "sub_branch_to_agent" },
+          metadata: { assignmentType: user.role === "branch_admin" ? "branch_to_agent" : "sub_branch_to_agent", selfManagedByBranchAdmin: isBranchAdminSelfAssignment },
         });
         await runDbTransaction(async (tx) => {
-          await assignCustomer(input.customerId, input.agentId, agent?.teamId ?? undefined, agent?.subBranchAdminId ?? undefined, tx);
+          await assignCustomer(input.customerId, input.agentId, nextTeamId ?? undefined, nextSubBranchAdminId ?? undefined, tx);
           await createAssignmentHistory({
             customerId: input.customerId,
             previousSubBranchAdminId: customer.subBranchAdminId ?? undefined,
-            newSubBranchAdminId: agent?.subBranchAdminId ?? undefined,
+            newSubBranchAdminId: nextSubBranchAdminId ?? undefined,
             previousTeamId: customer.assignedTeamId ?? undefined,
-            newTeamId: agent?.teamId ?? undefined,
+            newTeamId: nextTeamId ?? undefined,
             previousAgentId: prevAgentId ?? undefined,
             newAgentId: input.agentId,
             assignedBy: ctx.user.id,
@@ -2060,6 +2277,12 @@ export const appRouter = router({
         const existing = await verifyCustomerAccess(ctx.user, input.customerId);
         const agent = await verifyAgentTarget(ctx.user, input.newAgentId);
         const prevAgentId = existing.agentId ?? null;
+        if (prevAgentId === input.newAgentId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "현재 담당자와 동일한 사용자는 선택할 수 없습니다." });
+        }
+        const isBranchAdminSelfAssignment = ctx.user.role === "branch_admin" && agent.id === ctx.user.id && agent.role === "branch_admin";
+        const nextTeamId = isBranchAdminSelfAssignment ? null : agent?.teamId ?? null;
+        const nextSubBranchAdminId = isBranchAdminSelfAssignment ? null : agent?.subBranchAdminId ?? null;
         const transferDetails = logDetails({
           actor: ctx.user.id,
           targetId: input.customerId,
@@ -2071,19 +2294,19 @@ export const appRouter = router({
           },
           afterValue: {
             newAgentId: input.newAgentId,
-            newSubBranchAdminId: agent?.subBranchAdminId ?? null,
-            newTeamId: agent?.teamId ?? null,
+            newSubBranchAdminId: nextSubBranchAdminId,
+            newTeamId: nextTeamId,
           },
-          metadata: { assignmentType: "reassignment" },
+          metadata: { assignmentType: "reassignment", selfManagedByBranchAdmin: isBranchAdminSelfAssignment },
         });
         await runDbTransaction(async (tx) => {
-          await assignCustomer(input.customerId, input.newAgentId, agent?.teamId ?? undefined, agent?.subBranchAdminId ?? undefined, tx);
+          await assignCustomer(input.customerId, input.newAgentId, nextTeamId ?? undefined, nextSubBranchAdminId ?? undefined, tx);
           await createAssignmentHistory({
             customerId: input.customerId,
             previousSubBranchAdminId: existing.subBranchAdminId ?? undefined,
-            newSubBranchAdminId: agent?.subBranchAdminId ?? undefined,
+            newSubBranchAdminId: nextSubBranchAdminId ?? undefined,
             previousTeamId: existing.assignedTeamId ?? undefined,
-            newTeamId: agent?.teamId ?? undefined,
+            newTeamId: nextTeamId ?? undefined,
             previousAgentId: existing.agentId ?? undefined,
             newAgentId: input.newAgentId,
             assignedBy: ctx.user.id,
@@ -2091,7 +2314,10 @@ export const appRouter = router({
           }, tx);
           await log(ctx.user.id, "AGENT_CHANGED", "customer", input.customerId, transferDetails, tx);
           await log(ctx.user.id, "CUSTOMER_REASSIGNED", "customer", input.customerId, transferDetails, tx);
-          if ((existing.subBranchAdminId ?? null) !== (agent?.subBranchAdminId ?? null)) {
+          if (isBranchAdminSelfAssignment) {
+            await log(ctx.user.id, "CUSTOMER_SELF_ASSIGNED_BY_BRANCH_ADMIN", "customer", input.customerId, transferDetails, tx);
+          }
+          if ((existing.subBranchAdminId ?? null) !== nextSubBranchAdminId) {
             await log(ctx.user.id, "CUSTOMER_TRANSFERRED", "customer", input.customerId, transferDetails, tx);
           }
         });
@@ -2811,9 +3037,14 @@ export const appRouter = router({
         return getContractsByCustomer(input.customerId);
       }),
 
-    list: activeUserProcedure.query(async ({ ctx }) => {
+    list: activeUserProcedure
+      .input(z.object({ scope: z.enum(["all", "mine"]).optional() }).optional())
+      .query(async ({ ctx, input }) => {
       const user = ctx.user;
-      if (user.role === "branch_admin") return getAllContracts({});
+      if (input?.scope === "all" && user.role !== "branch_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "전체 계약은 지점장만 조회할 수 있습니다." });
+      }
+      if (user.role === "branch_admin") return getAllContracts(input?.scope === "mine" ? { agentId: user.id } : {});
       if (user.role === "sub_branch_admin") return getAllContracts({ subBranchAdminId: user.id });
       if (user.role === "team_leader") {
         if (user.teamId === null) return [];
@@ -3800,6 +4031,7 @@ export const appRouter = router({
         company: z.string().optional(),
         region: z.string().optional(),
         source: z.string().optional(),
+        scope: z.enum(["all", "mine"]).optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
         const user = ctx.user;

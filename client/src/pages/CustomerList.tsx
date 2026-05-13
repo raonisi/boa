@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { formatUserWithRole } from "@/lib/userRole";
 import { useIsMobile } from "@/hooks/useMobile";
 import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -52,6 +53,7 @@ export default function CustomerList() {
   const [tagFilter, setTagFilter] = useState<string>("all");
   const [nextActionFilter, setNextActionFilter] = useState<string>("all");
   const [agentFilter, setAgentFilter] = useState<string>("all");
+  const [scopeFilter, setScopeFilter] = useState<"all" | "mine">("all");
   const [recommendationFilter, setRecommendationFilter] = useState<string>("all");
   const [assignedDateFrom, setAssignedDateFrom] = useState("");
   const [assignedDateTo, setAssignedDateTo] = useState("");
@@ -66,6 +68,7 @@ export default function CustomerList() {
     nextAction: nextActionFilter === "all" ? undefined : nextActionFilter as any,
     assignedDateFrom: assignedDateFrom || undefined,
     assignedDateTo: assignedDateTo || undefined,
+    scope: user?.role === "branch_admin" ? scopeFilter : undefined,
   });
   const { data: allUsers } = trpc.users.list.useQuery();
   const { data: priorityContacts } = trpc.recommendations.priorityContacts.useQuery({ limit: 50, includeWarnings: true });
@@ -85,6 +88,7 @@ export default function CustomerList() {
   });
 
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
+  const agentById = new Map((allUsers ?? []).map((u) => [u.id, u]));
   const canDeactivateCustomer = user?.role === "branch_admin";
   const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
 
@@ -102,7 +106,7 @@ export default function CustomerList() {
     return matchSearch && matchRegion && matchSource && matchAgent && matchRecommendation;
   });
 
-  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all";
+  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
 
   const clearFilters = () => {
     setStatusFilter("all");
@@ -112,6 +116,7 @@ export default function CustomerList() {
     setTagFilter("all");
     setNextActionFilter("all");
     setAgentFilter("all");
+    setScopeFilter("all");
     setRecommendationFilter("all");
     setAssignedDateFrom("");
     setAssignedDateTo("");
@@ -177,6 +182,15 @@ export default function CustomerList() {
 
             {showFilters && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+                {user?.role === "branch_admin" && (
+                  <Select value={scopeFilter} onValueChange={(value) => setScopeFilter(value as "all" | "mine")}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="DB 범위" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">전체 DB</SelectItem>
+                      <SelectItem value="mine">내 DB</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="상담상태" /></SelectTrigger>
                   <SelectContent>
@@ -223,7 +237,7 @@ export default function CustomerList() {
                     <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">전체 담당자</SelectItem>
-                      {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{a.name}</SelectItem>)}
+                      {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{formatUserWithRole(a)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 )}
@@ -268,6 +282,7 @@ export default function CustomerList() {
                           )}
                           {c.region && <span className="text-xs text-muted-foreground">{c.region}</span>}
                         </div>
+                        <p className="mt-1 text-xs text-muted-foreground">담당: {formatUserWithRole(agentById.get(c.agentId ?? 0))}</p>
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
                     </div>
@@ -317,6 +332,7 @@ export default function CustomerList() {
                       <TableHead>상담상태</TableHead>
                       <TableHead>우선순위</TableHead>
                       <TableHead>성향/다음 액션</TableHead>
+                      <TableHead>담당자</TableHead>
                       <TableHead>배정일</TableHead>
                       <TableHead>예상보험료</TableHead>
                       <TableHead className="w-20"></TableHead>
@@ -325,7 +341,7 @@ export default function CustomerList() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={10} className="text-center text-muted-foreground py-8">고객 데이터가 없습니다.</TableCell>
+                        <TableCell colSpan={11} className="text-center text-muted-foreground py-8">고객 데이터가 없습니다.</TableCell>
                       </TableRow>
                     ) : (
                       filtered.map((c) => {
@@ -356,6 +372,7 @@ export default function CustomerList() {
                               {parseCustomerTags((c as any).customerTags).length === 0 && !(c as any).nextAction && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">{formatUserWithRole(agentById.get(c.agentId ?? 0))}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">
                             {recommendation?.warnings?.[0] ? (
                               <span className="text-red-600">{recommendation.warnings[0].message}</span>
