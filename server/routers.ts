@@ -664,6 +664,54 @@ async function verifyAgentTarget(
   return target;
 }
 
+type CustomerCreateAssignee = {
+  agentId: number;
+  assignedTeamId: number | null;
+  subBranchAdminId: number | null;
+  assignmentStatus: "assigned_to_agent";
+};
+
+function toCustomerCreateAssignee(target: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null }): CustomerCreateAssignee {
+  const assignedTeamId = target.role === "team_leader" || target.role === "member" ? target.teamId ?? null : null;
+  const subBranchAdminId =
+    target.role === "sub_branch_admin"
+      ? target.id
+      : target.role === "team_leader" || target.role === "member"
+        ? target.subBranchAdminId ?? null
+        : null;
+  return {
+    agentId: target.id,
+    assignedTeamId,
+    subBranchAdminId,
+    assignmentStatus: "assigned_to_agent",
+  };
+}
+
+async function resolveCustomerCreateAssignee(
+  actor: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string },
+  requestedAgentId?: number
+): Promise<CustomerCreateAssignee> {
+  if (actor.role !== "branch_admin") {
+    if (requestedAgentId !== undefined && requestedAgentId !== actor.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "고객 직접 등록 시 담당자는 본인만 지정할 수 있습니다." });
+    }
+    return toCustomerCreateAssignee(actor);
+  }
+
+  const targetUserId = requestedAgentId ?? actor.id;
+  if (targetUserId === actor.id) return toCustomerCreateAssignee(actor);
+
+  const target = await getUserById(targetUserId);
+  if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "담당자를 찾을 수 없습니다." });
+  if (target.accountStatus !== "active") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "비활성 계정에는 고객을 배정할 수 없습니다." });
+  }
+  if (target.role !== "branch_admin" && target.role !== "sub_branch_admin" && target.role !== "team_leader" && target.role !== "member") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "고객 담당자로 지정할 수 없는 역할입니다." });
+  }
+  return toCustomerCreateAssignee(target);
+}
+
 async function verifySubBranchAdminTarget(userId: number) {
   const target = await getUserById(userId);
   if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "대상 부지점장을 찾을 수 없습니다." });
@@ -2024,7 +2072,7 @@ export const appRouter = router({
         return { isDuplicate: !!dup };
       }),
 
-    create: branchAdminProcedure
+    create: activeUserProcedure
       .input(z.object({
         name: z.string().min(1),
         phone: z.string().optional(),
@@ -2041,15 +2089,36 @@ export const appRouter = router({
         privacyConsent: z.boolean().default(false),
         marketingConsent: z.boolean().default(false),
         memo: z.string().max(2000).optional(),
+        agentId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (input.phone) {
           const dup = await checkPhoneDuplicate(input.phone);
           if (dup) throw new TRPCError({ code: "CONFLICT", message: `이미 동일한 연락처가 등록되어 있습니다. (${dup.name})` });
         }
-        const { customerTags, ...customerInput } = input;
-        await createCustomer({ ...customerInput, customerTags: encodeCustomerTags(customerTags), phone: input.phone ? normalizePhone(input.phone) : undefined, birthDate: input.birthDate ? new Date(input.birthDate) : undefined, createdBy: ctx.user.id });
-        await log(ctx.user.id, "CUSTOMER_CREATED", "customer", undefined, `name=${input.name}`);
+        const assignee = await resolveCustomerCreateAssignee(ctx.user, input.agentId);
+        const { customerTags, agentId, ...customerInput } = input;
+        await createCustomer({
+          ...customerInput,
+          ...assignee,
+          customerTags: encodeCustomerTags(customerTags),
+          phone: input.phone ? normalizePhone(input.phone) : undefined,
+          birthDate: input.birthDate ? new Date(input.birthDate) : undefined,
+          assignedAt: new Date(),
+          createdBy: ctx.user.id,
+        });
+        await log(ctx.user.id, "CUSTOMER_CREATED", "customer", undefined,
+          logDetails({
+            actor: ctx.user.id,
+            targetType: "customer",
+            afterValue: {
+              assignedAgentId: assignee.agentId,
+              assignedTeamId: assignee.assignedTeamId,
+              subBranchAdminId: assignee.subBranchAdminId,
+              assignmentStatus: assignee.assignmentStatus,
+            },
+            metadata: { createdByRole: ctx.user.role, selfAssigned: assignee.agentId === ctx.user.id },
+          }));
         return { success: true };
       }),
 
@@ -2355,7 +2424,7 @@ export const appRouter = router({
         return getConsentLogs(input.customerId);
       }),
 
-    // ── Bulk Import (지점장 전용) ────────────────────────────────────────────
+    // ── Bulk Import ─────────────────────────────────────────────────────────
     timeline: activeUserProcedure
       .input(z.object({
         customerId: z.number(),
@@ -2378,8 +2447,8 @@ export const appRouter = router({
         });
       }),
 
-    downloadImportTemplate: branchAdminProcedure.query(async ({ ctx }) => {
-      const headers = [
+    downloadImportTemplate: activeUserProcedure.query(async ({ ctx }) => {
+      const baseHeaders = [
         "이름",
         "연락처",
         "생년월일",
@@ -2390,21 +2459,25 @@ export const appRouter = router({
         "유입경로",
         "상담상태",
         "메모",
+      ];
+      const assignmentHeaders = [
         "부지점장",
         "팀",
         "담당자",
       ];
+      const headers = ctx.user.role === "branch_admin" ? [...baseHeaders, ...assignmentHeaders] : baseHeaders;
       const csvContent = headers.join(",");
       await log(ctx.user.id, "DATA_DOWNLOAD", "template", undefined, "type=bulk_import_template");
       return { headers, csvContent };
     }),
 
-    previewImport: branchAdminProcedure
+    previewImport: activeUserProcedure
       .input(z.object({
         rows: z.array(z.record(z.string(), z.any())).max(5000),
         fileName: z.string().optional(),
         fileSize: z.number().nonnegative().optional(),
         mimeType: z.string().optional(),
+        agentId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         verifyBulkImportFilePolicy(input);
@@ -2424,11 +2497,18 @@ export const appRouter = router({
 
         const existingPhones = await getAllActiveCustomerPhones();
         const filePhones = new Set<string>();
+        const forcedAssignee =
+          ctx.user.role === "branch_admin"
+            ? input.agentId !== undefined
+              ? await resolveCustomerCreateAssignee(ctx.user, input.agentId)
+              : undefined
+            : await resolveCustomerCreateAssignee(ctx.user, input.agentId);
 
         const validationResults: BulkImportValidationResult[] = [];
         for (let i = 0; i < input.rows.length; i++) {
           const row = normalizeBulkImportRow(input.rows[i]);
-          const result = await validateBulkImportRow(row, i, existingPhones, filePhones);
+          const result = await validateBulkImportRow(row, i, existingPhones, filePhones,
+            forcedAssignee ? { forceAssignee: { agentId: forcedAssignee.agentId, teamId: forcedAssignee.assignedTeamId, subBranchAdminId: forcedAssignee.subBranchAdminId } } : undefined);
           validationResults.push(result);
         }
 
@@ -2446,12 +2526,13 @@ export const appRouter = router({
         };
       }),
 
-    bulkImport: branchAdminProcedure
+    bulkImport: activeUserProcedure
       .input(z.object({
         rows: z.array(z.record(z.string(), z.any())).max(5000),
         fileName: z.string().optional(),
         fileSize: z.number().nonnegative().optional(),
         mimeType: z.string().optional(),
+        agentId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const importBatchId = `batch_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -2481,11 +2562,18 @@ export const appRouter = router({
 
         const existingPhones = await getAllActiveCustomerPhones();
         const filePhones = new Set<string>();
+        const forcedAssignee =
+          ctx.user.role === "branch_admin"
+            ? input.agentId !== undefined
+              ? await resolveCustomerCreateAssignee(ctx.user, input.agentId)
+              : undefined
+            : await resolveCustomerCreateAssignee(ctx.user, input.agentId);
 
         const validationResults: BulkImportValidationResult[] = [];
         for (let i = 0; i < input.rows.length; i++) {
           const row = normalizeBulkImportRow(input.rows[i]);
-          const result = await validateBulkImportRow(row, i, existingPhones, filePhones);
+          const result = await validateBulkImportRow(row, i, existingPhones, filePhones,
+            forcedAssignee ? { forceAssignee: { agentId: forcedAssignee.agentId, teamId: forcedAssignee.assignedTeamId, subBranchAdminId: forcedAssignee.subBranchAdminId } } : undefined);
           validationResults.push(result);
         }
 
@@ -2517,6 +2605,7 @@ export const appRouter = router({
             subBranchAdminId: result.subBranchAdminId,
             assignedTeamId: result.teamId,
             assignmentStatus: result.assignmentStatus as "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent",
+            assignedAt: result.agentId ? importedAt : undefined,
             createdBy: ctx.user.id,
             importBatchId,
             importedBy: ctx.user.id,

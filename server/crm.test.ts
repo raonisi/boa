@@ -148,6 +148,182 @@ describe("Bulk import router policy", () => {
   });
 });
 
+describe("PR18-4 - direct customer creation assignment policy", () => {
+  it("allows branch_admin to create a customer assigned to self by default", async () => {
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue(undefined);
+    const createSpy = vi.spyOn(db, "createCustomer").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(
+      appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.create({
+        name: "[TEST] Branch Direct",
+        phone: "010-1000-0001",
+      })
+    ).resolves.toEqual({ success: true });
+
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
+      name: "[TEST] Branch Direct",
+      agentId: 1,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      assignmentStatus: "assigned_to_agent",
+      createdBy: 1,
+    }));
+  });
+
+  it("allows branch_admin to choose an active assignee", async () => {
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue(undefined);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      role: "member",
+      accountStatus: "active",
+      teamId: 10,
+      subBranchAdminId: 2,
+    } as any);
+    const createSpy = vi.spyOn(db, "createCustomer").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.create({
+      name: "[TEST] Assigned Direct",
+      phone: "010-1000-0002",
+      agentId: 4,
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: 4,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+      assignmentStatus: "assigned_to_agent",
+    }));
+  });
+
+  it("allows member to create only self-assigned customers", async () => {
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue(undefined);
+    const createSpy = vi.spyOn(db, "createCustomer").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.create({
+      name: "[TEST] Member Direct",
+      phone: "010-1000-0003",
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
+      agentId: 44,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+      assignmentStatus: "assigned_to_agent",
+      createdBy: 44,
+    }));
+  });
+
+  it("allows team_leader and sub_branch_admin to create self-assigned customers", async () => {
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue(undefined);
+    const createSpy = vi.spyOn(db, "createCustomer").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("team_leader", { userId: 33, teamId: 10, subBranchAdminId: 2 })).customers.create({
+      name: "[TEST] Leader Direct",
+      phone: "010-1000-0004",
+    });
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 22 })).customers.create({
+      name: "[TEST] Sub Direct",
+      phone: "010-1000-0005",
+    });
+
+    expect(createSpy).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      agentId: 33,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+    }));
+    expect(createSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      agentId: 22,
+      assignedTeamId: null,
+      subBranchAdminId: 22,
+    }));
+  });
+
+  it("blocks non-admin from assigning a direct-created customer to another user", async () => {
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue(undefined);
+    vi.spyOn(db, "createCustomer").mockResolvedValue(undefined);
+    await expect(
+      appRouter.createCaller(createCtx("member", { userId: 44 })).customers.create({
+        name: "[TEST] Bad Assignment",
+        phone: "010-1000-0006",
+        agentId: 45,
+      })
+    ).rejects.toThrow("본인만 지정");
+  });
+
+  it("blocks inactive users from creating customers", async () => {
+    await expect(
+      appRouter.createCaller(createInactiveCtx("member")).customers.create({
+        name: "[TEST] Inactive Direct",
+      })
+    ).rejects.toThrow("계정이 비활성화되었습니다.");
+  });
+});
+
+describe("PR18-4 - customer bulk import self assignment policy", () => {
+  it("allows member bulk import and forces rows to the member", async () => {
+    vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
+    const bulkCreateSpy = vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
+
+    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
+      fileName: "customers.csv",
+      rows: [{ 이름: "[TEST] Bulk Member", 연락처: "010-2000-0001", 담당자: "다른사람" }],
+    });
+
+    expect(bulkCreateSpy).toHaveBeenCalledWith([
+      expect.objectContaining({
+        name: "[TEST] Bulk Member",
+        agentId: 44,
+        assignedTeamId: 10,
+        subBranchAdminId: 2,
+        assignmentStatus: "assigned_to_agent",
+      }),
+    ], {});
+  });
+
+  it("blocks member bulk import when trying to submit another agentId", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("member", { userId: 44 })).customers.previewImport({
+        fileName: "customers.csv",
+        rows: [{ 이름: "[TEST] Bulk Bad", 연락처: "010-2000-0002" }],
+        agentId: 45,
+      })
+    ).rejects.toThrow("본인만 지정");
+  });
+
+  it("allows branch_admin bulk import to force a selected assignee", async () => {
+    vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      role: "member",
+      accountStatus: "active",
+      teamId: 10,
+      subBranchAdminId: 2,
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const preview = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.previewImport({
+      fileName: "customers.csv",
+      rows: [{ 이름: "[TEST] Bulk Branch", 연락처: "010-2000-0003" }],
+      agentId: 4,
+    });
+
+    expect(preview.validationResults[0]).toMatchObject({
+      isValid: true,
+      agentId: 4,
+      teamId: 10,
+      subBranchAdminId: 2,
+      assignmentStatus: "assigned_to_agent",
+    });
+  });
+});
+
 // ─── RBAC - branch_admin only ─────────────────────────────────────────────────
 describe("RBAC - updateRole (branch_admin only)", () => {
   it("blocks member from updating user role", async () => {

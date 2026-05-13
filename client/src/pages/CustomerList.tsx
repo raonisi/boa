@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2 } from "lucide-react";
+import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2, Upload } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -90,6 +90,7 @@ export default function CustomerList() {
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
   const agentById = new Map((allUsers ?? []).map((u) => [u.id, u]));
   const canDeactivateCustomer = user?.role === "branch_admin";
+  const canCreateCustomer = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(user.role));
   const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
 
   const filtered = (customers ?? []).filter((c) => {
@@ -145,10 +146,15 @@ export default function CustomerList() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-            {user?.role === "branch_admin" && (
+            {canCreateCustomer && (
               <>
-                <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/customers/assign")}>
-                  <UserPlus className="h-4 w-4 mr-1" /> DB 배정
+                {user?.role === "branch_admin" && (
+                  <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/customers/assign")}>
+                    <UserPlus className="h-4 w-4 mr-1" /> DB 배정
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/customers/bulk-import")}>
+                  <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
                 </Button>
                 <Button size="sm" onClick={() => setShowCreate(true)}>
                   <Plus className="h-4 w-4 mr-1" /> 신규 고객 등록
@@ -420,13 +426,20 @@ export default function CustomerList() {
         onClose={() => setShowCreate(false)}
         onSubmit={(data) => createMutation.mutate(data)}
         loading={createMutation.isPending}
+        currentUser={user}
+        agents={agents}
       />
     </DashboardLayout>
   );
 }
 
-function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
-  open: boolean; onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
+function CreateCustomerModal({ open, onClose, onSubmit, loading, currentUser, agents }: {
+  open: boolean;
+  onClose: () => void;
+  onSubmit: (data: any) => void;
+  loading: boolean;
+  currentUser: any;
+  agents: any[];
 }) {
   const { data: regionOptions } = trpc.settings.formOptions.useQuery({ category: "region" });
   const { data: sourceOptions } = trpc.settings.formOptions.useQuery({ category: "source" });
@@ -438,7 +451,12 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
     name: "", phone: "", birthDate: "", gender: "" as "male" | "female" | "other" | "",
     region: "", expectedPremium: "", availableTime: "", source: "",
     consultStatus: "미상담", privacyConsent: false, marketingConsent: false, memo: "",
+    agentId: "self",
   });
+  const canSelectAgent = currentUser?.role === "branch_admin";
+  const selectableAgents = agents.filter((agent) =>
+    ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(agent.role)
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -452,6 +470,7 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
       consultStatus: form.consultStatus || undefined,
       privacyConsent: form.privacyConsent, marketingConsent: form.marketingConsent,
       memo: form.memo || undefined,
+      ...(canSelectAgent && form.agentId !== "self" ? { agentId: Number(form.agentId) } : {}),
     });
   };
 
@@ -487,7 +506,26 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
                 <SelectContent>{consultStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+            {canSelectAgent && (
+              <div>
+                <Label className="text-xs">담당자</Label>
+                <Select value={form.agentId} onValueChange={(v) => setForm({ ...form, agentId: v })}>
+                  <SelectTrigger className="h-8 mt-1"><SelectValue placeholder="담당자 선택" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="self">내 고객으로 등록</SelectItem>
+                    {selectableAgents.map((agent) => (
+                      <SelectItem key={agent.id} value={String(agent.id)}>{formatUserWithRole(agent)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
+          {!canSelectAgent && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+              고객 등록 시 담당자는 본인으로 자동 배정됩니다. 타인 배정은 기존 DB 배정 메뉴에서 권한에 따라 처리됩니다.
+            </div>
+          )}
           <datalist id="customer-region-options">{regions.map((v) => <option key={v} value={v} />)}</datalist>
           <datalist id="customer-source-options">{sources.map((v) => <option key={v} value={v} />)}</datalist>
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>

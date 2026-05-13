@@ -3,8 +3,11 @@ import { useLocation } from "wouter";
 import Papa from "papaparse";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, CheckCircle2, Download, Upload, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { formatUserWithRole } from "@/lib/userRole";
 
 interface ParsedRow {
   [key: string]: string;
@@ -17,6 +20,7 @@ interface ValidationResult {
 }
 
 export default function CustomerBulkImport() {
+  const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const navigate = (path: string) => setLocation(path);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -28,10 +32,22 @@ export default function CustomerBulkImport() {
   const [stage, setStage] = useState<"upload" | "preview" | "result">("upload");
   const [isLoading, setIsLoading] = useState(false);
   const [importBatchId, setImportBatchId] = useState<string>("");
+  const [assignmentMode, setAssignmentMode] = useState<string>("csv");
 
   const downloadTemplateQuery = trpc.customers.downloadImportTemplate.useQuery();
   const previewImportMutation = trpc.customers.previewImport.useMutation();
   const bulkImportMutation = trpc.customers.bulkImport.useMutation();
+  const { data: allUsers } = trpc.users.list.useQuery();
+  const canSelectAssignee = user?.role === "branch_admin";
+  const selectableAgents = (allUsers ?? []).filter((agent) =>
+    (agent as any).accountStatus === "active" &&
+    agent.id !== user?.id &&
+    ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(agent.role)
+  );
+  const selectedAgentId =
+    canSelectAssignee && assignmentMode !== "csv"
+      ? Number(assignmentMode)
+      : undefined;
 
   const handleDownloadTemplate = async () => {
     try {
@@ -40,7 +56,11 @@ export default function CustomerBulkImport() {
         return;
       }
       const result = downloadTemplateQuery.data;
-      const csv = result.csvContent + "\n예시,010-1234-5678,1990-01-15,남,서울,5000,09:00-18:00,지인,미상담,메모,부지점장명,팀명,담당자명";
+      const hasAssignmentColumns = result.headers.includes("담당자");
+      const sample = hasAssignmentColumns
+        ? "예시,010-1234-5678,1990-01-15,남,서울,5000,09:00-18:00,지인,미상담,메모,부지점장명,팀명,담당자명"
+        : "예시,010-1234-5678,1990-01-15,남,서울,5000,09:00-18:00,지인,미상담,메모";
+      const csv = result.csvContent + "\n" + sample;
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
@@ -90,7 +110,7 @@ export default function CustomerBulkImport() {
 
     setIsLoading(true);
     try {
-      const result = await previewImportMutation.mutateAsync({ rows, fileName: selectedFileName, fileSize: selectedFileSize, mimeType: selectedMimeType });
+      const result = await previewImportMutation.mutateAsync({ rows, fileName: selectedFileName, fileSize: selectedFileSize, mimeType: selectedMimeType, agentId: selectedAgentId });
       setValidationResults(result.validationResults);
       setStage("preview");
     } catch (error: any) {
@@ -110,6 +130,7 @@ export default function CustomerBulkImport() {
         fileName,
         fileSize,
         mimeType,
+        agentId: selectedAgentId,
       });
       setImportBatchId(result.importBatchId);
       setValidationResults(result.validationResults);
@@ -133,7 +154,10 @@ export default function CustomerBulkImport() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">고객 DB 일괄 등록</h1>
-          <p className="text-muted-foreground">CSV 파일을 통해 여러 고객을 한 번에 등록할 수 있습니다.</p>
+          <p className="text-muted-foreground">
+            CSV 파일을 통해 여러 고객을 한 번에 등록할 수 있습니다.
+            {canSelectAssignee ? " 담당자 지정 방식은 아래에서 선택하세요." : " 등록된 고객은 내 고객으로 자동 배정됩니다."}
+          </p>
         </div>
 
         {/* Stage: Upload */}
@@ -157,6 +181,31 @@ export default function CustomerBulkImport() {
                   CSV 양식 다운로드
                 </Button>
               </div>
+
+              {canSelectAssignee ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <p className="mb-2 text-sm font-medium text-slate-900">담당자 지정 방식</p>
+                  <Select value={assignmentMode} onValueChange={setAssignmentMode}>
+                    <SelectTrigger className="max-w-md">
+                      <SelectValue placeholder="담당자 지정 방식 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="csv">CSV의 부지점장/팀/담당자 컬럼 사용</SelectItem>
+                      {user && <SelectItem value={String(user.id)}>내 고객으로 일괄 등록</SelectItem>}
+                      {selectableAgents.map((agent) => (
+                        <SelectItem key={agent.id} value={String(agent.id)}>{formatUserWithRole(agent)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    특정 담당자를 선택하면 CSV의 배정 컬럼보다 선택한 담당자 기준으로 등록됩니다.
+                  </p>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                  비관리자 일괄 등록 고객은 모두 내 고객으로 자동 배정됩니다. 타인 DB 배분은 기존 DB 배정 권한 흐름을 사용합니다.
+                </div>
+              )}
 
               {/* File Upload */}
               <div

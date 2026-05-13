@@ -2538,7 +2538,14 @@ export async function validateBulkImportRow(
   sourceRow: BulkImportRow,
   rowIndex: number,
   existingPhones: Set<string>,
-  filePhones: Set<string>
+  filePhones: Set<string>,
+  options?: {
+    forceAssignee?: {
+      agentId: number;
+      teamId: number | null;
+      subBranchAdminId: number | null;
+    };
+  }
 ): Promise<BulkImportValidationResult> {
   const row = normalizeBulkImportRow(sourceRow as Record<string, unknown>);
   const errors: string[] = [];
@@ -2616,7 +2623,7 @@ export async function validateBulkImportRow(
   }
 
   // 조직 정합성 검증 (부지점장, 팀, 담당자)
-  if (row.subBranchAdminName && row.subBranchAdminName.trim() !== "") {
+  if (!options?.forceAssignee && row.subBranchAdminName && row.subBranchAdminName.trim() !== "") {
     const { user, isDuplicate } = await findUserByNameUnique(
       row.subBranchAdminName,
       "sub_branch_admin"
@@ -2634,7 +2641,7 @@ export async function validateBulkImportRow(
     }
   }
 
-  if (row.teamName && row.teamName.trim() !== "") {
+  if (!options?.forceAssignee && row.teamName && row.teamName.trim() !== "") {
     if (!subBranchAdminId) {
       errors.push("팀을 지정하려면 부지점장이 필요합니다.");
     } else {
@@ -2649,7 +2656,7 @@ export async function validateBulkImportRow(
     }
   }
 
-  if (row.agentName && row.agentName.trim() !== "") {
+  if (!options?.forceAssignee && row.agentName && row.agentName.trim() !== "") {
     const { user, isDuplicate } = await findUserByNameUnique(
       row.agentName
     );
@@ -2681,6 +2688,12 @@ export async function validateBulkImportRow(
         errors.push("담당자의 팀 소속이 지정한 팀과 일치하지 않습니다.");
       }
     }
+  }
+
+  if (options?.forceAssignee) {
+    agentId = options.forceAssignee.agentId;
+    teamId = options.forceAssignee.teamId ?? undefined;
+    subBranchAdminId = options.forceAssignee.subBranchAdminId ?? undefined;
   }
 
   // assignmentStatus 계산
