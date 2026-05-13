@@ -427,6 +427,121 @@ const LOGIN_HISTORY_ACTIONS = new Set([
   "ALL_USERS_FORCE_LOGOUT",
 ]);
 
+const HIGH_RISK_ACTIONS = new Set([
+  "DATA_DOWNLOAD",
+  "TEAM_PERMANENTLY_DELETED",
+  "CUSTOMER_PERMANENTLY_DELETED",
+  "CONTRACT_PERMANENTLY_DELETED",
+  "ALL_USERS_FORCE_LOGOUT",
+  "USER_OAUTH_RESET",
+]);
+const MEDIUM_RISK_ACTIONS = new Set([
+  "DELETE_REQUEST_APPROVED",
+  "CONTRACT_DEACTIVATED_BY_REQUEST",
+  "IMPORT_BATCH_CANCELLED",
+  "IMPORT_BATCH_CANCEL_BLOCKED",
+  "USER_FORCE_LOGOUT",
+  "USER_ROLE_CHANGED",
+]);
+const LOW_RISK_ACTIONS = new Set([
+  "DELETE_REQUEST_CREATED",
+  "DELETE_REQUEST_REJECTED",
+  "TEAM_RESTORED",
+  "CUSTOMER_RESTORED",
+  "CONTRACT_RESTORED",
+  "PERMANENT_DELETE_BLOCKED",
+  "LOGIN_BLOCKED",
+]);
+const DOWNLOAD_ACTIONS = new Set(["DATA_DOWNLOAD", "DATA_DOWNLOAD_FAILED"]);
+const DELETE_AUDIT_ACTIONS = new Set([
+  "DELETE_REQUEST_CREATED",
+  "DELETE_REQUEST_APPROVED",
+  "DELETE_REQUEST_REJECTED",
+  "CONTRACT_DEACTIVATED_BY_REQUEST",
+  "TEAM_RESTORED",
+  "CUSTOMER_RESTORED",
+  "CONTRACT_RESTORED",
+  "TEAM_PERMANENTLY_DELETED",
+  "CUSTOMER_PERMANENTLY_DELETED",
+  "CONTRACT_PERMANENTLY_DELETED",
+  "PERMANENT_DELETE_BLOCKED",
+  "IMPORT_BATCH_CANCELLED",
+  "IMPORT_BATCH_CANCEL_BLOCKED",
+]);
+const SECURITY_AUDIT_ACTIONS = new Set([
+  "USER_LOGIN",
+  "LOGIN_BLOCKED",
+  "USER_OAUTH_LINKED",
+  "USER_OAUTH_LINK_CONFLICT",
+  "USER_OAUTH_RESET",
+  "USER_FORCE_LOGOUT",
+  "ALL_USERS_FORCE_LOGOUT",
+]);
+const RISK_ACTIONS = new Set([
+  "DATA_DOWNLOAD",
+  "TEAM_PERMANENTLY_DELETED",
+  "CUSTOMER_PERMANENTLY_DELETED",
+  "CONTRACT_PERMANENTLY_DELETED",
+  "ALL_USERS_FORCE_LOGOUT",
+  "USER_OAUTH_RESET",
+  "DELETE_REQUEST_APPROVED",
+  "CONTRACT_DEACTIVATED_BY_REQUEST",
+  "IMPORT_BATCH_CANCELLED",
+  "IMPORT_BATCH_CANCEL_BLOCKED",
+  "USER_FORCE_LOGOUT",
+  "USER_ROLE_CHANGED",
+  "DELETE_REQUEST_CREATED",
+  "DELETE_REQUEST_REJECTED",
+  "TEAM_RESTORED",
+  "CUSTOMER_RESTORED",
+  "CONTRACT_RESTORED",
+  "PERMANENT_DELETE_BLOCKED",
+  "LOGIN_BLOCKED",
+]);
+
+function getRiskLevel(action: string): "high" | "medium" | "low" | "normal" {
+  if (HIGH_RISK_ACTIONS.has(action)) return "high";
+  if (MEDIUM_RISK_ACTIONS.has(action)) return "medium";
+  if (LOW_RISK_ACTIONS.has(action)) return "low";
+  return "normal";
+}
+
+function safeAuditText(value: unknown, maxLength = 160) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .replace(/(secret|token|password|DATABASE_URL|JWT_SECRET|GOOGLE_CLIENT_SECRET|api[_-]?key)\s*[:=]\s*[^,\s"}]+/gi, "$1=[redacted]")
+    .slice(0, maxLength);
+}
+
+function summarizeLogDetails(details?: string | null) {
+  if (!details) return { reason: null as string | null, summary: null as string | null };
+  try {
+    const parsed = JSON.parse(details) as Record<string, any>;
+    const metadata = parsed.metadata ?? {};
+    const reason = metadata.reason ?? parsed.reason ?? null;
+    const parts = [
+      metadata.type ? `type=${metadata.type}` : null,
+      metadata.rowCount !== undefined ? `rows=${metadata.rowCount}` : null,
+      metadata.affectedSessionCount !== undefined ? `sessions=${metadata.affectedSessionCount}` : null,
+      metadata.affectedCustomerCount !== undefined ? `customers=${metadata.affectedCustomerCount}` : null,
+      metadata.deleteMode ? `mode=${metadata.deleteMode}` : null,
+    ].filter(Boolean);
+    return {
+      reason: reason ? safeAuditText(reason, 120) : null,
+      summary: parts.length > 0 ? parts.join(", ") : null,
+    };
+  } catch {
+    return { reason: null, summary: safeAuditText(details, 120) || null };
+  }
+}
+
+function isWithinDateRange(date: Date, from?: Date, to?: Date) {
+  const time = date.getTime();
+  if (from && time < from.getTime()) return false;
+  if (to && time > to.getTime()) return false;
+  return true;
+}
+
 function encodeCustomerTags(tags?: string[]) {
   if (!tags) return undefined;
   const unique = Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
@@ -1068,6 +1183,147 @@ export const appRouter = router({
               .some((value) => value.toLowerCase().includes(search));
           })
           .slice(0, input?.limit ?? 100);
+      }),
+  }),
+
+  adminAudit: router({
+    summary: branchAdminProcedure.query(async () => {
+      const [users, activeCustomers, deletedCustomers, activeContracts, deletedContracts, notifications, logs] = await Promise.all([
+        getAllUsers(),
+        getCustomers({}),
+        getDeletedCustomers(),
+        getAllContracts({}),
+        getDeletedContracts(),
+        getAllNotifications(),
+        getActivityLogs(2000),
+      ]);
+
+      const now = new Date();
+      const todayStart = toDayStart(now);
+      const todayEnd = toDayEnd(now);
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const recentLogs = logs.filter((entry) => new Date(entry.createdAt).getTime() >= sevenDaysAgo.getTime());
+
+      const recentRiskEvents = recentLogs
+        .filter((entry) => RISK_ACTIONS.has(entry.action))
+        .slice(0, 10)
+        .map((entry) => {
+          const details = summarizeLogDetails(entry.details);
+          return {
+            id: entry.id,
+            createdAt: entry.createdAt,
+            actorId: entry.userId,
+            action: entry.action,
+            targetType: entry.targetType,
+            targetId: entry.targetId,
+            riskLevel: getRiskLevel(entry.action),
+            reason: details.reason,
+            summary: details.summary,
+          };
+        });
+
+      return {
+        cards: {
+          activeUsers: users.filter((user) => user.accountStatus === "active").length,
+          inactiveUsers: users.filter((user) => user.accountStatus === "inactive").length,
+          resignedUsers: users.filter((user) => user.accountStatus === "resigned").length,
+          activeCustomers: activeCustomers.length,
+          softDeletedCustomers: deletedCustomers.length,
+          activeContracts: activeContracts.length,
+          softDeletedContracts: deletedContracts.length,
+          unreadNotifications: notifications.filter((notification) => !notification.isRead || notification.processStatus === "미확인").length,
+          todayCustomers: activeCustomers.filter((customer) => isWithinDateRange(new Date(customer.createdAt), todayStart, todayEnd)).length,
+          todayContracts: activeContracts.filter((contract) => isWithinDateRange(new Date(contract.createdAt), todayStart, todayEnd)).length,
+          recentDownloads: recentLogs.filter((entry) => DOWNLOAD_ACTIONS.has(entry.action)).length,
+          recentDeleteRestore: recentLogs.filter((entry) => DELETE_AUDIT_ACTIONS.has(entry.action)).length,
+          recentLoginBlocked: recentLogs.filter((entry) => entry.action === "LOGIN_BLOCKED").length,
+          recentSecurityActions: recentLogs.filter((entry) => entry.action === "USER_OAUTH_RESET" || entry.action === "USER_FORCE_LOGOUT" || entry.action === "ALL_USERS_FORCE_LOGOUT").length,
+        },
+        recentRiskEvents,
+      };
+    }),
+
+    logSearch: branchAdminProcedure
+      .input(z.object({
+        datePreset: z.enum(["today", "7d", "30d", "custom"]).optional(),
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        actorId: z.number().optional(),
+        action: z.string().optional(),
+        targetType: z.string().optional(),
+        category: z.enum(["download", "delete", "security", "customer", "contract", "user"]).optional(),
+        riskOnly: z.boolean().optional(),
+        search: z.string().optional(),
+        limit: z.number().min(1).max(200).default(50),
+        offset: z.number().min(0).default(0),
+      }).optional())
+      .query(async ({ input }) => {
+        const logs = await getActivityLogs(2000);
+        const users = await getAllUsers();
+        const usersById = new Map(users.map((user) => [user.id, user]));
+        const now = new Date();
+        let dateFrom = input?.dateFrom ? new Date(input.dateFrom) : undefined;
+        let dateTo = input?.dateTo ? toDayEnd(new Date(input.dateTo)) : undefined;
+        if (input?.datePreset === "today") {
+          dateFrom = toDayStart(now);
+          dateTo = toDayEnd(now);
+        } else if (input?.datePreset === "7d") {
+          dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (input?.datePreset === "30d") {
+          dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
+        const search = input?.search?.trim().toLowerCase();
+
+        const matchesCategory = (entry: { action: string; targetType: string | null }) => {
+          if (!input?.category) return true;
+          if (input.category === "download") return DOWNLOAD_ACTIONS.has(entry.action);
+          if (input.category === "delete") return DELETE_AUDIT_ACTIONS.has(entry.action);
+          if (input.category === "security") return SECURITY_AUDIT_ACTIONS.has(entry.action);
+          return entry.targetType === input.category;
+        };
+
+        const filtered = logs
+          .filter((entry) => isWithinDateRange(new Date(entry.createdAt), dateFrom, dateTo))
+          .filter((entry) => !input?.actorId || entry.userId === input.actorId)
+          .filter((entry) => !input?.action || entry.action === input.action)
+          .filter((entry) => !input?.targetType || entry.targetType === input.targetType)
+          .filter((entry) => !input?.riskOnly || RISK_ACTIONS.has(entry.action))
+          .filter(matchesCategory)
+          .map((entry) => {
+            const actor = usersById.get(entry.userId);
+            const details = summarizeLogDetails(entry.details);
+            return {
+              id: entry.id,
+              createdAt: entry.createdAt,
+              actor: actor ? { id: actor.id, name: actor.name, email: actor.email ? maskEmail(actor.email) : null, role: actor.role } : null,
+              action: entry.action,
+              targetType: entry.targetType,
+              targetId: entry.targetId,
+              riskLevel: getRiskLevel(entry.action),
+              reason: details.reason,
+              summary: details.summary,
+            };
+          })
+          .filter((entry) => {
+            if (!search) return true;
+            return [
+              entry.action,
+              entry.targetType ?? "",
+              String(entry.targetId ?? ""),
+              entry.actor?.name ?? "",
+              entry.actor?.email ?? "",
+              entry.reason ?? "",
+              entry.summary ?? "",
+            ].some((value) => value.toLowerCase().includes(search));
+          });
+
+        const offset = input?.offset ?? 0;
+        const limit = input?.limit ?? 50;
+        return {
+          items: filtered.slice(offset, offset + limit),
+          total: filtered.length,
+          hasMore: offset + limit < filtered.length,
+        };
       }),
   }),
 
@@ -2724,28 +2980,36 @@ export const appRouter = router({
 
   // ── Download (지점장 전용) ─────────────────────────────────────────────────────────
   download: router({
-    customers: branchAdminProcedure.query(async ({ ctx }) => {
+    customers: branchAdminProcedure
+      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .query(async ({ ctx, input }) => {
       const data = await getCustomers({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "customers", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "customers", metadata: { type: "customers", rowCount: data.length } }));
+        logDetails({ actor: ctx.user.id, targetType: "customers", metadata: { type: "customers", rowCount: data.length, reason: input.reason } }));
       return data;
     }),
-    contracts: branchAdminProcedure.query(async ({ ctx }) => {
+    contracts: branchAdminProcedure
+      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .query(async ({ ctx, input }) => {
       const data = await getAllContracts({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "contracts", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "contracts", metadata: { type: "contracts", rowCount: data.length } }));
+        logDetails({ actor: ctx.user.id, targetType: "contracts", metadata: { type: "contracts", rowCount: data.length, reason: input.reason } }));
       return data;
     }),
-    schedules: branchAdminProcedure.query(async ({ ctx }) => {
+    schedules: branchAdminProcedure
+      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .query(async ({ ctx, input }) => {
       const data = await getSchedules({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "schedules", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "schedules", metadata: { type: "schedules", rowCount: data.length } }));
+        logDetails({ actor: ctx.user.id, targetType: "schedules", metadata: { type: "schedules", rowCount: data.length, reason: input.reason } }));
       return data;
     }),
-    performance: branchAdminProcedure.query(async ({ ctx }) => {
+    performance: branchAdminProcedure
+      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .query(async ({ ctx, input }) => {
       const data = await getPerformanceStats({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "performance", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "performance", metadata: { type: "performance" } }));
+        logDetails({ actor: ctx.user.id, targetType: "performance", metadata: { type: "performance", reason: input.reason } }));
       return data;
     }),
   }),
