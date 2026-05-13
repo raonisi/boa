@@ -785,4 +785,61 @@ describe("delete request and deleted data lifecycle", () => {
     await expect(subBranchCaller.deletedData.permanentDeleteTeam({ id: 10, confirmText: "\uC644\uC804\uC0AD\uC81C" })).rejects.toThrow();
     await expect(inactiveCaller.deletedData.restoreContract({ id: 10 })).rejects.toThrow();
   });
+
+  it("allows only branch_admin to view import batches", async () => {
+    await expect(appRouter.createCaller(createCtx("member")).imports.listBatches({})).rejects.toThrow();
+    vi.spyOn(db, "listImportBatches").mockResolvedValue([]);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).imports.listBatches({})).resolves.toEqual([]);
+  });
+
+  it("cancels an import batch transactionally when no operational history exists", async () => {
+    const batch = { id: 3, importBatchId: "batch_test", status: "active", uploadedBy: 1, createdAt: new Date() } as any;
+    vi.spyOn(db, "getImportBatchByBatchId").mockResolvedValue(batch);
+    vi.spyOn(db, "getCustomersByImportBatch").mockResolvedValue([{ ...activeCustomer, importBatchId: "batch_test", isActive: true, deletedAt: null }] as any);
+    vi.spyOn(db, "getImportBatchCancelBlockers").mockResolvedValue({
+      activeContracts: 0,
+      consultations: 0,
+      statusHistory: 0,
+      notifications: 0,
+      reminders: 0,
+      assignmentHistory: 0,
+      deleteRequests: 0,
+      consentLogs: 0,
+      blockedCustomerIds: [],
+    });
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const softDeleteSpy = vi.spyOn(db, "softDeleteCustomersByImportBatch").mockResolvedValue(undefined);
+    const updateBatchSpy = vi.spyOn(db, "updateImportBatch").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).imports.cancelBatch({ importBatchId: "batch_test", confirmText: "BATCH취소" })).resolves.toEqual({ success: true, affectedCustomerCount: 1 });
+
+    expect(softDeleteSpy).toHaveBeenCalledWith("batch_test", tx);
+    expect(updateBatchSpy).toHaveBeenCalledWith("batch_test", expect.objectContaining({ status: "cancelled", cancelledBy: 1 }), tx);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "IMPORT_BATCH_CANCELLED" }), tx);
+  });
+
+  it("blocks import batch cancellation when linked operational history exists", async () => {
+    vi.spyOn(db, "getImportBatchByBatchId").mockResolvedValue({ id: 3, importBatchId: "batch_test", status: "active", uploadedBy: 1 } as any);
+    vi.spyOn(db, "getCustomersByImportBatch").mockResolvedValue([{ ...activeCustomer, importBatchId: "batch_test", isActive: true, deletedAt: null }] as any);
+    vi.spyOn(db, "getImportBatchCancelBlockers").mockResolvedValue({
+      activeContracts: 1,
+      consultations: 0,
+      statusHistory: 0,
+      notifications: 0,
+      reminders: 0,
+      assignmentHistory: 0,
+      deleteRequests: 0,
+      consentLogs: 0,
+      blockedCustomerIds: [100],
+    });
+    const softDeleteSpy = vi.spyOn(db, "softDeleteCustomersByImportBatch").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).imports.cancelBatch({ importBatchId: "batch_test", confirmText: "BATCH취소" })).rejects.toThrow();
+
+    expect(softDeleteSpy).not.toHaveBeenCalled();
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "IMPORT_BATCH_CANCEL_BLOCKED" }));
+  });
 });

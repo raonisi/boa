@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
@@ -9,6 +9,7 @@ import {
   contracts,
   customers,
   deleteRequests,
+  importBatches,
   InsertActivityLog,
   InsertAssignmentHistory,
   InsertConsentLog,
@@ -17,6 +18,7 @@ import {
   InsertContractHistory,
   InsertCustomer,
   InsertDeleteRequest,
+  InsertImportBatch,
   InsertNotification,
   InsertSchedule,
   InsertStatusHistory,
@@ -1311,12 +1313,16 @@ export async function bulkCreateCustomers(
     agentId?: number;
     subBranchAdminId?: number;
     assignedTeamId?: number;
-    assignmentStatus: "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent";
-    createdBy: number;
-  }>
-) {
-  const db = await getDb();
-  if (!db) return [];
+	    assignmentStatus: "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent";
+	    createdBy: number;
+	    importBatchId?: string;
+	    importedBy?: number;
+	    importedAt?: Date;
+	  }>
+	  , client?: DbExecutor
+	) {
+	  const db = client ?? await getDb();
+	  if (!db) return [];
 
   const insertData = rows.map((row) => ({
     name: row.name,
@@ -1332,12 +1338,143 @@ export async function bulkCreateCustomers(
     agentId: row.agentId,
     subBranchAdminId: row.subBranchAdminId,
     assignedTeamId: row.assignedTeamId,
-    assignmentStatus: row.assignmentStatus,
-    createdBy: row.createdBy,
-    isActive: true,
+	    assignmentStatus: row.assignmentStatus,
+	    createdBy: row.createdBy,
+	    importBatchId: row.importBatchId,
+	    importedBy: row.importedBy,
+	    importedAt: row.importedAt,
+	    isActive: true,
     assignedAt: row.agentId ? new Date() : undefined,
   }));
 
   const result = await db.insert(customers).values(insertData);
   return result;
+}
+
+export async function createImportBatch(data: InsertImportBatch, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.insert(importBatches).values(data);
+}
+
+export async function getImportBatchByBatchId(importBatchId: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(importBatches).where(eq(importBatches.importBatchId, importBatchId)).limit(1);
+  return result[0];
+}
+
+export async function listImportBatches(filter: {
+  dateFrom?: Date;
+  dateTo?: Date;
+  status?: "active" | "cancelled" | "partially_cancelled" | "failed";
+  uploadedBy?: number;
+  search?: string;
+} = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (filter.dateFrom) conditions.push(gte(importBatches.createdAt, filter.dateFrom));
+  if (filter.dateTo) conditions.push(lte(importBatches.createdAt, filter.dateTo));
+  if (filter.status) conditions.push(eq(importBatches.status, filter.status));
+  if (filter.uploadedBy !== undefined) conditions.push(eq(importBatches.uploadedBy, filter.uploadedBy));
+  if (filter.search) {
+    const q = `%${filter.search.trim()}%`;
+    conditions.push(or(sql`${importBatches.importBatchId} like ${q}`, sql`${importBatches.fileName} like ${q}`));
+  }
+  return db.select().from(importBatches)
+    .where(conditions.length ? and(...conditions) : undefined)
+    .orderBy(desc(importBatches.createdAt));
+}
+
+export async function updateImportBatch(
+  importBatchId: string,
+  data: Partial<typeof importBatches.$inferInsert>,
+  client?: DbExecutor,
+) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(importBatches).set(data).where(eq(importBatches.importBatchId, importBatchId));
+}
+
+export async function getCustomersByImportBatch(importBatchId: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(customers)
+    .where(eq(customers.importBatchId, importBatchId))
+    .orderBy(desc(customers.createdAt));
+}
+
+export async function softDeleteCustomersByImportBatch(importBatchId: string, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(customers)
+    .set({ isActive: false, deletedAt: new Date() })
+    .where(and(eq(customers.importBatchId, importBatchId), eq(customers.isActive, true)));
+}
+
+export async function getImportBatchCancelBlockers(importBatchId: string) {
+  const db = await getDb();
+  const empty = {
+    activeContracts: 0,
+    consultations: 0,
+    statusHistory: 0,
+    notifications: 0,
+    reminders: 0,
+    assignmentHistory: 0,
+    deleteRequests: 0,
+    consentLogs: 0,
+    blockedCustomerIds: [] as number[],
+  };
+  if (!db) return empty;
+  const batchCustomers = await db.select({ id: customers.id }).from(customers).where(eq(customers.importBatchId, importBatchId));
+  const customerIds = batchCustomers.map((c) => c.id);
+  if (customerIds.length === 0) return empty;
+  const [
+    activeContracts,
+    consultationRows,
+    statusRows,
+    notificationRows,
+    reminderRows,
+    assignmentRows,
+    requestRows,
+    consentRows,
+  ] = await Promise.all([
+    db.select({ customerId: contracts.customerId }).from(contracts)
+      .where(and(inArray(contracts.customerId, customerIds), eq(contracts.isActive, true))),
+    db.select({ customerId: consultations.customerId }).from(consultations)
+      .where(inArray(consultations.customerId, customerIds)),
+    db.select({ customerId: statusHistory.customerId }).from(statusHistory)
+      .where(inArray(statusHistory.customerId, customerIds)),
+    db.select({ relatedId: notifications.relatedId }).from(notifications)
+      .where(and(eq(notifications.relatedType, "customer"), inArray(notifications.relatedId, customerIds))),
+    db.select({ relatedId: reminders.relatedId }).from(reminders)
+      .where(and(eq(reminders.relatedType, "customer"), inArray(reminders.relatedId, customerIds))),
+    db.select({ customerId: assignmentHistory.customerId }).from(assignmentHistory)
+      .where(inArray(assignmentHistory.customerId, customerIds)),
+    db.select({ customerId: deleteRequests.customerId }).from(deleteRequests)
+      .where(inArray(deleteRequests.customerId, customerIds)),
+    db.select({ customerId: consentLogs.customerId }).from(consentLogs)
+      .where(inArray(consentLogs.customerId, customerIds)),
+  ]);
+  const blocked = new Set<number>();
+  for (const row of activeContracts) blocked.add(row.customerId);
+  for (const row of consultationRows) blocked.add(row.customerId);
+  for (const row of statusRows) blocked.add(row.customerId);
+  for (const row of notificationRows) if (row.relatedId != null) blocked.add(row.relatedId);
+  for (const row of reminderRows) if (row.relatedId != null) blocked.add(row.relatedId);
+  for (const row of assignmentRows) blocked.add(row.customerId);
+  for (const row of requestRows) blocked.add(row.customerId);
+  for (const row of consentRows) blocked.add(row.customerId);
+  return {
+    activeContracts: activeContracts.length,
+    consultations: consultationRows.length,
+    statusHistory: statusRows.length,
+    notifications: notificationRows.length,
+    reminders: reminderRows.length,
+    assignmentHistory: assignmentRows.length,
+    deleteRequests: requestRows.length,
+    consentLogs: consentRows.length,
+    blockedCustomerIds: Array.from(blocked),
+  };
 }
