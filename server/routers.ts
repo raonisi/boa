@@ -16,6 +16,7 @@ import {
   createContractHistoryEntry,
   createCustomer,
   createDeleteRequest,
+  createImportBatch,
   createNotification,
   createSchedule,
   createStatusHistory,
@@ -47,6 +48,9 @@ import {
   getDeletedTeams,
   getDeleteRequestById,
   getDeleteRequests,
+  getCustomersByImportBatch,
+  getImportBatchByBatchId,
+  getImportBatchCancelBlockers,
   getNotifications,
   getNotificationById,
   getPendingDeleteRequestForTarget,
@@ -79,6 +83,7 @@ import {
   getAllUsersByEmail,
   createUser,
   linkUserOpenId,
+  listImportBatches,
   getAllNotifications,
   getNotificationsFiltered,
   normalizePhone,
@@ -97,6 +102,8 @@ import {
   restoreTeam,
   bulkCreateCustomers,
   updateDeleteRequest,
+  updateImportBatch,
+  softDeleteCustomersByImportBatch,
   BulkImportRow,
   BulkImportValidationResult,
 } from "./db";
@@ -253,6 +260,10 @@ const PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE = "\uD655\uC778 \uBB38\uAD6C\uAC
 const TEAM_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uC5F0\uACB0\uB41C \uC0AC\uC6A9\uC790, \uACE0\uAC1D, \uC77C\uC815 \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC788\uC5B4 \uD300\uC744 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601 \uC774\uB825 \uBCF4\uC874\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
 const CUSTOMER_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uC5F0\uACB0\uB41C \uACC4\uC57D, \uC77C\uC815, \uC0C1\uB2F4\uAE30\uB85D, \uC54C\uB9BC \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC788\uC5B4 \uACE0\uAC1D\uC744 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601 \uC774\uB825 \uBCF4\uC874\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
 const CONTRACT_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uACC4\uC57D \uC774\uB825 \uB610\uB294 \uC54C\uB9BC \uC774\uB825\uC774 \uB0A8\uC544 \uC788\uC5B4 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uAC10\uC0AC \uCD94\uC801\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
+const IMPORT_BATCH_CANCEL_CONFIRM_TEXT = "BATCH\uCDE8\uC18C";
+const IMPORT_BATCH_ALREADY_CANCELLED_MESSAGE = "\uC774\uBBF8 \uCDE8\uC18C\uB41C batch\uC785\uB2C8\uB2E4.";
+const IMPORT_BATCH_NO_ACTIVE_CUSTOMERS_MESSAGE = "\uCDE8\uC18C\uD560 active \uACE0\uAC1D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
+const IMPORT_BATCH_CANCEL_BLOCKED_MESSAGE = "\uACC4\uC57D, \uC77C\uC815, \uC0C1\uB2F4\uAE30\uB85D, \uC54C\uB9BC \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC5F0\uACB0\uB41C \uACE0\uAC1D\uC774 \uC788\uC5B4 batch \uCDE8\uC18C\uB97C \uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD544\uC694\uD55C \uACE0\uAC1D\uC740 \uAC1C\uBCC4 \uC0AD\uC81C \uC694\uCCAD \uB610\uB294 \uAD00\uB9AC\uC790 \uAC80\uD1A0 \uD6C4 \uCC98\uB9AC\uD574\uC8FC\uC138\uC694.";
 
 async function requireSoftDeletedTeam(teamId: number) {
   const team = await getTeamById(teamId);
@@ -1228,34 +1239,36 @@ export const appRouter = router({
           });
         }
 
+        const importedAt = new Date();
         const customersToCreate = validRows.map((result) => {
           const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
           return {
             name: row.name!,
             phone: result.normalizedPhone ?? (row.phone ? normalizePhone(row.phone) : undefined),
             birthDate: row.birthDate ? new Date(row.birthDate) : undefined,
-            gender: (row.gender === "남" || row.gender === "male" ? "male" : row.gender === "여" || row.gender === "female" ? "female" : row.gender === "기타" || row.gender === "other" ? "other" : undefined) as any,
+            gender: (row.gender === "?" || row.gender === "male" ? "male" : row.gender === "?" || row.gender === "female" ? "female" : row.gender === "??" || row.gender === "other" ? "other" : undefined) as any,
             region: row.region,
             expectedPremium: row.expectedPremium ? parseInt(row.expectedPremium, 10) : undefined,
             availableTime: row.availableTime,
             source: row.source,
-            consultStatus: row.consultStatus || "미상담",
+            consultStatus: row.consultStatus || "???",
             memo: row.memo,
             agentId: result.agentId,
             subBranchAdminId: result.subBranchAdminId,
             assignedTeamId: result.teamId,
             assignmentStatus: result.assignmentStatus as "unassigned" | "assigned_to_sub_branch" | "assigned_to_agent",
             createdBy: ctx.user.id,
+            importBatchId,
+            importedBy: ctx.user.id,
+            importedAt,
           };
-        })
-
-        await bulkCreateCustomers(customersToCreate);
+        });
 
         const errorCount = validationResults.filter((r) => !r.isValid).length;
-        const duplicateCount = validationResults.filter((r) => r.errors.some((e) => e.includes("기존 DB에 존재"))).length;
+        const duplicateCount = validationResults.filter((r) => r.errors.some((e) => e.includes("?? DB? ??"))).length;
 
-        await log(ctx.user.id, "CUSTOMER_BULK_IMPORTED", "customer", undefined,
-          JSON.stringify({
+        await runDbTransaction(async (tx) => {
+          await createImportBatch({
             importBatchId,
             fileName: input.fileName,
             uploadedBy: ctx.user.id,
@@ -1263,21 +1276,34 @@ export const appRouter = router({
             successRows: validRows.length,
             failedRows: errorCount,
             duplicateRows: duplicateCount,
-            importedAt: new Date().toISOString(),
-          }));
-
-        await log(ctx.user.id, "DATA_IMPORT", "customers", undefined,
-          logDetails({
-            actor: ctx.user.id,
-            targetType: "customers",
-            afterValue: { successRows: validRows.length },
-            metadata: {
-            importBatchId,
-            fileName: input.fileName,
-            type: "bulk_import",
-            successRows: validRows.length,
-            },
-          }));
+            blockedForbiddenColumn: false,
+            status: "active",
+          }, tx);
+          await bulkCreateCustomers(customersToCreate, tx);
+          await log(ctx.user.id, "CUSTOMER_BULK_IMPORTED", "customer", undefined,
+            JSON.stringify({
+              importBatchId,
+              fileName: input.fileName,
+              uploadedBy: ctx.user.id,
+              totalRows: input.rows.length,
+              successRows: validRows.length,
+              failedRows: errorCount,
+              duplicateRows: duplicateCount,
+              importedAt: importedAt.toISOString(),
+            }), tx);
+          await log(ctx.user.id, "DATA_IMPORT", "customers", undefined,
+            logDetails({
+              actor: ctx.user.id,
+              targetType: "customers",
+              afterValue: { successRows: validRows.length },
+              metadata: {
+                importBatchId,
+                fileName: input.fileName,
+                type: "bulk_import",
+                successRows: validRows.length,
+              },
+            }), tx);
+        });
 
         return {
           success: true,
@@ -1774,6 +1800,92 @@ export const appRouter = router({
           metadata: { contractId: request.targetId },
         }));
         return { success: true };
+      }),
+  }),
+
+  imports: router({
+    listBatches: branchAdminProcedure
+      .input(z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        status: z.enum(["active", "cancelled", "partially_cancelled", "failed"]).optional(),
+        uploadedBy: z.number().optional(),
+        search: z.string().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        const batches = await listImportBatches({
+          dateFrom: input?.dateFrom ? new Date(input.dateFrom) : undefined,
+          dateTo: input?.dateTo ? new Date(input.dateTo) : undefined,
+          status: input?.status,
+          uploadedBy: input?.uploadedBy,
+          search: input?.search,
+        });
+        return Promise.all(batches.map(async (batch) => {
+          const customersInBatch = await getCustomersByImportBatch(batch.importBatchId);
+          const activeCustomerCount = customersInBatch.filter((c) => c.isActive && !(c as any).deletedAt).length;
+          const cancelledCustomerCount = customersInBatch.filter((c) => !c.isActive || (c as any).deletedAt).length;
+          const uploader = await getUserById(batch.uploadedBy);
+          return { ...batch, uploader: uploader ? { id: uploader.id, name: uploader.name, role: uploader.role } : null, activeCustomerCount, cancelledCustomerCount };
+        }));
+      }),
+
+    getBatchDetail: branchAdminProcedure
+      .input(z.object({ importBatchId: z.string() }))
+      .query(async ({ input, ctx }) => {
+        const batch = await getImportBatchByBatchId(input.importBatchId);
+        if (!batch) throw new TRPCError({ code: "NOT_FOUND" });
+        const customersInBatch = await getCustomersByImportBatch(input.importBatchId);
+        const blockers = await getImportBatchCancelBlockers(input.importBatchId);
+        const uploader = await getUserById(batch.uploadedBy);
+        const customersWithSummary = await Promise.all(customersInBatch.map(async (customer) => {
+          const agent = customer.agentId ? await getUserById(customer.agentId) : undefined;
+          return {
+            id: customer.id,
+            name: customer.name,
+            maskedPhone: customer.phone ? maskPhone(customer.phone) : null,
+            consultStatus: customer.consultStatus,
+            agent: agent ? { id: agent.id, name: agent.name } : null,
+            assignmentStatus: customer.assignmentStatus,
+            createdAt: customer.createdAt,
+            status: customer.isActive && !(customer as any).deletedAt ? "active" : "inactive",
+            hasLinkedData: blockers.blockedCustomerIds.includes(customer.id),
+          };
+        }));
+        await log(ctx.user.id, "IMPORT_BATCH_VIEWED", "import_batch", batch.id, logDetails({
+          actor: ctx.user.id,
+          targetId: batch.id,
+          targetType: "import_batch",
+          metadata: {
+            importBatchId: input.importBatchId,
+            customerCount: customersInBatch.length,
+            blockedCustomerCount: blockers.blockedCustomerIds.length,
+          },
+        }));
+        return { batch: { ...batch, uploader: uploader ? { id: uploader.id, name: uploader.name, role: uploader.role } : null }, customers: customersWithSummary, blockers };
+      }),
+
+    cancelBatch: branchAdminProcedure
+      .input(z.object({ importBatchId: z.string(), confirmText: z.string(), reason: z.string().optional() }))
+      .mutation(async ({ ctx, input }) => {
+        if (input.confirmText !== IMPORT_BATCH_CANCEL_CONFIRM_TEXT) throw new TRPCError({ code: "BAD_REQUEST", message: PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE });
+        const batch = await getImportBatchByBatchId(input.importBatchId);
+        if (!batch) throw new TRPCError({ code: "NOT_FOUND" });
+        if (batch.status === "cancelled") throw new TRPCError({ code: "BAD_REQUEST", message: IMPORT_BATCH_ALREADY_CANCELLED_MESSAGE });
+        const customersInBatch = await getCustomersByImportBatch(input.importBatchId);
+        const activeCustomers = customersInBatch.filter((c) => c.isActive && !(c as any).deletedAt);
+        if (activeCustomers.length === 0) throw new TRPCError({ code: "BAD_REQUEST", message: IMPORT_BATCH_NO_ACTIVE_CUSTOMERS_MESSAGE });
+        const blockers = await getImportBatchCancelBlockers(input.importBatchId);
+        if (blockers.blockedCustomerIds.length > 0) {
+          await log(ctx.user.id, "IMPORT_BATCH_CANCEL_BLOCKED", "import_batch", batch.id, logDetails({ actor: ctx.user.id, targetId: batch.id, targetType: "import_batch", metadata: { importBatchId: input.importBatchId, blockedCustomerCount: blockers.blockedCustomerIds.length, relatedCounts: blockers } }));
+          throw new TRPCError({ code: "BAD_REQUEST", message: IMPORT_BATCH_CANCEL_BLOCKED_MESSAGE });
+        }
+        await runDbTransaction(async (tx) => {
+          await softDeleteCustomersByImportBatch(input.importBatchId, tx);
+          await updateImportBatch(input.importBatchId, { status: "cancelled", cancelledBy: ctx.user.id, cancelledAt: new Date(), cancelReason: input.reason }, tx);
+          await log(ctx.user.id, "IMPORT_BATCH_CANCELLED", "import_batch", batch.id, logDetails({ actor: ctx.user.id, targetId: batch.id, targetType: "import_batch", beforeValue: { status: batch.status, activeCustomerCount: activeCustomers.length }, afterValue: { status: "cancelled", activeCustomerCount: 0 }, metadata: { importBatchId: input.importBatchId, affectedCustomerCount: activeCustomers.length, reason: input.reason } }), tx);
+          await log(ctx.user.id, "CUSTOMER_DEACTIVATED_BY_BATCH_CANCELLED", "customer", undefined, logDetails({ actor: ctx.user.id, targetType: "customer", afterValue: { isActive: false }, metadata: { importBatchId: input.importBatchId, affectedCustomerCount: activeCustomers.length } }), tx);
+        });
+        return { success: true, affectedCustomerCount: activeCustomers.length };
       }),
   }),
 

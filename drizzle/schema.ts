@@ -73,6 +73,9 @@ export const customers = mysqlTable("customers", {
   assignedAt: timestamp("assignedAt"),
   subBranchAdminId: int("subBranchAdminId"),
   assignmentStatus: mysqlEnum("assignmentStatus", ["unassigned", "assigned_to_sub_branch", "assigned_to_agent"]).default("unassigned").notNull(),
+  importBatchId: varchar("importBatchId", { length: 100 }),
+  importedBy: int("importedBy"),
+  importedAt: timestamp("importedAt"),
   consultStatus: mysqlEnum("consultStatus", [
     "미상담", "부재", "통화완료", "상담예정", "설계중",
     "계약", "보류", "거절", "해지관리", "재상담필요",
@@ -155,6 +158,26 @@ export const contracts = mysqlTable("contracts", {
 });
 export type Contract = typeof contracts.$inferSelect;
 export type InsertContract = typeof contracts.$inferInsert;
+
+export const importBatches = mysqlTable("import_batches", {
+  id: int("id").autoincrement().primaryKey(),
+  importBatchId: varchar("importBatchId", { length: 100 }).notNull().unique(),
+  fileName: varchar("fileName", { length: 255 }),
+  uploadedBy: int("uploadedBy").notNull(),
+  totalRows: int("totalRows").default(0).notNull(),
+  successRows: int("successRows").default(0).notNull(),
+  failedRows: int("failedRows").default(0).notNull(),
+  duplicateRows: int("duplicateRows").default(0).notNull(),
+  blockedForbiddenColumn: boolean("blockedForbiddenColumn").default(false).notNull(),
+  status: mysqlEnum("status", ["active", "cancelled", "partially_cancelled", "failed"]).default("active").notNull(),
+  cancelledBy: int("cancelledBy"),
+  cancelledAt: timestamp("cancelledAt"),
+  cancelReason: text("cancelReason"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type ImportBatch = typeof importBatches.$inferSelect;
+export type InsertImportBatch = typeof importBatches.$inferInsert;
 
 export const deleteRequests = mysqlTable("delete_requests", {
   id: int("id").autoincrement().primaryKey(),
