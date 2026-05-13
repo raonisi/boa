@@ -53,22 +53,25 @@ export default function CustomerMergeManagement() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 md:p-6 space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">중복 고객 관리</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            연락처가 같은 active 고객을 찾고, 상담기록·계약·후속관리 이력을 기준 고객으로 안전하게 병합합니다.
-          </p>
-        </div>
+      <div className="space-y-5 p-4 md:p-6">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Customer Merge</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">중복 고객 관리</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              연락처가 같은 active 고객을 찾고, 상담기록·계약·후속관리 이력을 기준 고객으로 안전하게 병합합니다.
+            </p>
+          </CardContent>
+        </Card>
 
-        <Card>
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardHeader>
             <CardTitle className="text-base">중복 후보 검색</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="relative">
               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="고객명 또는 연락처 검색" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <Input className="h-10 rounded-xl bg-slate-50 pl-8" placeholder="고객명 또는 연락처 검색" value={search} onChange={(event) => setSearch(event.target.value)} />
             </div>
 
             {isLoading ? (
@@ -78,7 +81,7 @@ export default function CustomerMergeManagement() {
             ) : (
               <div className="space-y-4">
                 {(groups ?? []).map((group: any) => (
-                  <Card key={group.normalizedPhone} className="border-amber-200">
+                  <Card key={group.normalizedPhone} className="overflow-hidden border-amber-200 bg-amber-50/40 shadow-sm">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -87,7 +90,7 @@ export default function CustomerMergeManagement() {
                     </CardHeader>
                     <CardContent className="overflow-x-auto">
                       <Table>
-                        <TableHeader>
+                        <TableHeader className="bg-white/70">
                           <TableRow>
                             <TableHead>고객</TableHead>
                             <TableHead>상태</TableHead>
@@ -134,7 +137,7 @@ export default function CustomerMergeManagement() {
         </Card>
 
         <Dialog open={!!targetCustomerId && !!sourceCustomerId} onOpenChange={(open) => { if (!open) resetSelection(); }}>
-          <DialogContent className="max-w-3xl">
+          <DialogContent className="max-w-3xl rounded-2xl">
             <DialogHeader>
               <DialogTitle>고객 병합 미리보기</DialogTitle>
             </DialogHeader>
@@ -143,7 +146,7 @@ export default function CustomerMergeManagement() {
             ) : (
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-3">
-                  <Card>
+                  <Card className="border-green-100 bg-green-50/60">
                     <CardHeader><CardTitle className="text-sm">기준 고객</CardTitle></CardHeader>
                     <CardContent className="text-sm space-y-1">
                       <p className="font-medium">{preview.targetCustomer.name}</p>
@@ -152,7 +155,7 @@ export default function CustomerMergeManagement() {
                       <p>우선순위: {preview.targetCustomer.priority}</p>
                     </CardContent>
                   </Card>
-                  <Card>
+                  <Card className="border-amber-100 bg-amber-50/60">
                     <CardHeader><CardTitle className="text-sm">병합 대상 고객</CardTitle></CardHeader>
                     <CardContent className="text-sm space-y-1">
                       <p className="font-medium">{preview.sourceCustomer.name}</p>
@@ -163,7 +166,7 @@ export default function CustomerMergeManagement() {
                   </Card>
                 </div>
 
-                <div className="rounded-md border p-3 text-sm">
+                <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm">
                   <p className="font-medium mb-2">이관 예정 데이터</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <span>상담 {preview.transferCounts.consultations}건</span>
@@ -178,12 +181,12 @@ export default function CustomerMergeManagement() {
                 </div>
 
                 {preview.conflicts.length > 0 && (
-                  <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                     충돌 가능 필드: {preview.conflicts.join(", ")}. 기준 고객 값을 유지하고 빈 값과 태그만 보완합니다.
                   </div>
                 )}
 
-                <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-red-100 bg-red-50/60 p-3 text-sm text-red-800">
                   이 작업은 두 고객의 상담기록, 계약, 후속관리, 알림, 이력을 하나의 기준 고객으로 합칩니다.
                   병합 대상 고객은 비활성 처리되며 활동 로그에 기록됩니다. 진행하려면 “고객병합”을 입력하세요.
                 </div>
@@ -194,7 +197,7 @@ export default function CustomerMergeManagement() {
                 </div>
                 <div className="space-y-2">
                   <Label>확인 문구</Label>
-                  <Input value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="고객병합" />
+                  <Input className="rounded-xl bg-slate-50" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="고객병합" />
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={resetSelection}>취소</Button>

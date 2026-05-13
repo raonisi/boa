@@ -145,22 +145,25 @@ export default function UserManagement() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="space-y-5">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="flex items-center justify-between gap-3 p-5">
           <div>
-            <h1 className="text-2xl font-bold">사용자 관리</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">총 {users?.length ?? 0}명</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Users & Security</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">사용자 관리</h1>
+            <p className="mt-1 text-sm text-slate-500">총 {users?.length ?? 0}명 · 강제 로그아웃/OAuth 초기화는 활동 로그에 기록됩니다.</p>
           </div>
           <Button size="sm" onClick={() => setShowCreate(true)}>
             <Plus className="h-4 w-4 mr-1" /> 사용자 추가
           </Button>
-        </div>
+          </CardContent>
+        </Card>
 
-        <Card>
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead>이름</TableHead>
                     <TableHead>이메일</TableHead>

@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Check, RotateCcw, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, RotateCcw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -87,16 +87,26 @@ export default function DeletedDataManagement() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">삭제 데이터 관리</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            비활성 처리된 팀, 고객, 계약을 복구하거나 조건을 만족할 때만 완전삭제합니다.
-          </p>
-        </div>
+      <div className="space-y-5">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Deleted Data</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">삭제 데이터 관리</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              비활성 처리된 팀, 고객, 계약을 복구하거나 조건을 만족할 때만 완전삭제합니다.
+            </p>
+          </CardContent>
+        </Card>
 
-        <Tabs defaultValue="requests">
-          <TabsList className="flex-wrap h-auto">
+        <Card className="border-red-100 bg-red-50/60 shadow-sm">
+          <CardContent className="flex items-start gap-3 p-4 text-sm text-red-800">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>완전삭제는 복구할 수 없는 위험 작업입니다. confirmText 검증과 서버 권한 검증은 기존 정책을 그대로 사용합니다.</p>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="requests" className="space-y-4">
+          <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
             <TabsTrigger value="requests">삭제 요청</TabsTrigger>
             <TabsTrigger value="teams">삭제된 팀</TabsTrigger>
             <TabsTrigger value="customers">삭제된 고객</TabsTrigger>
@@ -104,11 +114,11 @@ export default function DeletedDataManagement() {
           </TabsList>
 
           <TabsContent value="requests">
-            <Card>
+            <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">계약 삭제 요청</CardTitle></CardHeader>
               <CardContent className="p-0">
                 <Table>
-                  <TableHeader>
+                  <TableHeader className="bg-slate-50/80">
                     <TableRow>
                       <TableHead>요청일</TableHead>
                       <TableHead>요청자</TableHead>
@@ -174,7 +184,7 @@ export default function DeletedDataManagement() {
       </div>
 
       <Dialog open={!!permanentTarget} onOpenChange={(open) => { if (!open) closePermanent(); }}>
-        <DialogContent>
+          <DialogContent className="rounded-2xl">
           <DialogHeader><DialogTitle>완전삭제 확인</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -195,7 +205,7 @@ export default function DeletedDataManagement() {
       </Dialog>
 
       <Dialog open={!!reviewTarget} onOpenChange={(open) => { if (!open) closeReview(); }}>
-        <DialogContent>
+          <DialogContent className="rounded-2xl">
           <DialogHeader><DialogTitle>{reviewTarget?.action === "approve" ? "계약 삭제 요청 승인" : "계약 삭제 요청 반려"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -232,10 +242,10 @@ function DeletedTable({
   onPermanent: (row: { id: number; name: string }) => void;
 }) {
   return (
-    <Card>
+    <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
       <CardContent className="p-0">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-slate-50/80">
             <TableRow>
               <TableHead>ID</TableHead>
               <TableHead>이름</TableHead>
@@ -254,8 +264,8 @@ function DeletedTable({
                 <TableCell>{fmtDate(row.deletedAt)}</TableCell>
                 <TableCell>{fmtDate(row.createdAt)}</TableCell>
                 <TableCell className="text-right space-x-1">
-                  <Button size="sm" variant="outline" onClick={() => onRestore(row.id)}><RotateCcw className="h-3.5 w-3.5 mr-1" />복구</Button>
-                  <Button size="sm" variant="outline" className="text-destructive" onClick={() => onPermanent(row)}><Trash2 className="h-3.5 w-3.5 mr-1" />완전삭제</Button>
+                  <Button size="sm" variant="outline" className="border-green-200 text-green-700 hover:bg-green-50" onClick={() => onRestore(row.id)}><RotateCcw className="h-3.5 w-3.5 mr-1" />복구</Button>
+                  <Button size="sm" variant="outline" className="border-red-200 text-destructive hover:bg-red-50" onClick={() => onPermanent(row)}><Trash2 className="h-3.5 w-3.5 mr-1" />완전삭제</Button>
                 </TableCell>
               </TableRow>
             ))}

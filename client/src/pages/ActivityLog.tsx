@@ -51,27 +51,34 @@ export default function ActivityLog() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div>
-          <h1 className="text-2xl font-bold">활동 로그</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">시스템 내 주요 변경 사항 기록</p>
-        </div>
+      <div className="space-y-5">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Activity Log</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">활동 로그</h1>
+            <p className="mt-1 text-sm text-slate-500">시스템 내 주요 변경 사항 기록</p>
+          </CardContent>
+        </Card>
 
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-4">
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="작업, 사용자, 상세내용 검색"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-9 max-w-sm"
+            className="h-10 max-w-sm rounded-xl bg-slate-50 pl-8"
           />
         </div>
+          </CardContent>
+        </Card>
 
-        <Card>
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead>시각</TableHead>
                     <TableHead>사용자</TableHead>

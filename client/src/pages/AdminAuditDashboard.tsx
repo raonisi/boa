@@ -62,16 +62,19 @@ export default function AdminAuditDashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <div>
-          <h1 className="text-2xl font-bold">운영 점검</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            시스템 운영 상태와 위험 작업 이력을 확인합니다. 고객 연락처, 메모, 토큰, 비밀값은 표시하지 않습니다.
-          </p>
-        </div>
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Operations Audit</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">운영 점검</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              시스템 운영 상태와 위험 작업 이력을 확인합니다. 고객 연락처, 메모, 토큰, 비밀값은 표시하지 않습니다.
+            </p>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {cards.map(([key, label, period]) => (
-            <Card key={key}>
+            <Card key={key} className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardContent className="p-4">
                 <p className="text-xs text-muted-foreground">{period}</p>
                 <p className="mt-1 text-sm font-medium">{label}</p>
@@ -81,7 +84,7 @@ export default function AdminAuditDashboard() {
           ))}
         </div>
 
-        <Card>
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <AlertTriangle className="h-4 w-4 text-orange-500" /> 최근 위험 작업
@@ -90,7 +93,7 @@ export default function AdminAuditDashboard() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead>발생일시</TableHead>
                     <TableHead>action</TableHead>
@@ -131,7 +134,7 @@ export default function AdminAuditDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <Activity className="h-4 w-4" /> 활동 로그 고급 필터
@@ -140,7 +143,7 @@ export default function AdminAuditDashboard() {
           <CardContent className="space-y-3">
             <div className="grid gap-2 md:grid-cols-6">
               <Select value={datePreset} onValueChange={(value) => setDatePreset(value as any)}>
-                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">오늘</SelectItem>
                   <SelectItem value="7d">최근 7일</SelectItem>
@@ -148,7 +151,7 @@ export default function AdminAuditDashboard() {
                 </SelectContent>
               </Select>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="분류" /></SelectTrigger>
+                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="분류" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 분류</SelectItem>
                   <SelectItem value="download">다운로드</SelectItem>
@@ -160,7 +163,7 @@ export default function AdminAuditDashboard() {
                 </SelectContent>
               </Select>
               <Select value={targetType} onValueChange={setTargetType}>
-                <SelectTrigger className="h-9"><SelectValue placeholder="targetType" /></SelectTrigger>
+                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="targetType" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 대상</SelectItem>
                   <SelectItem value="user">user</SelectItem>
@@ -171,15 +174,15 @@ export default function AdminAuditDashboard() {
                   <SelectItem value="contracts">contracts</SelectItem>
                 </SelectContent>
               </Select>
-              <Input value={action} onChange={(e) => setAction(e.target.value)} className="h-9" placeholder="action" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} className="h-9" placeholder="검색어" />
+              <Input value={action} onChange={(e) => setAction(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="action" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="검색어" />
               <Button variant={riskOnly ? "default" : "outline"} onClick={() => setRiskOnly((value) => !value)} className="h-9">
                 위험 작업만
               </Button>
             </div>
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead>시각</TableHead>
                     <TableHead>작업자</TableHead>
@@ -218,7 +221,7 @@ export default function AdminAuditDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-green-100 bg-green-50/60 shadow-sm">
           <CardContent className="flex items-start gap-3 p-4 text-sm text-muted-foreground">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
             <p>

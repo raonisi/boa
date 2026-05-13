@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { MessageSquareText, Plus, RefreshCw } from "lucide-react";
+import { ClipboardCheck, MessageSquareText, Plus, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -138,39 +138,49 @@ export default function ConsultationToolsManagement() {
   return (
     <DashboardLayout>
       <div className="space-y-5 p-4 md:p-6">
-        <div>
-          <h1 className="text-2xl font-bold">상담 도구 관리</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            상담 체크리스트, 후속 문구, 상담 스크립트를 관리합니다. 민감정보, 가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요.
-          </p>
-        </div>
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Consultation Tools</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">상담 도구 관리</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              상담 체크리스트, 후속 문구, 상담 스크립트를 관리합니다. 민감정보, 가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요.
+            </p>
+          </CardContent>
+        </Card>
 
-        <Tabs defaultValue="checklists">
-          <TabsList className="flex-wrap h-auto">
+        <Card className="border-amber-100 bg-amber-50/60 shadow-sm">
+          <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-900">
+            <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <p>사용 가능한 placeholder는 고객명, 담당자명, 다음연락일, 상담주제입니다. 템플릿 본문 전문은 활동 로그에 저장하지 않습니다.</p>
+          </CardContent>
+        </Card>
+
+        <Tabs defaultValue="checklists" className="space-y-4">
+          <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
             <TabsTrigger value="checklists">상담 체크리스트</TabsTrigger>
             <TabsTrigger value="templates">후속 문구 템플릿</TabsTrigger>
             <TabsTrigger value="scripts">상담 스크립트</TabsTrigger>
           </TabsList>
 
           <TabsContent value="checklists" className="space-y-4">
-            <Card>
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">체크리스트 항목 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-6">
                 <div className="md:col-span-6 flex justify-end">
-                  <Button variant="outline" onClick={() => seedChecklists.mutate()} disabled={seedChecklists.isPending}><RefreshCw className="h-4 w-4 mr-1" />기본 체크리스트 확인</Button>
+                  <Button variant="outline" className="rounded-xl" onClick={() => seedChecklists.mutate()} disabled={seedChecklists.isPending}><RefreshCw className="h-4 w-4 mr-1" />기본 체크리스트 확인</Button>
                 </div>
-                <div className="md:col-span-2"><Label>제목</Label><Input value={checkTitle} onChange={(event) => setCheckTitle(event.target.value)} /></div>
-                <div><Label>단계</Label><Select value={checkPhase} onValueChange={(value) => setCheckPhase(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>카테고리</Label><Select value={checkCategory} onValueChange={(value) => setCheckCategory(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>정렬</Label><Input type="number" value={checkSort} onChange={(event) => setCheckSort(Number(event.target.value))} /></div>
+                <div className="md:col-span-2"><Label>제목</Label><Input className="rounded-xl bg-slate-50" value={checkTitle} onChange={(event) => setCheckTitle(event.target.value)} /></div>
+                <div><Label>단계</Label><Select value={checkPhase} onValueChange={(value) => setCheckPhase(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>카테고리</Label><Select value={checkCategory} onValueChange={(value) => setCheckCategory(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>정렬</Label><Input className="rounded-xl bg-slate-50" type="number" value={checkSort} onChange={(event) => setCheckSort(Number(event.target.value))} /></div>
                 <div className="flex items-end gap-2"><Checkbox checked={checkRequired} onCheckedChange={(checked) => setCheckRequired(checked === true)} /><span className="text-sm">필수</span></div>
-                <div className="md:col-span-6"><Label>설명</Label><Textarea value={checkDescription} onChange={(event) => setCheckDescription(event.target.value)} /></div>
+                <div className="md:col-span-6"><Label>설명</Label><Textarea className="rounded-xl bg-slate-50" value={checkDescription} onChange={(event) => setCheckDescription(event.target.value)} /></div>
                 <div className="md:col-span-6 flex justify-end"><Button onClick={() => createChecklist.mutate({ title: checkTitle, description: checkDescription || undefined, phase: checkPhase, category: checkCategory, sortOrder: checkSort, isRequired: checkRequired })}><Plus className="h-4 w-4 mr-1" />추가</Button></div>
               </CardContent>
             </Card>
             <div className="grid gap-3">
               {(checklists ?? []).map((item: any) => (
-                <Card key={item.id}>
+                <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-medium">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
@@ -187,21 +197,21 @@ export default function ConsultationToolsManagement() {
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-4">
-            <Card>
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">후속 문구 템플릿 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-4">
-                <div><Label>제목</Label><Input value={templateTitle} onChange={(event) => setTemplateTitle(event.target.value)} /></div>
-                <div><Label>상황</Label><Select value={templateSituation} onValueChange={(value) => setTemplateSituation(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>채널</Label><Select value={templateChannel} onValueChange={(value) => setTemplateChannel(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
-                <div className="flex items-end justify-end"><Button variant="outline" onClick={() => seedTemplates.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
-                <div className="md:col-span-4"><Label>본문</Label><Textarea rows={7} value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
-                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea value={templateNote} onChange={(event) => setTemplateNote(event.target.value)} /></div>
+                <div><Label>제목</Label><Input className="rounded-xl bg-slate-50" value={templateTitle} onChange={(event) => setTemplateTitle(event.target.value)} /></div>
+                <div><Label>상황</Label><Select value={templateSituation} onValueChange={(value) => setTemplateSituation(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>채널</Label><Select value={templateChannel} onValueChange={(value) => setTemplateChannel(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
+                <div className="flex items-end justify-end"><Button variant="outline" className="rounded-xl" onClick={() => seedTemplates.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
+                <div className="md:col-span-4"><Label>본문</Label><Textarea className="rounded-xl bg-slate-50" rows={7} value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
+                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="rounded-xl bg-slate-50" value={templateNote} onChange={(event) => setTemplateNote(event.target.value)} /></div>
                 <div className="md:col-span-4 flex justify-end"><Button onClick={() => createTemplate.mutate({ title: templateTitle, situation: templateSituation, channel: templateChannel, body: templateBody, complianceNote: templateNote || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />템플릿 추가</Button></div>
               </CardContent>
             </Card>
             <div className="grid gap-3">
               {(templates ?? []).map((item: any) => (
-                <Card key={item.id}>
+                <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <p className="font-medium">{item.title}</p>
@@ -218,21 +228,21 @@ export default function ConsultationToolsManagement() {
           </TabsContent>
 
           <TabsContent value="scripts" className="space-y-4">
-            <Card>
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">상담 스크립트 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-4">
-                <div><Label>제목</Label><Input value={scriptTitle} onChange={(event) => setScriptTitle(event.target.value)} /></div>
-                <div><Label>카테고리</Label><Select value={scriptCategory} onValueChange={(value) => setScriptCategory(value as any)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>태그</Label><Input value={scriptTags} onChange={(event) => setScriptTags(event.target.value)} placeholder="쉼표로 구분" /></div>
-                <div className="flex items-end justify-end"><Button variant="outline" onClick={() => seedScripts.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
-                <div className="md:col-span-4"><Label>본문</Label><Textarea rows={8} value={scriptBody} onChange={(event) => setScriptBody(event.target.value)} placeholder="가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요." /></div>
-                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea value={scriptNote} onChange={(event) => setScriptNote(event.target.value)} /></div>
+                <div><Label>제목</Label><Input className="rounded-xl bg-slate-50" value={scriptTitle} onChange={(event) => setScriptTitle(event.target.value)} /></div>
+                <div><Label>카테고리</Label><Select value={scriptCategory} onValueChange={(value) => setScriptCategory(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>태그</Label><Input className="rounded-xl bg-slate-50" value={scriptTags} onChange={(event) => setScriptTags(event.target.value)} placeholder="쉼표로 구분" /></div>
+                <div className="flex items-end justify-end"><Button variant="outline" className="rounded-xl" onClick={() => seedScripts.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
+                <div className="md:col-span-4"><Label>본문</Label><Textarea className="rounded-xl bg-slate-50" rows={8} value={scriptBody} onChange={(event) => setScriptBody(event.target.value)} placeholder="가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요." /></div>
+                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="rounded-xl bg-slate-50" value={scriptNote} onChange={(event) => setScriptNote(event.target.value)} /></div>
                 <div className="md:col-span-4 flex justify-end"><Button onClick={() => createScript.mutate({ title: scriptTitle, category: scriptCategory, scriptBody, complianceNote: scriptNote || undefined, tags: scriptTags || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />스크립트 추가</Button></div>
               </CardContent>
             </Card>
             <div className="grid gap-3">
               {(scripts ?? []).map((item: any) => (
-                <Card key={item.id}>
+                <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <p className="font-medium">{item.title}</p>

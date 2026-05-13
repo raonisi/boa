@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
-import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight } from "lucide-react";
+import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -112,27 +112,35 @@ export default function Notifications() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div>
-            <h1 className="text-2xl font-bold">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              전체 {totalCount.toLocaleString()}건 · 미읽은 {unreadCount}건
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+      <div className="space-y-5">
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Notifications</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
+              <p className="mt-1 text-sm text-slate-500">
+                전체 {totalCount.toLocaleString()}건 · 미읽은 {unreadCount}건
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
             {unreadCount > 0 && (
               <Button variant="outline" size="sm" onClick={handleMarkAllRead} disabled={markAllReadMutation.isPending}>
                 <CheckCheck className="h-4 w-4 mr-1" /> 내 알림 모두 읽음
               </Button>
             )}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 서버 사이드 필터 */}
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-4">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <Filter className="h-4 w-4 text-[#b99b5f]" /> 알림 필터
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Select value={processStatusFilter} onValueChange={handleFilterChange(setProcessStatusFilter)}>
-            <SelectTrigger className="h-9 w-full text-xs sm:w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full rounded-xl bg-slate-50 text-xs sm:w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 상태</SelectItem>
               <SelectItem value="미확인">미확인</SelectItem>
@@ -142,7 +150,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={isReadFilter} onValueChange={handleFilterChange(setIsReadFilter)}>
-            <SelectTrigger className="h-9 w-full text-xs sm:w-24"><SelectValue placeholder="읽음" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full rounded-xl bg-slate-50 text-xs sm:w-24"><SelectValue placeholder="읽음" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
               <SelectItem value="unread">미읽음</SelectItem>
@@ -150,7 +158,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={handleFilterChange(setTypeFilter)}>
-            <SelectTrigger className="h-9 w-full text-xs sm:w-36"><SelectValue placeholder="알림 유형" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-full rounded-xl bg-slate-50 text-xs sm:w-36"><SelectValue placeholder="알림 유형" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 유형</SelectItem>
               {Object.entries(typeLabels).map(([k, v]) => (
@@ -162,35 +170,40 @@ export default function Notifications() {
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }}
-            className="h-9 w-full text-xs sm:w-36"
+            className="h-9 w-full rounded-xl bg-slate-50 text-xs sm:w-36"
           />
           <Input
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); setOffset(0); }}
-            className="h-9 w-full text-xs sm:w-36"
+            className="h-9 w-full rounded-xl bg-slate-50 text-xs sm:w-36"
           />
-        </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 알림 목록 */}
         {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+          <Card className="border-dashed border-slate-200 bg-white/90">
+            <CardContent className="flex flex-col items-center justify-center py-16 text-slate-500">
             <BellOff className="h-12 w-12 mb-3 opacity-30" />
             <p className="text-sm">알림이 없습니다.</p>
-          </div>
+            </CardContent>
+          </Card>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {notifications.map((n) => {
               const processStatus = (n.processStatus as ProcessStatus) ?? "미확인";
               const colorClass = processStatusColors[processStatus] ?? processStatusColors["미확인"];
               return (
-                <Card key={n.id} className={`border-l-4 ${colorClass}`}>
-                  <CardContent className="p-3 sm:p-4">
+                <Card key={n.id} className={`border-l-4 border-slate-200/80 shadow-sm ${colorClass}`}>
+                  <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <Bell className="h-3.5 w-3.5 text-primary shrink-0" />
-                          <span className="text-xs font-semibold text-primary">{typeLabels[n.type] ?? n.type}</span>
+                          <Bell className="h-3.5 w-3.5 shrink-0 text-[#b99b5f]" />
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">{typeLabels[n.type] ?? n.type}</span>
+                          {!n.isRead && <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-medium text-red-600">미읽음</span>}
                           <span className="text-xs text-muted-foreground sm:ml-auto">{new Date(n.createdAt).toLocaleString("ko-KR")}</span>
                         </div>
                         <p className="text-sm font-medium">{n.title}</p>

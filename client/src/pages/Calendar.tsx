@@ -13,7 +13,7 @@ import {
   format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths,
 } from "date-fns";
 import { ko } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -96,17 +96,22 @@ export default function Calendar() {
     return (
       <DashboardLayout>
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">일정 캘린더</h1>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="flex items-center justify-between gap-3 p-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Schedule</p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-950">일정관리</h1>
+              </div>
             <Button size="sm" onClick={() => { setSelectedDate(new Date()); setShowModal(true); }}>
               <Plus className="h-4 w-4 mr-1" /> 일정 추가
             </Button>
-          </div>
+            </CardContent>
+          </Card>
 
           {/* 오늘 일정 */}
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">오늘 일정 ({todaySchedules.length})</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm"><CalendarDays className="h-4 w-4 text-[#b99b5f]" /> 오늘 일정 ({todaySchedules.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {todaySchedules.length === 0 ? (
@@ -115,7 +120,7 @@ export default function Calendar() {
                 todaySchedules.map((s) => (
                   <div
                     key={s.id}
-                    className={`flex items-start gap-2 p-2 rounded-lg text-white cursor-pointer ${typeColors[s.type] ?? "bg-slate-400"}`}
+                    className={`flex cursor-pointer items-start gap-2 rounded-2xl p-3 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
                     onClick={() => setSelectedSchedule(s)}
                   >
                     <div className="text-xs font-bold w-10 shrink-0">{format(new Date(s.startTime), "HH:mm")}</div>
@@ -131,13 +136,13 @@ export default function Calendar() {
 
           {/* 미완료 일정 */}
           {incompleteSchedules.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50/50">
+            <Card className="border-orange-200 bg-orange-50/70 shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-orange-700">⚠️ 미완료 일정 ({incompleteSchedules.length})</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {incompleteSchedules.map((s) => (
-                  <div key={s.id} className="flex items-center gap-3 p-2 rounded-lg border border-orange-200 bg-white cursor-pointer hover:bg-orange-50" onClick={() => setSelectedSchedule(s)}>
+                  <div key={s.id} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-orange-200 bg-white p-3 hover:bg-orange-50" onClick={() => setSelectedSchedule(s)}>
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{s.title}</p>
@@ -151,9 +156,9 @@ export default function Calendar() {
           )}
 
           {/* 이번 주 일정 */}
-          <Card>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">이번 주 일정 ({thisWeekSchedules.length})</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm"><Clock3 className="h-4 w-4 text-[#b99b5f]" /> 이번 주 일정 ({thisWeekSchedules.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {thisWeekSchedules.length === 0 ? (
@@ -162,7 +167,7 @@ export default function Calendar() {
                 thisWeekSchedules.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center gap-3 p-2 rounded-lg border cursor-pointer hover:bg-muted/50"
+                    className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:bg-slate-50"
                     onClick={() => setSelectedSchedule(s)}
                   >
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
@@ -192,9 +197,14 @@ export default function Calendar() {
   // PC 뷰
   return (
     <DashboardLayout>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">일정 캘린더</h1>
+        <div className="space-y-5">
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Schedule</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">일정관리</h1>
+              <p className="mt-1 text-sm text-slate-500">오늘 일정과 미완료 일정을 시간순으로 확인합니다.</p>
+            </div>
           <div className="flex items-center gap-2">
             <div className="flex rounded-lg border overflow-hidden">
               {(["month", "week", "day"] as ViewMode[]).map((v) => (
@@ -211,9 +221,10 @@ export default function Calendar() {
               <Plus className="h-4 w-4 mr-1" /> 일정 추가
             </Button>
           </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <Card>
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-3">
             <div className="flex items-center justify-between mb-4">
               <Button variant="ghost" size="sm" onClick={() => navigate(-1)}><ChevronLeft className="h-4 w-4" /></Button>

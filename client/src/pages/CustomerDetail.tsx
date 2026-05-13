@@ -1183,27 +1183,27 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
 }) {
   const openItems = followUps.filter((item) => item.status === "scheduled" || item.status === "postponed");
   return (
-    <Card className="mt-4">
+    <Card className="mt-4 border-slate-200/80 bg-white/95 shadow-sm">
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
             <p className="text-sm font-semibold">다음 연락일 / 후속관리</p>
             <p className="text-xs text-muted-foreground">민감정보는 후속관리 메모에 입력하지 마세요.</p>
           </div>
-          <Button size="sm" onClick={onCreate}>다음 연락일 설정</Button>
+          <Button size="sm" className="rounded-xl" onClick={onCreate}>다음 연락일 설정</Button>
         </div>
         {openItems.length === 0 ? (
-          <div className="py-5 text-center text-sm text-muted-foreground">등록된 다음 연락일이 없습니다.</div>
+          <div className="rounded-2xl border border-dashed border-slate-200 py-6 text-center text-sm text-slate-500">등록된 다음 연락일이 없습니다.</div>
         ) : (
           <div className="space-y-2">
             {openItems.slice(0, 5).map((item) => (
-              <div key={item.id} className="rounded-md border p-3">
+              <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-sm font-medium">{new Date(item.nextContactDate).toLocaleString("ko-KR")} · {item.nextAction}</p>
                     <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
                   </div>
-                  <span className="text-xs rounded-full bg-muted px-2 py-1">{item.status}</span>
+                  <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{item.status}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap justify-end gap-2">
                   <Button size="sm" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>
