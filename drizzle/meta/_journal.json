@@ -141,6 +141,13 @@
       "when": 1778842800000,
       "tag": "0019_push_notification_logs",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1778929200000,
+      "tag": "0020_push_notification_preferences",
+      "breakpoints": true
     }
   ]
 }

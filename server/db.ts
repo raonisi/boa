@@ -31,6 +31,7 @@ import {
   InsertFollowUp,
   InsertImportBatch,
   InsertNotification,
+  InsertPushNotificationPreference,
   InsertPushNotificationLog,
   InsertSchedule,
   InsertStatusHistory,
@@ -39,6 +40,7 @@ import {
   messageTemplates,
   notifications,
   performanceGoals,
+  pushNotificationPreferences,
   pushNotificationLogs,
   reminders,
   schedules,
@@ -1994,6 +1996,105 @@ export async function updatePushNotificationLog(id: number, data: Partial<Insert
   const db = await getDb();
   if (!db) return;
   await db.update(pushNotificationLogs).set(data).where(eq(pushNotificationLogs.id, id));
+}
+
+export const DEFAULT_PUSH_NOTIFICATION_PREFERENCES = {
+  followUpTodayEnabled: true,
+  scheduleReminderEnabled: true,
+  deleteRequestEnabled: true,
+  testNotificationEnabled: true,
+  quietHoursEnabled: true,
+  quietHoursStart: "21:00",
+  quietHoursEnd: "08:00",
+  timezone: "Asia/Seoul",
+} as const;
+
+export async function getPushNotificationPreference(userId: number) {
+  const db = await getDb();
+  if (!db) return { id: 0, userId, ...DEFAULT_PUSH_NOTIFICATION_PREFERENCES, createdAt: new Date(), updatedAt: new Date() };
+  const rows = await db.select().from(pushNotificationPreferences)
+    .where(eq(pushNotificationPreferences.userId, userId))
+    .limit(1);
+  if (rows[0]) return rows[0];
+  await db.insert(pushNotificationPreferences).values({ userId, ...DEFAULT_PUSH_NOTIFICATION_PREFERENCES });
+  const created = await db.select().from(pushNotificationPreferences)
+    .where(eq(pushNotificationPreferences.userId, userId))
+    .limit(1);
+  return created[0] ?? { id: 0, userId, ...DEFAULT_PUSH_NOTIFICATION_PREFERENCES, createdAt: new Date(), updatedAt: new Date() };
+}
+
+export async function updatePushNotificationPreference(userId: number, data: Partial<Omit<InsertPushNotificationPreference, "id" | "userId" | "createdAt" | "updatedAt">>) {
+  const db = await getDb();
+  if (!db) return getPushNotificationPreference(userId);
+  await getPushNotificationPreference(userId);
+  await db.update(pushNotificationPreferences)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(pushNotificationPreferences.userId, userId));
+  return getPushNotificationPreference(userId);
+}
+
+export async function listPushNotificationLogs(filter: {
+  dateFrom?: Date;
+  dateTo?: Date;
+  type?: string;
+  status?: string;
+  userId?: number;
+  sourceType?: string;
+  limit?: number;
+} = {}) {
+  const db = await getDb();
+  if (!db) return [];
+  const clauses = [];
+  if (filter.dateFrom) clauses.push(gte(pushNotificationLogs.createdAt, filter.dateFrom));
+  if (filter.dateTo) clauses.push(lte(pushNotificationLogs.createdAt, filter.dateTo));
+  if (filter.type) clauses.push(eq(pushNotificationLogs.type, filter.type));
+  if (filter.status) clauses.push(eq(pushNotificationLogs.status, filter.status as any));
+  if (filter.userId) clauses.push(eq(pushNotificationLogs.userId, filter.userId));
+  if (filter.sourceType) clauses.push(eq(pushNotificationLogs.sourceType, filter.sourceType));
+  return db.select({
+    id: pushNotificationLogs.id,
+    type: pushNotificationLogs.type,
+    userId: pushNotificationLogs.userId,
+    userName: users.name,
+    userRole: users.role,
+    sourceType: pushNotificationLogs.sourceType,
+    sourceId: pushNotificationLogs.sourceId,
+    dedupeKey: pushNotificationLogs.dedupeKey,
+    status: pushNotificationLogs.status,
+    errorCode: pushNotificationLogs.errorCode,
+    sentAt: pushNotificationLogs.sentAt,
+    createdAt: pushNotificationLogs.createdAt,
+  })
+    .from(pushNotificationLogs)
+    .leftJoin(users, eq(pushNotificationLogs.userId, users.id))
+    .where(clauses.length > 0 ? and(...clauses) : undefined)
+    .orderBy(desc(pushNotificationLogs.createdAt))
+    .limit(filter.limit ?? 100);
+}
+
+export async function getPushNotificationOperationSummary(dateFrom?: Date, dateTo?: Date) {
+  const logs = await listPushNotificationLogs({ dateFrom, dateTo, limit: 1000 });
+  const tokens = await listAllDeviceTokenSummaries();
+  return {
+    total: logs.length,
+    sent: logs.filter((log) => log.status === "sent").length,
+    failed: logs.filter((log) => log.status === "failed" || log.status === "invalid_token_deactivated").length,
+    skipped: logs.filter((log) => String(log.status).startsWith("skipped") || log.status === "duplicate_skipped").length,
+    inactiveTokens: tokens.filter((token) => !token.isActive || token.revokedAt).length,
+  };
+}
+
+export async function listAllDeviceTokenSummaries() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select({
+    id: userDeviceTokens.id,
+    userId: userDeviceTokens.userId,
+    platform: userDeviceTokens.platform,
+    isActive: userDeviceTokens.isActive,
+    revokedAt: userDeviceTokens.revokedAt,
+    lastSeenAt: userDeviceTokens.lastSeenAt,
+  }).from(userDeviceTokens);
 }
 
 // ─── Performance Stats ────────────────────────────────────────────────────────

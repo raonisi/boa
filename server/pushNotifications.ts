@@ -6,18 +6,25 @@ import {
   getActiveDeviceTokensForUsers,
   getAllUsers,
   getPushNotificationLogByDedupeKey,
+  getPushNotificationPreference,
   updatePushNotificationLog,
 } from "./db";
 
 export type PushNotificationType = "today_follow_up" | "schedule_30min" | "contract_delete_request" | "test";
+export type PushNotificationLogStatus =
+  | "sent"
+  | "skipped"
+  | "failed"
+  | "skipped_no_token"
+  | "skipped_disabled"
+  | "skipped_quiet_hours"
+  | "skipped_missing_config"
+  | "duplicate_skipped"
+  | "invalid_token_deactivated";
 
 export type SafePushPayload = {
-  title: "BOA 업무 알림" | "BOA 일정 알림" | "BOA 처리 요청" | "BOA 테스트 알림";
-  body:
-    | "오늘 확인할 후속관리가 있습니다."
-    | "30분 후 예정된 일정이 있습니다."
-    | "처리할 계약 삭제 요청이 있습니다."
-    | "푸시 알림 수신 준비가 완료되었습니다.";
+  title: string;
+  body: string;
   data?: Record<string, string>;
 };
 
@@ -26,6 +33,8 @@ export type PushSendContext = {
   sourceType?: string;
   sourceId?: number;
   dedupeKey?: string;
+  force?: boolean;
+  now?: Date;
 };
 
 export type PushSendResult = {
@@ -35,6 +44,10 @@ export type PushSendResult = {
   failureCount: number;
   skippedCount: number;
   duplicateSkippedCount: number;
+  disabledSkippedCount: number;
+  quietHoursSkippedCount: number;
+  invalidTokenDeactivatedCount: number;
+  statuses: Record<string, PushNotificationLogStatus>;
   disabledReason?: "missing_firebase_config" | "no_tokens";
 };
 
@@ -51,20 +64,20 @@ const INVALID_TOKEN_CODES = new Set([
 
 export const SAFE_PUSH_PAYLOADS = {
   todayFollowUp: {
-    title: "BOA 업무 알림",
-    body: "오늘 확인할 후속관리가 있습니다.",
+    title: "BOA \uC5C5\uBB34 \uC54C\uB9BC",
+    body: "\uC624\uB298 \uD655\uC778\uD560 \uD6C4\uC18D\uAD00\uB9AC\uAC00 \uC788\uC2B5\uB2C8\uB2E4.",
   },
   schedule30Minute: {
-    title: "BOA 일정 알림",
-    body: "30분 후 예정된 일정이 있습니다.",
+    title: "BOA \uC77C\uC815 \uC54C\uB9BC",
+    body: "30\uBD84 \uD6C4 \uC608\uC815\uB41C \uC77C\uC815\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
   },
   contractDeleteRequest: {
-    title: "BOA 처리 요청",
-    body: "처리할 계약 삭제 요청이 있습니다.",
+    title: "BOA \uCC98\uB9AC \uC694\uCCAD",
+    body: "\uCC98\uB9AC\uD560 \uACC4\uC57D \uC0AD\uC81C \uC694\uCCAD\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
   },
   test: {
-    title: "BOA 테스트 알림",
-    body: "푸시 알림 수신 준비가 완료되었습니다.",
+    title: "BOA \uD14C\uC2A4\uD2B8 \uC54C\uB9BC",
+    body: "\uD478\uC2DC \uC54C\uB9BC \uC218\uC2E0 \uC900\uBE44\uAC00 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
   },
 } as const satisfies Record<string, SafePushPayload>;
 
@@ -120,6 +133,47 @@ export function sanitizePushPayload(payload: SafePushPayload): SafePushPayload {
   };
 }
 
+function toMinutes(value: string) {
+  const [hh, mm] = value.split(":").map((part) => Number(part));
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
+  return hh * 60 + mm;
+}
+
+function getZonedMinutes(now: Date, timezone: string) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone || "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(now);
+  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  return hour * 60 + minute;
+}
+
+export function isInQuietHours(preference: { quietHoursEnabled: boolean; quietHoursStart: string; quietHoursEnd: string; timezone: string }, now = new Date()) {
+  if (!preference.quietHoursEnabled) return false;
+  const start = toMinutes(preference.quietHoursStart);
+  const end = toMinutes(preference.quietHoursEnd);
+  if (start === null || end === null) return false;
+  const current = getZonedMinutes(now, preference.timezone);
+  if (start === end) return false;
+  if (start < end) return current >= start && current < end;
+  return current >= start || current < end;
+}
+
+function isNotificationEnabled(preference: {
+  followUpTodayEnabled: boolean;
+  scheduleReminderEnabled: boolean;
+  deleteRequestEnabled: boolean;
+  testNotificationEnabled: boolean;
+}, type: PushNotificationType) {
+  if (type === "today_follow_up") return preference.followUpTodayEnabled;
+  if (type === "schedule_30min") return preference.scheduleReminderEnabled;
+  if (type === "contract_delete_request") return preference.deleteRequestEnabled;
+  return preference.testNotificationEnabled;
+}
+
 async function sendWithFirebase(tokens: string[], payload: SafePushPayload) {
   const messaging = getFirebaseMessagingClient();
   if (!messaging) return null;
@@ -150,75 +204,131 @@ async function sendWithFirebase(tokens: string[], payload: SafePushPayload) {
   }));
 }
 
+function emptyResult(userIds: number[]): PushSendResult {
+  return {
+    requestedUserIds: userIds,
+    tokenCount: 0,
+    sentCount: 0,
+    failureCount: 0,
+    skippedCount: 0,
+    duplicateSkippedCount: 0,
+    disabledSkippedCount: 0,
+    quietHoursSkippedCount: 0,
+    invalidTokenDeactivatedCount: 0,
+    statuses: {},
+  };
+}
+
+async function createOrUpdateLog(context: PushSendContext, userId: number, status: PushNotificationLogStatus, errorCode?: string | null) {
+  const dedupeKey = context.dedupeKey ? `${context.dedupeKey}:user:${userId}` : `${context.type}:${context.sourceType ?? "manual"}:${context.sourceId ?? "none"}:${Date.now()}:user:${userId}`;
+  const row = await createPushNotificationLog({
+    type: context.type,
+    userId,
+    sourceType: context.sourceType ?? null,
+    sourceId: context.sourceId ?? null,
+    dedupeKey,
+    status,
+    errorCode: errorCode ?? null,
+    sentAt: status === "sent" ? new Date() : null,
+  } as any);
+  if (row && row.status !== status) {
+    await updatePushNotificationLog(row.id, { status, errorCode: errorCode ?? null, sentAt: status === "sent" ? new Date() : null } as any);
+  }
+  return row;
+}
+
 export async function sendPushToUsers(userIds: number[], payload: SafePushPayload, context: PushSendContext): Promise<PushSendResult> {
   const uniqueUserIds = Array.from(new Set(userIds.filter((id) => Number.isFinite(id))));
+  const result = emptyResult(uniqueUserIds);
   const safePayload = sanitizePushPayload(payload);
-  let duplicateSkippedCount = 0;
-
   const rows = await getActiveDeviceTokensForUsers(uniqueUserIds);
-  if (rows.length === 0) {
-    return { requestedUserIds: uniqueUserIds, tokenCount: 0, sentCount: 0, failureCount: 0, skippedCount: uniqueUserIds.length, duplicateSkippedCount, disabledReason: "no_tokens" };
-  }
-
   const sender = testSender ?? sendWithFirebase;
-  if (!testSender && !getFirebaseMessagingClient()) {
-    return { requestedUserIds: uniqueUserIds, tokenCount: rows.length, sentCount: 0, failureCount: 0, skippedCount: rows.length, duplicateSkippedCount, disabledReason: "missing_firebase_config" };
-  }
-
-  let sentCount = 0;
-  let failureCount = 0;
-  let skippedCount = 0;
+  const firebaseReady = Boolean(testSender || getFirebaseMessagingClient());
 
   for (const userId of uniqueUserIds) {
+    const preference = await getPushNotificationPreference(userId);
     const userRows = rows.filter((row) => row.userId === userId);
+
+    if (!context.force && !isNotificationEnabled(preference, context.type)) {
+      await createOrUpdateLog(context, userId, "skipped_disabled");
+      result.skippedCount += 1;
+      result.disabledSkippedCount += 1;
+      result.statuses[userId] = "skipped_disabled";
+      continue;
+    }
+
+    if (!context.force && isInQuietHours(preference, context.now ?? new Date())) {
+      await createOrUpdateLog(context, userId, "skipped_quiet_hours");
+      result.skippedCount += 1;
+      result.quietHoursSkippedCount += 1;
+      result.statuses[userId] = "skipped_quiet_hours";
+      continue;
+    }
+
+    if (context.dedupeKey && await getPushNotificationLogByDedupeKey(`${context.dedupeKey}:user:${userId}`)) {
+      await createOrUpdateLog({ ...context, dedupeKey: `${context.dedupeKey}:duplicate:${Date.now()}` }, userId, "duplicate_skipped");
+      result.skippedCount += 1;
+      result.duplicateSkippedCount += 1;
+      result.statuses[userId] = "duplicate_skipped";
+      continue;
+    }
+
     if (userRows.length === 0) {
-      skippedCount += 1;
+      await createOrUpdateLog(context, userId, "skipped_no_token");
+      result.skippedCount += 1;
+      result.statuses[userId] = "skipped_no_token";
       continue;
     }
 
-    const dedupeKey = context.dedupeKey ? `${context.dedupeKey}:user:${userId}` : undefined;
-    if (dedupeKey && await getPushNotificationLogByDedupeKey(dedupeKey)) {
-      duplicateSkippedCount += 1;
+    result.tokenCount += userRows.length;
+    if (!firebaseReady) {
+      await createOrUpdateLog(context, userId, "skipped_missing_config", "missing_firebase_config");
+      result.skippedCount += userRows.length;
+      result.statuses[userId] = "skipped_missing_config";
       continue;
     }
 
-    const logRow = dedupeKey ? await createPushNotificationLog({
-      type: context.type,
-      userId,
-      sourceType: context.sourceType ?? null,
-      sourceId: context.sourceId ?? null,
-      dedupeKey,
-      status: "skipped",
-    }) : null;
-
+    const logRow = await createOrUpdateLog(context, userId, "skipped");
     const sendResults = await sender(userRows.map((row) => row.token), safePayload);
     if (!sendResults) {
-      skippedCount += userRows.length;
-      if (logRow) await updatePushNotificationLog(logRow.id, { status: "skipped", errorCode: "missing_firebase_config" });
+      if (logRow) await updatePushNotificationLog(logRow.id, { status: "skipped_missing_config", errorCode: "missing_firebase_config" } as any);
+      result.skippedCount += userRows.length;
+      result.statuses[userId] = "skipped_missing_config";
       continue;
     }
 
     const failures = sendResults.filter((item) => !item.success);
     const successes = sendResults.filter((item) => item.success);
-    sentCount += successes.length;
-    failureCount += failures.length;
+    result.sentCount += successes.length;
+    result.failureCount += failures.length;
 
+    let invalidDeactivated = false;
     for (const failure of failures) {
       if (failure.errorCode && INVALID_TOKEN_CODES.has(failure.errorCode)) {
         await deactivateDeviceTokenByToken(failure.token);
+        invalidDeactivated = true;
+        result.invalidTokenDeactivatedCount += 1;
       }
     }
 
+    const status: PushNotificationLogStatus = invalidDeactivated && successes.length === 0
+      ? "invalid_token_deactivated"
+      : failures.length === sendResults.length
+        ? "failed"
+        : "sent";
     if (logRow) {
       await updatePushNotificationLog(logRow.id, {
-        status: failures.length === sendResults.length ? "failed" : "sent",
+        status,
         errorCode: failures[0]?.errorCode ?? null,
         sentAt: successes.length > 0 ? new Date() : null,
-      });
+      } as any);
     }
+    result.statuses[userId] = status;
   }
 
-  return { requestedUserIds: uniqueUserIds, tokenCount: rows.length, sentCount, failureCount, skippedCount, duplicateSkippedCount };
+  if (result.tokenCount === 0 && result.skippedCount > 0) result.disabledReason = "no_tokens";
+  if (!firebaseReady && result.tokenCount > 0) result.disabledReason = "missing_firebase_config";
+  return result;
 }
 
 export async function sendContractDeleteRequestPush(deleteRequestId: number) {

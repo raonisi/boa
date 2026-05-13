@@ -531,6 +531,7 @@ describe("PR19-3 - safe FCM work notifications", () => {
       sourceType: "follow_up",
       sourceId: 1,
       dedupeKey: "follow_up:1:2026-05-13:today",
+      now: new Date("2026-05-13T03:00:00.000Z"),
     });
 
     expect(result.sentCount).toBe(1);
@@ -544,6 +545,7 @@ describe("PR19-3 - safe FCM work notifications", () => {
     const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
       type: "test",
       dedupeKey: "test:4",
+      now: new Date("2026-05-13T03:00:00.000Z"),
     });
 
     expect(result.disabledReason).toBe("no_tokens");
@@ -577,6 +579,7 @@ describe("PR19-3 - safe FCM work notifications", () => {
     const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
       type: "test",
       dedupeKey: "test:invalid",
+      now: new Date("2026-05-13T03:00:00.000Z"),
     });
 
     expect(result.failureCount).toBe(1);
@@ -594,6 +597,7 @@ describe("PR19-3 - safe FCM work notifications", () => {
     const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
       type: "test",
       dedupeKey: "test:duplicate",
+      now: new Date("2026-05-13T03:00:00.000Z"),
     });
 
     expect(result.duplicateSkippedCount).toBe(1);
@@ -629,6 +633,169 @@ describe("PR19-3 - safe FCM work notifications", () => {
 
   it("blocks non-admin users from test push APIs", async () => {
     await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).pushNotifications.sendTestToMe()).rejects.toThrow();
+  });
+
+  it("creates default push preferences for active users", async () => {
+    const preference = {
+      id: 1,
+      userId: 4,
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: true,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue(preference as any);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).pushNotifications.getPreferences();
+
+    expect(result).toMatchObject({ userId: 4, followUpTodayEnabled: true, timezone: "Asia/Seoul" });
+  });
+
+  it("allows users to update only their own push preferences", async () => {
+    const updateSpy = vi.spyOn(db, "updatePushNotificationPreference").mockResolvedValue({
+      id: 1,
+      userId: 4,
+      followUpTodayEnabled: false,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: true,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).pushNotifications.updatePreferences({ followUpTodayEnabled: false });
+
+    expect(updateSpy).toHaveBeenCalledWith(4, expect.objectContaining({ followUpTodayEnabled: false }));
+  });
+
+  it("skips today follow-up push when the user's preference is disabled", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: false,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    const createLogSpy = vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 3, status: "skipped_disabled" } as any);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.todayFollowUp, {
+      type: "today_follow_up",
+      dedupeKey: "follow_up:disabled",
+    });
+
+    expect(result.disabledSkippedCount).toBe(1);
+    expect(result.statuses[4]).toBe("skipped_disabled");
+    expect(JSON.stringify(createLogSpy.mock.calls)).toContain("skipped_disabled");
+  });
+
+  it("skips schedule reminders when the user's schedule preference is disabled", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: false,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.schedule30Minute, {
+      type: "schedule_30min",
+      dedupeKey: "schedule:disabled",
+    });
+
+    expect(result.statuses[4]).toBe("skipped_disabled");
+  });
+
+  it("skips contract delete request pushes when the user's delete-request preference is disabled", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 1, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: false,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+
+    const result = await pushNotifications.sendPushToUsers([1], pushNotifications.SAFE_PUSH_PAYLOADS.contractDeleteRequest, {
+      type: "contract_delete_request",
+      dedupeKey: "delete-request:disabled",
+    });
+
+    expect(result.statuses[1]).toBe("skipped_disabled");
+  });
+
+  it("skips push during quiet hours", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: true,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.schedule30Minute, {
+      type: "schedule_30min",
+      dedupeKey: "schedule:quiet",
+      now: new Date("2026-05-13T13:00:00.000Z"),
+    });
+
+    expect(result.quietHoursSkippedCount).toBe(1);
+    expect(result.statuses[4]).toBe("skipped_quiet_hours");
+  });
+
+  it("records skipped_no_token when no active device token exists", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([]);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
+      type: "test",
+      dedupeKey: "test:no-token",
+    });
+
+    expect(result.statuses[4]).toBe("skipped_no_token");
+    expect(result.disabledReason).toBe("no_tokens");
+  });
+
+  it("allows only branch_admin to access push operation APIs", async () => {
+    vi.spyOn(db, "getPushNotificationOperationSummary").mockResolvedValue({ total: 0, sent: 0, failed: 0, skipped: 0, inactiveTokens: 0 } as any);
+    vi.spyOn(db, "listPushNotificationLogs").mockResolvedValue([]);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).pushNotifications.operationSummary()).resolves.toBeDefined();
+    await expect(appRouter.createCaller(createCtx("member")).pushNotifications.operationSummary()).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader")).pushNotifications.logs()).rejects.toThrow();
   });
 });
 
