@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { Plus, ShieldX, UserCog } from "lucide-react";
+import { KeyRound, LogOut, Plus, ShieldCheck, ShieldX, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -56,6 +56,15 @@ export default function UserManagement() {
   const { data: teams } = trpc.users.teams.useQuery();
   const [editUser, setEditUser] = useState<any>(null);
   const [showCreate, setShowCreate] = useState(false);
+  const [forceLogoutUser, setForceLogoutUser] = useState<any>(null);
+  const [oauthResetUser, setOauthResetUser] = useState<any>(null);
+  const [forceLogoutReason, setForceLogoutReason] = useState("");
+  const [oauthResetReason, setOauthResetReason] = useState("");
+  const [oauthResetConfirm, setOauthResetConfirm] = useState("");
+  const [allLogoutOpen, setAllLogoutOpen] = useState(false);
+  const [allLogoutReason, setAllLogoutReason] = useState("");
+  const [allLogoutConfirm, setAllLogoutConfirm] = useState("");
+  const { data: loginHistory } = trpc.adminSecurity.loginHistory.useQuery({ limit: 50 });
 
   const updateRoleMutation = trpc.users.updateRole.useMutation({
     onSuccess: () => { toast.success("권한이 변경되었습니다."); utils.users.list.invalidate(); setEditUser(null); },
@@ -79,6 +88,39 @@ export default function UserManagement() {
   const createUserMutation = trpc.users.create.useMutation({
     onSuccess: () => { toast.success("사용자가 추가되었습니다."); utils.users.list.invalidate(); setShowCreate(false); },
     onError: (err) => toast.error(err.message || "사용자 추가에 실패했습니다."),
+  });
+
+  const forceLogoutMutation = trpc.adminSecurity.forceLogoutUser.useMutation({
+    onSuccess: () => {
+      toast.success("사용자 세션을 무효화했습니다.");
+      utils.adminSecurity.loginHistory.invalidate();
+      setForceLogoutUser(null);
+      setForceLogoutReason("");
+    },
+    onError: (err) => toast.error(err.message || "강제 로그아웃에 실패했습니다."),
+  });
+
+  const forceLogoutAllMutation = trpc.adminSecurity.forceLogoutAll.useMutation({
+    onSuccess: () => {
+      toast.success("전체 사용자 세션을 무효화했습니다.");
+      utils.adminSecurity.loginHistory.invalidate();
+      setAllLogoutOpen(false);
+      setAllLogoutReason("");
+      setAllLogoutConfirm("");
+    },
+    onError: (err) => toast.error(err.message || "전체 로그아웃에 실패했습니다."),
+  });
+
+  const resetOAuthMutation = trpc.adminSecurity.resetOAuthLink.useMutation({
+    onSuccess: () => {
+      toast.success("OAuth 연결을 초기화했습니다.");
+      utils.users.list.invalidate();
+      utils.adminSecurity.loginHistory.invalidate();
+      setOauthResetUser(null);
+      setOauthResetReason("");
+      setOauthResetConfirm("");
+    },
+    onError: (err) => toast.error(err.message || "OAuth 초기화에 실패했습니다."),
   });
 
   const handleBlock = (userId: number) => {
@@ -205,11 +247,68 @@ export default function UserManagement() {
                                   <ShieldX className="h-3.5 w-3.5" />
                                 </Button>
                               )}
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setForceLogoutUser(u)} title="강제 로그아웃">
+                                <LogOut className="h-3.5 w-3.5" />
+                              </Button>
+                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setOauthResetUser(u)} title="OAuth 초기화">
+                                <KeyRound className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>
                       );
                     })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-sm flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4" /> 보안 관리
+              </CardTitle>
+              <Button size="sm" variant="outline" onClick={() => setAllLogoutOpen(true)}>
+                전체 로그아웃
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-xs text-muted-foreground mb-3">
+              Google OAuth 연결 초기화, 세션 무효화, 로그인 보안 이력을 관리합니다. 토큰과 비밀값은 표시하지 않습니다.
+            </p>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>시각</TableHead>
+                    <TableHead>사용자</TableHead>
+                    <TableHead>액션</TableHead>
+                    <TableHead>처리자</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(loginHistory ?? []).slice(0, 10).length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">로그인 보안 이력이 없습니다.</TableCell>
+                    </TableRow>
+                  ) : (
+                    (loginHistory ?? []).slice(0, 10).map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {entry.createdAt ? new Date(entry.createdAt).toLocaleString("ko-KR") : "-"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-medium">{entry.user?.name ?? "-"}</div>
+                          <div className="text-muted-foreground">{entry.user?.email ?? "-"}</div>
+                        </TableCell>
+                        <TableCell className="text-xs font-medium">{entry.action}</TableCell>
+                        <TableCell className="text-xs">{entry.actor?.name ?? "-"}</TableCell>
+                      </TableRow>
+                    ))
                   )}
                 </TableBody>
               </Table>
@@ -272,6 +371,95 @@ export default function UserManagement() {
                 </Select>
               </div>
               <Button variant="outline" size="sm" className="w-full" onClick={() => setEditUser(null)}>닫기</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {forceLogoutUser && (
+        <Dialog open={true} onOpenChange={() => setForceLogoutUser(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>사용자 강제 로그아웃</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {forceLogoutUser.name} 사용자의 현재 세션을 무효화합니다. 사용자는 다시 Google 로그인을 해야 합니다.
+              </p>
+              <div>
+                <Label className="text-xs">사유 *</Label>
+                <Textarea value={forceLogoutReason} onChange={(e) => setForceLogoutReason(e.target.value)} rows={3} className="mt-1" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setForceLogoutUser(null)}>취소</Button>
+                <Button
+                  size="sm"
+                  disabled={!forceLogoutReason.trim() || forceLogoutMutation.isPending}
+                  onClick={() => forceLogoutMutation.mutate({ userId: forceLogoutUser.id, reason: forceLogoutReason.trim() })}
+                >
+                  강제 로그아웃
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {allLogoutOpen && (
+        <Dialog open={true} onOpenChange={() => setAllLogoutOpen(false)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>전체 사용자 강제 로그아웃</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                모든 사용자의 세션을 무효화합니다. 현재 접속 중인 사용자도 다시 로그인해야 할 수 있습니다.
+              </p>
+              <div>
+                <Label className="text-xs">사유 *</Label>
+                <Textarea value={allLogoutReason} onChange={(e) => setAllLogoutReason(e.target.value)} rows={3} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">확인 문구: 전체로그아웃</Label>
+                <Input value={allLogoutConfirm} onChange={(e) => setAllLogoutConfirm(e.target.value)} className="mt-1" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setAllLogoutOpen(false)}>취소</Button>
+                <Button
+                  size="sm"
+                  disabled={!allLogoutReason.trim() || allLogoutConfirm !== "전체로그아웃" || forceLogoutAllMutation.isPending}
+                  onClick={() => forceLogoutAllMutation.mutate({ reason: allLogoutReason.trim(), confirmText: allLogoutConfirm })}
+                >
+                  전체 로그아웃
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {oauthResetUser && (
+        <Dialog open={true} onOpenChange={() => setOauthResetUser(null)}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader><DialogTitle>OAuth 연결 초기화</DialogTitle></DialogHeader>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {oauthResetUser.name} 사용자의 Google 계정 연결을 초기화합니다. 권한과 계정 상태는 변경하지 않습니다.
+              </p>
+              <div>
+                <Label className="text-xs">사유 *</Label>
+                <Textarea value={oauthResetReason} onChange={(e) => setOauthResetReason(e.target.value)} rows={3} className="mt-1" />
+              </div>
+              <div>
+                <Label className="text-xs">확인 문구: OAuth초기화</Label>
+                <Input value={oauthResetConfirm} onChange={(e) => setOauthResetConfirm(e.target.value)} className="mt-1" />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={() => setOauthResetUser(null)}>취소</Button>
+                <Button
+                  size="sm"
+                  disabled={!oauthResetReason.trim() || oauthResetConfirm !== "OAuth초기화" || resetOAuthMutation.isPending}
+                  onClick={() => resetOAuthMutation.mutate({ userId: oauthResetUser.id, reason: oauthResetReason.trim(), confirmText: oauthResetConfirm })}
+                >
+                  OAuth 초기화
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

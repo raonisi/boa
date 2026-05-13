@@ -185,6 +185,33 @@ export async function updateUserSubBranchAdmin(id: number, subBranchAdminId: num
   await db.update(users).set({ subBranchAdminId }).where(eq(users.id, id));
 }
 
+export async function invalidateUserSessions(id: number, invalidatedAt = new Date()) {
+  const db = await getDb();
+  if (!db) return 0;
+  await db.update(users).set({ sessionInvalidatedAt: invalidatedAt }).where(eq(users.id, id));
+  return 1;
+}
+
+export async function invalidateAllUserSessions(invalidatedAt = new Date()) {
+  const db = await getDb();
+  if (!db) return 0;
+  const currentUsers = await db.select({ id: users.id }).from(users);
+  await db.update(users).set({ sessionInvalidatedAt: invalidatedAt });
+  return currentUsers.length;
+}
+
+export async function resetUserOAuthLink(id: number) {
+  const db = await getDb();
+  if (!db) return;
+  const invitedOpenId = `invited_reset_${id}_${Date.now().toString(36)}`;
+  const now = new Date();
+  await db.update(users).set({
+    openId: invitedOpenId,
+    loginStatus: "invited",
+    sessionInvalidatedAt: now,
+  }).where(eq(users.id, id));
+}
+
 // ─── Teams ───────────────────────────────────────────────────────────────────
 export async function getAllTeams() {
   const db = await getDb();

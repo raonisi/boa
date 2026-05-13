@@ -24,6 +24,10 @@ export type SessionPayload = {
   name: string;
 };
 
+export type VerifiedSessionPayload = SessionPayload & {
+  issuedAt?: number;
+};
+
 const EXCHANGE_TOKEN_PATH = `/webdev.v1.WebDevAuthPublicService/ExchangeToken`;
 const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
@@ -244,13 +248,14 @@ class SDKServer {
       name: payload.name,
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+      .setIssuedAt(Math.floor(issuedAt / 1000))
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);
   }
 
   async verifySession(
     cookieValue: string | undefined | null
-  ): Promise<{ openId: string; appId: string; name: string } | null> {
+  ): Promise<VerifiedSessionPayload | null> {
     if (!cookieValue) {
       console.warn("[Auth] Missing session cookie");
       return null;
@@ -261,7 +266,7 @@ class SDKServer {
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
       });
-      const { openId, appId, name } = payload as Record<string, unknown>;
+      const { openId, appId, name, iat } = payload as Record<string, unknown>;
 
       if (
         !isNonEmptyString(openId) ||
@@ -276,6 +281,7 @@ class SDKServer {
         openId,
         appId,
         name,
+        issuedAt: typeof iat === "number" ? iat : undefined,
       };
     } catch (error) {
       console.warn("[Auth] Session verification failed", String(error));
@@ -334,6 +340,13 @@ class SDKServer {
       throw ForbiddenError("Pre-registered user not found");
     }
 
+    if (user.sessionInvalidatedAt) {
+      const issuedAtMs = session.issuedAt ? session.issuedAt * 1000 : 0;
+      if (!session.issuedAt || issuedAtMs <= user.sessionInvalidatedAt.getTime()) {
+        throw ForbiddenError("Session has been invalidated");
+      }
+    }
+
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,
@@ -368,6 +381,7 @@ function buildCronUser(
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,
+    sessionInvalidatedAt: null,
     taskUid: userInfo.taskUid ?? undefined,
     isCron: true,
   } as AuthenticatedUser;
