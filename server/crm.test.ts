@@ -554,6 +554,107 @@ describe("soft delete permissions and audit flow", () => {
   });
 });
 
+describe("dashboard.todayWork", () => {
+  const baseDate = "2026-05-13T09:00:00.000Z";
+  const todaySchedule = {
+    id: 1,
+    userId: 4,
+    teamId: 10,
+    title: "[TEST] Today call",
+    type: "고객상담",
+    status: "예정",
+    startTime: new Date("2026-05-13T10:00:00.000Z"),
+    endTime: new Date("2026-05-13T10:30:00.000Z"),
+    isActive: true,
+  };
+  const overdueSchedule = {
+    id: 2,
+    userId: 4,
+    teamId: 10,
+    title: "[TEST] Overdue",
+    type: "고객상담",
+    status: "예정",
+    startTime: new Date("2026-05-12T10:00:00.000Z"),
+    endTime: new Date("2026-05-12T10:30:00.000Z"),
+    isActive: true,
+  };
+  const customer = {
+    id: 100,
+    name: "[TEST] Customer",
+    phone: "01012345678",
+    memo: "private memo",
+    agentId: 4,
+    teamId: 10,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    consultStatus: "상담예정",
+    isActive: true,
+  };
+
+  function mockTodayWorkData() {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([customer] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([
+      { id: 10, customerId: 100, agentId: 4, contractDate: new Date("2026-05-03T00:00:00.000Z"), monthlyPremium: 120000, isActive: true },
+      { id: 11, customerId: 100, agentId: 4, contractDate: new Date("2026-04-03T00:00:00.000Z"), monthlyPremium: 90000, isActive: true },
+      { id: 12, customerId: 100, agentId: 4, contractDate: new Date("2026-05-04T00:00:00.000Z"), monthlyPremium: 30000, isActive: false },
+    ] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([todaySchedule, overdueSchedule] as any);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
+      items: [
+        { id: 20, userId: 4, type: "general", title: "[TEST] Notice", isRead: false, processStatus: "미확인", relatedType: "customer", relatedId: 100, createdAt: new Date("2026-05-13T08:00:00.000Z") },
+        { id: 21, userId: 4, type: "long_unmanaged_90", title: "[TEST] Long", isRead: true, processStatus: "확인", relatedType: "customer", relatedId: 100, createdAt: new Date("2026-05-10T08:00:00.000Z") },
+      ],
+      totalCount: 2,
+      hasMore: false,
+    } as any);
+  }
+
+  it("returns member-scoped today summary without customer phone or memo", async () => {
+    mockTodayWorkData();
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).dashboard.todayWork({ date: baseDate });
+
+    expect(db.getCustomers).toHaveBeenCalledWith({ agentId: 4 });
+    expect(db.getAllContracts).toHaveBeenCalledWith({ agentId: 4 });
+    expect(result.cards.todayScheduleCount).toBe(1);
+    expect(result.cards.incompleteScheduleCount).toBe(1);
+    expect(result.cards.pendingNotificationCount).toBe(1);
+    expect(result.cards.monthlyContractCount).toBe(1);
+    expect(result.cards.monthlyPremiumSum).toBe(120000);
+    expect(JSON.stringify(result)).not.toContain("01012345678");
+    expect(JSON.stringify(result)).not.toContain("private memo");
+  });
+
+  it("uses team scope for team_leader and prevents null-team widening", async () => {
+    mockTodayWorkData();
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 4 }] as any);
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).dashboard.todayWork({ date: baseDate });
+    expect(db.getCustomers).toHaveBeenCalledWith({ teamId: 10 });
+    expect(db.getAllContracts).toHaveBeenCalledWith({ teamId: 10 });
+
+    vi.restoreAllMocks();
+    mockTodayWorkData();
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: null })).dashboard.todayWork({ date: baseDate });
+    expect(result.cards.todayScheduleCount).toBe(0);
+    expect(result.cards.monthlyContractCount).toBe(0);
+  });
+
+  it("uses sub-branch and branch scopes, and blocks inactive users", async () => {
+    mockTodayWorkData();
+    vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([{ id: 4 }] as any);
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).dashboard.todayWork({ date: baseDate });
+    expect(db.getCustomers).toHaveBeenCalledWith({ subBranchAdminId: 2 });
+    expect(db.getAllContracts).toHaveBeenCalledWith({ subBranchAdminId: 2 });
+
+    vi.restoreAllMocks();
+    mockTodayWorkData();
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).dashboard.todayWork({ date: baseDate });
+    expect(db.getCustomers).toHaveBeenCalledWith({});
+    expect(db.getAllContracts).toHaveBeenCalledWith({});
+
+    await expect(appRouter.createCaller(createInactiveCtx()).dashboard.todayWork({ date: baseDate })).rejects.toThrow();
+  });
+});
+
 describe("delete request and deleted data lifecycle", () => {
   const activeContract = {
     id: 10,
