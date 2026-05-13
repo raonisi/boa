@@ -1083,6 +1083,108 @@ describe("PR10-3 user handoff workflow", () => {
   });
 });
 
+describe("PR10-4 performance goals", () => {
+  const goal = {
+    id: 501,
+    year: 2026,
+    month: 5,
+    targetType: "user",
+    targetId: 4,
+    contractCountGoal: 10,
+    monthlyPremiumGoal: 3000000,
+    consultationGoal: 0,
+    followUpGoal: 0,
+    createdBy: 1,
+    updatedBy: null,
+    isActive: true,
+    deletedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  } as any;
+
+  it("allows branch_admin to create a goal and records an activity log", async () => {
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, role: "member", accountStatus: "active", teamId: 10 } as any);
+    vi.spyOn(db, "getActivePerformanceGoal").mockResolvedValue(null);
+    vi.spyOn(db, "createPerformanceGoal").mockResolvedValue(goal);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).performanceGoals.create({
+      year: 2026,
+      month: 5,
+      targetType: "user",
+      targetId: 4,
+      contractCountGoal: 10,
+      monthlyPremiumGoal: 3000000,
+    });
+
+    expect(result).toEqual(goal);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "PERFORMANCE_GOAL_CREATED", targetType: "performance_goal", targetId: 501 }), undefined);
+  });
+
+  it("blocks non-admin create, duplicate active goals, and negative values", async () => {
+    await expect(appRouter.createCaller(createCtx("member")).performanceGoals.create({
+      year: 2026,
+      month: 5,
+      targetType: "user",
+      targetId: 4,
+      contractCountGoal: 10,
+      monthlyPremiumGoal: 3000000,
+    })).rejects.toThrow();
+
+    vi.spyOn(db, "getActivePerformanceGoal").mockResolvedValue(goal);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).performanceGoals.create({
+      year: 2026,
+      month: 5,
+      targetType: "branch",
+      targetId: null,
+      contractCountGoal: 10,
+      monthlyPremiumGoal: 3000000,
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).performanceGoals.create({
+      year: 2026,
+      month: 5,
+      targetType: "branch",
+      targetId: null,
+      contractCountGoal: -1,
+      monthlyPremiumGoal: 3000000,
+    })).rejects.toThrow();
+  });
+
+  it("updates and soft-deactivates goals with audit logs", async () => {
+    vi.spyOn(db, "getPerformanceGoalById").mockResolvedValue(goal);
+    const updateSpy = vi.spyOn(db, "updatePerformanceGoal").mockResolvedValue(goal);
+    const deactivateSpy = vi.spyOn(db, "deactivatePerformanceGoal").mockResolvedValue({ ...goal, isActive: false, deletedAt: new Date() });
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).performanceGoals.update({
+      id: 501,
+      contractCountGoal: 12,
+      monthlyPremiumGoal: 3500000,
+    })).resolves.toEqual({ success: true });
+    expect(updateSpy).toHaveBeenCalledWith(501, expect.objectContaining({ contractCountGoal: 12, updatedBy: 1 }));
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).performanceGoals.deactivate({ id: 501 })).resolves.toEqual({ success: true });
+    expect(deactivateSpy).toHaveBeenCalledWith(501, 1);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "PERFORMANCE_GOAL_UPDATED" }), undefined);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "PERFORMANCE_GOAL_DEACTIVATED" }), undefined);
+  });
+
+  it("returns role-scoped dashboard data and blocks inactive users", async () => {
+    const dashboard = {
+      year: 2026,
+      month: 5,
+      items: [{ goal, targetLabel: "Test Member", actual: { contractCount: 3, monthlyPremium: 900000 }, achievementRate: { contractCount: 30, monthlyPremium: 30 }, remaining: { contractCount: 7, monthlyPremium: 2100000 }, remainingDays: 10, dailyRequired: { contractCount: 0.7, monthlyPremium: 210000 } }],
+      summary: { totalGoals: 1, achievedGoals: 0, pendingGoals: 1, averageContractRate: 30, averagePremiumRate: 30 },
+    };
+    const dashboardSpy = vi.spyOn(db, "getPerformanceGoalDashboard").mockResolvedValue(dashboard as any);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).performanceGoals.dashboard({ year: 2026, month: 5 })).resolves.toEqual(dashboard);
+    expect(dashboardSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 4, role: "member" }), 2026, 5);
+    await expect(appRouter.createCaller(createInactiveCtx()).performanceGoals.dashboard({ year: 2026, month: 5 })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,
