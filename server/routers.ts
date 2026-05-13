@@ -884,6 +884,204 @@ async function verifyFollowUpAccess(user: { id: number; role: string; teamId: nu
   return followUp;
 }
 
+function parseRecommendationTags(value?: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  }
+}
+
+function daysBetween(from: Date, to: Date) {
+  return Math.floor((toDayStart(to).getTime() - toDayStart(from).getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function recommendationUrgency(score: number): "high" | "medium" | "low" {
+  if (score >= 55) return "high";
+  if (score >= 25) return "medium";
+  return "low";
+}
+
+function isDesignOrContractReviewState(customer: { consultStatus?: string | null; nextAction?: string | null }) {
+  const text = `${customer.consultStatus ?? ""} ${customer.nextAction ?? ""}`;
+  return ["설계", "계약", "검토", "발송", "진행"].some((keyword) => text.includes(keyword));
+}
+
+function hasRecommendationTag(tags: string[], keywords: string[]) {
+  return tags.some((tag) => keywords.some((keyword) => tag.includes(keyword)));
+}
+
+function buildSafeContactReason(type: string) {
+  const reasonMap: Record<string, { title: string; description: string; situation?: string }> = {
+    overdue_follow_up: { title: "후속관리 확인", description: "지난 상담 이후 확인이 필요한 내용이 있어 후속 연락이 필요합니다.", situation: "follow_up_schedule" },
+    today_follow_up: { title: "오늘 연락 예정", description: "이전에 정한 다음 연락일이 도래해 상담 내용을 이어서 확인할 수 있습니다.", situation: "follow_up_schedule" },
+    priority_a_unmanaged: { title: "우선관리 고객 확인", description: "우선관리 고객으로 분류되어 최근 상담 이후 진행 상황 확인이 필요합니다.", situation: "general_check" },
+    proposal_follow_up: { title: "자료 이해 여부 확인", description: "전달한 자료를 보시고 이해가 어려운 부분이 있는지 확인할 수 있습니다.", situation: "proposal_follow_up" },
+    long_unmanaged: { title: "기존 기준 점검", description: "상황 변화가 있었을 수 있어 기존 보장 기준을 점검할 명분이 있습니다.", situation: "general_check" },
+    post_contract_care: { title: "계약 후 사후관리", description: "계약 이후 보장 내용과 관리 기준을 다시 안내할 시점입니다.", situation: "post_contract_care" },
+    retention_risk: { title: "유지 기준 확인", description: "해지 전 보장 공백과 유지 기준을 차분히 확인할 필요가 있습니다.", situation: "general_check" },
+    premium_burden: { title: "보험료 부담 점검", description: "보험료 부담을 줄이기 위한 조정 가능성을 점검할 수 있습니다.", situation: "general_check" },
+    family_responsibility: { title: "가족 기준 점검", description: "가족 구성과 책임 범위 기준으로 보장 공백을 확인할 수 있습니다.", situation: "general_check" },
+    unread_notification: { title: "알림 내용 확인", description: "확인하지 않은 알림이 있어 고객 관련 처리 상태를 점검할 수 있습니다.", situation: "general_check" },
+    no_consultation: { title: "초기 상담 기록 확인", description: "등록 후 상담기록이 없어 고객 상황과 상담 방향을 확인할 수 있습니다.", situation: "general_check" },
+  };
+  return reasonMap[type] ?? { title: "고객 상태 점검", description: "최근 고객 상태를 기준으로 필요한 내용을 확인할 수 있습니다.", situation: "general_check" };
+}
+
+async function buildRecommendationItems(user: { id: number; role: string; teamId: number | null }, baseDate: Date) {
+  const { customerList, contractList, notifications, followUpList } = await getScopedDashboardData(user);
+  const activeCustomers = customerList.filter((customer) => customer.isActive && !customer.deletedAt);
+  const consultationEntries = await Promise.all(activeCustomers.map(async (customer) => ({
+    customerId: customer.id,
+    consultations: await getConsultationsByCustomer(customer.id),
+  })));
+  const consultationsByCustomer = new Map(consultationEntries.map((entry) => [entry.customerId, entry.consultations]));
+  const contractsByCustomer = new Map<number, typeof contractList>();
+  for (const contract of contractList.filter((contract) => contract.isActive && !contract.deletedAt)) {
+    const rows = contractsByCustomer.get(contract.customerId) ?? [];
+    rows.push(contract);
+    contractsByCustomer.set(contract.customerId, rows);
+  }
+  const followUpsByCustomer = new Map<number, typeof followUpList>();
+  for (const followUp of followUpList.filter((followUp) => isOpenFollowUpStatus(followUp.status))) {
+    const rows = followUpsByCustomer.get(followUp.customerId) ?? [];
+    rows.push(followUp);
+    followUpsByCustomer.set(followUp.customerId, rows);
+  }
+  const unreadNotificationsByCustomer = new Map<number, typeof notifications>();
+  for (const notification of notifications.filter((notification) => isUnreadNotification(notification))) {
+    if (notification.relatedType !== "customer" || !notification.relatedId) continue;
+    const rows = unreadNotificationsByCustomer.get(notification.relatedId) ?? [];
+    rows.push(notification);
+    unreadNotificationsByCustomer.set(notification.relatedId, rows);
+  }
+
+  const todayStart = toDayStart(baseDate);
+  const todayEnd = toDayEnd(baseDate);
+
+  return activeCustomers.map((customer) => {
+    const tags = parseRecommendationTags(customer.customerTags);
+    const customerFollowUps = followUpsByCustomer.get(customer.id) ?? [];
+    const customerConsultations = consultationsByCustomer.get(customer.id) ?? [];
+    const customerContracts = contractsByCustomer.get(customer.id) ?? [];
+    const unreadNotifications = unreadNotificationsByCustomer.get(customer.id) ?? [];
+    const latestConsultation = customerConsultations.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
+    const latestContract = customerContracts.slice().sort((a, b) => new Date(b.contractDate ?? b.createdAt).getTime() - new Date(a.contractDate ?? a.createdAt).getTime())[0];
+
+    let totalScore = 0;
+    const reasons: string[] = [];
+    const warnings: Array<{ warningType: string; severity: "high" | "medium" | "low"; message: string; source: string }> = [];
+    const contactReasonTypes = new Set<string>();
+
+    const overdueFollowUps = customerFollowUps.filter((followUp) => new Date(followUp.nextContactDate).getTime() < todayStart.getTime());
+    const todayFollowUps = customerFollowUps.filter((followUp) => {
+      const nextDate = new Date(followUp.nextContactDate);
+      return nextDate.getTime() >= todayStart.getTime() && nextDate.getTime() <= todayEnd.getTime();
+    });
+    if (overdueFollowUps.length > 0) {
+      totalScore += 40;
+      reasons.push("후속관리 예정일 경과");
+      warnings.push({ warningType: "overdue_follow_up", severity: "high", message: "후속관리 예정일이 지났습니다.", source: "follow_ups" });
+      contactReasonTypes.add("overdue_follow_up");
+    }
+    if (todayFollowUps.length > 0) {
+      totalScore += 35;
+      reasons.push("오늘 연락 예정");
+      contactReasonTypes.add("today_follow_up");
+    }
+    if (customer.priority === "A") {
+      totalScore += 25;
+      reasons.push("A등급 고객");
+    } else if (customer.priority === "B") {
+      totalScore += 15;
+      reasons.push("B등급 고객");
+    }
+    if (unreadNotifications.length > 0) {
+      totalScore += 10;
+      reasons.push("미확인 알림 있음");
+      warnings.push({ warningType: "unread_notification", severity: "medium", message: "확인하지 않은 알림이 있습니다.", source: "notifications" });
+      contactReasonTypes.add("unread_notification");
+    }
+    if (hasRecommendationTag(tags, ["해지", "위험"])) {
+      totalScore += 25;
+      reasons.push("해지위험 태그");
+      contactReasonTypes.add("retention_risk");
+    }
+    if (hasRecommendationTag(tags, ["사후관리", "리밸런싱"])) {
+      totalScore += 20;
+      reasons.push("관리 필요 태그");
+      contactReasonTypes.add("post_contract_care");
+    }
+    if (hasRecommendationTag(tags, ["가격", "보험료", "부담"])) contactReasonTypes.add("premium_burden");
+    if (hasRecommendationTag(tags, ["가족", "책임"])) contactReasonTypes.add("family_responsibility");
+    if (customer.nextAction && ["재연락", "설계안", "계약", "보장분석"].some((keyword) => customer.nextAction?.includes(keyword))) {
+      totalScore += 15;
+      reasons.push(`다음 액션: ${customer.nextAction}`);
+      if (customer.nextAction.includes("설계안")) contactReasonTypes.add("proposal_follow_up");
+    }
+
+    const registeredDays = daysBetween(new Date(customer.createdAt), baseDate);
+    if (registeredDays >= 7 && customerConsultations.length === 0) {
+      totalScore += 15;
+      warnings.push({ warningType: "no_consultation", severity: "medium", message: "등록 후 상담기록이 없습니다.", source: "consultations" });
+      contactReasonTypes.add("no_consultation");
+    }
+
+    const lastConsultationDate = latestConsultation ? new Date(latestConsultation.createdAt) : null;
+    const daysSinceConsult = lastConsultationDate ? daysBetween(lastConsultationDate, baseDate) : null;
+    if (isDesignOrContractReviewState(customer) && (daysSinceConsult === null || daysSinceConsult >= 14)) {
+      totalScore += 20;
+      reasons.push("설계/계약 검토 장기화");
+      warnings.push({ warningType: "proposal_stalled", severity: "medium", message: "설계 진행 상태가 장기화되고 있습니다.", source: "customers" });
+      contactReasonTypes.add("proposal_follow_up");
+    }
+    if (customer.priority === "A" && (daysSinceConsult === null || daysSinceConsult >= 7) && todayFollowUps.length === 0) {
+      warnings.push({ warningType: "priority_a_unmanaged", severity: "high", message: "A등급 고객 관리가 지연되고 있습니다.", source: "customers" });
+      contactReasonTypes.add("priority_a_unmanaged");
+    }
+    if (daysSinceConsult === null || daysSinceConsult >= 90) {
+      totalScore += 20;
+      reasons.push("장기 미관리 가능성");
+      warnings.push({ warningType: "long_unmanaged", severity: "medium", message: "장기 미관리 고객입니다.", source: "consultations" });
+      contactReasonTypes.add("long_unmanaged");
+    }
+    if (latestContract?.contractDate) {
+      const contractDate = new Date(latestContract.contractDate);
+      const daysSinceContract = daysBetween(contractDate, baseDate);
+      if ((daysSinceContract >= 30 || daysSinceContract >= 90) && (!lastConsultationDate || lastConsultationDate < contractDate)) {
+        totalScore += 10;
+        reasons.push("계약 후 사후관리 시점");
+        warnings.push({ warningType: "post_contract_unmanaged", severity: "medium", message: "계약 후 사후관리 확인이 필요합니다.", source: "contracts" });
+        contactReasonTypes.add("post_contract_care");
+      }
+    }
+
+    const contactReasonTypeList = Array.from(contactReasonTypes);
+    const firstContactReasonType = contactReasonTypeList[0] ?? "general_check";
+    const contactReason = buildSafeContactReason(firstContactReasonType);
+    return {
+      customerId: customer.id,
+      customerName: customer.name,
+      priority: customer.priority,
+      tags,
+      consultationStatus: customer.consultStatus,
+      totalScore,
+      urgency: recommendationUrgency(totalScore),
+      reasons: reasons.slice(0, 5),
+      recommendedAction: contactReason.title,
+      contactReason,
+      lastConsultationDate: latestConsultation?.createdAt ?? null,
+      nextContactDate: [...overdueFollowUps, ...todayFollowUps].sort((a, b) => new Date(a.nextContactDate).getTime() - new Date(b.nextContactDate).getTime())[0]?.nextContactDate ?? null,
+      openFollowUpCount: customerFollowUps.length,
+      unreadNotificationCount: unreadNotifications.length,
+      warnings,
+      contactReasons: contactReasonTypeList.map((type) => ({ reasonType: type, ...buildSafeContactReason(type) })),
+    };
+  });
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -898,6 +1096,76 @@ export const appRouter = router({
   }),
 
   // ── Users ─────────────────────────────────────────────────────────────────
+  recommendations: router({
+    priorityContacts: activeUserProcedure
+      .input(z.object({
+        date: z.string().optional(),
+        limit: z.number().min(1).max(50).default(10),
+        urgency: z.enum(["high", "medium", "low"]).optional(),
+        includeWarnings: z.boolean().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const baseDate = input?.date ? new Date(input.date) : new Date();
+        const items = await buildRecommendationItems(ctx.user, baseDate);
+        return items
+          .filter((item) => item.totalScore > 0)
+          .filter((item) => !input?.urgency || item.urgency === input.urgency)
+          .sort((a, b) => b.totalScore - a.totalScore)
+          .slice(0, input?.limit ?? 10)
+          .map((item) => ({ ...item, warnings: input?.includeWarnings === false ? [] : item.warnings }));
+      }),
+
+    customerWarnings: activeUserProcedure
+      .input(z.object({
+        customerId: z.number().optional(),
+        warningTypes: z.array(z.string()).optional(),
+        limit: z.number().min(1).max(100).default(50),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        if (input?.customerId) await verifyCustomerAccess(ctx.user, input.customerId);
+        const items = await buildRecommendationItems(ctx.user, new Date());
+        return items
+          .filter((item) => !input?.customerId || item.customerId === input.customerId)
+          .flatMap((item) => item.warnings.map((warning) => ({
+            customerId: item.customerId,
+            customerName: item.customerName,
+            ...warning,
+            detectedAt: new Date(),
+          })))
+          .filter((warning) => !input?.warningTypes?.length || input.warningTypes.includes(warning.warningType))
+          .slice(0, input?.limit ?? 50);
+      }),
+
+    customerContactReasons: activeUserProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        const items = await buildRecommendationItems(ctx.user, new Date());
+        const item = items.find((entry) => entry.customerId === input.customerId);
+        return {
+          customerId: input.customerId,
+          reasons: item?.contactReasons ?? [{ reasonType: "general_check", ...buildSafeContactReason("general_check") }],
+          warnings: item?.warnings ?? [],
+          recommendedAction: item?.recommendedAction ?? "고객 상태 점검",
+          urgency: item?.urgency ?? "low",
+        };
+      }),
+
+    dashboardSummary: activeUserProcedure
+      .input(z.object({ date: z.string().optional() }).optional())
+      .query(async ({ ctx, input }) => {
+        const baseDate = input?.date ? new Date(input.date) : new Date();
+        const items = await buildRecommendationItems(ctx.user, baseDate);
+        const scored = items.filter((item) => item.totalScore > 0);
+        return {
+          priorityContactCount: scored.length,
+          highUrgencyCount: scored.filter((item) => item.urgency === "high").length,
+          warningCount: scored.reduce((sum, item) => sum + item.warnings.length, 0),
+          topContacts: scored.sort((a, b) => b.totalScore - a.totalScore).slice(0, 5),
+        };
+      }),
+  }),
+
   users: router({
     list: activeUserProcedure.query(async ({ ctx }) => {
       const all = await getAllUsers();

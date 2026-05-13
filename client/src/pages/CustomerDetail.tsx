@@ -87,6 +87,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: renderedMessage } = trpc.consultationTools.renderMessageTemplate.useQuery(renderedMessageInput, {
     enabled: Boolean(selectedTemplateId),
   });
+  const { data: contactReasons } = trpc.recommendations.customerContactReasons.useQuery({ customerId: id });
   const timelineInput = useMemo(() => {
     const selected = TIMELINE_FILTERS.find((filter) => filter.value === timelineFilter);
     const since = timelineRange === "all" ? undefined : new Date(Date.now() - Number(timelineRange) * 24 * 60 * 60 * 1000).toISOString();
@@ -368,6 +369,36 @@ export default function CustomerDetail({ id }: { id: number }) {
                   );
                 })}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-200">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold">상담 명분 추천</h3>
+                <p className="text-xs text-muted-foreground">기존 데이터 기준의 참고용 추천이며 고객 상태를 자동 변경하지 않습니다.</p>
+              </div>
+              <span className={`w-fit rounded-full px-2 py-0.5 text-xs ${contactReasons?.urgency === "high" ? "bg-red-100 text-red-700" : contactReasons?.urgency === "medium" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}>
+                {contactReasons?.urgency ?? "low"}
+              </span>
+            </div>
+            {(contactReasons?.warnings ?? []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {contactReasons?.warnings.slice(0, 3).map((warning) => (
+                  <span key={warning.warningType} className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700">{warning.message}</span>
+                ))}
+              </div>
+            )}
+            <div className="grid gap-2 md:grid-cols-2">
+              {(contactReasons?.reasons ?? []).slice(0, 4).map((reason) => (
+                <div key={reason.reasonType} className="rounded-md border p-3">
+                  <div className="text-sm font-medium">{reason.title}</div>
+                  <p className="mt-1 text-xs text-muted-foreground">{reason.description}</p>
+                  {reason.situation && <p className="mt-2 text-[11px] text-primary">추천 문구 상황: {reason.situation}</p>}
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

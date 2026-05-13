@@ -61,6 +61,7 @@ function EmptyLine({ children }: { children: React.ReactNode }) {
 function TodayWorkSection() {
   const [, setLocation] = useLocation();
   const { data, isLoading } = trpc.dashboard.todayWork.useQuery({});
+  const { data: recommendationSummary } = trpc.recommendations.dashboardSummary.useQuery({});
   const cards = data?.cards;
 
   return (
@@ -79,6 +80,44 @@ function TodayWorkSection() {
         <StatCard title="이번 달 계약" value={isLoading ? "-" : cards?.monthlyContractCount} icon={FileText} color="text-green-600" />
         <StatCard title="이번 달 월납보험료" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} color="text-blue-600" />
       </div>
+      <Card className="border-amber-200">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">오늘 우선 연락 고객</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid grid-cols-3 gap-2 text-xs">
+            <div className="rounded-md bg-muted p-2">
+              <p className="text-muted-foreground">추천 고객</p>
+              <p className="text-lg font-semibold">{recommendationSummary?.priorityContactCount ?? 0}</p>
+            </div>
+            <div className="rounded-md bg-muted p-2">
+              <p className="text-muted-foreground">긴급</p>
+              <p className="text-lg font-semibold text-red-600">{recommendationSummary?.highUrgencyCount ?? 0}</p>
+            </div>
+            <div className="rounded-md bg-muted p-2">
+              <p className="text-muted-foreground">경고</p>
+              <p className="text-lg font-semibold text-amber-600">{recommendationSummary?.warningCount ?? 0}</p>
+            </div>
+          </div>
+          {(recommendationSummary?.topContacts ?? []).length === 0 ? (
+            <EmptyLine>오늘 우선 연락 추천 고객이 없습니다.</EmptyLine>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+              {recommendationSummary?.topContacts.map((contact) => (
+                <button key={contact.customerId} type="button" onClick={() => setLocation(`/customers/${contact.customerId}`)} className="rounded-md border p-2 text-left hover:bg-accent">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-medium">{contact.customerName}</span>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] ${contact.urgency === "high" ? "bg-red-100 text-red-700" : contact.urgency === "medium" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}>
+                      {contact.urgency}
+                    </span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{contact.reasons.slice(0, 2).join(" · ") || contact.recommendedAction}</p>
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-4 lg:gap-4">
         <Card>
           <CardHeader className="pb-2"><CardTitle className="text-sm">오늘 일정</CardTitle></CardHeader>
