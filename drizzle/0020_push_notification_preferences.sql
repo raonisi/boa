@@ -14,7 +14,7 @@ CREATE TABLE `push_notification_preferences` (
 	CONSTRAINT `push_notification_preferences_id` PRIMARY KEY(`id`),
 	CONSTRAINT `uq_push_notification_preferences_user` UNIQUE(`userId`)
 );
-
+--> statement-breakpoint
 ALTER TABLE `push_notification_logs`
 	MODIFY `status` enum(
 		'sent',
