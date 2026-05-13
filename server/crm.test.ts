@@ -3,6 +3,7 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as db from "./db";
 import * as notifications from "./notifications";
+import * as pushNotifications from "./pushNotifications";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 type AccountStatus = "active" | "inactive" | "resigned";
@@ -34,6 +35,7 @@ function createInactiveCtx(role: Role = "member"): TrpcContext {
 }
 
 afterEach(() => {
+  pushNotifications.setPushSenderForTests(null);
   vi.restoreAllMocks();
 });
 
@@ -505,6 +507,131 @@ describe("PR19-2 - FCM device token registration", () => {
 });
 
 // ─── RBAC - branch_admin only ─────────────────────────────────────────────────
+describe("PR19-3 - safe FCM work notifications", () => {
+  const token = "fcm_push_token_1234567890";
+
+  it("sends safe push payloads to active device tokens and stores no plaintext token in push logs", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([
+      { id: 1, userId: 4, platform: "android", token },
+    ] as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue(null);
+    const createLogSpy = vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({
+      id: 9,
+      type: "today_follow_up",
+      userId: 4,
+      dedupeKey: "follow_up:1:2026-05-13:today:user:4",
+      status: "skipped",
+      createdAt: new Date(),
+    } as any);
+    const updateLogSpy = vi.spyOn(db, "updatePushNotificationLog").mockResolvedValue(undefined);
+    pushNotifications.setPushSenderForTests(async (tokens) => tokens.map((item) => ({ token: item, success: true })));
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.todayFollowUp, {
+      type: "today_follow_up",
+      sourceType: "follow_up",
+      sourceId: 1,
+      dedupeKey: "follow_up:1:2026-05-13:today",
+    });
+
+    expect(result.sentCount).toBe(1);
+    expect(JSON.stringify(createLogSpy.mock.calls)).not.toContain(token);
+    expect(JSON.stringify(updateLogSpy.mock.calls)).not.toContain(token);
+  });
+
+  it("skips users without active device tokens", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([]);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
+      type: "test",
+      dedupeKey: "test:4",
+    });
+
+    expect(result.disabledReason).toBe("no_tokens");
+    expect(result.tokenCount).toBe(0);
+  });
+
+  it("blocks sensitive content in push payloads", () => {
+    expect(() => pushNotifications.sanitizePushPayload({
+      title: "BOA 업무 알림",
+      body: "010-1234-5678 고객 확인",
+    } as any)).toThrow();
+  });
+
+  it("deactivates invalid tokens after FCM failure", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([
+      { id: 1, userId: 4, platform: "android", token },
+    ] as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue(null);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({
+      id: 9,
+      type: "test",
+      userId: 4,
+      dedupeKey: "test:invalid:user:4",
+      status: "skipped",
+      createdAt: new Date(),
+    } as any);
+    vi.spyOn(db, "updatePushNotificationLog").mockResolvedValue(undefined);
+    const deactivateSpy = vi.spyOn(db, "deactivateDeviceTokenByToken").mockResolvedValue(1);
+    pushNotifications.setPushSenderForTests(async () => [{ token, success: false, errorCode: "messaging/registration-token-not-registered" }]);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
+      type: "test",
+      dedupeKey: "test:invalid",
+    });
+
+    expect(result.failureCount).toBe(1);
+    expect(deactivateSpy).toHaveBeenCalledWith(token);
+  });
+
+  it("prevents duplicate push sends by dedupe key", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([
+      { id: 1, userId: 4, platform: "android", token },
+    ] as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue({ id: 99 } as any);
+    const sender = vi.fn(async () => [{ token, success: true }]);
+    pushNotifications.setPushSenderForTests(sender);
+
+    const result = await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.test, {
+      type: "test",
+      dedupeKey: "test:duplicate",
+    });
+
+    expect(result.duplicateSkippedCount).toBe(1);
+    expect(sender).not.toHaveBeenCalled();
+  });
+
+  it("calls branch admin push service when a contract delete request is created", async () => {
+    const activeContract = { id: 10, customerId: 100, agentId: 4, isActive: true, deletedAt: null } as any;
+    const activeCustomer = { id: 100, agentId: 4, isActive: true, deletedAt: null } as any;
+    vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getPendingDeleteRequestForTarget")
+      .mockResolvedValueOnce(undefined)
+      .mockResolvedValueOnce({ id: 77, status: "pending" } as any);
+    vi.spyOn(db, "createDeleteRequest").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const pushSpy = vi.spyOn(pushNotifications, "sendContractDeleteRequestPush").mockResolvedValue({
+      requestedUserIds: [1],
+      tokenCount: 1,
+      sentCount: 1,
+      failureCount: 0,
+      skippedCount: 0,
+      duplicateSkippedCount: 0,
+    });
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).deleteRequests.createContractDeleteRequest({
+      contractId: 10,
+      requestReason: "[TEST] delete request",
+    })).resolves.toEqual({ success: true });
+
+    expect(pushSpy).toHaveBeenCalledWith(77);
+  });
+
+  it("blocks non-admin users from test push APIs", async () => {
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).pushNotifications.sendTestToMe()).rejects.toThrow();
+  });
+});
+
 describe("RBAC - updateRole (branch_admin only)", () => {
   it("blocks member from updating user role", async () => {
     await expect(

@@ -512,3 +512,21 @@ export const userDeviceTokens = mysqlTable("user_device_tokens", {
 }));
 export type UserDeviceToken = typeof userDeviceTokens.$inferSelect;
 export type InsertUserDeviceToken = typeof userDeviceTokens.$inferInsert;
+
+export const pushNotificationLogs = mysqlTable("push_notification_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  type: varchar("type", { length: 80 }).notNull(),
+  userId: int("userId").notNull(),
+  sourceType: varchar("sourceType", { length: 50 }),
+  sourceId: int("sourceId"),
+  dedupeKey: varchar("dedupeKey", { length: 200 }).notNull(),
+  status: mysqlEnum("status", ["sent", "skipped", "failed"]).default("skipped").notNull(),
+  errorCode: varchar("errorCode", { length: 100 }),
+  sentAt: timestamp("sentAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+},
+(table) => ({
+  uniquePushDedupe: unique("uq_push_notification_dedupe").on(table.dedupeKey),
+}));
+export type PushNotificationLog = typeof pushNotificationLogs.$inferSelect;
+export type InsertPushNotificationLog = typeof pushNotificationLogs.$inferInsert;

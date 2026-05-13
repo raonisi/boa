@@ -134,6 +134,13 @@
       "when": 1778756400000,
       "tag": "0018_user_device_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1778842800000,
+      "tag": "0019_push_notification_logs",
+      "breakpoints": true
     }
   ]
 }

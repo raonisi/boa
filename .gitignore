@@ -193,3 +193,22 @@ google-services.json
 local.properties
 android/local.properties
 .env.production
+*firebase-adminsdk*.json
+
+# Firebase Admin service account secrets
+*firebase-adminsdk*.json
+*serviceAccount*.json
+*service-account*.json
+boa-firebase-adminsdk.json
+
+# Firebase Admin service account secrets
+*firebase-adminsdk*.json
+*serviceAccount*.json
+*service-account*.json
+boa-firebase-adminsdk.json
+
+# Firebase Admin service account secrets
+*firebase-adminsdk*.json
+*serviceAccount*.json
+*service-account*.json
+boa-firebase-adminsdk.json

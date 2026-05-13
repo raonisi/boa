@@ -31,6 +31,7 @@ import {
   InsertFollowUp,
   InsertImportBatch,
   InsertNotification,
+  InsertPushNotificationLog,
   InsertSchedule,
   InsertStatusHistory,
   InsertMessageTemplate,
@@ -38,6 +39,7 @@ import {
   messageTemplates,
   notifications,
   performanceGoals,
+  pushNotificationLogs,
   reminders,
   schedules,
   settings,
@@ -1937,6 +1939,61 @@ export async function listUserDeviceTokens(userId: number) {
   return db.select().from(userDeviceTokens)
     .where(eq(userDeviceTokens.userId, userId))
     .orderBy(desc(userDeviceTokens.lastSeenAt));
+}
+
+export async function getActiveDeviceTokensForUsers(userIds: number[]) {
+  const db = await getDb();
+  if (!db || userIds.length === 0) return [];
+  return db.select({
+    id: userDeviceTokens.id,
+    userId: userDeviceTokens.userId,
+    platform: userDeviceTokens.platform,
+    token: userDeviceTokens.token,
+  })
+    .from(userDeviceTokens)
+    .innerJoin(users, eq(userDeviceTokens.userId, users.id))
+    .where(and(
+      inArray(userDeviceTokens.userId, userIds),
+      eq(userDeviceTokens.platform, "android"),
+      eq(userDeviceTokens.isActive, true),
+      isNull(userDeviceTokens.revokedAt),
+      eq(users.accountStatus, "active"),
+    ));
+}
+
+export async function deactivateDeviceTokenByToken(token: string) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.update(userDeviceTokens)
+    .set({ isActive: false, revokedAt: new Date(), updatedAt: new Date() })
+    .where(eq(userDeviceTokens.token, token));
+  return Number((result as any)?.[0]?.affectedRows ?? (result as any)?.affectedRows ?? 0);
+}
+
+export async function getPushNotificationLogByDedupeKey(dedupeKey: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(pushNotificationLogs)
+    .where(eq(pushNotificationLogs.dedupeKey, dedupeKey))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createPushNotificationLog(data: InsertPushNotificationLog) {
+  const db = await getDb();
+  if (!db) return null;
+  try {
+    await db.insert(pushNotificationLogs).values(data);
+  } catch (err: any) {
+    if (err?.code !== "ER_DUP_ENTRY" && err?.errno !== 1062) throw err;
+  }
+  return getPushNotificationLogByDedupeKey(data.dedupeKey);
+}
+
+export async function updatePushNotificationLog(id: number, data: Partial<InsertPushNotificationLog>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(pushNotificationLogs).set(data).where(eq(pushNotificationLogs.id, id));
 }
 
 // ─── Performance Stats ────────────────────────────────────────────────────────
