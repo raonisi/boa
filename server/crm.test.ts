@@ -1317,6 +1317,143 @@ describe("PR11 consultation tools", () => {
   });
 });
 
+describe("PR13 customer handoff notes and consultation scripts", () => {
+  const activeCustomer = {
+    id: 100,
+    name: "[TEST] Customer",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    consultStatus: "미상담",
+    isActive: true,
+    deletedAt: null,
+  } as any;
+
+  it("allows scoped users to create customer handoff notes without logging full body", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "createCustomerHandoffNote").mockResolvedValue({
+      id: 601,
+      customerId: 100,
+      noteType: "approach",
+      title: "Recommended approach",
+      body: "Keep the tone calm and avoid pressure.",
+      isActive: true,
+    } as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerHandoffNotes.create({
+      customerId: 100,
+      noteType: "approach",
+      title: "Recommended approach",
+      body: "Keep the tone calm and avoid pressure.",
+    })).resolves.toMatchObject({ id: 601, customerId: 100 });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CUSTOMER_HANDOFF_NOTE_CREATED",
+      targetType: "customer",
+      targetId: 100,
+      details: expect.not.stringContaining("Keep the tone calm"),
+    }), undefined);
+
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, agentId: 99 });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerHandoffNotes.create({
+      customerId: 100,
+      noteType: "caution",
+      title: "Blocked",
+      body: "Out of scope",
+    })).rejects.toThrow();
+  });
+
+  it("blocks handoff notes for inactive customers and inactive accounts", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, isActive: false, deletedAt: new Date() });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerHandoffNotes.create({
+      customerId: 100,
+      noteType: "handoff",
+      title: "Inactive customer",
+      body: "Do not store.",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createInactiveCtx()).customerHandoffNotes.listByCustomer({ customerId: 100 })).rejects.toThrow();
+  });
+
+  it("keeps consultation script management branch_admin only with compliance guards", async () => {
+    vi.spyOn(db, "createConsultationScript").mockResolvedValue({
+      id: 701,
+      title: "First call",
+      category: "first_call",
+      scriptBody: "Confirm the current needs and keep the explanation balanced.",
+      isActive: true,
+    } as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationScripts.create({
+      title: "First call",
+      category: "first_call",
+      scriptBody: "Confirm the current needs and keep the explanation balanced.",
+    })).resolves.toMatchObject({ id: 701 });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CONSULTATION_SCRIPT_CREATED",
+      details: expect.not.stringContaining("Confirm the current needs"),
+    }), undefined);
+
+    await expect(appRouter.createCaller(createCtx("member")).consultationScripts.create({
+      title: "Blocked",
+      category: "first_call",
+      scriptBody: "Confirm the current needs.",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationScripts.create({
+      title: "Banned",
+      category: "first_call",
+      scriptBody: "지금 가입해야 합니다.",
+    })).rejects.toThrow();
+  });
+
+  it("seeds default consultation scripts without duplicate rows", async () => {
+    vi.spyOn(db, "ensureDefaultConsultationScripts").mockResolvedValue({ createdCount: 10 });
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationScripts.seedDefaults()).resolves.toEqual({ createdCount: 10 });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "CONSULTATION_SCRIPT_DEFAULTS_SEEDED" }), undefined);
+    await expect(appRouter.createCaller(createCtx("member")).consultationScripts.seedDefaults()).rejects.toThrow();
+  });
+
+  it("renders and logs consultation script copy only inside customer access scope", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getConsultationScriptById").mockResolvedValue({
+      id: 701,
+      title: "General check",
+      category: "general_check",
+      scriptBody: "Review the current coverage 기준 calmly.",
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const script = await appRouter.createCaller(createCtx("member", { userId: 4 })).consultationScripts.render({
+      scriptId: 701,
+      customerId: 100,
+    });
+    expect(script.title).toBe("General check");
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultationScripts.logCopy({
+      scriptId: 701,
+      customerId: 100,
+    })).resolves.toEqual({ success: true });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CONSULTATION_SCRIPT_COPIED",
+      targetType: "customer",
+      targetId: 100,
+      details: expect.not.stringContaining("Review the current coverage"),
+    }), undefined);
+
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, agentId: 99 });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultationScripts.logCopy({
+      scriptId: 701,
+      customerId: 100,
+    })).rejects.toThrow();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,
