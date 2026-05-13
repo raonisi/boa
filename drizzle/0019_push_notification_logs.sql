@@ -1,4 +1,4 @@
-﻿CREATE TABLE `push_notification_logs` (
+CREATE TABLE `push_notification_logs` (
 	`id` int AUTO_INCREMENT NOT NULL,
 	`type` varchar(80) NOT NULL,
 	`userId` int NOT NULL,
