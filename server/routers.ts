@@ -406,6 +406,28 @@ function logDetails(data: {
   });
 }
 
+const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
+const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "보장분석", "계약상담", "사후관리", "기타"] as const;
+const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
+const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
+const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+
+function encodeCustomerTags(tags?: string[]) {
+  if (!tags) return undefined;
+  const unique = Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
+  return JSON.stringify(unique);
+}
+
+function decodeCustomerTags(value?: string | null): string[] {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+  } catch {
+    return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+  }
+}
+
 async function verifyAgentTarget(
   actor: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null },
   targetUserId: number
@@ -914,6 +936,9 @@ export const appRouter = router({
         unassigned: z.boolean().optional(),
         region: z.string().optional(),
         source: z.string().optional(),
+        priority: z.enum(CUSTOMER_PRIORITIES).optional(),
+        tag: z.enum(CUSTOMER_TAGS).optional(),
+        nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).optional(),
         agentIdFilter: z.number().optional(),
         assignedDateFrom: z.string().optional(),
         assignedDateTo: z.string().optional(),
@@ -925,6 +950,9 @@ export const appRouter = router({
           unassigned: input.unassigned,
           region: input.region,
           source: input.source,
+          priority: input.priority,
+          tag: input.tag,
+          nextAction: input.nextAction,
           assignedDateFrom: input.assignedDateFrom ? new Date(input.assignedDateFrom) : undefined,
           assignedDateTo: input.assignedDateTo ? new Date(input.assignedDateTo) : undefined,
         };
@@ -963,16 +991,20 @@ export const appRouter = router({
         availableTime: z.string().optional(),
         source: z.string().optional(),
         consultStatus: z.enum(["미상담","부재","통화완료","상담예정","설계중","계약","보류","거절","해지관리","재상담필요"]).optional(),
+        priority: z.enum(CUSTOMER_PRIORITIES).optional(),
+        customerTags: z.array(z.enum(CUSTOMER_TAGS)).max(10).optional(),
+        nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).nullable().optional(),
         privacyConsent: z.boolean().default(false),
         marketingConsent: z.boolean().default(false),
-        memo: z.string().optional(),
+        memo: z.string().max(2000).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (input.phone) {
           const dup = await checkPhoneDuplicate(input.phone);
           if (dup) throw new TRPCError({ code: "CONFLICT", message: `이미 동일한 연락처가 등록되어 있습니다. (${dup.name})` });
         }
-        await createCustomer({ ...input, phone: input.phone ? normalizePhone(input.phone) : undefined, birthDate: input.birthDate ? new Date(input.birthDate) : undefined, createdBy: ctx.user.id });
+        const { customerTags, ...customerInput } = input;
+        await createCustomer({ ...customerInput, customerTags: encodeCustomerTags(customerTags), phone: input.phone ? normalizePhone(input.phone) : undefined, birthDate: input.birthDate ? new Date(input.birthDate) : undefined, createdBy: ctx.user.id });
         await log(ctx.user.id, "CUSTOMER_CREATED", "customer", undefined, `name=${input.name}`);
         return { success: true };
       }),
@@ -991,10 +1023,13 @@ export const appRouter = router({
         privacyConsent: z.boolean().optional(),
         marketingConsent: z.boolean().optional(),
         memo: z.string().optional(),
+        priority: z.enum(CUSTOMER_PRIORITIES).optional(),
+        customerTags: z.array(z.enum(CUSTOMER_TAGS)).max(10).optional(),
+        nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).optional(),
         consultStatus: z.enum(["미상담","부재","통화완료","상담예정","설계중","계약","보류","거절","해지관리","재상담필요"]).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { id, birthDate, consultStatus, privacyConsent, marketingConsent, ...rest } = input;
+        const { id, birthDate, consultStatus, privacyConsent, marketingConsent, customerTags, ...rest } = input;
         const existing = await verifyCustomerAccess(ctx.user, id);
 
         const beforeSnapshot: Record<string, unknown> = {};
@@ -1018,8 +1053,58 @@ export const appRouter = router({
           await createConsentLog({ customerId: id, changedBy: ctx.user.id, consentType: "marketing", previousValue: existing.marketingConsent ?? false, newValue: marketingConsent });
         }
 
-        await updateCustomer(id, { ...rest, consultStatus, privacyConsent, marketingConsent, birthDate: birthDate ? new Date(birthDate) : undefined });
+        const encodedTags = encodeCustomerTags(customerTags);
+        if (encodedTags !== undefined && existing.customerTags !== encodedTags) {
+          beforeSnapshot.customerTags = decodeCustomerTags(existing.customerTags);
+          afterSnapshot.customerTags = customerTags ?? [];
+        }
+        await updateCustomer(id, { ...rest, customerTags: encodedTags, consultStatus, privacyConsent, marketingConsent, birthDate: birthDate ? new Date(birthDate) : undefined });
         await log(ctx.user.id, "CUSTOMER_UPDATED", "customer", id, JSON.stringify({ before: beforeSnapshot, after: afterSnapshot }));
+        return { success: true };
+      }),
+
+    updateManagementMeta: activeUserProcedure
+      .input(z.object({
+        customerId: z.number(),
+        priority: z.enum(CUSTOMER_PRIORITIES).optional(),
+        customerTags: z.array(z.enum(CUSTOMER_TAGS)).max(10).optional(),
+        nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).nullable().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객은 관리 정보를 수정할 수 없습니다." });
+        const updates: Record<string, unknown> = {};
+        if (input.priority !== undefined) updates.priority = input.priority;
+        if (input.nextAction !== undefined) updates.nextAction = input.nextAction;
+        if (input.customerTags !== undefined) updates.customerTags = encodeCustomerTags(input.customerTags);
+        await updateCustomer(input.customerId, updates as any);
+        if (input.priority !== undefined && input.priority !== customer.priority) {
+          await log(ctx.user.id, "CUSTOMER_PRIORITY_UPDATED", "customer", input.customerId, logDetails({
+            actor: ctx.user.id,
+            targetId: input.customerId,
+            targetType: "customer",
+            beforeValue: { priority: customer.priority },
+            afterValue: { priority: input.priority },
+          }));
+        }
+        if (input.customerTags !== undefined) {
+          await log(ctx.user.id, "CUSTOMER_TAGS_UPDATED", "customer", input.customerId, logDetails({
+            actor: ctx.user.id,
+            targetId: input.customerId,
+            targetType: "customer",
+            beforeValue: { tags: decodeCustomerTags(customer.customerTags) },
+            afterValue: { tags: input.customerTags },
+          }));
+        }
+        if (input.nextAction !== undefined && input.nextAction !== customer.nextAction) {
+          await log(ctx.user.id, "CUSTOMER_NEXT_ACTION_UPDATED", "customer", input.customerId, logDetails({
+            actor: ctx.user.id,
+            targetId: input.customerId,
+            targetType: "customer",
+            beforeValue: { nextAction: customer.nextAction ?? null },
+            afterValue: { nextAction: input.nextAction },
+          }));
+        }
         return { success: true };
       }),
 
@@ -1424,19 +1509,55 @@ export const appRouter = router({
       .input(z.object({
         customerId: z.number(),
         status: z.enum(["미상담","부재","통화완료","상담예정","설계중","계약","보류","거절","해지관리","재상담필요"]),
-        content: z.string().optional(),
+        consultationType: z.enum(CONSULTATION_TYPES).optional(),
+        customerNeed: z.enum(CUSTOMER_NEEDS).optional(),
+        nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).optional(),
+        summary: z.string().max(200).optional(),
+        content: z.string().max(2000).optional(),
         nextContactAt: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 상담기록을 등록할 수 없습니다." });
         if (input.status !== customer.consultStatus) {
           await createStatusHistory({ customerId: input.customerId, changedBy: ctx.user.id, previousStatus: customer.consultStatus, newStatus: input.status });
         }
         const nextContactDate = input.nextContactAt ? new Date(input.nextContactAt) : undefined;
-        await createConsultation({ customerId: input.customerId, agentId: ctx.user.id, status: input.status, content: input.content, nextContactAt: nextContactDate });
+        await createConsultation({
+          customerId: input.customerId,
+          agentId: ctx.user.id,
+          status: input.status,
+          consultationType: input.consultationType,
+          customerNeed: input.customerNeed,
+          nextAction: input.nextAction,
+          summary: input.summary,
+          content: input.content,
+          nextContactAt: nextContactDate,
+        });
+        if (input.nextAction && input.nextAction !== customer.nextAction) {
+          await updateCustomer(input.customerId, { nextAction: input.nextAction });
+          await log(ctx.user.id, "CUSTOMER_NEXT_ACTION_UPDATED", "customer", input.customerId, logDetails({
+            actor: ctx.user.id,
+            targetId: input.customerId,
+            targetType: "customer",
+            beforeValue: { nextAction: customer.nextAction ?? null },
+            afterValue: { nextAction: input.nextAction },
+          }));
+        }
         if (nextContactDate) await createReconsultReminder(input.customerId, ctx.user.id, nextContactDate, customer.name);
         if (customer.agentId) await refreshLongUnmanagedReminder(input.customerId, customer.agentId, new Date(), customer.name);
-        await log(ctx.user.id, "CONSULTATION_CREATED", "customer", input.customerId, `status=${input.status}`);
+        await log(ctx.user.id, "CONSULTATION_CREATED", "customer", input.customerId, logDetails({
+          actor: ctx.user.id,
+          targetId: input.customerId,
+          targetType: "customer",
+          afterValue: {
+            status: input.status,
+            consultationType: input.consultationType ?? null,
+            customerNeed: input.customerNeed ?? null,
+            nextAction: input.nextAction ?? null,
+            summary: input.summary ?? null,
+          },
+        }));
         return { success: true };
       }),
 
@@ -1444,7 +1565,11 @@ export const appRouter = router({
       .input(z.object({
         id: z.number(),
         status: z.enum(["미상담","부재","통화완료","상담예정","설계중","계약","보류","거절","해지관리","재상담필요"]).optional(),
-        content: z.string().optional(),
+        consultationType: z.enum(CONSULTATION_TYPES).optional(),
+        customerNeed: z.enum(CUSTOMER_NEEDS).optional(),
+        nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).optional(),
+        summary: z.string().max(200).optional(),
+        content: z.string().max(2000).optional(),
         nextContactAt: z.string().optional().nullable(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -1454,14 +1579,28 @@ export const appRouter = router({
         // 소유권 검증: 상담기록의 고객을 통해 검증
         await verifyCustomerAccess(ctx.user, existing.customerId);
 
-        const beforeSnapshot = { status: existing.status, content: existing.content, nextContactAt: existing.nextContactAt };
+        const beforeSnapshot = {
+          status: existing.status,
+          consultationType: existing.consultationType,
+          customerNeed: existing.customerNeed,
+          nextAction: existing.nextAction,
+          summary: existing.summary,
+          nextContactAt: existing.nextContactAt,
+        };
         const afterSnapshot: Record<string, unknown> = {};
         if (input.status !== undefined) afterSnapshot.status = input.status;
-        if (input.content !== undefined) afterSnapshot.content = input.content;
+        if (input.consultationType !== undefined) afterSnapshot.consultationType = input.consultationType;
+        if (input.customerNeed !== undefined) afterSnapshot.customerNeed = input.customerNeed;
+        if (input.nextAction !== undefined) afterSnapshot.nextAction = input.nextAction;
+        if (input.summary !== undefined) afterSnapshot.summary = input.summary;
         if (input.nextContactAt !== undefined) afterSnapshot.nextContactAt = input.nextContactAt;
 
         await updateConsultation(input.id, {
           status: input.status,
+          consultationType: input.consultationType,
+          customerNeed: input.customerNeed,
+          nextAction: input.nextAction,
+          summary: input.summary,
           content: input.content,
           nextContactAt: input.nextContactAt === null ? null : input.nextContactAt ? new Date(input.nextContactAt) : undefined,
         });
