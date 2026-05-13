@@ -10,8 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -20,6 +20,17 @@ const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "�
 const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
 const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+
+const TIMELINE_FILTERS = [
+  { value: "all", label: "전체", eventTypes: [] },
+  { value: "consult", label: "상담", eventTypes: ["consultations", "consultation_created", "consultation_updated"] },
+  { value: "contract", label: "계약", eventTypes: ["contracts", "contract_history", "contract_created", "contract_updated", "contract_deleted"] },
+  { value: "follow_up", label: "후속관리", eventTypes: ["follow_ups", "follow_up_created", "follow_up_completed", "follow_up_cancelled"] },
+  { value: "notification", label: "알림", eventTypes: ["notifications", "notification_created", "notification_status_changed"] },
+  { value: "assignment", label: "배정", eventTypes: ["assignment_history", "assignment_changed"] },
+  { value: "delete", label: "삭제/복구", eventTypes: ["delete_requests", "delete_request_created", "delete_request_approved", "delete_request_rejected", "contract_deleted"] },
+  { value: "audit", label: "운영로그", eventTypes: ["activity_logs"] },
+] as const;
 
 function parseCustomerTags(value?: string | null): string[] {
   if (!value) return [];
@@ -49,6 +60,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [requestMemo, setRequestMemo] = useState("");
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(null);
+  const [timelineFilter, setTimelineFilter] = useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
+  const [timelineRange, setTimelineRange] = useState<"all" | "30" | "90">("all");
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -59,6 +72,17 @@ export default function CustomerDetail({ id }: { id: number }) {
   const { data: assignmentHistoryData } = trpc.customers.assignmentHistory.useQuery({ customerId: id });
   const { data: followUps, refetch: refetchFollowUps } = trpc.followUps.listByCustomer.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
+  const timelineInput = useMemo(() => {
+    const selected = TIMELINE_FILTERS.find((filter) => filter.value === timelineFilter);
+    const since = timelineRange === "all" ? undefined : new Date(Date.now() - Number(timelineRange) * 24 * 60 * 60 * 1000).toISOString();
+    return {
+      customerId: id,
+      eventTypes: selected?.eventTypes.length ? [...selected.eventTypes] : undefined,
+      dateFrom: since,
+      limit: 80,
+    };
+  }, [id, timelineFilter, timelineRange]);
+  const { data: timelineData } = trpc.customers.timeline.useQuery(timelineInput);
 
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => { toast.success("고객 정보가 수정되었습니다."); setShowEditModal(false); refetchCustomer(); },
@@ -320,6 +344,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <TabsTrigger value="info">기본정보</TabsTrigger>
             <TabsTrigger value="consult">상담기록 ({consultations?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="contract">계약정보 ({contracts?.length ?? 0})</TabsTrigger>
+            <TabsTrigger value="timeline">히스토리 ({timelineData?.totalCount ?? 0})</TabsTrigger>
             <TabsTrigger value="history">상태이력 ({statusHistoryData?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="consent">동의이력</TabsTrigger>
             <TabsTrigger value="assign_history">배정이력 ({assignmentHistoryData?.length ?? 0})</TabsTrigger>
@@ -466,6 +491,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 ))
               )}
             </div>
+          </TabsContent>
+
+          <TabsContent value="timeline">
+            <CustomerTimelinePanel
+              timeline={timelineData}
+              filter={timelineFilter}
+              range={timelineRange}
+              onFilterChange={setTimelineFilter}
+              onRangeChange={setTimelineRange}
+            />
           </TabsContent>
 
           {/* 상태 변경 이력 */}
@@ -671,6 +706,124 @@ export default function CustomerDetail({ id }: { id: number }) {
 }
 
 // ─── 고객 정보 수정 모달 ──────────────────────────────────────────────────────
+function CustomerTimelinePanel({
+  timeline,
+  filter,
+  range,
+  onFilterChange,
+  onRangeChange,
+}: {
+  timeline?: { items: any[]; totalCount: number };
+  filter: (typeof TIMELINE_FILTERS)[number]["value"];
+  range: "all" | "30" | "90";
+  onFilterChange: (value: (typeof TIMELINE_FILTERS)[number]["value"]) => void;
+  onRangeChange: (value: "all" | "30" | "90") => void;
+}) {
+  const items = timeline?.items ?? [];
+  const latestConsult = items.find((item) => item.source === "consultations");
+  const latestContract = items.find((item) => item.source === "contracts" || item.source === "contract_history");
+  const latestFollowUp = items.find((item) => item.source === "follow_ups");
+  const latestAssignment = items.find((item) => item.source === "assignment_history");
+  const severityClass: Record<string, string> = {
+    normal: "bg-gray-100 text-gray-700 border-gray-200",
+    info: "bg-blue-50 text-blue-700 border-blue-200",
+    success: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    warning: "bg-amber-50 text-amber-700 border-amber-200",
+    danger: "bg-red-50 text-red-700 border-red-200",
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                <h2 className="font-semibold">고객 히스토리</h2>
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                고객과 관련된 상담, 계약, 후속관리, 알림, 배정, 삭제 요청 이력을 시간순으로 확인합니다.
+              </p>
+            </div>
+            <div className="text-sm text-muted-foreground">총 {timeline?.totalCount ?? 0}건</div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+            {[
+              { label: "최근 상담", value: latestConsult ? new Date(latestConsult.occurredAt).toLocaleDateString("ko-KR") : "-" },
+              { label: "최근 계약", value: latestContract ? new Date(latestContract.occurredAt).toLocaleDateString("ko-KR") : "-" },
+              { label: "최근 후속관리", value: latestFollowUp ? new Date(latestFollowUp.occurredAt).toLocaleDateString("ko-KR") : "-" },
+              { label: "최근 담당 변경", value: latestAssignment ? new Date(latestAssignment.occurredAt).toLocaleDateString("ko-KR") : "-" },
+            ].map((item) => (
+              <div key={item.label} className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">{item.label}</p>
+                <p className="font-medium mt-1">{item.value}</p>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {TIMELINE_FILTERS.map((item) => (
+              <Button
+                key={item.value}
+                variant={filter === item.value ? "default" : "outline"}
+                size="sm"
+                className="h-8 text-xs"
+                onClick={() => onFilterChange(item.value)}
+              >
+                {item.label}
+              </Button>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">기간</Label>
+            <Select value={range} onValueChange={(value) => onRangeChange(value as "all" | "30" | "90")}>
+              <SelectTrigger className="w-36 h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체</SelectItem>
+                <SelectItem value="30">최근 30일</SelectItem>
+                <SelectItem value="90">최근 90일</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {items.length === 0 ? (
+        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">아직 표시할 히스토리가 없습니다.</CardContent></Card>
+      ) : (
+        <div className="space-y-3">
+          {items.map((event) => (
+            <Card key={event.id}>
+              <CardContent className="p-4">
+                <div className="flex gap-3">
+                  <div className="mt-1 h-9 w-9 rounded-full border flex items-center justify-center shrink-0 bg-background">
+                    <History className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[11px] px-2 py-0.5 rounded-full border ${severityClass[event.severity] ?? severityClass.normal}`}>
+                        {event.eventLabel}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{new Date(event.occurredAt).toLocaleString("ko-KR")}</span>
+                    </div>
+                    <p className="text-sm font-medium mt-2 line-clamp-2">{event.summary}</p>
+                    {event.detail && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{event.detail}</p>}
+                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                      <span>{event.actorName ? `처리자: ${event.actorName}` : "처리자: -"}</span>
+                      {event.actorRole && <span>역할: {event.actorRole}</span>}
+                      <span>출처: {event.source}</span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, loading }: {
   followUps: any[];
   onCreate: () => void;

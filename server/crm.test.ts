@@ -780,6 +780,72 @@ describe("PR9 full role permission QA", () => {
   });
 });
 
+describe("Customer History Timeline", () => {
+  const scopedCustomer = {
+    id: 100,
+    name: "[TEST] Customer",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    isActive: true,
+    deletedAt: null,
+  } as any;
+  const timelineResult = {
+    totalCount: 3,
+    items: [
+      {
+        id: "consultation:1",
+        eventType: "consultation_created",
+        eventLabel: "상담기록이 추가되었습니다.",
+        occurredAt: new Date("2026-05-13T09:00:00.000Z"),
+        actorName: "[TEST] member",
+        actorRole: "member",
+        source: "consultations",
+        summary: "[TEST] 상담 요약",
+        detail: "[TEST] 필요한 최소 요약",
+        metadata: { consultationType: "전화" },
+        severity: "info",
+        relatedId: 1,
+        relatedType: "consultation",
+      },
+    ],
+  };
+
+  it("allows each active role to read only an accessible customer timeline", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(scopedCustomer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, teamId: 10, role: "member", accountStatus: "active" } as any);
+    const timelineSpy = vi.spyOn(db, "getCustomerTimeline").mockResolvedValue(timelineResult);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customers.timeline({ customerId: 100, limit: 50 })).resolves.toEqual(timelineResult);
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.timeline({ customerId: 100, eventTypes: ["consultations"] })).resolves.toEqual(timelineResult);
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customers.timeline({ customerId: 100, dateFrom: "2026-05-01T00:00:00.000Z" })).resolves.toEqual(timelineResult);
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.timeline({ customerId: 100 })).resolves.toEqual(timelineResult);
+    expect(timelineSpy).toHaveBeenCalledWith(100, expect.objectContaining({ limit: 50 }));
+    expect(JSON.stringify(timelineResult)).not.toContain("010-");
+    expect(JSON.stringify(timelineResult)).not.toContain("secret");
+  });
+
+  it("blocks timeline access outside role scope and for inactive users", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...scopedCustomer, agentId: 99, assignedTeamId: 99, subBranchAdminId: 99 });
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 99, teamId: 99, role: "member", accountStatus: "active" } as any);
+    const timelineSpy = vi.spyOn(db, "getCustomerTimeline").mockResolvedValue(timelineResult);
+
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.timeline({ customerId: 100 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customers.timeline({ customerId: 100 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.timeline({ customerId: 100 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createInactiveCtx()).customers.timeline({ customerId: 100 })).rejects.toThrow();
+    expect(timelineSpy).not.toHaveBeenCalled();
+  });
+
+  it("validates timeline date filters before querying events", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(scopedCustomer);
+    const timelineSpy = vi.spyOn(db, "getCustomerTimeline").mockResolvedValue(timelineResult);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customers.timeline({ customerId: 100, dateFrom: "not-a-date" })).rejects.toThrow();
+    expect(timelineSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("consultation UX metadata and customer management meta", () => {
   const activeCustomer = {
     id: 100,
