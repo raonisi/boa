@@ -33,6 +33,13 @@ function priorityLabel(priority?: string | null) {
   return priority && priority !== "unclassified" ? priority : "미분류";
 }
 
+function maskPhone(phone?: string | null) {
+  if (!phone) return "-";
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7) return "연락처 등록";
+  return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
+}
+
 export default function CustomerList() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
@@ -110,7 +117,7 @@ export default function CustomerList() {
   return (
     <DashboardLayout>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold">고객 DB 관리</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
@@ -120,7 +127,7 @@ export default function CustomerList() {
               {" · "}열 {filtered.length}명
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {user?.role === "branch_admin" && (
               <>
                 <Button variant="outline" size="sm" onClick={() => setLocation("/customers/assign")}>
@@ -230,9 +237,9 @@ export default function CustomerList() {
                         </div>
                         <div className="flex items-center gap-3 mt-1">
                           {c.phone && (
-                            <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-1 text-primary text-xs font-medium">
-                              <Phone className="h-3 w-3" /> {c.phone}
-                            </a>
+                            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                              <Phone className="h-3 w-3" /> {maskPhone(c.phone)}
+                            </span>
                           )}
                           {c.region && <span className="text-xs text-muted-foreground">{c.region}</span>}
                         </div>
@@ -249,6 +256,20 @@ export default function CustomerList() {
                           {s}
                         </button>
                       ))}
+                      <button
+                        type="button"
+                        onClick={() => setLocation(`/customers/${c.id}`)}
+                        className="min-h-8 rounded-full border px-3 text-[11px] font-medium hover:bg-muted"
+                      >
+                        상담기록
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLocation(`/customers/${c.id}`)}
+                        className="min-h-8 rounded-full border px-3 text-[11px] font-medium hover:bg-muted"
+                      >
+                        다음 연락일
+                      </button>
                     </div>
                   </CardContent>
                 </Card>
@@ -378,10 +399,10 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading }: {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>고객 등록</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div><Label className="text-xs">이름 *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="h-8 mt-1" required /></div>
             <div><Label className="text-xs">연락처</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="h-8 mt-1" placeholder="010-0000-0000" /></div>
             <div><Label className="text-xs">생년월일</Label><Input type="date" value={form.birthDate} onChange={(e) => setForm({ ...form, birthDate: e.target.value })} className="h-8 mt-1" /></div>

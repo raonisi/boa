@@ -649,7 +649,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
       {showChangeAgentModal && (
         <Dialog open={true} onOpenChange={() => setShowChangeAgentModal(false)}>
-          <DialogContent className="max-w-sm">
+          <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto">
             <DialogHeader><DialogTitle>담당자 변경 - {customer.name}</DialogTitle></DialogHeader>
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">현재 담당자: <strong>{agentName}</strong></p>
@@ -794,7 +794,7 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>고객 정보 수정</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -871,7 +871,7 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
   });
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>상담기록 추가</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
@@ -942,7 +942,7 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
   });
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>상담기록 수정</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div>
@@ -1022,7 +1022,7 @@ function ContractModal({ open, onClose, onSubmit, loading, contract, customerAge
   const requiresAgentSelection = !contract && !customerAgentId && currentUserRole !== "member";
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto">
         <DialogHeader><DialogTitle>{contract ? "계약 수정" : "계약 등록"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">

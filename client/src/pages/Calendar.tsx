@@ -326,7 +326,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
         <DialogHeader><DialogTitle>일정 추가</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div><Label className="text-xs">제목 *</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" /></div>
@@ -392,7 +392,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto">
         <DialogHeader><DialogTitle>{schedule.title}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="flex items-center gap-2">
