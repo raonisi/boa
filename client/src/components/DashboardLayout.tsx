@@ -1,4 +1,5 @@
 ﻿import { useAuth } from "@/_core/hooks/useAuth";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,15 +34,17 @@ import {
   BookOpen,
   Building2,
   CalendarDays,
+  ClipboardCheck,
   FileText,
   GitMerge,
   Home,
   LogOut,
+  Moon,
   Network,
   RotateCcw,
   Settings,
   ShieldCheck,
-  ClipboardCheck,
+  Sun,
   Target,
   Upload,
   Users,
@@ -51,6 +54,7 @@ import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "./ui/button";
 
 type NavItem = {
@@ -194,6 +198,7 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const { theme, toggleTheme } = useTheme();
 
   const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(undefined, {
     refetchInterval: 30000,
@@ -314,18 +319,37 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-slate-200/80 bg-white/90 px-4 shadow-sm backdrop-blur">
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <SidebarTrigger className="h-8 w-8" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-slate-950">{getPageTitle(location)}</p>
+            <p className="truncate text-sm font-bold text-foreground">{getPageTitle(location)}</p>
             <p className="hidden text-xs text-muted-foreground sm:block">
               {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}
             </p>
           </div>
           <div className="flex-1" />
+          {toggleTheme ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10 shrink-0 rounded-xl border-border bg-card shadow-sm"
+                  onClick={toggleTheme}
+                  aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+                >
+                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" align="end">
+                {theme === "dark" ? "라이트 모드" : "다크 모드"}
+              </TooltipContent>
+            </Tooltip>
+          ) : null}
           <button
             onClick={() => setLocation("/notifications")}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 shadow-sm transition-colors hover:bg-accent"
+            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
           >
             <Bell className="h-4 w-4" />
             {unreadCount && unreadCount > 0 ? (

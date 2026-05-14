@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
+import { randomUUID } from "node:crypto";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
@@ -8,6 +9,10 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
+
+/** tRPC JSON batches (e.g. customers.bulkImport up to 5000 rows) need a higher cap than default API traffic. */
+const TRPC_JSON_LIMIT = "24mb";
+const DEFAULT_JSON_LIMIT = "1mb";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -31,19 +36,31 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
-  registerStorageProxy(app);
-  registerOAuthRoutes(app);
-  // tRPC API
+
+  app.use((req, res, next) => {
+    const incoming = req.headers["x-request-id"];
+    const id =
+      typeof incoming === "string"
+        ? incoming.split(",")[0]?.trim() || randomUUID()
+        : Array.isArray(incoming)
+          ? incoming[0]?.split(",")[0]?.trim() || randomUUID()
+          : randomUUID();
+    res.setHeader("X-Request-Id", id);
+    next();
+  });
+
   app.use(
     "/api/trpc",
+    express.json({ limit: TRPC_JSON_LIMIT }),
     createExpressMiddleware({
       router: appRouter,
       createContext,
     })
   );
+  app.use(express.json({ limit: DEFAULT_JSON_LIMIT }));
+  app.use(express.urlencoded({ limit: DEFAULT_JSON_LIMIT, extended: true }));
+  registerStorageProxy(app);
+  registerOAuthRoutes(app);
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
     await setupVite(app, server);

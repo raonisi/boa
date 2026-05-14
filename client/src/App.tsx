@@ -74,7 +74,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return null;
   }
 
-  if ((user as any).accountStatus !== "active") {
+  if (user.accountStatus !== "active") {
     return <Blocked />;
   }
 
@@ -260,7 +260,7 @@ function Router() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
           <Toaster />
           <Router />
