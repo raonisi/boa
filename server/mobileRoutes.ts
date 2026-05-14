@@ -217,4 +217,86 @@ export function registerMobileRoutes(app: Express) {
       res.status(400).json({ error: msg });
     }
   });
+
+  app.get("/api/mobile/contracts", async (req: Request, res: Response) => {
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch (e) {
+      if (e instanceof HttpError && e.statusCode === 403) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      throw e;
+    }
+    const ctx: TrpcContext = { req, res, user };
+    const caller = appRouter.createCaller(ctx);
+    const scopeParsed = z.enum(["all", "mine"]).optional().safeParse(req.query.scope);
+    const listInput =
+      scopeParsed.success && scopeParsed.data !== undefined ? { scope: scopeParsed.data } : {};
+    try {
+      const items = await caller.contracts.list(listInput);
+      res.json({ items });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to list contracts";
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  app.get("/api/mobile/notifications", async (req: Request, res: Response) => {
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch (e) {
+      if (e instanceof HttpError && e.statusCode === 403) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      throw e;
+    }
+    const ctx: TrpcContext = { req, res, user };
+    const caller = appRouter.createCaller(ctx);
+    const limitParsed = z.coerce.number().int().min(1).max(200).safeParse(req.query.limit);
+    const offsetParsed = z.coerce.number().int().min(0).safeParse(req.query.offset);
+    const listInput = {
+      limit: limitParsed.success ? limitParsed.data : 50,
+      offset: offsetParsed.success ? offsetParsed.data : 0,
+      isRead:
+        req.query.isRead === "true" ? true : req.query.isRead === "false" ? false : undefined,
+    };
+    try {
+      const items = await caller.notifications.list(listInput);
+      res.json({ items });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to list notifications";
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  app.post("/api/mobile/notifications/:notificationId/read", async (req: Request, res: Response) => {
+    const parsedId = z.coerce.number().int().positive().safeParse(req.params.notificationId);
+    if (!parsedId.success) {
+      res.status(400).json({ error: "Invalid notification id" });
+      return;
+    }
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch (e) {
+      if (e instanceof HttpError && e.statusCode === 403) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      throw e;
+    }
+    const ctx: TrpcContext = { req, res, user };
+    const caller = appRouter.createCaller(ctx);
+    try {
+      await caller.notifications.markRead({ id: parsedId.data });
+      res.json({ success: true });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to mark read";
+      res.status(400).json({ error: msg });
+    }
+  });
 }
