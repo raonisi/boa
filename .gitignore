@@ -1,3 +1,9 @@
+# Flutter app (apps/boa)
+apps/boa/.dart_tool/
+apps/boa/build/
+apps/boa/.flutter-plugins
+apps/boa/.flutter-plugins-dependencies
+
 # Dependencies
 **/node_modules
 .pnpm-store/
