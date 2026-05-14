@@ -29,7 +29,7 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
-    final role = session?.role;
+    final role = session?.user.role;
 
     return Scaffold(
       key: _scaffoldKey,

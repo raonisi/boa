@@ -12,6 +12,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
+import {
+  expectedPremiumManwonFormStringFromStoredWon,
+  expectedPremiumStoredWonFromManwonInput,
+  formatExpectedPremiumManwon,
+} from "@shared/expectedPremium";
 import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History, Copy } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
@@ -472,7 +477,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                     { label: "생년월일", value: customer.birthDate ? new Date(customer.birthDate).toLocaleDateString("ko-KR") : "-" },
                     { label: "성별", value: genderLabel },
                     { label: "지역", value: customer.region ?? "-" },
-                    { label: "예상보험료", value: customer.expectedPremium ? `${customer.expectedPremium.toLocaleString()}원` : "-" },
+                    { label: "예상보험료", value: customer.expectedPremium != null ? formatExpectedPremiumManwon(customer.expectedPremium) : "-" },
                     { label: "통화가능시간", value: customer.availableTime ?? "-" },
                     { label: "유입경로", value: customer.source ?? "-" },
                     { label: "배정일", value: customer.assignedAt ? new Date(customer.assignedAt).toLocaleDateString("ko-KR") : "-" },
@@ -1286,7 +1291,10 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
     birthDate: customer.birthDate ? new Date(customer.birthDate).toISOString().split("T")[0] : "",
     gender: customer.gender ?? "none",
     region: customer.region ?? "",
-    expectedPremium: customer.expectedPremium ? String(customer.expectedPremium) : "",
+    expectedPremium:
+      customer.expectedPremium != null
+        ? expectedPremiumManwonFormStringFromStoredWon(customer.expectedPremium)
+        : "",
     availableTime: customer.availableTime ?? "",
     source: customer.source ?? "",
     memo: customer.memo ?? "",
@@ -1316,7 +1324,18 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
               </Select>
             </div>
             <div><Label className="text-xs">지역</Label><Input list="edit-customer-region-options" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
-            <div><Label className="text-xs">예상보험료 (원)</Label><Input type="number" value={form.expectedPremium} onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })} className="h-8 mt-1" /></div>
+            <div>
+              <Label className="text-xs">예상보험료 (만원)</Label>
+              <Input
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={form.expectedPremium}
+                onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })}
+                className="h-8 mt-1"
+                placeholder="예: 50"
+              />
+            </div>
             <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">유입경로</Label><Input list="edit-customer-source-options" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" /></div>
           </div>
@@ -1340,7 +1359,9 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
               birthDate: form.birthDate || undefined,
               gender: form.gender === "none" ? undefined : form.gender as any,
               region: form.region || undefined,
-              expectedPremium: form.expectedPremium ? Number(form.expectedPremium) : undefined,
+              expectedPremium: form.expectedPremium
+                ? expectedPremiumStoredWonFromManwonInput(form.expectedPremium)
+                : undefined,
               availableTime: form.availableTime || undefined,
               source: form.source || undefined,
               memo: form.memo || undefined,

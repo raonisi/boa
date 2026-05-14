@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { createHash } from "node:crypto";
 import { COOKIE_NAME } from "@shared/const";
+import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
   activeUserProcedure,
@@ -12,6 +12,7 @@ import {
 } from "./_core/procedures";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { hashDeviceToken, maskDeviceToken } from "./deviceTokenUtil";
 import {
   assignCustomer,
   assignCustomerToSubBranch,
@@ -364,15 +365,6 @@ function maskPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   if (digits.length < 7) return "[masked-phone]";
   return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
-}
-
-function hashDeviceToken(token: string) {
-  return createHash("sha256").update(token).digest("hex");
-}
-
-function maskDeviceToken(token: string) {
-  if (token.length <= 12) return "[masked-token]";
-  return `${token.slice(0, 6)}...${token.slice(-6)}`;
 }
 
 function sanitizeLogValue(value: unknown): unknown {
@@ -2955,7 +2947,7 @@ export const appRouter = router({
         "연락처",
         "성별",
         "지역",
-        "예상보험료",
+        "예상보험료(만원)",
         "통화가능시간",
         "유입경로",
         "상담상태",
@@ -3090,7 +3082,9 @@ export const appRouter = router({
             birthDate: row.birthDate ? new Date(row.birthDate) : undefined,
             gender: (row.gender === "남" || row.gender === "male" ? "male" : row.gender === "여" || row.gender === "female" ? "female" : row.gender === "기타" || row.gender === "other" ? "other" : undefined) as any,
             region: row.region,
-            expectedPremium: row.expectedPremium ? parseInt(row.expectedPremium, 10) : undefined,
+            expectedPremium: row.expectedPremium
+              ? expectedPremiumStoredWonFromManwonInput(String(row.expectedPremium))
+              : undefined,
             availableTime: row.availableTime,
             source: row.source,
             consultStatus: row.consultStatus || "미상담",

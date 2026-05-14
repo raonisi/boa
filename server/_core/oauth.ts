@@ -1,9 +1,11 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import type { User } from "../../drizzle/schema";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
-import { sdk, type GoogleUserInfo } from "./sdk";
+import { GoogleLoginError, completeGoogleLoginWithUserInfo } from "./googleLoginFlow";
+import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -112,10 +114,6 @@ async function logOAuthEvent({
   });
 }
 
-function getGoogleOpenId(userInfo: GoogleUserInfo) {
-  return userInfo.sub;
-}
-
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
@@ -141,135 +139,27 @@ export function registerOAuthRoutes(app: Express) {
     try {
       const tokenResponse = await sdk.exchangeGoogleCodeForToken(code, expectedRedirectUri);
       const userInfo = await sdk.getGoogleUserInfo(tokenResponse.access_token);
-      const googleOpenId = getGoogleOpenId(userInfo);
 
-      if (!googleOpenId) {
-        res.status(400).json({ error: "Google user id missing from user info" });
-        return;
-      }
-
-      if (!userInfo.email) {
-        await logOAuthEvent({
-          action: "LOGIN_BLOCKED",
-          metadata: { reason: "missing_email" },
-          req,
-        });
-        res.status(403).json({ error: "사전 등록된 이메일 계정만 로그인할 수 있습니다." });
-        return;
-      }
-
-      const normalizedEmail = normalizeEmail(userInfo.email);
-
-      if (userInfo.email_verified !== true) {
-        await logOAuthEvent({
-          action: "LOGIN_BLOCKED",
-          metadata: { email: normalizedEmail, reason: "google_email_not_verified" },
-          req,
-        });
-        res.status(403).json({ error: "Google 이메일 인증이 완료된 계정만 로그인할 수 있습니다." });
-        return;
-      }
-
-      const matchingUsers = await db.getAllUsersByEmail(normalizedEmail);
-
-      if (matchingUsers.length !== 1) {
-        if (matchingUsers.length > 1) {
+      let sessionToken: string;
+      let loggedInUser: User;
+      try {
+        const result = await completeGoogleLoginWithUserInfo(userInfo, req);
+        sessionToken = result.sessionToken;
+        loggedInUser = result.user;
+      } catch (e) {
+        if (e instanceof GoogleLoginError) {
           await logOAuthEvent({
-            action: "USER_OAUTH_LINK_CONFLICT",
-            metadata: { email: normalizedEmail, conflictCount: matchingUsers.length, reason: "duplicate_email_records" },
+            action: "LOGIN_BLOCKED",
+            metadata: { reason: "google_login_flow", message: e.message },
             req,
           });
-        }
-        await logOAuthEvent({
-          action: "LOGIN_BLOCKED",
-          metadata: { email: normalizedEmail, reason: matchingUsers.length === 0 ? "not_pre_registered" : "duplicate_email_records" },
-          req,
-        });
-        res.status(403).json({ error: "사전 등록된 활성 사용자만 로그인할 수 있습니다." });
-        return;
-      }
-
-      const preRegisteredUser = matchingUsers[0];
-      if (preRegisteredUser.accountStatus !== "active") {
-        await logOAuthEvent({
-          action: "LOGIN_BLOCKED",
-          targetId: preRegisteredUser.id,
-          actor: preRegisteredUser.id,
-          metadata: { email: normalizedEmail, reason: "account_inactive", accountStatus: preRegisteredUser.accountStatus },
-          req,
-        });
-        res.status(403).json({ error: "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요." });
-        return;
-      }
-
-      const isInvited =
-        preRegisteredUser.loginStatus === "invited" &&
-        (!preRegisteredUser.openId || preRegisteredUser.openId.startsWith("invited_"));
-      const isAlreadyLinkedToThisOpenId = preRegisteredUser.openId === googleOpenId;
-
-      if (!isInvited && !isAlreadyLinkedToThisOpenId) {
-        await logOAuthEvent({
-          action: "USER_OAUTH_LINK_CONFLICT",
-          targetId: preRegisteredUser.id,
-          actor: preRegisteredUser.id,
-          metadata: { email: normalizedEmail, reason: "open_id_already_linked" },
-          req,
-        });
-        res.status(403).json({ error: "이미 다른 Google 계정과 연결된 사용자입니다." });
-        return;
-      }
-
-      if (isInvited) {
-        const alreadyLinked = await db.getUserByOpenId(googleOpenId);
-        if (alreadyLinked && alreadyLinked.id !== preRegisteredUser.id) {
-          await logOAuthEvent({
-            action: "USER_OAUTH_LINK_CONFLICT",
-            targetId: preRegisteredUser.id,
-            actor: preRegisteredUser.id,
-            metadata: { email: normalizedEmail, reason: "open_id_used_by_another_user" },
-            req,
-          });
-          res.status(403).json({ error: "이미 다른 사용자와 연결된 Google 계정입니다." });
+          res.status(e.statusCode).json({ error: e.message });
           return;
         }
-
-        await db.linkUserOpenId(preRegisteredUser.id, googleOpenId);
-        await logOAuthEvent({
-          action: "USER_OAUTH_LINKED",
-          targetId: preRegisteredUser.id,
-          actor: preRegisteredUser.id,
-          beforeValue: { loginStatus: preRegisteredUser.loginStatus },
-          afterValue: { loginStatus: "linked" },
-          metadata: { email: normalizedEmail, provider: "google" },
-          req,
-        });
+        throw e;
       }
 
-      await db.upsertUser({
-        openId: googleOpenId,
-        name: userInfo.name || preRegisteredUser.name || null,
-        email: normalizedEmail,
-        loginMethod: "google",
-        lastSignedIn: new Date(),
-      });
-
-      const loggedInUser = await db.getUserByOpenId(googleOpenId);
-
-      if (!loggedInUser || loggedInUser.accountStatus !== "active") {
-        await logOAuthEvent({
-          action: "LOGIN_BLOCKED",
-          targetId: loggedInUser?.id ?? preRegisteredUser.id,
-          actor: loggedInUser?.id ?? preRegisteredUser.id,
-          metadata: {
-            email: normalizedEmail,
-            reason: "account_inactive",
-            loginMethod: "google",
-          },
-          req,
-        });
-        res.status(403).json({ error: "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요." });
-        return;
-      }
+      const normalizedEmail = normalizeEmail(userInfo.email!);
 
       await logOAuthEvent({
         action: "USER_LOGIN",
@@ -280,11 +170,6 @@ export function registerOAuthRoutes(app: Express) {
           loginMethod: "google",
         },
         req,
-      });
-
-      const sessionToken = await sdk.createSessionToken(googleOpenId, {
-        name: userInfo.name || loggedInUser.name || "",
-        expiresInMs: ONE_YEAR_MS,
       });
 
       const cookieOptions = getSessionCookieOptions(req);

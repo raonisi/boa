@@ -2729,7 +2729,7 @@ export function normalizeBulkImportRow(row: Record<string, unknown>): BulkImport
     birthDate: pickString(row, "birthDate", "생년월일"),
     gender: pickString(row, "gender", "성별"),
     region: pickString(row, "region", "지역"),
-    expectedPremium: pickString(row, "expectedPremium", "예상보험료"),
+    expectedPremium: pickString(row, "expectedPremium", "예상보험료(만원)", "예상보험료"),
     availableTime: pickString(row, "availableTime", "통화가능시간"),
     source: pickString(row, "source", "유입경로"),
     consultStatus: pickString(row, "consultStatus", "상담상태"),
@@ -2887,10 +2887,11 @@ export async function validateBulkImportRow(
     }
   }
 
-  // 예상보험료 숫자 검증
+  // 예상보험료 숫자 검증 (만원 단위, 콤마 허용)
   if (row.expectedPremium && row.expectedPremium.trim() !== "") {
-    if (isNaN(Number(row.expectedPremium))) {
-      errors.push("예상보험료는 숫자여야 합니다.");
+    const raw = row.expectedPremium.trim().replace(/,/g, "");
+    if (raw === "" || !Number.isFinite(Number(raw))) {
+      errors.push("예상보험료는 만원 단위 숫자로 입력해 주세요.");
     }
   }
 

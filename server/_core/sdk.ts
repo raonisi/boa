@@ -313,10 +313,22 @@ class SDKServer {
     } as GetUserInfoWithJwtResponse;
   }
 
+  private getSessionTokenFromRequest(req: Request): string | undefined {
+    const cookies = this.parseCookies(req.headers.cookie);
+    const fromCookie = cookies.get(COOKIE_NAME);
+    if (fromCookie) {
+      return fromCookie;
+    }
+    const auth = req.headers.authorization;
+    if (typeof auth === "string" && auth.toLowerCase().startsWith("bearer ")) {
+      return auth.slice(7).trim();
+    }
+    return undefined;
+  }
+
   async authenticateRequest(req: Request): Promise<AuthenticatedUser> {
     // Regular authentication flow
-    const cookies = this.parseCookies(req.headers.cookie);
-    const sessionCookie = cookies.get(COOKIE_NAME);
+    const sessionCookie = this.getSessionTokenFromRequest(req);
     const session = await this.verifySession(sessionCookie);
 
     if (!session) {

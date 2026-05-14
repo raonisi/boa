@@ -16,6 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
+import {
+  expectedPremiumStoredWonFromManwonInput,
+  formatExpectedPremiumManwon,
+} from "@shared/expectedPremium";
 import { useIsMobile } from "@/hooks/useMobile";
 import { Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye } from "lucide-react";
 import { useState } from "react";
@@ -400,7 +404,7 @@ export default function CustomerList() {
                       <TableHead>성향/다음 액션</TableHead>
                       <TableHead>담당자</TableHead>
                       <TableHead>배정일</TableHead>
-                      <TableHead>예상보험료</TableHead>
+                      <TableHead>예상보험료(만원)</TableHead>
                       <TableHead className="w-20"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -467,7 +471,7 @@ export default function CustomerList() {
                             )}
                           </TableCell>
                           <TableCell className="text-right tabular-nums font-semibold text-foreground">
-                            {c.expectedPremium ? `${c.expectedPremium.toLocaleString()}원` : "-"}
+                            {c.expectedPremium != null ? formatExpectedPremiumManwon(c.expectedPremium) : "-"}
                           </TableCell>
                           <TableCell className="w-[148px] text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex items-center justify-end gap-0.5 md:pointer-events-none md:opacity-0 md:transition-opacity md:duration-200 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100">
@@ -564,7 +568,9 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading, currentUser, ag
       name: form.name, phone: form.phone || undefined,
       birthDate: form.birthDate || undefined, gender: (form.gender as any) || undefined,
       region: form.region || undefined,
-      expectedPremium: form.expectedPremium ? Number(form.expectedPremium) : undefined,
+      expectedPremium: form.expectedPremium
+        ? expectedPremiumStoredWonFromManwonInput(form.expectedPremium)
+        : undefined,
       availableTime: form.availableTime || undefined, source: form.source || undefined,
       consultStatus: form.consultStatus || undefined,
       privacyConsent: form.privacyConsent, marketingConsent: form.marketingConsent,
@@ -595,7 +601,18 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading, currentUser, ag
               </Select>
             </div>
             <div><Label className="text-xs">지역</Label><Input list="customer-region-options" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })} className="h-8 mt-1" /></div>
-            <div><Label className="text-xs">예상보험료 (원)</Label><Input type="number" value={form.expectedPremium} onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })} className="h-8 mt-1" /></div>
+            <div>
+              <Label className="text-xs">예상보험료 (만원)</Label>
+              <Input
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={form.expectedPremium}
+                onChange={(e) => setForm({ ...form, expectedPremium: e.target.value })}
+                className="h-8 mt-1"
+                placeholder="예: 50"
+              />
+            </div>
             <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" placeholder="예: 오후 2~5시" /></div>
             <div><Label className="text-xs">유입경로</Label><Input list="customer-source-options" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" placeholder="예: 지인소개, SNS" /></div>
             <div>

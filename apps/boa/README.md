@@ -25,8 +25,12 @@ flutter create . --platforms=android --project-name boa --org kr.raonisis
 ```powershell
 cd apps\boa
 flutter pub get
-flutter run
+# 로컬 서버(예: PC에서 pnpm dev → 3000) + 에뮬레이터: BOA_API_BASE_URL=http://10.0.2.2:3000
+# BOA_GOOGLE_SERVER_CLIENT_ID 는 서버의 GOOGLE_CLIENT_ID(웹 클라이언트 ID)와 동일해야 합니다.
+flutter run --dart-define=BOA_API_BASE_URL=http://10.0.2.2:3000 --dart-define=BOA_GOOGLE_SERVER_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
 ```
+
+HTTP(비 TLS)로 붙을 때는 `android` 폴더 생성 후 디버그 빌드에서 cleartext 허용이 필요할 수 있습니다(에뮬레이터 → 호스트 `http://10.0.2.2`).
 
 ## 패키지 / 앱 ID
 

@@ -2,10 +2,16 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   normalizePhone,
   detectForbiddenColumns,
+  normalizeBulkImportRow,
   validateBulkImportRow,
   getAllActiveCustomerPhones,
   bulkCreateCustomers,
 } from "./db";
+import {
+  expectedPremiumManwonFormStringFromStoredWon,
+  expectedPremiumStoredWonFromManwonInput,
+  formatExpectedPremiumManwon,
+} from "../shared/expectedPremium";
 
 describe("Bulk Import Functions", () => {
   describe("normalizePhone", () => {
@@ -71,7 +77,7 @@ describe("Bulk Import Functions", () => {
         생년월일: "1990-01-15",
         성별: "남",
         지역: "서울",
-        예상보험료: "5000",
+        예상보험료: "5",
         통화가능시간: "09:00-18:00",
         유입경로: "지인",
         상담상태: "미상담",
@@ -395,6 +401,31 @@ describe("Bulk Import Functions", () => {
 
       const result = await validateBulkImportRow(row, 9999, new Set(), new Set());
       expect(result.rowIndex).toBe(9999);
+    });
+  });
+
+  describe("normalizeBulkImportRow expected premium headers", () => {
+    it("reads 예상보험료(만원) column when present", () => {
+      const row = normalizeBulkImportRow({
+        이름: "테스트",
+        "예상보험료(만원)": "12",
+        예상보험료: "99",
+      });
+      expect(row.expectedPremium).toBe("12");
+    });
+  });
+
+  describe("expectedPremium manwon helpers", () => {
+    it("converts manwon input to stored won", () => {
+      expect(expectedPremiumStoredWonFromManwonInput("5")).toBe(50_000);
+      expect(expectedPremiumStoredWonFromManwonInput("12.5")).toBe(125_000);
+      expect(expectedPremiumStoredWonFromManwonInput("  1,000  ")).toBe(10_000_000);
+      expect(expectedPremiumStoredWonFromManwonInput("")).toBeUndefined();
+    });
+
+    it("formats stored won for UI", () => {
+      expect(formatExpectedPremiumManwon(500_000)).toBe("50만원");
+      expect(expectedPremiumManwonFormStringFromStoredWon(125_000)).toBe("12.5");
     });
   });
 });

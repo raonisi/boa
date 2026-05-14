@@ -374,7 +374,7 @@ describe("mock bulk import and settings option coverage", () => {
       생년월일: "1990-01-01",
       성별: "남",
       지역: "서울",
-      예상보험료: "100000",
+      예상보험료: "10",
       통화가능시간: "evening",
       유입경로: "test",
       상담상태: "미상담",
