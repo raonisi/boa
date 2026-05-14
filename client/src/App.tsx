@@ -34,6 +34,7 @@ import ConsultationToolsManagement from "./pages/ConsultationToolsManagement";
 import DeletedDataManagement from "./pages/DeletedDataManagement";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
+import SalesPipeline from "./pages/SalesPipeline";
 
 function LoginConfigurationNotice({ message }: { message: string }) {
   return (
@@ -105,6 +106,16 @@ function Router() {
       <Route path="/">
         <AuthGuard>
           <Dashboard />
+        </AuthGuard>
+      </Route>
+      <Route path="/sales-pipeline-preview">
+        <AuthGuard>
+          <Redirect to="/sales-pipeline" />
+        </AuthGuard>
+      </Route>
+      <Route path="/sales-pipeline">
+        <AuthGuard>
+          <SalesPipeline />
         </AuthGuard>
       </Route>
       <Route path="/customers">

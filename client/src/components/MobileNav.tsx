@@ -20,6 +20,7 @@ import {
   FileText,
   GitMerge,
   Home,
+  LayoutGrid,
   LogOut,
   Menu,
   Network,
@@ -48,6 +49,7 @@ const primaryItems: MobileMenuItem[] = [
 ];
 
 const moreItems: MobileMenuItem[] = [
+  { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
   { icon: BellRing, label: "앱 알림 설정", path: "/notification-preferences" },
   { icon: FileText, label: "계약관리", path: "/contracts" },
   { icon: BarChart3, label: "실적관리", path: "/performance" },

@@ -14,28 +14,38 @@ import { serveStatic, setupVite } from "./vite";
 const TRPC_JSON_LIMIT = "24mb";
 const DEFAULT_JSON_LIMIT = "1mb";
 
-function isPortAvailable(port: number): Promise<boolean> {
-  return new Promise(resolve => {
+function isPortAvailable(port: number, host: string): Promise<boolean> {
+  return new Promise((resolve) => {
     const server = net.createServer();
-    server.listen(port, () => {
+    server.listen(port, host, () => {
       server.close(() => resolve(true));
     });
     server.on("error", () => resolve(false));
   });
 }
 
-async function findAvailablePort(startPort: number = 3000): Promise<number> {
+async function findAvailablePort(startPort: number = 3000, host: string): Promise<number> {
   for (let port = startPort; port < startPort + 20; port++) {
-    if (await isPortAvailable(port)) {
+    if (await isPortAvailable(port, host)) {
       return port;
     }
   }
-  throw new Error(`No available port found starting from ${startPort}`);
+  throw new Error(`No available port found starting from ${startPort} (host=${host})`);
 }
 
 async function startServer() {
+  console.log("[boot] BOA CRM server starting…");
+  if (process.env.NODE_ENV !== "development") {
+    console.warn(
+      `[boot] NODE_ENV="${process.env.NODE_ENV ?? "(unset)"}" — Vite 개발 모드가 아닙니다. 프론트 개발은 package.json의 pnpm dev(cross-env)로 실행하세요.`
+    );
+  }
   const app = express();
   const server = createServer(app);
+
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ ok: true, service: "boa-crm" });
+  });
 
   app.use((req, res, next) => {
     const incoming = req.headers["x-request-id"];
@@ -63,21 +73,41 @@ async function startServer() {
   registerOAuthRoutes(app);
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {
-    await setupVite(app, server);
+    try {
+      await setupVite(app, server);
+    } catch (err) {
+      console.error("[boot] Vite / dev middleware failed to start:", err);
+      throw err;
+    }
   } else {
     serveStatic(app);
   }
 
-  const preferredPort = parseInt(process.env.PORT || "3000");
-  const port = await findAvailablePort(preferredPort);
+  const host = process.env.HOST ?? "0.0.0.0";
+  const preferredPort = parseInt(process.env.PORT || "3000", 10);
+  const port = await findAvailablePort(preferredPort, host);
 
   if (port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
-  server.listen(port, () => {
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    console.error("[server] listen error:", err.message);
+    if (err.code === "EADDRINUSE") {
+      console.error(`[server] Port ${port} is already in use. Try PORT=3001 pnpm dev or close the other process.`);
+    }
+    process.exitCode = 1;
+  });
+
+  server.listen(port, host, () => {
+    console.log(`[boot] NODE_ENV=${process.env.NODE_ENV ?? "(unset)"} host=${host} port=${port}`);
+    console.log(`Server running on http://127.0.0.1:${port}/`);
     console.log(`Server running on http://localhost:${port}/`);
+    console.log(`Health check: http://127.0.0.1:${port}/api/health`);
   });
 }
 
-startServer().catch(console.error);
+startServer().catch((err) => {
+  console.error("[boot] fatal:", err);
+  process.exit(1);
+});

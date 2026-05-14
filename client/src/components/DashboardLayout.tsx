@@ -38,6 +38,7 @@ import {
   FileText,
   GitMerge,
   Home,
+  LayoutGrid,
   LogOut,
   Moon,
   Network,
@@ -66,6 +67,7 @@ type NavItem = {
 
 const menuItems: NavItem[] = [
   { icon: Home, label: "대시보드", path: "/" },
+  { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
   { icon: Users, label: "고객 DB", path: "/customers" },
   { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import" },
   { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
@@ -102,6 +104,7 @@ const roleLabel: Record<string, string> = {
 };
 
 const pageTitles: Array<{ prefix: string; title: string }> = [
+  { prefix: "/sales-pipeline", title: "세일즈 파이프라인" },
   { prefix: "/customers/assign", title: "DB 배정" },
   { prefix: "/customers/bulk-import", title: "고객 일괄 등록" },
   { prefix: "/customers/import-batches", title: "업로드 이력 관리" },

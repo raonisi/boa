@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Clock3,
   FileText,
+  LayoutGrid,
   Phone,
   Target,
   TrendingUp,
@@ -417,6 +418,17 @@ export default function Dashboard() {
           </div>
         </section>
 
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setLocation("/sales-pipeline")}
+            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
+          >
+            <LayoutGrid className="h-4 w-4 text-amber-600" />
+            세일즈 파이프라인
+          </button>
+        </div>
+
         <TodayWorkSection />
 
         {user?.role === "branch_admin" ? (
@@ -489,8 +501,15 @@ export default function Dashboard() {
         </div>
 
         <Card className="border-slate-200/80 bg-white/95">
-          <CardHeader className="pb-3">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
             <CardTitle className="text-base">상담 현황 요약</CardTitle>
+            <button
+              type="button"
+              onClick={() => setLocation("/sales-pipeline")}
+              className="shrink-0 text-xs font-semibold text-primary hover:underline"
+            >
+              칸반으로 보기
+            </button>
           </CardHeader>
           <CardContent className="px-5 pb-5">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">

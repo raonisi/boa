@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2, Upload } from "lucide-react";
+import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2, Upload, LayoutGrid } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -146,6 +146,9 @@ export default function CustomerList() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/sales-pipeline")}>
+                <LayoutGrid className="h-4 w-4 mr-1" /> 파이프라인
+              </Button>
             {canCreateCustomer && (
               <>
                 {user?.role === "branch_admin" && (

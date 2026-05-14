@@ -5,6 +5,17 @@ alwaysApply: true
 
 # BOA CRM Development Rules
 
+## Self-Verification (Mandatory)
+
+Before considering any task **complete**, autonomously run in the project root:
+
+1. `pnpm check` — TypeScript (`tsc --noEmit`)
+2. `pnpm build` — client + server bundle
+
+If either command fails, **fix the errors autonomously** and re-run until both succeed. Do not ask the user for permission to fix check/build failures caused by the current change set.
+
+---
+
 - **Security First**: Never log or output PII (Customer Name, Phone, Disease, Insurance Info).
 - **Environment**: Never commit `.env`, `google-services.json`, or Firebase Admin keys.
 - **Git Flow**: Work on branches → PR → Merge to main. No direct push to main.
