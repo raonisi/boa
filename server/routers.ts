@@ -8,6 +8,7 @@ import {
   branchAdminProcedure,
   subBranchAdminOrAboveProcedure,
   teamLeaderOrAboveProcedure,
+  managerAnalyticsProcedure,
 } from "./_core/procedures";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
@@ -65,6 +66,7 @@ import {
   getCustomerHandoffNotes,
   getCustomerTimeline,
   getCustomers,
+  getSalesFunnelAggregates,
   getDeletedContracts,
   getDeletedCustomers,
   getDeletedTeams,
@@ -1777,6 +1779,101 @@ export const appRouter = router({
         subBranchAdminId: z.number().optional(),
       }).optional())
       .query(async ({ ctx, input }) => buildWorkRhythmReport(ctx.user, input ?? { period: "week" })),
+  }),
+
+  analytics: router({
+    funnelFilterOptions: managerAnalyticsProcedure.query(async ({ ctx }) => {
+      const user = ctx.user;
+      const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+      const teamsOut: { id: number; name: string }[] = [];
+      const agentsOut: { id: number; name: string | null; teamId: number | null }[] = [];
+
+      if (user.role === "branch_admin") {
+        for (const t of allTeams as any[]) {
+          if (t.isActive === false) continue;
+          if (t.deletedAt) continue;
+          teamsOut.push({ id: t.id, name: t.name ?? `팀 ${t.id}` });
+        }
+        for (const u of allUsers) {
+          if (u.accountStatus !== "active") continue;
+          if (u.role === "member" || u.role === "team_leader") {
+            agentsOut.push({ id: u.id, name: u.name ?? null, teamId: u.teamId ?? null });
+          }
+        }
+      } else if (user.role === "sub_branch_admin") {
+        const orgUsers = ensureOrgUsers(allUsers as OrgUser[], user);
+        const visible = new Set(descendantUserIdsFrom(user.id, orgUsers, allTeams as OrgTeam[], true));
+        for (const t of allTeams as any[]) {
+          if (t.isActive === false || t.deletedAt) continue;
+          if ((t as any).subBranchAdminId !== user.id) continue;
+          teamsOut.push({ id: t.id, name: t.name ?? `팀 ${t.id}` });
+        }
+        for (const u of allUsers) {
+          if (!visible.has(u.id)) continue;
+          if (u.accountStatus !== "active") continue;
+          if (u.role === "member" || u.role === "team_leader") {
+            agentsOut.push({ id: u.id, name: u.name ?? null, teamId: u.teamId ?? null });
+          }
+        }
+      } else {
+        if (!user.teamId) return { teams: [], agents: [] };
+        const team = await getTeamById(user.teamId);
+        if (team && (team as any).isActive !== false && !(team as any).deletedAt) {
+          teamsOut.push({ id: team.id, name: (team as any).name ?? `팀 ${team.id}` });
+        }
+        const members = await getUsersByTeamId(user.teamId);
+        const memberIds = new Set(members.map((m) => m.id));
+        for (const u of allUsers) {
+          if (!memberIds.has(u.id)) continue;
+          if (u.accountStatus !== "active" || u.role !== "member") continue;
+          agentsOut.push({ id: u.id, name: u.name ?? null, teamId: user.teamId });
+        }
+      }
+
+      teamsOut.sort((a, b) => a.name.localeCompare(b.name, "ko"));
+      agentsOut.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? "", "ko"));
+      return { teams: teamsOut, agents: agentsOut };
+    }),
+
+    salesFunnel: managerAnalyticsProcedure
+      .input(
+        z.object({
+          teamId: z.number().nullable().optional(),
+          agentId: z.number().nullable().optional(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const user = ctx.user;
+        let agentIdIn: number[] | undefined = user.role === "branch_admin" ? undefined : (await getHierarchyScopeUserIds(user)) ?? [user.id];
+
+        if (input.teamId != null) {
+          await verifyTeamFilterAccess(user, input.teamId);
+          const teamUsers = await getUsersByTeamId(input.teamId);
+          const teamAgentIds = teamUsers.map((u) => u.id);
+          if (teamAgentIds.length === 0) {
+            agentIdIn = [];
+          } else if (agentIdIn === undefined) {
+            agentIdIn = teamAgentIds;
+          } else {
+            const allow = new Set(teamAgentIds);
+            agentIdIn = agentIdIn.filter((id) => allow.has(id));
+          }
+        }
+
+        if (input.agentId != null) {
+          const target = await getUserById(input.agentId);
+          if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "담당자를 찾을 수 없습니다." });
+          const inScope =
+            user.role === "branch_admin" ||
+            (agentIdIn !== undefined && agentIdIn.includes(input.agentId));
+          if (!inScope) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "선택한 담당자는 조회 범위에 없습니다." });
+          }
+          agentIdIn = [input.agentId];
+        }
+
+        return getSalesFunnelAggregates(agentIdIn);
+      }),
   }),
 
   users: router({

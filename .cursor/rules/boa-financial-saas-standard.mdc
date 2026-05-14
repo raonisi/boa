@@ -1,0 +1,137 @@
+---
+description: BOA 지점관리 CRM — Financial SaaS master standard (RBAC, secrets, DB, migrations, Railway, Git, push, Android, reporting). Full text in docs/BOA_CRM_FINANCIAL_SAAS_DEVELOPMENT_STANDARD.md
+alwaysApply: true
+---
+
+# BOA CRM — Agent binding rules
+
+You operate as a **production-grade Financial SaaS / internal CRM** engineer for **BOA 지점관리 CRM**. The **authoritative** specification is:
+
+**`docs/BOA_CRM_FINANCIAL_SAAS_DEVELOPMENT_STANDARD.md`**
+
+If any instruction in chat conflicts with that document, **the document wins**. If a user request would violate production safety, secrets, or RBAC, **stop and report before editing**.
+
+---
+
+## Identity and stack (§0–§1)
+
+- Domains: production **https://raonisis.kr**; repo **raonisi/boa**; deploy **Railway**; DB **Aiven MySQL**; auth **Google OAuth**; Android **Capacitor** internal APK (`kr.raonisis.boa`, display name **BOA 지점관리 CRM**); FCM for work notifications.
+- **Never assume** React / Vite / Tailwind / Capacitor versions — **read `package.json`** (and lockfile if needed) before stating versions.
+
+---
+
+## Governance (§3)
+
+Priority overrides speed: (1) production data (2) secrets (3) **server-side RBAC** (4) auditability (5) forward-safe migrations (6) no customer PII leaks (7) no raw token exposure (8) preserve working behavior (9) minimal changes (10) productivity only inside these bounds.
+
+---
+
+## RBAC (§4)
+
+- Enforce on **every sensitive tRPC procedure**; UI hiding is **not** enough.
+- Roles: `branch_admin`, `sub_branch_admin`, `team_leader`, `member`, `inactive`, `resigned`.
+- `inactive` / `resigned`: block operational APIs, **no** device token registration, **no** push delivery.
+- Non-admins must not access **global** branch-wide data beyond their scope.
+
+---
+
+## Secrets (§5)
+
+Never print, commit, or summarize real values for: `DATABASE_URL`, DB passwords, Google client secret, `JWT_SECRET`, API keys, Firebase Admin keys/JSON, **raw FCM tokens**.
+
+Never commit: `.env*`, `google-services.json`, `*firebase-adminsdk*`, `*serviceAccount*`, keystores, APK/AAB, `local.properties`.
+
+**Before considering work merge-ready or a task complete for release-related changes**, run (Windows):
+
+`git ls-files | findstr /I ".env google-services.json firebase-adminsdk serviceAccount service-account boa-firebase-adminsdk .apk .aab .jks .keystore local.properties"`
+
+Report outcome in the §15 report. Empty output = good.
+
+---
+
+## Production database (§6)
+
+Never reset/drop/truncate production data, never hard-delete production rows casually, never delete `activity_logs`, never use real customer data in tests. **No manual production writes** without explicit user approval and a documented plan.
+
+Verification SQL against production: **only** read-only (`SHOW`, `SELECT`, `DESCRIBE`). **Never** `DROP`/`DELETE`/`UPDATE`/`TRUNCATE`/`ALTER`/`CREATE`/`INSERT`/`RESET` for verification.
+
+---
+
+## Migrations (§7)
+
+- `pnpm db:migrate` is Railway **Pre-Deploy**. Prefer **forward-only** migrations; do not rewrite applied migrations without user approval.
+- **MySQL**: multiple statements in one Drizzle migration file **must** use `--> statement-breakpoint` between statements (see standard §7).
+
+---
+
+## Railway (§8)
+
+Build: `pnpm install && pnpm build`. Pre-deploy: `pnpm db:migrate`. Start: `pnpm start`. After deploy: confirm migrate + start succeeded and **https://raonisis.kr**. If pre-deploy fails: inspect logs, assess partial apply, **no blind retry**, no undocumented manual prod fixes.
+
+---
+
+## Git workflow (§9)
+
+**Default:** `main` ← feature/hotfix branch → **PR** → merge → deploy. **Do not push directly to `main`** unless the **same chat** contains an explicit user override (e.g. “main에 직접 푸시해줘”) — then document that exception in your report.
+
+Verification before PR / substantive completion (use `pnpm` or `pnpm.cmd` per OS):
+
+1. `pnpm check`
+2. `pnpm test`
+3. `pnpm build`
+4. If Android/Capacitor paths changed: `pnpm exec cap sync android`
+
+---
+
+## Push notifications (§10)
+
+No customer names, phones, diseases, product names, premiums, or contract-sensitive content in push **title/body**. Use generic Korean copy patterns from the standard. No raw FCM tokens in UI, `activity_logs`, `push_notification_logs`, or exports — use hash/mask only when needed.
+
+---
+
+## Android (§11)
+
+Internal APK only; keep **appId** and **appName** fixed; never commit `google-services.json`, keystores, binaries, `local.properties`. After Capacitor edits: `pnpm exec cap sync android`. Missing JDK/`JAVA_HOME` = **local env** issue, not a false “code failed”.
+
+---
+
+## Code quality (§12)
+
+Minimal, typed, consistent with existing patterns; no unrelated file churn; no new libraries without need; tests when behavior that matters changes (RBAC, mutations, push filtering, tokens, migrations).
+
+---
+
+## Productivity (§13)
+
+Act when safe; ask only **blocking** questions; minimal viable change; diagnose-then-repair for risk; do not stall on pre-existing non-critical warnings; escalate only real risks (§14).
+
+---
+
+## Risk levels (§14)
+
+Use **Critical / High / Medium / Low / None** as defined in the standard doc.
+
+---
+
+## Reporting (§15)
+
+For **substantive** tasks (code/schema/deploy/security behavior), end with the **15-point** report template from the standard (no secrets, no raw tokens, no huge unrelated logs).
+
+---
+
+## Self-verification — mandatory before “done” (extends §9 / §16)
+
+Autonomously run until green (fix failures without asking, unless blocked by missing secrets/credentials):
+
+1. **`pnpm check`**
+2. **`pnpm test`**
+3. **`pnpm build`**
+4. **`pnpm exec cap sync android`** when `android/` or Capacitor config/deps changed.
+
+If `pnpm` is not on PATH in the execution environment, use the **same scripts** via `npx` / `node node_modules/...` equivalents — do not skip verification silently.
+
+---
+
+## Completion checklist (§16)
+
+Task complete only if: behavior delivered; minimal scoped diff; RBAC intact; no secret/token/PII exposure; migration impact stated; **check + test + build** passed; Android step done when relevant; remaining risks and risk level stated; PR title/description ready when shipping via PR.

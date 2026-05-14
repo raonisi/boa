@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
@@ -692,6 +692,53 @@ export async function getCustomers(filter: {
   return db.select().from(customers)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(customers.createdAt));
+}
+
+const CONSULT_TA_OR_BEYOND = ["통화완료", "상담예정", "설계중", "계약"] as const;
+const CONSULT_AP_OR_BEYOND = ["상담예정", "설계중", "계약"] as const;
+const CONSULT_PC_OR_BEYOND = ["설계중", "계약"] as const;
+
+/**
+ * 영업 퍼널 집계: 배정 DB(담당자 있는 활성 고객) 기준, consultStatus 누적 단계별 건수.
+ * @param agentIdIn 담당자 ID 제한. `undefined`이면 담당자 범위 제한 없음(지점장 전체). 빈 배열이면 0건 처리.
+ */
+export async function getSalesFunnelAggregates(agentIdIn: number[] | undefined): Promise<{
+  totalAssigned: number;
+  taCumulative: number;
+  apCumulative: number;
+  pcCumulative: number;
+  contracted: number;
+}> {
+  const db = await getDb();
+  if (!db) {
+    return { totalAssigned: 0, taCumulative: 0, apCumulative: 0, pcCumulative: 0, contracted: 0 };
+  }
+  if (agentIdIn !== undefined && agentIdIn.length === 0) {
+    return { totalAssigned: 0, taCumulative: 0, apCumulative: 0, pcCumulative: 0, contracted: 0 };
+  }
+
+  const base: any[] = [eq(customers.isActive, true), isNotNull(customers.agentId)];
+  if (agentIdIn !== undefined) {
+    base.push(inArray(customers.agentId, agentIdIn));
+  }
+  const database = db;
+  const baseWhere = and(...base);
+
+  async function countWhere(extra?: any) {
+    const where = extra ? and(baseWhere, extra) : baseWhere;
+    const [row] = await database.select({ c: sql<number>`cast(count(*) as signed)` }).from(customers).where(where);
+    return Number(row?.c ?? 0);
+  }
+
+  const [totalAssigned, taCumulative, apCumulative, pcCumulative, contracted] = await Promise.all([
+    countWhere(),
+    countWhere(inArray(customers.consultStatus, [...CONSULT_TA_OR_BEYOND])),
+    countWhere(inArray(customers.consultStatus, [...CONSULT_AP_OR_BEYOND])),
+    countWhere(inArray(customers.consultStatus, [...CONSULT_PC_OR_BEYOND])),
+    countWhere(eq(customers.consultStatus, "계약")),
+  ]);
+
+  return { totalAssigned, taCumulative, apCumulative, pcCumulative, contracted };
 }
 
 export async function getCustomerById(id: number) {

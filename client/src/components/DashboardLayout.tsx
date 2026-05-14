@@ -28,6 +28,7 @@ import { trpc } from "@/lib/trpc";
 import {
   Activity,
   ArrowRightLeft,
+  BarChart2,
   BarChart3,
   Bell,
   BellRing,
@@ -67,6 +68,7 @@ type NavItem = {
 
 const menuItems: NavItem[] = [
   { icon: Home, label: "대시보드", path: "/" },
+  { icon: BarChart2, label: "영업 분석", path: "/analytics", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
   { icon: Users, label: "고객 DB", path: "/customers" },
   { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import" },
@@ -104,6 +106,7 @@ const roleLabel: Record<string, string> = {
 };
 
 const pageTitles: Array<{ prefix: string; title: string }> = [
+  { prefix: "/analytics", title: "영업 분석" },
   { prefix: "/sales-pipeline", title: "세일즈 파이프라인" },
   { prefix: "/customers/assign", title: "DB 배정" },
   { prefix: "/customers/bulk-import", title: "고객 일괄 등록" },

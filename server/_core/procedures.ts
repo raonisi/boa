@@ -33,3 +33,13 @@ export const activeUserProcedure = protectedProcedure.use(({ ctx, next }) => {
   if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
   return next({ ctx });
 });
+
+/** 지점장·부지점장·팀장 전용 분석 API (일반 member 는 UNAUTHORIZED) */
+export const managerAnalyticsProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const u = ctx.user;
+  if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  if (u.role !== "branch_admin" && u.role !== "sub_branch_admin" && u.role !== "team_leader") {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "관리자(지점장·부지점장·팀장)만 접근할 수 있습니다." });
+  }
+  return next({ ctx });
+});
