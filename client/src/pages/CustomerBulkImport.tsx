@@ -2,6 +2,7 @@ import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
+import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -198,16 +199,12 @@ export default function CustomerBulkImport() {
   ).length;
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">고객 DB 일괄 등록</h1>
-          <p className="text-muted-foreground">
-            엑셀 또는 CSV 파일을 통해 여러 고객을 한 번에 등록할 수 있습니다.
-            {canSelectAssignee ? " 담당자 지정 방식은 아래에서 선택하세요." : " 등록된 고객은 내 고객으로 자동 배정됩니다."}
-          </p>
-        </div>
+    <DashboardLayout>
+      <div className="max-w-4xl mx-auto space-y-6">
+        <p className="text-sm text-muted-foreground">
+          엑셀 또는 CSV 파일을 통해 여러 고객을 한 번에 등록할 수 있습니다.
+          {canSelectAssignee ? " 담당자 지정 방식은 아래에서 선택하세요." : " 등록된 고객은 내 고객으로 자동 배정됩니다."}
+        </p>
 
         {/* Stage: Upload */}
         {stage === "upload" && (
@@ -218,8 +215,8 @@ export default function CustomerBulkImport() {
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Template Download */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900 mb-3">📋 먼저 엑셀 양식을 다운로드하여 데이터를 준비하세요. CSV는 보조 옵션으로 제공합니다.</p>
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                <p className="text-sm text-foreground mb-3">📋 먼저 엑셀 양식을 다운로드하여 데이터를 준비하세요. CSV는 보조 옵션으로 제공합니다.</p>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     onClick={handleDownloadXlsxTemplate}
@@ -239,7 +236,7 @@ export default function CustomerBulkImport() {
                     CSV 양식 다운로드
                   </Button>
                 </div>
-                <div className="mt-3 space-y-1 text-xs text-blue-900">
+                <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                   <p>필수 컬럼은 이름, 생년월일, 연락처입니다.</p>
                   <p>상담상태는 선택값이며, 미입력 시 미상담으로 등록됩니다.</p>
                   {canSelectAssignee ? (
@@ -252,8 +249,8 @@ export default function CustomerBulkImport() {
               </div>
 
               {canSelectAssignee ? (
-                <div className="rounded-lg border border-slate-200 bg-white p-4">
-                  <p className="mb-2 text-sm font-medium text-slate-900">담당자 지정 방식</p>
+                <div className="rounded-lg border border-border bg-card p-4">
+                  <p className="mb-2 text-sm font-medium text-foreground">담당자 지정 방식</p>
                   <Select value={assignmentMode} onValueChange={setAssignmentMode}>
                     <SelectTrigger className="max-w-md">
                       <SelectValue placeholder="담당자 지정 방식 선택" />
@@ -266,12 +263,12 @@ export default function CustomerBulkImport() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     특정 담당자를 선택하면 파일의 담당자 컬럼보다 선택한 담당자 기준으로 등록됩니다.
                   </p>
                 </div>
               ) : (
-                <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 text-sm text-blue-900">
+                <div className="rounded-lg border border-primary/15 bg-primary/5 p-4 text-sm text-foreground">
                   비관리자 일괄 등록 고객은 모두 내 고객으로 자동 배정됩니다. 타인 DB 배분은 기존 DB 배정 권한 흐름을 사용합니다.
                 </div>
               )}
@@ -306,16 +303,16 @@ export default function CustomerBulkImport() {
 
               {/* File Name Display */}
               {fileName && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-green-600" />
-                  <span className="text-sm text-green-900">{fileName} 선택됨</span>
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 flex items-center gap-2 dark:border-emerald-800/50 dark:bg-emerald-900/20">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <span className="text-sm text-emerald-900 dark:text-emerald-300">{fileName} 선택됨</span>
                 </div>
               )}
 
               {/* Security Notice */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-sm text-yellow-900 font-medium mb-2">⚠️ 보안 주의사항</p>
-                <ul className="text-sm text-yellow-800 space-y-1 list-disc list-inside">
+              <div className="rounded-lg border border-amber-200/80 bg-amber-50/70 p-4 dark:border-amber-800/40 dark:bg-amber-900/15">
+                <p className="text-sm text-amber-900 dark:text-amber-300 font-medium mb-2">⚠️ 보안 주의사항</p>
+                <ul className="text-sm text-amber-800 dark:text-amber-400 space-y-1 list-disc list-inside">
                   <li>주민등록번호, 증권번호 등 민감정보는 절대 포함하지 마세요</li>
                   <li>파일에 포함된 데이터는 서버에서 재검증됩니다</li>
                   <li>중복된 연락처는 자동으로 제외됩니다</li>
@@ -333,7 +330,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-blue-600">{parsedRows.length}</p>
+                    <p className="text-3xl font-bold tabular-nums text-primary">{parsedRows.length}</p>
                     <p className="text-sm text-muted-foreground">총 행 수</p>
                   </div>
                 </CardContent>
@@ -341,7 +338,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-green-600">{successCount}</p>
+                    <p className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{successCount}</p>
                     <p className="text-sm text-muted-foreground">정상</p>
                   </div>
                 </CardContent>
@@ -349,7 +346,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-red-600">{errorCount}</p>
+                    <p className="text-3xl font-bold tabular-nums text-destructive">{errorCount}</p>
                     <p className="text-sm text-muted-foreground">오류</p>
                   </div>
                 </CardContent>
@@ -357,7 +354,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-orange-600">{duplicateCount}</p>
+                    <p className="text-3xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{duplicateCount}</p>
                     <p className="text-sm text-muted-foreground">중복</p>
                   </div>
                 </CardContent>
@@ -388,8 +385,8 @@ export default function CustomerBulkImport() {
                         return (
                           <tr
                             key={result.rowIndex}
-                            className={`border-b ${
-                              result.isValid ? "bg-white" : "bg-red-50"
+                            className={`border-b transition-colors ${
+                              result.isValid ? "" : "bg-destructive/5"
                             }`}
                           >
                             <td className="py-2 px-2">{result.rowIndex + 1}</td>
@@ -397,12 +394,12 @@ export default function CustomerBulkImport() {
                             <td className="py-2 px-2">{row.연락처 || "-"}</td>
                             <td className="py-2 px-2">
                               {result.isValid ? (
-                                <span className="inline-flex items-center gap-1 text-green-600">
+                                <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
                                   <CheckCircle2 className="w-4 h-4" />
                                   정상
                                 </span>
                               ) : (
-                                <span className="inline-flex items-center gap-1 text-red-600">
+                                <span className="inline-flex items-center gap-1 text-destructive">
                                   <AlertCircle className="w-4 h-4" />
                                   오류
                                 </span>
@@ -410,7 +407,7 @@ export default function CustomerBulkImport() {
                             </td>
                             <td className="py-2 px-2">
                               {result.errors.length > 0 ? (
-                                <div className="text-xs text-red-600 space-y-1">
+                                <div className="text-xs text-destructive space-y-1">
                                   {result.errors.map((err, i) => (
                                     <div key={i}>• {err}</div>
                                   ))}
@@ -455,13 +452,13 @@ export default function CustomerBulkImport() {
         {stage === "result" && (
           <div className="space-y-6">
             {/* Success Summary */}
-            <Card className="border-green-200 bg-green-50">
+            <Card className="border-emerald-200 bg-emerald-50/70 dark:border-emerald-800/50 dark:bg-emerald-900/20">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
-                  <CheckCircle2 className="w-12 h-12 text-green-600" />
+                  <CheckCircle2 className="w-12 h-12 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div>
-                    <p className="text-lg font-bold text-green-900">등록 완료</p>
-                    <p className="text-sm text-green-800">
+                    <p className="text-lg font-bold text-emerald-900 dark:text-emerald-200">등록 완료</p>
+                    <p className="text-sm text-emerald-700 dark:text-emerald-400">
                       배치 ID: <span className="font-mono">{importBatchId}</span>
                     </p>
                   </div>
@@ -474,7 +471,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-blue-600">{parsedRows.length}</p>
+                    <p className="text-3xl font-bold tabular-nums text-primary">{parsedRows.length}</p>
                     <p className="text-sm text-muted-foreground">총 행 수</p>
                   </div>
                 </CardContent>
@@ -482,7 +479,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-green-600">{successCount}</p>
+                    <p className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{successCount}</p>
                     <p className="text-sm text-muted-foreground">성공</p>
                   </div>
                 </CardContent>
@@ -490,7 +487,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-red-600">{errorCount}</p>
+                    <p className="text-3xl font-bold tabular-nums text-destructive">{errorCount}</p>
                     <p className="text-sm text-muted-foreground">실패</p>
                   </div>
                 </CardContent>
@@ -498,7 +495,7 @@ export default function CustomerBulkImport() {
               <Card>
                 <CardContent className="pt-6">
                   <div className="text-center">
-                    <p className="text-3xl font-bold text-orange-600">{duplicateCount}</p>
+                    <p className="text-3xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{duplicateCount}</p>
                     <p className="text-sm text-muted-foreground">중복 제외</p>
                   </div>
                 </CardContent>
@@ -507,9 +504,9 @@ export default function CustomerBulkImport() {
 
             {/* Error List */}
             {errorCount > 0 && (
-              <Card className="border-red-200">
+              <Card className="border-destructive/30">
                 <CardHeader>
-                  <CardTitle className="text-red-600 flex items-center gap-2">
+                  <CardTitle className="text-destructive flex items-center gap-2">
                     <AlertTriangle className="w-5 h-5" />
                     오류 행 목록
                   </CardTitle>
@@ -537,7 +534,7 @@ export default function CustomerBulkImport() {
                                 <td className="py-2 px-2">{row.이름 || "-"}</td>
                                 <td className="py-2 px-2">{row.연락처 || "-"}</td>
                                 <td className="py-2 px-2">
-                                  <div className="text-xs text-red-600 space-y-1">
+                                  <div className="text-xs text-destructive space-y-1">
                                     {result.errors.map((err, i) => (
                                       <div key={i}>• {err}</div>
                                     ))}
@@ -576,6 +573,6 @@ export default function CustomerBulkImport() {
           </div>
         )}
       </div>
-    </div>
+    </DashboardLayout>
   );
 }

@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -64,7 +65,13 @@ class CustomersTab extends ConsumerWidget {
                     style: theme.textTheme.bodySmall,
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.of(context).push<void>(
+                      MaterialPageRoute<void>(
+                        builder: (context) => CustomerDetailScreen(customerId: c.id),
+                      ),
+                    );
+                  },
                 ),
               );
             },

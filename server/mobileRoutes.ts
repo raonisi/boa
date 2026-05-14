@@ -167,4 +167,54 @@ export function registerMobileRoutes(app: Express) {
       res.status(400).json({ error: msg });
     }
   });
+
+  app.get("/api/mobile/customers/:customerId", async (req: Request, res: Response) => {
+    const parsedId = z.coerce.number().int().positive().safeParse(req.params.customerId);
+    if (!parsedId.success) {
+      res.status(400).json({ error: "Invalid customer id" });
+      return;
+    }
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch (e) {
+      if (e instanceof HttpError && e.statusCode === 403) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      throw e;
+    }
+    const ctx: TrpcContext = { req, res, user };
+    const caller = appRouter.createCaller(ctx);
+    try {
+      const customer = await caller.customers.get({ id: parsedId.data });
+      res.json({ customer });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to load customer";
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  app.get("/api/mobile/dashboard/today-work", async (req: Request, res: Response) => {
+    let user;
+    try {
+      user = await sdk.authenticateRequest(req);
+    } catch (e) {
+      if (e instanceof HttpError && e.statusCode === 403) {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      throw e;
+    }
+    const ctx: TrpcContext = { req, res, user };
+    const caller = appRouter.createCaller(ctx);
+    const dateRaw = typeof req.query.date === "string" ? req.query.date.trim() : "";
+    try {
+      const payload = await caller.dashboard.todayWork(dateRaw.length > 0 ? { date: dateRaw } : {});
+      res.json(payload);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to load dashboard";
+      res.status(400).json({ error: msg });
+    }
+  });
 }

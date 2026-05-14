@@ -117,9 +117,34 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.88 0.01 260) transparent;
   }
+
+  .dark * {
+    scrollbar-color: oklch(1 0 0 / 14%) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/35;
+  }
+
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: "ss01" on, "tnum" on;
@@ -133,7 +158,8 @@
   ::selection {
     @apply bg-primary/15 text-foreground;
   }
-  /* Status badge colors */
+
+  /* Status badge colors — light */
   .status-badge { @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium; }
   .status-미상담 { @apply bg-gray-100 text-gray-700; }
   .status-부재 { @apply bg-orange-100 text-orange-700; }
@@ -145,6 +171,19 @@
   .status-거절 { @apply bg-red-100 text-red-700; }
   .status-해지관리 { @apply bg-rose-100 text-rose-700; }
   .status-재상담필요 { @apply bg-teal-100 text-teal-700; }
+
+  /* Status badge colors — dark */
+  .dark .status-미상담 { @apply bg-gray-800/60 text-gray-300; }
+  .dark .status-부재 { @apply bg-orange-900/45 text-orange-300; }
+  .dark .status-통화완료 { @apply bg-blue-900/45 text-blue-300; }
+  .dark .status-상담예정 { @apply bg-purple-900/45 text-purple-300; }
+  .dark .status-설계중 { @apply bg-indigo-900/45 text-indigo-300; }
+  .dark .status-계약 { @apply bg-green-900/45 text-green-300; }
+  .dark .status-보류 { @apply bg-yellow-900/40 text-yellow-300; }
+  .dark .status-거절 { @apply bg-red-900/45 text-red-300; }
+  .dark .status-해지관리 { @apply bg-rose-900/45 text-rose-300; }
+  .dark .status-재상담필요 { @apply bg-teal-900/45 text-teal-300; }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
