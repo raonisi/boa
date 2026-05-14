@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
 import {
@@ -32,10 +33,17 @@ function formatWon(value: number | undefined) {
   return `${(value ?? 0).toLocaleString()}원`;
 }
 
-function EmptyState({ children }: { children: React.ReactNode }) {
+function EmptyState({
+  children,
+  action,
+}: {
+  children: React.ReactNode;
+  action?: React.ReactNode;
+}) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 px-4 py-6 text-center text-sm text-muted-foreground">
-      {children}
+    <div className="rounded-lg border border-dashed border-border/80 bg-muted/25 px-4 py-8 text-center text-sm text-muted-foreground">
+      <div>{children}</div>
+      {action ? <div className="mt-4 flex flex-wrap justify-center gap-2">{action}</div> : null}
     </div>
   );
 }
@@ -56,27 +64,29 @@ function PremiumStatCard({
   suffix?: string;
 }) {
   const toneClass = {
-    navy: "bg-slate-950 text-white",
-    gold: "bg-amber-100 text-amber-700",
-    green: "bg-emerald-100 text-emerald-700",
-    orange: "bg-orange-100 text-orange-700",
-    red: "bg-red-100 text-red-700",
-    blue: "bg-sky-100 text-sky-700",
+    navy: "border border-primary/35 bg-primary/[0.07] text-primary",
+    gold: "border border-ring/45 bg-ring/[0.09] text-foreground",
+    green: "border border-emerald-600/30 bg-emerald-600/[0.08] text-emerald-800 dark:text-emerald-200",
+    orange: "border border-orange-500/30 bg-orange-500/[0.08] text-orange-800 dark:text-orange-200",
+    red: "border border-red-500/30 bg-red-500/[0.08] text-red-800 dark:text-red-200",
+    blue: "border border-primary/25 bg-primary/[0.06] text-primary",
   }[tone];
 
   return (
-    <Card className="overflow-hidden border-slate-200/80 bg-white/95">
+    <Card className="overflow-hidden">
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-xs font-semibold text-muted-foreground">{title}</p>
-            <p className="mt-2 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+            <p className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</p>
+            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl">
               {formatNumber(value)}
               {suffix ? <span className="ml-1 text-sm font-semibold text-muted-foreground">{suffix}</span> : null}
             </p>
             {helper ? <p className="mt-1 truncate text-xs text-muted-foreground">{helper}</p> : null}
           </div>
-          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${toneClass}`}>
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg shadow-none ${toneClass}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
         </div>
@@ -97,10 +107,10 @@ function SectionCard({
   action?: React.ReactNode;
 }) {
   return (
-    <Card className="border-slate-200/80 bg-white/95">
-      <CardHeader className="flex-row items-center justify-between gap-3 pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+    <Card>
+      <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
             <Icon className="h-4 w-4" />
           </span>
           {title}
@@ -131,11 +141,11 @@ function TodayWorkSection() {
         <PremiumStatCard title="월납보험료 실적" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} tone="navy" helper="입력 계약 기준" />
       </div>
 
-      <Card className="border-amber-200/80 bg-gradient-to-br from-white to-amber-50/40">
-        <CardHeader className="flex-row items-center justify-between gap-3 pb-3">
+      <Card className="overflow-hidden border-l-[3px] border-l-sidebar-primary shadow-sm">
+        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-ring/40 bg-ring/[0.08] text-foreground">
                 <Target className="h-4 w-4" />
               </span>
               오늘 우선 연락 고객
@@ -143,23 +153,37 @@ function TodayWorkSection() {
             <p className="mt-1 text-xs text-muted-foreground">후속관리, 우선순위, 경고 기준으로 먼저 볼 고객을 정리했습니다.</p>
           </div>
           <div className="hidden grid-cols-3 gap-2 text-xs sm:grid">
-            <div className="rounded-xl bg-white/80 px-3 py-2 text-center">
+            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
               <p className="text-muted-foreground">추천</p>
-              <p className="text-lg font-bold text-slate-950">{recommendationSummary?.priorityContactCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">
+                {recommendationSummary?.priorityContactCount ?? 0}
+              </p>
             </div>
-            <div className="rounded-xl bg-white/80 px-3 py-2 text-center">
+            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
               <p className="text-muted-foreground">긴급</p>
-              <p className="text-lg font-bold text-red-600">{recommendationSummary?.highUrgencyCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">
+                {recommendationSummary?.highUrgencyCount ?? 0}
+              </p>
             </div>
-            <div className="rounded-xl bg-white/80 px-3 py-2 text-center">
+            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
               <p className="text-muted-foreground">경고</p>
-              <p className="text-lg font-bold text-amber-700">{recommendationSummary?.warningCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-amber-800 dark:text-amber-300">
+                {recommendationSummary?.warningCount ?? 0}
+              </p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="px-5 pb-5">
           {topContacts.length === 0 ? (
-            <EmptyState>오늘 우선 연락 추천 고객이 없습니다.</EmptyState>
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                  고객 DB에서 확인하기
+                </Button>
+              }
+            >
+              오늘 우선 연락 추천 고객이 없습니다.
+            </EmptyState>
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
               {topContacts.slice(0, 5).map((contact) => (
@@ -167,10 +191,10 @@ function TodayWorkSection() {
                   key={contact.customerId}
                   type="button"
                   onClick={() => setLocation(`/customers/${contact.customerId}`)}
-                  className="rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-amber-300 hover:bg-amber-50/40"
+                  className="rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/35"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-bold text-slate-950">{contact.customerName}</span>
+                    <span className="truncate text-sm font-bold text-foreground">{contact.customerName}</span>
                     <Badge className={contact.urgency === "high" ? "border-0 bg-red-100 text-red-700" : contact.urgency === "medium" ? "border-0 bg-amber-100 text-amber-700" : "border-0 bg-slate-100 text-slate-600"}>
                       {contact.urgency === "high" ? "높음" : contact.urgency === "medium" ? "중간" : "낮음"}
                     </Badge>
@@ -186,13 +210,21 @@ function TodayWorkSection() {
       </Card>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
-        <SectionCard title="오늘의 일정" icon={CalendarDays} action={<button type="button" onClick={() => setLocation("/calendar")} className="text-xs font-semibold text-primary">전체 보기</button>}>
+        <SectionCard title="오늘의 일정" icon={CalendarDays} action={<button type="button" onClick={() => setLocation("/calendar")} className="text-xs font-semibold text-primary hover:underline">전체 보기</button>}>
           {(data?.todaySchedules ?? []).length === 0 ? (
-            <EmptyState>오늘 예정된 일정이 없습니다.</EmptyState>
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/calendar")}>
+                  일정 캘린더 열기
+                </Button>
+              }
+            >
+              오늘 예정된 일정이 없습니다.
+            </EmptyState>
           ) : data?.todaySchedules.slice(0, 5).map((schedule) => (
-            <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="w-full rounded-2xl border border-slate-200 p-3 text-left transition hover:bg-slate-50">
+            <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold text-slate-950">{schedule.title}</span>
+                <span className="truncate text-sm font-semibold text-foreground">{schedule.title}</span>
                 <StatusBadge status={schedule.status} />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -202,13 +234,21 @@ function TodayWorkSection() {
           ))}
         </SectionCard>
 
-        <SectionCard title="중요 알림" icon={Bell} action={<button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary">알림센터</button>}>
+        <SectionCard title="중요 알림" icon={Bell} action={<button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">알림센터</button>}>
           {(data?.pendingNotifications ?? []).length === 0 ? (
-            <EmptyState>미확인 알림이 없습니다.</EmptyState>
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/notifications")}>
+                  알림센터로 이동
+                </Button>
+              }
+            >
+              미확인 알림이 없습니다.
+            </EmptyState>
           ) : data?.pendingNotifications.slice(0, 5).map((notification) => (
-            <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full rounded-2xl border border-slate-200 p-3 text-left transition hover:bg-slate-50">
+            <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold text-slate-950">{notification.title}</span>
+                <span className="truncate text-sm font-semibold text-foreground">{notification.title}</span>
                 <span className="text-[11px] text-muted-foreground">{notification.processStatus}</span>
               </div>
               <p className="mt-1 truncate text-xs text-muted-foreground">
@@ -220,11 +260,19 @@ function TodayWorkSection() {
 
         <SectionCard title="장기 미관리 고객" icon={Users}>
           {(data?.longUnmanagedCustomers ?? []).filter(Boolean).length === 0 ? (
-            <EmptyState>장기 미관리 고객이 없습니다.</EmptyState>
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                  고객 DB 보기
+                </Button>
+              }
+            >
+              장기 미관리 고객이 없습니다.
+            </EmptyState>
           ) : data?.longUnmanagedCustomers.filter(Boolean).slice(0, 5).map((customer) => (
-            <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="w-full rounded-2xl border border-slate-200 p-3 text-left transition hover:bg-slate-50">
+            <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold text-slate-950">{customer.name}</span>
+                <span className="truncate text-sm font-semibold text-foreground">{customer.name}</span>
                 <StatusBadge status={customer.consultStatus} />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">알림 생성일 {new Date(customer.createdAt).toLocaleDateString("ko-KR")}</p>
@@ -234,11 +282,19 @@ function TodayWorkSection() {
 
         <SectionCard title="오늘 연락 대상" icon={Phone}>
           {(data?.todayFollowUps ?? []).length === 0 ? (
-            <EmptyState>오늘 연락할 고객이 없습니다.</EmptyState>
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                  고객 목록에서 후속관리 확인
+                </Button>
+              }
+            >
+              오늘 연락할 고객이 없습니다.
+            </EmptyState>
           ) : data?.todayFollowUps.slice(0, 5).map((followUp) => (
-            <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="w-full rounded-2xl border border-slate-200 p-3 text-left transition hover:bg-slate-50">
+            <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
               <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-sm font-semibold text-slate-950">{followUp.customerName ?? `고객 #${followUp.customerId}`}</span>
+                <span className="truncate text-sm font-semibold text-foreground">{followUp.customerName ?? `고객 #${followUp.customerId}`}</span>
                 <span className="text-[11px] text-muted-foreground">{followUp.nextAction}</span>
               </div>
               <p className="mt-1 truncate text-xs text-muted-foreground">{followUp.reason}</p>
@@ -257,13 +313,13 @@ function PerformanceGoalSummaryCard() {
 
   if (!firstGoal) {
     return (
-      <Card className="border-slate-200/80 bg-white/95">
+      <Card>
         <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-bold text-slate-950">이번 달 목표</p>
+            <p className="text-sm font-bold text-foreground">이번 달 목표</p>
             <p className="mt-1 text-xs text-muted-foreground">설정된 목표가 없습니다.</p>
           </div>
-          <button type="button" onClick={() => setLocation("/performance/goals")} className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+          <button type="button" onClick={() => setLocation("/performance/goals")} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
             목표관리 보기 <ChevronRight className="h-3 w-3" />
           </button>
         </CardContent>
@@ -272,37 +328,37 @@ function PerformanceGoalSummaryCard() {
   }
 
   return (
-    <Card className="border-primary/15 bg-white/95">
+    <Card className="border-primary/12 shadow-sm">
       <CardContent className="p-5">
         <div className="grid gap-4 lg:grid-cols-[1.2fr_2fr_auto] lg:items-center">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-amber-300">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg border border-sidebar-primary/40 bg-sidebar-primary/12 text-primary">
               <Target className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-sm font-bold text-slate-950">목표 대비 성과</p>
+              <p className="text-sm font-bold text-foreground">목표 대비 성과</p>
               <p className="text-xs text-muted-foreground">{firstGoal.targetLabel}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div className="boa-soft-card p-3">
               <p className="text-xs text-muted-foreground">신규 계약 달성률</p>
-              <p className="mt-1 font-bold text-slate-950">{firstGoal.achievementRate.contractCount ?? "-"}%</p>
+              <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.achievementRate.contractCount ?? "-"}%</p>
             </div>
             <div className="boa-soft-card p-3">
               <p className="text-xs text-muted-foreground">월납 달성률</p>
-              <p className="mt-1 font-bold text-slate-950">{firstGoal.achievementRate.monthlyPremium ?? "-"}%</p>
+              <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.achievementRate.monthlyPremium ?? "-"}%</p>
             </div>
             <div className="boa-soft-card p-3">
               <p className="text-xs text-muted-foreground">부족 신규 계약</p>
-              <p className="mt-1 font-bold text-slate-950">{firstGoal.remaining.contractCount}건</p>
+              <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.remaining.contractCount}건</p>
             </div>
             <div className="boa-soft-card p-3">
               <p className="text-xs text-muted-foreground">남은 기간</p>
-              <p className="mt-1 font-bold text-slate-950">{firstGoal.remainingDays}일</p>
+              <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.remainingDays}일</p>
             </div>
           </div>
-          <button type="button" onClick={() => setLocation("/performance/goals")} className="inline-flex items-center gap-1 text-xs font-semibold text-primary">
+          <button type="button" onClick={() => setLocation("/performance/goals")} className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline">
             자세히 보기 <ChevronRight className="h-3 w-3" />
           </button>
         </div>
@@ -316,15 +372,15 @@ function WorkRhythmSummaryCard() {
   const { data, isLoading } = trpc.workRhythm.summary.useQuery({ period: "week" });
 
   return (
-    <Card className="border-sky-200/80 bg-white/95">
-      <CardHeader className="flex-row items-center justify-between gap-3 pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-100 text-sky-700">
+    <Card className="shadow-sm">
+      <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
+        <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
             <BarChart3 className="h-4 w-4" />
           </span>
           업무 리듬 리포트
         </CardTitle>
-        <button type="button" onClick={() => setLocation("/performance/goals")} className="text-xs font-semibold text-primary">
+        <button type="button" onClick={() => setLocation("/performance/goals")} className="text-xs font-semibold text-primary hover:underline">
           목표관리
         </button>
       </CardHeader>
@@ -332,37 +388,37 @@ function WorkRhythmSummaryCard() {
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
           <div className="boa-soft-card p-3">
             <p className="text-xs text-muted-foreground">이번 주 상담기록</p>
-            <p className="mt-1 text-xl font-bold">{isLoading ? "-" : data?.consultationCount ?? 0}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : data?.consultationCount ?? 0}</p>
           </div>
           <div className="boa-soft-card p-3">
             <p className="text-xs text-muted-foreground">후속관리 완료율</p>
-            <p className="mt-1 text-xl font-bold">{data?.followUpCompletionRate ?? "-"}%</p>
+            <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{data?.followUpCompletionRate ?? "-"}%</p>
           </div>
           <div className="boa-soft-card p-3">
             <p className="text-xs text-muted-foreground">미처리 후속관리</p>
-            <p className="mt-1 text-xl font-bold">{isLoading ? "-" : data?.overdueFollowUpCount ?? 0}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : data?.overdueFollowUpCount ?? 0}</p>
           </div>
           <div className="boa-soft-card p-3">
             <p className="text-xs text-muted-foreground">오늘 필요 상담</p>
-            <p className="mt-1 text-xl font-bold">{isLoading ? "-" : data?.recommendedTodayActions?.suggestedConsultationCount ?? 0}</p>
+            <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : data?.recommendedTodayActions?.suggestedConsultationCount ?? 0}</p>
           </div>
         </div>
         <div className="grid gap-2 text-xs md:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 p-3">
+          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">목표까지 부족 신규 계약</p>
-            <p className="mt-1 font-bold text-slate-950">{data?.remaining?.contractCount ?? 0}건</p>
+            <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{data?.remaining?.contractCount ?? 0}건</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 p-3">
+          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">목표까지 부족 월납보험료</p>
-            <p className="mt-1 font-bold text-slate-950">{formatWon(data?.remaining?.monthlyPremium)}</p>
+            <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{formatWon(data?.remaining?.monthlyPremium)}</p>
           </div>
-          <div className="rounded-2xl border border-slate-200 p-3">
+          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">일평균 필요 신규 계약</p>
-            <p className="mt-1 font-bold text-slate-950">{data?.dailyRequired?.contractCount ?? 0}건</p>
+            <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{data?.dailyRequired?.contractCount ?? 0}건</p>
           </div>
         </div>
         {(data?.insights ?? []).length > 0 ? (
-          <div className="space-y-1 rounded-2xl bg-sky-50 p-3 text-xs text-sky-800">
+          <div className="space-y-1 rounded-lg border border-border/80 bg-muted/35 p-3 text-xs text-foreground">
             {data?.insights.slice(0, 3).map((item) => <p key={item}>· {item}</p>)}
           </div>
         ) : null}
@@ -394,39 +450,45 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <section className="overflow-hidden rounded-3xl border border-slate-200/80 bg-slate-950 text-white shadow-[0_24px_60px_rgba(15,23,42,0.18)]">
-          <div className="grid gap-6 p-5 sm:p-7 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+        <section className="relative overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className="crm-masthead-rule" />
+          <div className="grid gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[1.35fr_1fr] lg:items-center">
             <div>
-              <Badge className="border-0 bg-amber-300/15 text-amber-200">BOA Premium CRM</Badge>
-              <h1 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">
+              <Badge variant="outline" className="border-sidebar-primary/45 bg-sidebar-primary/10 font-semibold text-foreground">
+                BOA Premium CRM
+              </Badge>
+              <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 {user?.name}님, 오늘의 지점 운영 흐름입니다.
               </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
                 신규 계약, 월납보험료 실적, 일정, 알림, 후속관리까지 권한 범위 안에서 필요한 업무를 빠르게 확인하세요.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                <p className="text-xs text-slate-300">오늘 날짜</p>
-                <p className="mt-2 text-lg font-bold">{today.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}</p>
+              <div className="rounded-lg border border-border bg-muted/35 p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">오늘 날짜</p>
+                <p className="mt-2 text-lg font-bold tabular-nums tracking-tight text-foreground">
+                  {today.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}
+                </p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/10 p-4">
-                <p className="text-xs text-slate-300">로그인 역할</p>
-                <p className="mt-2 text-lg font-bold">{roleTitle}</p>
+              <div className="rounded-lg border border-border bg-muted/35 p-4 shadow-sm">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">로그인 역할</p>
+                <p className="mt-2 text-lg font-bold text-foreground">{roleTitle}</p>
               </div>
             </div>
           </div>
         </section>
 
         <div className="flex flex-wrap gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => setLocation("/sales-pipeline")}
-            className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900 shadow-sm transition hover:bg-slate-50"
+            className="gap-2 rounded-lg border-border shadow-sm"
           >
-            <LayoutGrid className="h-4 w-4 text-amber-600" />
+            <LayoutGrid className="h-4 w-4 text-sidebar-primary" />
             세일즈 파이프라인
-          </button>
+          </Button>
         </div>
 
         <TodayWorkSection />
@@ -453,18 +515,26 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <SectionCard title="최근 고객" icon={Users} action={<button type="button" onClick={() => setLocation("/customers")} className="text-xs font-semibold text-primary">고객 DB</button>}>
+          <SectionCard title="최근 고객" icon={Users} action={<button type="button" onClick={() => setLocation("/customers")} className="text-xs font-semibold text-primary hover:underline">고객 DB</button>}>
             {recentCustomers.length === 0 ? (
-              <EmptyState>표시할 고객이 없습니다.</EmptyState>
+              <EmptyState
+                action={
+                  <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                    고객 DB 열기
+                  </Button>
+                }
+              >
+                표시할 고객이 없습니다.
+              </EmptyState>
             ) : recentCustomers.map((customer) => (
               <button
                 key={customer.id}
                 type="button"
                 onClick={() => setLocation(`/customers/${customer.id}`)}
-                className="flex w-full items-center justify-between gap-3 rounded-2xl border border-slate-200 p-3 text-left transition hover:bg-slate-50"
+                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-950">{customer.name}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
                   <p className="mt-1 truncate text-xs text-muted-foreground">{customer.region ?? "지역 미입력"}</p>
                 </div>
                 <StatusBadge status={customer.consultStatus} />
@@ -472,13 +542,21 @@ export default function Dashboard() {
             ))}
           </SectionCard>
 
-          <SectionCard title="오늘 일정" icon={CalendarDays} action={<button type="button" onClick={() => setLocation("/calendar")} className="text-xs font-semibold text-primary">일정 보기</button>}>
+          <SectionCard title="오늘 일정" icon={CalendarDays} action={<button type="button" onClick={() => setLocation("/calendar")} className="text-xs font-semibold text-primary hover:underline">일정 보기</button>}>
             {todaySchedules.length === 0 ? (
-              <EmptyState>오늘 일정이 없습니다.</EmptyState>
+              <EmptyState
+                action={
+                  <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/calendar")}>
+                    캘린더로 이동
+                  </Button>
+                }
+              >
+                오늘 일정이 없습니다.
+              </EmptyState>
             ) : todaySchedules.slice(0, 5).map((schedule) => (
-              <div key={schedule.id} className="rounded-2xl border border-slate-200 p-3">
+              <div key={schedule.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
                 <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-semibold text-slate-950">{schedule.title}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{schedule.title}</p>
                   <StatusBadge status={schedule.status} />
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -488,21 +566,29 @@ export default function Dashboard() {
             ))}
           </SectionCard>
 
-          <SectionCard title="중요 알림" icon={Bell} action={<button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary">알림 보기</button>}>
+          <SectionCard title="중요 알림" icon={Bell} action={<button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">알림 보기</button>}>
             {unreadNotifs.length === 0 ? (
-              <EmptyState>새 알림이 없습니다.</EmptyState>
+              <EmptyState
+                action={
+                  <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/notifications")}>
+                    알림센터 열기
+                  </Button>
+                }
+              >
+                새 알림이 없습니다.
+              </EmptyState>
             ) : unreadNotifs.slice(0, 5).map((notification) => (
-              <div key={notification.id} className="rounded-2xl border-l-4 border-amber-300 bg-amber-50/70 p-3">
-                <p className="truncate text-sm font-semibold text-slate-950">{notification.title}</p>
+              <div key={notification.id} className="rounded-lg border border-border border-l-[3px] border-l-sidebar-primary bg-muted/25 p-3 shadow-sm">
+                <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
                 <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
               </div>
             ))}
           </SectionCard>
         </div>
 
-        <Card className="border-slate-200/80 bg-white/95">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-3">
-            <CardTitle className="text-base">상담 현황 요약</CardTitle>
+        <Card className="shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b border-border/70 pb-3">
+            <CardTitle className="text-base font-semibold tracking-tight">상담 현황 요약</CardTitle>
             <button
               type="button"
               onClick={() => setLocation("/sales-pipeline")}
@@ -523,14 +609,14 @@ export default function Dashboard() {
                 { label: "상담률", value: `${stats?.consultRate ?? 0}%` },
                 { label: "신규 계약률", value: `${stats?.contractRate ?? 0}%` },
               ].map((item) => (
-                <div key={item.label} className="rounded-2xl bg-slate-50 p-3 text-center">
-                  <p className="text-lg font-bold text-slate-950">{item.value ?? 0}</p>
+                <div key={item.label} className="rounded-lg border border-border/70 bg-muted/30 p-3 text-center shadow-sm">
+                  <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">{item.value ?? 0}</p>
                   <p className="mt-1 text-[11px] font-medium text-muted-foreground">{item.label}</p>
                 </div>
               ))}
             </div>
-            <div className="mt-4 flex items-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-xs text-slate-300">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-amber-300" />
+            <div className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-muted/35 px-4 py-3 text-xs text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-sidebar-primary" />
               BOA CRM은 신규 계약과 월납보험료 실적을 중심으로 표시합니다. 계약 유지 상태는 GA 본사 전산 기준으로 확인합니다.
             </div>
           </CardContent>

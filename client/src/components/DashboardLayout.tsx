@@ -52,6 +52,7 @@ import {
   Users,
   UserSquare2,
 } from "lucide-react";
+import { BranchMark } from "./BranchMark";
 import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -168,14 +169,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full">
           <Building2 className="h-12 w-12 text-primary" />
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">蹂댄뿕 ?곸뾽 ?щ궡 ?꾩궛</h1>
-            <p className="text-sm text-muted-foreground mt-2">濡쒓렇?몄씠 ?꾩슂?⑸땲??</p>
+            <h1 className="text-2xl font-bold tracking-tight">BOA 지점관리 CRM</h1>
+            <p className="text-sm text-muted-foreground mt-2">업무를 계속하려면 로그인이 필요합니다.</p>
           </div>
           {loginConfigMessage ? (
             <p className="text-sm text-destructive text-center">{loginConfigMessage}</p>
           ) : null}
           <Button onClick={handleLogin} size="lg" className="w-full">
-            濡쒓렇??
+            로그인
           </Button>
         </div>
       </div>
@@ -239,16 +240,14 @@ function DashboardLayoutContent({
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar collapsible="icon" className="border-r border-slate-800/80 bg-sidebar text-sidebar-foreground">
-          <SidebarHeader className="h-16 justify-center border-b border-white/10">
-            <div className="flex items-center gap-2 px-2">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300 text-slate-950 shadow-sm">
-                <Building2 className="h-4 w-4 text-sidebar-primary-foreground" />
-              </div>
+        <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+          <SidebarHeader className="h-16 justify-center border-b border-sidebar-border/80">
+            <div className="flex items-center gap-2.5 px-2">
+              <BranchMark />
               {!isCollapsed && (
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold tracking-tight text-white">BOA 지점관리</p>
-                  <p className="truncate text-[11px] font-medium text-amber-200/80">Premium CRM</p>
+                  <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">BOA 지점관리</p>
+                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">Premium CRM</p>
                 </div>
               )}
             </div>
@@ -265,8 +264,10 @@ function DashboardLayoutContent({
                       isActive={isActive}
                       onClick={() => setLocation(item.path)}
                       tooltip={item.label}
-                      className={`relative h-10 rounded-xl text-sidebar-foreground/80 hover:bg-white/10 hover:text-white ${
-                        isActive ? "bg-white/10 text-white before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r-full before:bg-amber-300" : ""
+                      className={`relative min-h-11 rounded-lg text-sidebar-foreground/85 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground ${
+                        isActive
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-7 before:w-1 before:rounded-r before:bg-sidebar-primary"
+                          : ""
                       }`}
                     >
                       <item.icon className="h-4 w-4 shrink-0" />
@@ -283,19 +284,22 @@ function DashboardLayoutContent({
             </SidebarMenu>
           </SidebarContent>
 
-          <SidebarFooter className="border-t border-white/10 p-2">
+          <SidebarFooter className="border-t border-sidebar-border/80 p-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex w-full items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-2 py-2 text-left transition-colors hover:bg-white/10 focus:outline-none">
+                <button
+                  type="button"
+                  className="flex min-h-11 w-full items-center gap-2 rounded-lg border border-sidebar-border/80 bg-sidebar-accent/40 px-2 py-2 text-left transition-colors hover:bg-sidebar-accent/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/50"
+                >
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="bg-amber-300 text-xs font-bold text-slate-950">
+                    <AvatarFallback className="bg-sidebar-primary text-xs font-bold text-sidebar-primary-foreground">
                       {user?.name?.charAt(0).toUpperCase() ?? "U"}
                     </AvatarFallback>
                   </Avatar>
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-xs font-semibold text-white">{user?.name ?? "-"}</p>
-                      <p className="truncate text-[10px] text-amber-200/75">
+                      <p className="truncate text-xs font-semibold text-sidebar-foreground">{user?.name ?? "-"}</p>
+                      <p className="truncate text-[10px] text-sidebar-primary/85">
                         {roleLabel[user?.role ?? "member"]}
                       </p>
                     </div>
@@ -325,11 +329,11 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border bg-background/90 px-4 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <SidebarTrigger className="h-8 w-8" />
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/90 bg-background/92 px-4 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/78">
+          <SidebarTrigger className="h-9 w-9 shrink-0 rounded-lg border border-transparent hover:bg-muted/70" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-foreground">{getPageTitle(location)}</p>
-            <p className="hidden text-xs text-muted-foreground sm:block">
+            <p className="truncate text-sm font-bold tracking-tight text-foreground">{getPageTitle(location)}</p>
+            <p className="hidden text-xs text-muted-foreground tabular-nums sm:block">
               {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}
             </p>
           </div>
@@ -341,7 +345,7 @@ function DashboardLayoutContent({
                   type="button"
                   variant="outline"
                   size="icon"
-                  className="h-10 w-10 shrink-0 rounded-xl border-border bg-card shadow-sm"
+                  className="h-10 w-10 shrink-0 rounded-lg border-border bg-card shadow-sm"
                   onClick={toggleTheme}
                   aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
                 >
@@ -355,7 +359,7 @@ function DashboardLayoutContent({
           ) : null}
           <button
             onClick={() => setLocation("/notifications")}
-            className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-accent"
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-muted/60"
           >
             <Bell className="h-4 w-4" />
             {unreadCount && unreadCount > 0 ? (

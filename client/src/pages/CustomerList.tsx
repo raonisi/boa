@@ -4,6 +4,12 @@ import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, ChevronRight, Filter, X, Trash2, Upload, LayoutGrid } from "lucide-react";
+import { Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -133,12 +139,12 @@ export default function CustomerList() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className="overflow-hidden border-border shadow-sm">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Customer Database</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">고객 DB</h1>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">Customer Database</p>
+              <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">고객 DB</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
               {user?.role === "sub_branch_admin" ? "부지점장 산하 고객 관리" :
                user?.role === "team_leader" ? "본인 팀 고객 관리" :
                user?.role === "member" ? "내 고객 관리" : "전체 고객 관리"}
@@ -146,17 +152,17 @@ export default function CustomerList() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/sales-pipeline")}>
+              <Button variant="outline" size="sm" onClick={() => setLocation("/sales-pipeline")}>
                 <LayoutGrid className="h-4 w-4 mr-1" /> 파이프라인
               </Button>
             {canCreateCustomer && (
               <>
                 {user?.role === "branch_admin" && (
-                  <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/customers/assign")}>
+                  <Button variant="outline" size="sm" onClick={() => setLocation("/customers/assign")}>
                     <UserPlus className="h-4 w-4 mr-1" /> DB 배정
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="border-slate-200 bg-white" onClick={() => setLocation("/customers/bulk-import")}>
+                <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
                   <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
                 </Button>
                 <Button size="sm" onClick={() => setShowCreate(true)}>
@@ -169,24 +175,29 @@ export default function CustomerList() {
         </Card>
 
         {/* 검색 및 필터 */}
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className="border-border shadow-sm">
           <CardContent className="space-y-3 p-4">
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="고객 검색" value={search} onChange={(e) => setSearch(e.target.value)} className="h-10 rounded-xl border-slate-200 bg-slate-50 pl-8" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="이름 또는 연락처로 검색"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-11 rounded-lg border-border bg-background pl-10 shadow-sm focus-visible:shadow-sm"
+                />
               </div>
               <Button
                 variant={hasActiveFilters ? "default" : "outline"}
                 size="sm"
-                className="h-10 shrink-0 rounded-xl"
+                className="h-11 shrink-0 rounded-lg"
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="h-4 w-4 mr-1" />
                 필터{hasActiveFilters ? " ●" : ""}
               </Button>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" className="h-10 rounded-xl" onClick={clearFilters}>
+                <Button variant="ghost" size="sm" className="h-11 rounded-lg" onClick={clearFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
@@ -262,20 +273,36 @@ export default function CustomerList() {
         {isMobile ? (
           <div className="space-y-3">
             {filtered.length === 0 ? (
-              <Card className="border-dashed border-slate-200 bg-white/90"><CardContent className="py-10 text-center text-sm text-slate-500">표시할 고객이 없습니다.</CardContent></Card>
+              <Card className="border-dashed border-border bg-muted/20 shadow-sm">
+                <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
+                  <p className="text-sm text-muted-foreground">조건에 맞는 고객이 없습니다. 검색어나 필터를 조정해 보세요.</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {hasActiveFilters ? (
+                      <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                        필터 초기화
+                      </Button>
+                    ) : null}
+                    {canCreateCustomer ? (
+                      <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
+                        신규 고객 등록
+                      </Button>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
             ) : (
               filtered.map((c) => {
                 const recommendation = recommendationByCustomerId.get(c.id);
                 return (
-                <Card key={c.id} className="cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition active:bg-slate-50" onClick={() => setLocation(`/customers/${c.id}`)}>
+                <Card key={c.id} className="cursor-pointer border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-slate-950">{c.name}</span>
+                          <span className="text-sm font-semibold text-foreground">{c.name}</span>
                           <StatusBadge status={c.consultStatus} />
-                          <span className="text-[10px] rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span>
-                          {recommendation && <span className={`text-[10px] rounded-full px-2 py-0.5 ${recommendation.urgency === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>우선 연락</span>}
+                          <span className="text-[10px] rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{priorityLabel((c as any).priority)}</span>
+                          {recommendation && <span className={`text-[10px] rounded-full px-2 py-0.5 ${recommendation.urgency === "high" ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-sidebar-primary/12 text-foreground"}`}>우선 연락</span>}
                         </div>
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
@@ -296,14 +323,41 @@ export default function CustomerList() {
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">담당: {formatUserWithRole(agentById.get(c.agentId ?? 0))}</p>
                       </div>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-1" />
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label="고객 작업 메뉴"
+                          >
+                            <MoreHorizontal className="h-5 w-5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={() => setLocation(`/customers/${c.id}`)}>
+                            <Eye className="mr-2 h-4 w-4" /> 상세 보기
+                          </DropdownMenuItem>
+                          {c.phone ? (
+                            <DropdownMenuItem asChild>
+                              <a href={`tel:${c.phone}`} className="flex items-center">
+                                <Phone className="mr-2 h-4 w-4" /> 전화 걸기
+                              </a>
+                            </DropdownMenuItem>
+                          ) : null}
+                          <DropdownMenuItem onClick={() => setLocation(`/customers/${c.id}`)}>상담기록 / 메모</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                     <div className="flex gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                       {["부재", "통화완료", "상담예정"].map((s) => (
                         <button
                           key={s}
+                          type="button"
                           onClick={() => updateMutation.mutate({ id: c.id, consultStatus: s as any })}
-                          className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${c.consultStatus === s ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted"}`}
+                          className={`min-h-9 rounded-full border px-3 text-[10px] font-medium transition-colors ${c.consultStatus === s ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted/60"}`}
                         >
                           {s}
                         </button>
@@ -311,14 +365,14 @@ export default function CustomerList() {
                       <button
                         type="button"
                         onClick={() => setLocation(`/customers/${c.id}`)}
-                        className="min-h-8 rounded-full border px-3 text-[11px] font-medium hover:bg-muted"
+                        className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
                       >
                         상담기록
                       </button>
                       <button
                         type="button"
                         onClick={() => setLocation(`/customers/${c.id}`)}
-                        className="min-h-8 rounded-full border px-3 text-[11px] font-medium hover:bg-muted"
+                        className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
                       >
                         다음 연락일
                       </button>
@@ -331,12 +385,12 @@ export default function CustomerList() {
           </div>
         ) : (
           /* 데스크톱 테이블 뷰 */
-          <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className="overflow-hidden border-border shadow-sm">
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <Table>
-                  <TableHeader className="bg-slate-50/80">
-                    <TableRow>
+                  <TableHeader className="bg-muted/40">
+                    <TableRow className="hover:bg-transparent">
                       <TableHead>이름</TableHead>
                       <TableHead>연락처</TableHead>
                       <TableHead>지역</TableHead>
@@ -353,17 +407,37 @@ export default function CustomerList() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="py-10 text-center text-sm text-slate-500">표시할 고객이 없습니다.</TableCell>
+                        <TableCell colSpan={11} className="py-14 text-center align-middle">
+                          <div className="mx-auto flex max-w-md flex-col items-center gap-3 text-sm text-muted-foreground">
+                            <p>조건에 맞는 고객이 없습니다.</p>
+                            <div className="flex flex-wrap justify-center gap-2">
+                              {hasActiveFilters ? (
+                                <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                                  필터 초기화
+                                </Button>
+                              ) : null}
+                              {canCreateCustomer ? (
+                                <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
+                                  신규 고객 등록
+                                </Button>
+                              ) : null}
+                            </div>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     ) : (
                       filtered.map((c) => {
                         const recommendation = recommendationByCustomerId.get(c.id);
                         return (
-                        <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => setLocation(`/customers/${c.id}`)}>
-                          <TableCell className="font-medium">
+                        <TableRow
+                          key={c.id}
+                          className="group cursor-pointer transition-colors hover:bg-muted/35"
+                          onClick={() => setLocation(`/customers/${c.id}`)}
+                        >
+                          <TableCell className="font-medium text-foreground">
                             <div className="flex flex-col gap-1">
                               <span>{c.name}</span>
-                              {recommendation && <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] ${recommendation.urgency === "high" ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>우선 연락 · {recommendation.totalScore}</span>}
+                              {recommendation && <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] ${recommendation.urgency === "high" ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-sidebar-primary/12 text-foreground"}`}>우선 연락 · <span className="tabular-nums">{recommendation.totalScore}</span></span>}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -392,17 +466,39 @@ export default function CustomerList() {
                               c.assignedAt ? new Date(c.assignedAt).toLocaleDateString("ko-KR") : "-"
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right tabular-nums font-semibold text-foreground">
                             {c.expectedPremium ? `${c.expectedPremium.toLocaleString()}원` : "-"}
                           </TableCell>
-                          <TableCell>
-                            <div className="flex items-center justify-end gap-1">
-                              <Button variant="ghost" size="sm" className="h-7 text-xs">상세</Button>
+                          <TableCell className="w-[148px] text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-0.5 md:pointer-events-none md:opacity-0 md:transition-opacity md:duration-200 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100">
+                              {c.phone ? (
+                                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" asChild title="전화">
+                                  <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()}>
+                                    <Phone className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-muted-foreground" disabled title="연락처 없음">
+                                  <Phone className="h-4 w-4" />
+                                </Button>
+                              )}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                title="상세"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLocation(`/customers/${c.id}`);
+                                }}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                               {canDeactivateCustomer && (
                                 <Button
                                   variant="ghost"
-                                  size="sm"
-                                  className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                                  size="icon"
+                                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
                                   onClick={(e) => handleDeactivateCustomer(c.id, e)}
                                   title="고객 삭제"
                                 >
