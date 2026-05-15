@@ -32,3 +32,27 @@ This project is an internal insurance sales CRM for a Korean insurance team.
 ## Development focus
 When asked to implement or audit the CRM, use the repository skill:
 `$boa-crm-full-build`
+
+## Cursor Cloud specific instructions
+
+### Services overview
+
+| Service | How to run | Notes |
+|---------|-----------|-------|
+| Backend + Vite frontend | `pnpm dev` | Single Express server on port 3000 with Vite middleware in dev mode |
+| MySQL | Docker: `docker run -d --name mysql-boa -e MYSQL_ROOT_PASSWORD=devpass -e MYSQL_DATABASE=insurance_crm -p 3306:3306 mysql:8.0 --default-authentication-plugin=mysql_native_password` | Required for the app to connect |
+| Migrations | `pnpm db:migrate` | Run after MySQL is available; applies committed SQL migration files |
+
+### Key commands (already in package.json)
+- `pnpm dev` — starts Express+Vite dev server (port 3000)
+- `pnpm check` — TypeScript type check (`tsc --noEmit`); has 2 pre-existing errors in `server/mobileRoutes.ts`
+- `pnpm test` — runs vitest unit/integration tests (no DB needed; tests use mocks)
+- `pnpm build` — Vite frontend build + esbuild server bundle
+
+### Non-obvious gotchas
+- **Docker required for MySQL**: The VM does not have MySQL installed natively. Use Docker (`mysql:8.0`) with fuse-overlayfs storage driver and iptables-legacy. Docker daemon must be started manually: `sudo dockerd &>/tmp/dockerd.log &`
+- **Google OAuth placeholder**: Dev `.env` uses placeholder `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. The app will redirect to Google OAuth but fail with `invalid_client`. To test authenticated flows, real Google OAuth credentials must be provided as secrets.
+- **DATABASE_URL format**: `mysql://root:devpass@127.0.0.1:3306/insurance_crm` (local Docker MySQL)
+- **Tests don't need DB**: All 245 tests use in-memory mocks (vi.mock) and run without DATABASE_URL.
+- **esbuild native binary**: After `pnpm install --frozen-lockfile`, run `pnpm rebuild esbuild` if the esbuild binary is missing (the pnpm lockfile may skip postinstall scripts).
+- **Health check**: `GET /api/health` returns `{"ok":true,"service":"boa-crm"}` — use this to confirm the server is running.
