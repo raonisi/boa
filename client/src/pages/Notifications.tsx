@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight, Filter, Settings, ShieldAlert } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { toast } from "sonner";
 
 const typeLabels: Record<string, string> = {
@@ -47,9 +48,20 @@ const titleMap: Record<string, string> = {
 
 const LIMIT = 50;
 
+function priorityLabel(priority: "urgent" | "today" | "general") {
+  return priority === "urgent" ? "긴급" : priority === "today" ? "오늘 처리" : "일반";
+}
+
+function priorityCardClass(priority: PriorityFilter, active: boolean) {
+  if (priority === "urgent") return active ? "border-red-300 bg-red-50 text-red-800" : "border-red-100 bg-white hover:bg-red-50/60";
+  if (priority === "today") return active ? "border-amber-300 bg-amber-50 text-amber-800" : "border-amber-100 bg-white hover:bg-amber-50/60";
+  return active ? "border-slate-300 bg-slate-100 text-slate-900" : "border-slate-200 bg-white hover:bg-slate-50";
+}
+
 export default function Notifications() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
+  const [, setLocation] = useLocation();
 
   // 서버 사이드 필터 상태
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
@@ -105,6 +117,8 @@ export default function Notifications() {
   });
 
   const unreadCount = filteredNotifications.filter((n) => !n.isRead).length;
+  const actionQueueCount = priorityCounts.urgent + priorityCounts.today;
+  const completedCount = notifications.filter((n) => n.processStatus === "처리완료").length;
 
   const handleMarkAllRead = () => {
     const isBranchAdmin = user?.role === "branch_admin";
@@ -124,14 +138,15 @@ export default function Notifications() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <Card className="overflow-hidden shadow-sm">
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ring">Notifications</p>
               <h1 className="mt-1 text-2xl font-bold text-foreground">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                전체 {totalCount.toLocaleString()}건 · 현재 보기 {filteredNotifications.length}건 · 미읽은 {unreadCount}건
+                지금 처리할 업무 {actionQueueCount}건 · 미확인 {unreadCount}건 · 처리완료 {completedCount}건
               </p>
+              <p className="mt-1 text-xs text-muted-foreground">미래 일정 알림은 설정한 dueAt 시각이 도래한 뒤 표시됩니다.</p>
             </div>
             <div className="flex items-center gap-2">
             {unreadCount > 0 && (
@@ -202,33 +217,36 @@ export default function Notifications() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid gap-2 sm:grid-cols-3">
           <button
             type="button"
             aria-pressed={priorityFilter === "urgent"}
-            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "urgent" ? "crm-priority-urgent crm-priority-chip-active border-red-300 dark:border-red-900/60" : "border-border bg-card hover:bg-muted/35"}`}
+            className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
             onClick={() => setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent")}
           >
-            <p className="text-[11px] text-muted-foreground">긴급</p>
+            <p className="text-[11px] font-semibold">긴급</p>
             <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.urgent}</p>
+            <p className="text-[11px] text-muted-foreground">위험·기한 임박 업무</p>
           </button>
           <button
             type="button"
             aria-pressed={priorityFilter === "today"}
-            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "today" ? "crm-priority-today crm-priority-chip-active border-amber-300 dark:border-amber-900/60" : "border-border bg-card hover:bg-muted/35"}`}
+            className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
             onClick={() => setPriorityFilter(priorityFilter === "today" ? "all" : "today")}
           >
-            <p className="text-[11px] text-muted-foreground">오늘 처리</p>
+            <p className="text-[11px] font-semibold">오늘 처리</p>
             <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.today}</p>
+            <p className="text-[11px] text-muted-foreground">오늘 확인할 업무</p>
           </button>
           <button
             type="button"
             aria-pressed={priorityFilter === "general"}
-            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "general" ? "crm-priority-general crm-priority-chip-active border-slate-300 dark:border-slate-700" : "border-border bg-card hover:bg-muted/35"}`}
+            className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
             onClick={() => setPriorityFilter(priorityFilter === "general" ? "all" : "general")}
           >
-            <p className="text-[11px] text-muted-foreground">일반</p>
+            <p className="text-[11px] font-semibold">일반</p>
             <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.general}</p>
+            <p className="text-[11px] text-muted-foreground">정보성 알림</p>
           </button>
         </div>
 
@@ -236,8 +254,13 @@ export default function Notifications() {
         {filteredNotifications.length === 0 ? (
           <EmptyState
             icon={BellOff}
-            title="알림이 없습니다"
-            description={priorityFilter === "all" ? "조건에 맞는 알림이 없거나 모두 처리되었습니다." : "선택한 우선순위 조건에 맞는 알림이 없습니다."}
+            title="현재 확인할 알림이 없습니다."
+            description="일정 알림은 설정한 시각에 표시됩니다. 조건을 넓히거나 알림 설정을 확인하세요."
+            action={
+              <Button size="sm" variant="outline" onClick={() => setLocation("/notification-preferences")}>
+                <Settings className="h-4 w-4 mr-1" /> 알림 설정 보기
+              </Button>
+            }
           />
         ) : (
           <div className="space-y-3">
@@ -260,15 +283,24 @@ export default function Notifications() {
                                 ? "crm-priority-today"
                                 : "crm-priority-general"
                           }`}>
-                            {priority === "urgent" ? "긴급" : priority === "today" ? "오늘 처리" : "일반"}
+                            {priorityLabel(priority)}
                           </span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${processStatus === "처리완료" ? "bg-emerald-100 text-emerald-700" : processStatus === "미확인" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}>{processStatus}</span>
                           {!n.isRead && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">미읽음</span>}
                           <span className="text-xs text-muted-foreground sm:ml-auto">{new Date(n.createdAt).toLocaleString("ko-KR")}</span>
                         </div>
                         <p className="text-sm font-medium">{n.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
                         {n.dueAt && (
-                          <p className="text-xs text-primary mt-1">예정일: {new Date(n.dueAt).toLocaleDateString("ko-KR")}</p>
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">예정일: {new Date(n.dueAt).toLocaleDateString("ko-KR")}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">알림 시각: {new Date(n.dueAt).toLocaleString("ko-KR")}</span>
+                          </div>
+                        )}
+                        {priority === "urgent" && (
+                          <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-700">
+                            <ShieldAlert className="h-3.5 w-3.5" /> 우선 처리 권장
+                          </p>
                         )}
                       </div>
                       <div className="flex shrink-0 gap-2 sm:flex-col sm:gap-1">
@@ -287,6 +319,11 @@ export default function Notifications() {
                         {!n.isRead && (
                           <Button variant="ghost" size="sm" className="h-9 text-xs sm:h-7" onClick={() => markReadMutation.mutate({ id: n.id })}>
                             읽음
+                          </Button>
+                        )}
+                        {processStatus !== "처리완료" && (
+                          <Button variant="outline" size="sm" className="h-9 text-xs sm:h-7" onClick={() => updateStatusMutation.mutate({ id: n.id, processStatus: "처리완료" })}>
+                            처리완료
                           </Button>
                         )}
                       </div>
