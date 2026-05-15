@@ -2504,6 +2504,7 @@ export const appRouter = router({
       .input(z.object({
         status: z.string().optional(),
         unassigned: z.boolean().optional(),
+        assignmentStatus: z.enum(["unassigned", "assigned_to_sub_branch", "assigned_to_agent"]).optional(),
         region: z.string().optional(),
         source: z.string().optional(),
         priority: z.enum(CUSTOMER_PRIORITIES).optional(),
@@ -2522,6 +2523,7 @@ export const appRouter = router({
         const baseFilter = {
           status: input.status,
           unassigned: input.unassigned,
+          assignmentStatus: input.assignmentStatus,
           region: input.region,
           source: input.source,
           priority: input.priority,

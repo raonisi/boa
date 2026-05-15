@@ -106,7 +106,7 @@ function AssignToSubBranch() {
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectedSubBranchAdmin, setSelectedSubBranchAdmin] = useState<string>("");
 
-  const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true });
+  const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true, assignmentStatus: "unassigned" });
   const { data: allUsers } = trpc.users.list.useQuery();
   const subBranchAdmins = (allUsers ?? []).filter((u) => u.role === "sub_branch_admin" && (u as any).accountStatus === "active");
 
