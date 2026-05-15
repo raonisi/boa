@@ -1,12 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import Papa from "papaparse";
 import * as XLSX from "xlsx";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, CheckCircle2, Download, Upload, AlertTriangle } from "lucide-react";
+import { AlertCircle, CheckCircle2, Download, Upload, AlertTriangle, FileSpreadsheet, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { formatUserWithRole } from "@/lib/userRole";
@@ -35,6 +36,8 @@ export default function CustomerBulkImport() {
   const [isLoading, setIsLoading] = useState(false);
   const [importBatchId, setImportBatchId] = useState<string>("");
   const [assignmentMode, setAssignmentMode] = useState<string>("csv");
+  const [progressPhase, setProgressPhase] = useState<"idle" | "parsing" | "validating" | "importing">("idle");
+  const [progressPercent, setProgressPercent] = useState(0);
 
   const downloadTemplateQuery = trpc.customers.downloadImportTemplate.useQuery();
   const previewImportMutation = trpc.customers.previewImport.useMutation();
@@ -122,17 +125,25 @@ export default function CustomerBulkImport() {
     setFileSize(file.size);
     const nextMimeType = file.type || (isXlsx ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv");
     setMimeType(nextMimeType);
+    setProgressPhase("parsing");
+    setProgressPercent(10);
+    setIsLoading(true);
 
     if (isXlsx) {
       file.arrayBuffer()
         .then((buffer) => {
+          setProgressPercent(40);
           const workbook = XLSX.read(buffer, { type: "array" });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
           const rows = XLSX.utils.sheet_to_json<ParsedRow>(sheet, { defval: "" });
+          setProgressPercent(60);
           setParsedRows(rows);
           handlePreview(rows, file.name, file.size, nextMimeType);
         })
         .catch((error: any) => {
+          setProgressPhase("idle");
+          setProgressPercent(0);
+          setIsLoading(false);
           alert(`파일 파싱 오류: ${error.message}`);
         });
       return;
@@ -142,11 +153,15 @@ export default function CustomerBulkImport() {
       header: true,
       skipEmptyLines: true,
       complete: (results: any) => {
+        setProgressPercent(60);
         const rows = results.data as ParsedRow[];
         setParsedRows(rows);
         handlePreview(rows, file.name, file.size, nextMimeType);
       },
       error: (error: any) => {
+        setProgressPhase("idle");
+        setProgressPercent(0);
+        setIsLoading(false);
         alert(`파일 파싱 오류: ${error.message}`);
       },
     });
@@ -154,18 +169,26 @@ export default function CustomerBulkImport() {
 
   const handlePreview = async (rows: ParsedRow[], selectedFileName = fileName, selectedFileSize = fileSize, selectedMimeType = mimeType) => {
     if (rows.length === 0) {
+      setProgressPhase("idle");
+      setProgressPercent(0);
+      setIsLoading(false);
       alert("파일에 데이터가 없습니다.");
       return;
     }
 
+    setProgressPhase("validating");
+    setProgressPercent(70);
     setIsLoading(true);
     try {
       const result = await previewImportMutation.mutateAsync({ rows, fileName: selectedFileName, fileSize: selectedFileSize, mimeType: selectedMimeType, agentId: selectedAgentId });
+      setProgressPercent(100);
       setValidationResults(result.validationResults);
       setStage("preview");
     } catch (error: any) {
       alert(`검증 오류: ${error.message}`);
     } finally {
+      setProgressPhase("idle");
+      setProgressPercent(0);
       setIsLoading(false);
     }
   };
@@ -174,7 +197,10 @@ export default function CustomerBulkImport() {
     if (!confirm("정상 행만 등록합니다. 계속하시겠습니까?")) return;
 
     setIsLoading(true);
+    setProgressPhase("importing");
+    setProgressPercent(20);
     try {
+      setProgressPercent(50);
       const result = await bulkImportMutation.mutateAsync({
         rows: parsedRows,
         fileName,
@@ -182,12 +208,15 @@ export default function CustomerBulkImport() {
         mimeType,
         agentId: selectedAgentId,
       });
+      setProgressPercent(100);
       setImportBatchId(result.importBatchId);
       setValidationResults(result.validationResults);
       setStage("result");
     } catch (error: any) {
       alert(`등록 오류: ${error.message}`);
     } finally {
+      setProgressPhase("idle");
+      setProgressPercent(0);
       setIsLoading(false);
     }
   };
@@ -205,6 +234,39 @@ export default function CustomerBulkImport() {
           엑셀 또는 CSV 파일을 통해 여러 고객을 한 번에 등록할 수 있습니다.
           {canSelectAssignee ? " 담당자 지정 방식은 아래에서 선택하세요." : " 등록된 고객은 내 고객으로 자동 배정됩니다."}
         </p>
+
+        {/* Progress Indicator */}
+        {isLoading && progressPhase !== "idle" && (
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="py-5 space-y-3">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-primary shrink-0" />
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-sm font-medium">
+                      {progressPhase === "parsing" && "파일 파싱 중..."}
+                      {progressPhase === "validating" && "서버 검증 중..."}
+                      {progressPhase === "importing" && "DB 등록 중..."}
+                    </p>
+                    <span className="text-xs text-muted-foreground tabular-nums">{progressPercent}%</span>
+                  </div>
+                  <Progress value={progressPercent} className="h-2.5" />
+                </div>
+              </div>
+              <div className="flex items-center gap-6 text-xs text-muted-foreground">
+                <span className={progressPhase === "parsing" ? "font-medium text-primary" : progressPercent > 60 ? "text-emerald-600" : ""}>
+                  {progressPercent > 60 ? "✓" : "1."} 파일 파싱
+                </span>
+                <span className={progressPhase === "validating" ? "font-medium text-primary" : progressPercent === 100 && progressPhase !== "importing" ? "text-emerald-600" : ""}>
+                  {progressPercent === 100 && progressPhase !== "importing" ? "✓" : "2."} 데이터 검증
+                </span>
+                <span className={progressPhase === "importing" ? "font-medium text-primary" : ""}>
+                  3. DB 등록
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stage: Upload */}
         {stage === "upload" && (
@@ -303,9 +365,15 @@ export default function CustomerBulkImport() {
 
               {/* File Name Display */}
               {fileName && (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 flex items-center gap-2 dark:border-emerald-800/50 dark:bg-emerald-900/20">
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 flex items-center gap-3 dark:border-emerald-800/50 dark:bg-emerald-900/20">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-emerald-900 dark:text-emerald-300 truncate block">{fileName}</span>
+                    <span className="text-xs text-emerald-700/70 dark:text-emerald-400/70">
+                      {(fileSize / 1024).toFixed(1)} KB · {fileName.toLowerCase().endsWith(".xlsx") ? "Excel" : "CSV"}
+                    </span>
+                  </div>
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <span className="text-sm text-emerald-900 dark:text-emerald-300">{fileName} 선택됨</span>
                 </div>
               )}
 
@@ -442,7 +510,11 @@ export default function CustomerBulkImport() {
                 onClick={handleBulkImport}
                 disabled={isLoading || successCount === 0}
               >
-                {isLoading ? "처리 중..." : `정상 행 ${successCount}건 등록`}
+                {isLoading ? (
+                  <><Loader2 className="h-4 w-4 animate-spin mr-1.5" />DB 등록 중...</>
+                ) : (
+                  `정상 행 ${successCount}건 등록`
+                )}
               </Button>
             </div>
           </div>

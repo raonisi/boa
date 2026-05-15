@@ -1912,29 +1912,53 @@ export async function createActivityLog(data: InsertActivityLog, client?: DbExec
   await db.insert(activityLogs).values(data);
 }
 
-export async function getActivityLogs(limit = 500, subBranchAdminId?: number, teamId?: number) {
+export async function getActivityLogs(
+  limit = 500,
+  subBranchAdminId?: number,
+  teamId?: number,
+  opts?: { dateFrom?: Date; dateTo?: Date; action?: string },
+) {
   const db = await getDb();
   if (!db) return [];
 
+  const dateConditions = [];
+  if (opts?.dateFrom) dateConditions.push(gte(activityLogs.createdAt, opts.dateFrom));
+  if (opts?.dateTo) dateConditions.push(lte(activityLogs.createdAt, opts.dateTo));
+  if (opts?.action) dateConditions.push(eq(activityLogs.action, opts.action));
+
   if (subBranchAdminId !== undefined) {
-    // 부지점장: 본인 산하 팀원들의 로그만
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    return db.select().from(activityLogs)
-      .where(or(...agentIds.map((id) => eq(activityLogs.userId, id))))
-      .orderBy(desc(activityLogs.createdAt)).limit(limit);
+    const userFilter = or(...agentIds.map((id) => eq(activityLogs.userId, id)));
+    const where = dateConditions.length > 0 ? and(userFilter, ...dateConditions) : userFilter;
+    return db.select().from(activityLogs).where(where).orderBy(desc(activityLogs.createdAt)).limit(limit);
   } else if (teamId !== undefined) {
-    // 팀장: 본인 팀원들의 로그만
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, teamId));
     const agentIds = teamAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    return db.select().from(activityLogs)
-      .where(or(...agentIds.map((id) => eq(activityLogs.userId, id))))
-      .orderBy(desc(activityLogs.createdAt)).limit(limit);
+    const userFilter = or(...agentIds.map((id) => eq(activityLogs.userId, id)));
+    const where = dateConditions.length > 0 ? and(userFilter, ...dateConditions) : userFilter;
+    return db.select().from(activityLogs).where(where).orderBy(desc(activityLogs.createdAt)).limit(limit);
   }
 
-  return db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(limit);
+  const where = dateConditions.length > 0 ? and(...dateConditions) : undefined;
+  return db.select().from(activityLogs).where(where).orderBy(desc(activityLogs.createdAt)).limit(limit);
+}
+
+export async function getActivityLogMonthlySummary() {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db
+    .select({
+      month: sql<string>`DATE_FORMAT(${activityLogs.createdAt}, '%Y-%m')`,
+      action: activityLogs.action,
+      count: sql<number>`COUNT(*)`,
+    })
+    .from(activityLogs)
+    .groupBy(sql`DATE_FORMAT(${activityLogs.createdAt}, '%Y-%m')`, activityLogs.action)
+    .orderBy(desc(sql`DATE_FORMAT(${activityLogs.createdAt}, '%Y-%m')`));
+  return rows;
 }
 
 // ─── User Device Tokens ──────────────────────────────────────────────────────

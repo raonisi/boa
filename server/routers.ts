@@ -44,6 +44,7 @@ import {
   softDeleteSchedule,
   softDeleteCustomer,
   getActivityLogs,
+  getActivityLogMonthlySummary,
   getAllContracts,
   getAllTeams,
   getAllUsers,
@@ -4742,12 +4743,59 @@ export const appRouter = router({
 
   // ── Activity Logs ───────────────────────────────────────────────────────────────
   logs: router({
-    list: teamLeaderOrAboveProcedure.query(async ({ ctx }) => {
-      const user = ctx.user;
-      if (user.role === "branch_admin") return getActivityLogs(500);
-      if (user.role === "sub_branch_admin") return getActivityLogs(500, user.id);
-      return getActivityLogs(500, undefined, user.teamId ?? undefined);
+    list: teamLeaderOrAboveProcedure
+      .input(z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        action: z.string().optional(),
+        limit: z.number().min(1).max(5000).default(500),
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const user = ctx.user;
+        const opts = input ? {
+          dateFrom: input.dateFrom ? new Date(input.dateFrom) : undefined,
+          dateTo: input.dateTo ? new Date(input.dateTo) : undefined,
+          action: input.action || undefined,
+        } : undefined;
+        const queryLimit = input?.limit ?? 500;
+        if (user.role === "branch_admin") return getActivityLogs(queryLimit, undefined, undefined, opts);
+        if (user.role === "sub_branch_admin") return getActivityLogs(queryLimit, user.id, undefined, opts);
+        return getActivityLogs(queryLimit, undefined, user.teamId ?? undefined, opts);
+      }),
+
+    monthlySummary: branchAdminProcedure.query(async () => {
+      const rows = await getActivityLogMonthlySummary();
+      const byMonth = new Map<string, { month: string; total: number; actions: Record<string, number> }>();
+      for (const row of rows) {
+        const key = row.month;
+        if (!byMonth.has(key)) byMonth.set(key, { month: key, total: 0, actions: {} });
+        const entry = byMonth.get(key)!;
+        entry.total += Number(row.count);
+        entry.actions[row.action] = Number(row.count);
+      }
+      return Array.from(byMonth.values());
     }),
+
+    export: branchAdminProcedure
+      .input(z.object({
+        dateFrom: z.string(),
+        dateTo: z.string(),
+        action: z.string().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        const logs = await getActivityLogs(
+          10000,
+          undefined,
+          undefined,
+          {
+            dateFrom: new Date(input.dateFrom),
+            dateTo: new Date(input.dateTo),
+            action: input.action || undefined,
+          },
+        );
+        await log(ctx.user.id, "DATA_DOWNLOAD", "activity_logs", undefined, `로그 아카이브 내보내기: ${input.dateFrom} ~ ${input.dateTo}`);
+        return { logs, exportedAt: new Date().toISOString() };
+      }),
   }),
 });
 
