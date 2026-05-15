@@ -391,10 +391,27 @@ export default function Calendar() {
                     const daySchedules = getSchedulesForDay(day);
                     const isToday = isSameDay(day, new Date());
                     const isCurrentMonth = isSameMonth(day, currentDate);
+                    const isSelectedDay = isSameDay(day, selectedDay);
                     return (
-                      <div key={day.toISOString()} className={`bg-background min-h-[92px] p-1.5 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday ? "ring-2 ring-primary ring-inset" : ""}`} onClick={() => { setSelectedDate(day); setShowModal(true); }}>
-                        <div className={`text-xs font-semibold mb-1 w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground shadow-sm" : ""}`}>
-                          {format(day, "d")}
+                      <div key={day.toISOString()} className={`group bg-background min-h-[92px] p-1.5 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday ? "ring-2 ring-primary ring-inset" : ""} ${isSelectedDay ? "bg-primary/5" : ""}`} onClick={() => { setSelectedDate(day); setCurrentDate(day); }}>
+                        <div className="mb-1 flex items-center justify-between gap-1">
+                          <div className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isSelectedDay ? "bg-slate-900 text-white" : ""}`}>
+                            {format(day, "d")}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
+                            title="일정 추가"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDate(day);
+                              setShowModal(true);
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                         <div className="space-y-0.5">
                           {daySchedules.slice(0, 3).map((s) => (
@@ -416,13 +433,32 @@ export default function Calendar() {
                 {weekDays.map((day) => {
                   const daySchedules = getSchedulesForDay(day);
                   const isToday = isSameDay(day, new Date());
+                  const isSelectedDay = isSameDay(day, selectedDay);
                   return (
-                    <div key={day.toISOString()} className="bg-background">
-                      <div className={`text-center py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
-                        <div>{format(day, "EEE", { locale: ko })}</div>
-                        <div className={`text-base font-bold ${isToday ? "text-primary" : ""}`}>{format(day, "d")}</div>
+                    <div key={day.toISOString()} className={`group bg-background ${isSelectedDay ? "ring-2 ring-primary/30 ring-inset" : ""}`}>
+                      <div className={`py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}>
+                        <div className="flex items-start justify-between px-2">
+                          <span className="text-left">
+                            <span className="block">{format(day, "EEE", { locale: ko })}</span>
+                            <span className={`block text-base font-bold ${isToday ? "text-primary" : ""}`}>{format(day, "d")}</span>
+                          </span>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
+                            title="일정 추가"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedDate(day);
+                              setShowModal(true);
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="p-1 min-h-[200px] space-y-1 cursor-pointer" onClick={() => { setSelectedDate(day); setShowModal(true); }}>
+                      <div className="p-1 min-h-[200px] space-y-1 cursor-pointer" onClick={() => { setSelectedDate(day); setCurrentDate(day); }}>
                         {daySchedules.map((s) => (
                           <div key={s.id} className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
                             <div className="font-medium truncate">{s.title}</div>
@@ -455,10 +491,15 @@ export default function Calendar() {
         </Card>
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm">
-              <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-              선택 날짜 업무
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                선택 날짜 업무
+              </CardTitle>
+              <Button size="sm" variant="outline" className="h-8" onClick={() => { setSelectedDate(selectedDay); setShowModal(true); }}>
+                <Plus className="mr-1 h-3.5 w-3.5" /> 추가
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-lg bg-slate-50 px-3 py-2">

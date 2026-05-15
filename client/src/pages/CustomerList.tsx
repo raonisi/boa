@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,7 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus } from "lucide-react";
+import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -84,6 +84,7 @@ export default function CustomerList() {
   const [assignedDateFrom, setAssignedDateFrom] = useState("");
   const [assignedDateTo, setAssignedDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
+  const [deleteCustomerId, setDeleteCustomerId] = useState<number | null>(null);
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
@@ -109,7 +110,7 @@ export default function CustomerList() {
   });
 
   const deactivateMutation = trpc.customers.deactivate.useMutation({
-    onSuccess: () => { toast.success("고객이 삭제(비활성 처리)되었습니다."); utils.customers.list.invalidate(); refetch(); },
+    onSuccess: () => { toast.success("고객이 삭제(비활성 처리)되었습니다."); setDeleteCustomerId(null); utils.customers.list.invalidate(); refetch(); },
     onError: (err) => toast.error(err.message || "고객 삭제에 실패했습니다."),
   });
 
@@ -118,6 +119,7 @@ export default function CustomerList() {
   const canDeactivateCustomer = user?.role === "branch_admin";
   const canCreateCustomer = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(user.role));
   const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
+  const deleteTargetCustomer = (customers ?? []).find((c) => c.id === deleteCustomerId);
 
   const filtered = (customers ?? []).filter((c) => {
     const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
@@ -151,9 +153,7 @@ export default function CustomerList() {
 
   const handleDeactivateCustomer = (id: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("이 고객을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다.\n이 작업은 활동 로그에 기록됩니다.")) {
-      deactivateMutation.mutate({ id });
-    }
+    setDeleteCustomerId(id);
   };
 
   return (
@@ -375,37 +375,45 @@ export default function CustomerList() {
                               </a>
                             </DropdownMenuItem>
                           ) : null}
-                          <DropdownMenuItem onClick={() => setLocation(`/customers/${c.id}`)}>상담기록 / 메모</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setLocation(`/customers/${c.id}?action=consult`)}>상담기록 / 메모</DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
                     <div className="flex gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
                       {c.phone ? (
-                        <a href={`tel:${c.phone}`} className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60">
-                          전화
-                        </a>
+                        <Button variant="outline" size="sm" className="h-9 rounded-full px-3 text-[11px]" asChild>
+                          <a href={`tel:${c.phone}`} aria-label={`${c.name} 전화`}>
+                            <Phone className="mr-1 h-3.5 w-3.5" /> 전화
+                          </a>
+                        </Button>
                       ) : null}
-                      <button
+                      <Button
                         type="button"
-                        onClick={() => setLocation(`/customers/${c.id}`)}
-                        className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocation(`/customers/${c.id}?action=consult`)}
+                        className="h-9 rounded-full px-3 text-[11px]"
                       >
-                        상담기록
-                      </button>
-                      <button
+                        <MessageSquare className="mr-1 h-3.5 w-3.5" /> 상담기록
+                      </Button>
+                      <Button
                         type="button"
-                        onClick={() => setLocation(`/customers/${c.id}`)}
-                        className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocation(`/customers/${c.id}?action=followup`)}
+                        className="h-9 rounded-full px-3 text-[11px]"
                       >
-                        다음 연락일
-                      </button>
-                      <button
+                        <CalendarPlus className="mr-1 h-3.5 w-3.5" /> 다음 연락일
+                      </Button>
+                      <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setLocation(`/customers/${c.id}`)}
-                        className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
+                        className="h-9 rounded-full px-3 text-[11px]"
                       >
-                        상세
-                      </button>
+                        <Eye className="mr-1 h-3.5 w-3.5" /> 상세
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -527,7 +535,7 @@ export default function CustomerList() {
                                 title="상담기록"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setLocation(`/customers/${c.id}`);
+                                  setLocation(`/customers/${c.id}?action=consult`);
                                 }}
                               >
                                 <MessageSquare className="h-4 w-4" />
@@ -539,7 +547,7 @@ export default function CustomerList() {
                                 title="다음 연락"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setLocation(`/customers/${c.id}`);
+                                  setLocation(`/customers/${c.id}?action=followup`);
                                 }}
                               >
                                 <CalendarPlus className="h-4 w-4" />
@@ -593,6 +601,34 @@ export default function CustomerList() {
         currentUser={user}
         agents={agents}
       />
+
+      <Dialog open={deleteCustomerId !== null} onOpenChange={(open) => { if (!open) setDeleteCustomerId(null); }}>
+        <DialogContent className="max-w-md rounded-2xl border-red-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" /> 고객 삭제 확인
+            </DialogTitle>
+            <DialogDescription>
+              {deleteTargetCustomer ? `${deleteTargetCustomer.name} 고객을 비활성 처리합니다.` : "선택한 고객을 비활성 처리합니다."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
+            완전 삭제가 아니며 활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다. 이 작업은 활동 로그에 기록됩니다.
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setDeleteCustomerId(null)}>
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!deleteCustomerId || deactivateMutation.isPending}
+              onClick={() => deleteCustomerId && deactivateMutation.mutate({ id: deleteCustomerId })}
+            >
+              고객 삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

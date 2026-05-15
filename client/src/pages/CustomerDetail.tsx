@@ -4,7 +4,7 @@ import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,8 +23,8 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
-import { ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal } from "lucide-react";
-import { useMemo, useState } from "react";
+import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -126,7 +126,7 @@ function buildCustomerAction({
 }
 
 export default function CustomerDetail({ id }: { id: number }) {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user } = useAuth();
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
@@ -135,6 +135,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null);
   const [editingContractId, setEditingContractId] = useState<number | null>(null);
+  const [deleteContractId, setDeleteContractId] = useState<number | null>(null);
   const [requestContractId, setRequestContractId] = useState<number | null>(null);
   const [requestReason, setRequestReason] = useState("");
   const [requestMemo, setRequestMemo] = useState("");
@@ -150,7 +151,19 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [handoffNoteType, setHandoffNoteType] = useState<"handoff" | "caution" | "approach" | "avoid" | "relationship" | "next_action">("handoff");
   const [handoffNoteBody, setHandoffNoteBody] = useState("");
   const [showHandoffNoteModal, setShowHandoffNoteModal] = useState(false);
+  const [showCustomerDeleteDialog, setShowCustomerDeleteDialog] = useState(false);
   const [selectedScriptId, setSelectedScriptId] = useState<string>("");
+
+  useEffect(() => {
+    const query = location.split("?")[1]?.split("#")[0];
+    if (!query) return;
+
+    const action = new URLSearchParams(query).get("action");
+    if (action === "consult") setShowConsultModal(true);
+    if (action === "followup") setShowFollowUpModal(true);
+    if (action === "contract") setShowContractModal(true);
+    if (action === "message") setActiveTab("tools");
+  }, [location]);
 
   const utils = trpc.useUtils();
   const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
@@ -216,7 +229,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   });
 
   const deactivateContractMutation = trpc.contracts.deactivate.useMutation({
-    onSuccess: () => { toast.success("계약이 삭제(비활성 처리)되었습니다."); refetchContracts(); },
+    onSuccess: () => { toast.success("계약이 삭제(비활성 처리)되었습니다."); setDeleteContractId(null); refetchContracts(); },
     onError: (err) => toast.error(err.message || "계약 삭제에 실패했습니다."),
   });
 
@@ -378,6 +391,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const canRequestContractDelete = user?.role === "sub_branch_admin" || user?.role === "team_leader" || user?.role === "member";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
   const editingContract = contracts?.find((c) => c.id === editingContractId);
+  const deleteTargetContract = contracts?.find((c) => c.id === deleteContractId);
   const customerTags = parseCustomerTags((customer as any).customerTags);
   const latestConsult = (consultations ?? [])[0] as any;
   const openFollowUps = (followUps ?? []).filter((item: any) => item.status === "scheduled" || item.status === "postponed");
@@ -442,7 +456,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                   {canDeactivateCustomer && customer.isActive && (
                     <DropdownMenuItem
                       variant="destructive"
-                      onClick={() => { if (confirm("이 고객을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다.\n이 작업은 활동 로그에 기록됩니다.")) deactivateMutation.mutate({ id }); }}
+                      onClick={() => setShowCustomerDeleteDialog(true)}
                     >
                       <Trash2 className="h-4 w-4" /> 고객 삭제
                     </DropdownMenuItem>
@@ -833,9 +847,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                             variant="outline"
                             size="sm"
                             className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
-                            onClick={() => {
-                              if (confirm("이 계약을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n삭제된 계약은 기본 계약 목록과 실적 집계에서 제외됩니다.\n이 작업은 활동 로그에 기록됩니다.")) deactivateContractMutation.mutate({ id: c.id });
-                            }}
+                            onClick={() => setDeleteContractId(c.id)}
                           >
                             <Trash2 className="h-3 w-3 mr-1" /> 계약 삭제
                           </Button>
@@ -1209,6 +1221,58 @@ export default function CustomerDetail({ id }: { id: number }) {
         onSubmit={(data) => postponeFollowUpId && postponeFollowUpMutation.mutate({ id: postponeFollowUpId, nextContactDate: data.nextContactDate, reason: data.reason })}
         loading={postponeFollowUpMutation.isPending}
       />
+
+      <Dialog open={showCustomerDeleteDialog} onOpenChange={setShowCustomerDeleteDialog}>
+        <DialogContent className="max-w-md rounded-2xl border-red-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" /> 고객 삭제 확인
+            </DialogTitle>
+            <DialogDescription>
+              고객 삭제는 완전 삭제가 아니라 비활성 처리이며, 기존 권한과 삭제 정책을 그대로 따릅니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
+            활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다. 이 작업은 활동 로그에 기록됩니다.
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setShowCustomerDeleteDialog(false)}>
+              취소
+            </Button>
+            <Button variant="destructive" disabled={deactivateMutation.isPending} onClick={() => deactivateMutation.mutate({ id })}>
+              고객 삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteContractId !== null} onOpenChange={(open) => { if (!open) setDeleteContractId(null); }}>
+        <DialogContent className="max-w-md rounded-2xl border-red-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <AlertTriangle className="h-5 w-5" /> 계약 삭제 확인
+            </DialogTitle>
+            <DialogDescription>
+              {deleteTargetContract ? `${deleteTargetContract.company ?? "선택한"} 계약을 비활성 처리합니다.` : "선택한 계약을 비활성 처리합니다."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
+            완전 삭제가 아니며 기본 계약 목록과 실적 집계에서 제외됩니다. 이 작업은 활동 로그에 기록됩니다.
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setDeleteContractId(null)}>
+              취소
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!deleteContractId || deactivateContractMutation.isPending}
+              onClick={() => deleteContractId && deactivateContractMutation.mutate({ id: deleteContractId })}
+            >
+              계약 삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showHandoffNoteModal} onOpenChange={setShowHandoffNoteModal}>
         <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
