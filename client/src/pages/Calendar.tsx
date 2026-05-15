@@ -18,7 +18,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 type ViewMode = "month" | "week" | "day";
-type MobileRange = "today" | "week" | "month" | "all";
+type MobileRange = "today" | "week" | "month" | "all" | "custom";
 
 const typeColors: Record<string, string> = {
   "고객상담": "bg-blue-500",
@@ -40,6 +40,8 @@ export default function Calendar() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
   const [mobileRange, setMobileRange] = useState<MobileRange>("today");
+  const [customStartDate, setCustomStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [customEndDate, setCustomEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
@@ -98,6 +100,11 @@ export default function Calendar() {
     if (mobileRange === "all") return true;
     if (mobileRange === "today") return isSameDay(d, today);
     if (mobileRange === "week") return d >= startOfWeek(today, { weekStartsOn: 1 }) && d <= endOfWeek(today, { weekStartsOn: 1 });
+    if (mobileRange === "custom") {
+      const start = new Date(`${customStartDate}T00:00:00`);
+      const end = new Date(`${customEndDate}T23:59:59`);
+      return d >= start && d <= end;
+    }
     return isWithinInterval(d, { start: startOfMonth(today), end: endOfMonth(today) });
   }).sort((a,b)=>new Date(a.startTime).getTime()-new Date(b.startTime).getTime());
 
@@ -167,7 +174,13 @@ export default function Calendar() {
           {/* 이번 주 일정 */}
           <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="p-3 flex gap-2 flex-wrap">
-              {["today","week","month","all"].map((r) => <Button key={r} variant={mobileRange===r?"default":"outline"} size="sm" onClick={()=>setMobileRange(r as MobileRange)}>{r==="today"?"오늘":r==="week"?"이번주":r==="month"?"이번달":"전체"}</Button>)}
+              {["today","week","month","all","custom"].map((r) => <Button key={r} variant={mobileRange===r?"default":"outline"} size="sm" onClick={()=>setMobileRange(r as MobileRange)}>{r==="today"?"오늘":r==="week"?"이번주":r==="month"?"이번달":r==="all"?"전체":"기간선택"}</Button>)}
+              {mobileRange === "custom" && (
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <Input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="h-9" />
+                  <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="h-9" />
+                </div>
+              )}
             </CardContent>
           </Card>
 
