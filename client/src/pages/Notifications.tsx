@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
@@ -71,6 +72,7 @@ export default function Notifications() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [offset, setOffset] = useState(0);
+  const [showMarkAllReadDialog, setShowMarkAllReadDialog] = useState(false);
 
   const queryInput = {
     processStatus: processStatusFilter !== "all" ? processStatusFilter : undefined,
@@ -95,6 +97,7 @@ export default function Notifications() {
   const hasMore = result?.hasMore ?? false;
   const totalPages = Math.ceil(totalCount / LIMIT);
   const currentPage = Math.floor(offset / LIMIT) + 1;
+  const pageVisibleCount = notifications.length;
 
   const markReadMutation = trpc.notifications.markRead.useMutation({
     onSuccess: () => utils.notifications.list.invalidate(),
@@ -102,6 +105,7 @@ export default function Notifications() {
 
   const markAllReadMutation = trpc.notifications.markAllRead.useMutation({
     onSuccess: () => {
+      setShowMarkAllReadDialog(false);
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
       toast.success("내 알림이 모두 읽음 처리되었습니다.");
@@ -121,13 +125,7 @@ export default function Notifications() {
   const completedCount = notifications.filter((n) => n.processStatus === "처리완료").length;
 
   const handleMarkAllRead = () => {
-    const isBranchAdmin = user?.role === "branch_admin";
-    const confirmMsg = isBranchAdmin
-      ? "내 알림(본인 userId 기준)만 모두 읽음 처리됩니다.\n전체 조직 알림은 개별 처리해주세요.\n계속하시겠습니까?"
-      : "현재 조회 중인 알림을 모두 읽음 처리하시겠습니까?";
-    if (confirm(confirmMsg)) {
-      markAllReadMutation.mutate();
-    }
+    setShowMarkAllReadDialog(true);
   };
 
   const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
@@ -144,7 +142,10 @@ export default function Notifications() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ring">Notifications</p>
               <h1 className="mt-1 text-2xl font-bold text-foreground">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                지금 처리할 업무 {actionQueueCount}건 · 미확인 {unreadCount}건 · 처리완료 {completedCount}건
+                현재 페이지 우선 처리 {actionQueueCount}건 · 미확인 {unreadCount}건 · 처리완료 {completedCount}건
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                전체 {totalCount.toLocaleString()}건 중 {pageVisibleCount.toLocaleString()}건을 불러왔습니다. 우선순위 수치는 현재 페이지 기준입니다.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">미래 일정 알림은 설정한 dueAt 시각이 도래한 뒤 표시됩니다.</p>
             </div>
@@ -157,6 +158,30 @@ export default function Notifications() {
             </div>
           </CardContent>
         </Card>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardContent className="p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">전체 검색 결과</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{totalCount.toLocaleString()}건</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">서버 필터 적용 결과</p>
+            </CardContent>
+          </Card>
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardContent className="p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground">현재 페이지</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">{pageVisibleCount.toLocaleString()}건</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">페이지 {currentPage.toLocaleString()} / {Math.max(totalPages, 1).toLocaleString()}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
+            <CardContent className="p-3">
+              <p className="text-[11px] font-semibold text-amber-800">현재 페이지 우선 처리</p>
+              <p className="mt-1 text-xl font-bold tabular-nums text-amber-900">{actionQueueCount.toLocaleString()}건</p>
+              <p className="mt-0.5 text-[11px] text-amber-700">긴급 {priorityCounts.urgent} · 오늘 처리 {priorityCounts.today}</p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* 서버 사이드 필터 */}
         <Card className="shadow-sm">
@@ -362,6 +387,32 @@ export default function Notifications() {
           </div>
         )}
       </div>
+
+      <Dialog open={showMarkAllReadDialog} onOpenChange={setShowMarkAllReadDialog}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCheck className="h-5 w-5 text-emerald-700" /> 알림 읽음 처리
+            </DialogTitle>
+            <DialogDescription>
+              {user?.role === "branch_admin"
+                ? "본인 userId 기준의 알림만 모두 읽음 처리합니다. 전체 조직 알림은 개별 처리 정책을 유지합니다."
+                : "현재 계정의 미확인 알림을 모두 읽음 처리합니다."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+            읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 dueAt 알림 노출 정책은 변경하지 않습니다.
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => setShowMarkAllReadDialog(false)}>
+              취소
+            </Button>
+            <Button disabled={markAllReadMutation.isPending} onClick={() => markAllReadMutation.mutate()}>
+              모두 읽음 처리
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }
