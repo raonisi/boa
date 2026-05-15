@@ -318,7 +318,9 @@ export function registerMobileRoutes(app: Express) {
         }
         q = trimmed.length > 0 ? trimmed : undefined;
       }
-      const listInput = q ? { search: q } : {};
+      if (q !== undefined) {
+        // customers.list는 search 입력을 받지 않으므로 모바일 API 레벨에서만 검증/무시
+      }
       const pageSizeParsed =
         req.query.limit === undefined
           ? { success: true as const, data: 50 }
@@ -338,14 +340,11 @@ export function registerMobileRoutes(app: Express) {
       }
       const pageSize = pageSizeParsed.data;
       const offset = offsetParsed.data;
+      const rows = await caller.customers.list({});
       const fetchLimit = pageSize + 1;
-      const rows = await caller.customers.list({
-        ...listInput,
-        limit: fetchLimit,
-        offset,
-      });
-      const hasMore = rows.length > pageSize;
-      const items = hasMore ? rows.slice(0, pageSize) : rows;
+      const windowed = rows.slice(offset, offset + fetchLimit);
+      const hasMore = windowed.length > pageSize;
+      const items = hasMore ? windowed.slice(0, pageSize) : windowed;
       res.json({
         items,
         hasMore,
@@ -579,21 +578,20 @@ export function registerMobileRoutes(app: Express) {
     }
     const pageSize = pageSizeParsed.data;
     const offset = offsetParsed.data;
+    if (search !== undefined) {
+      // contracts.list는 search 입력을 받지 않으므로 모바일 API 레벨에서만 검증/무시
+    }
     const listInput = {
       ...(scopeParsed.success && scopeParsed.data !== undefined
         ? { scope: scopeParsed.data }
         : {}),
-      ...(search ? { search } : {}),
     };
     try {
+      const rows = await caller.contracts.list(listInput);
       const fetchLimit = pageSize + 1;
-      const rows = await caller.contracts.list({
-        ...listInput,
-        limit: fetchLimit,
-        offset,
-      });
-      const hasMore = rows.length > pageSize;
-      const items = hasMore ? rows.slice(0, pageSize) : rows;
+      const windowed = rows.slice(offset, offset + fetchLimit);
+      const hasMore = windowed.length > pageSize;
+      const items = hasMore ? windowed.slice(0, pageSize) : windowed;
       res.json({
         items,
         hasMore,

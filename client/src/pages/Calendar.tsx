@@ -10,7 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   addDays, addMonths, eachDayOfInterval, endOfMonth, endOfWeek,
-  format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths,
+  format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths, isWithinInterval,
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2 } from "lucide-react";
@@ -18,6 +18,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 type ViewMode = "month" | "week" | "day";
+type MobileRange = "today" | "week" | "month" | "all" | "custom";
 
 const typeColors: Record<string, string> = {
   "고객상담": "bg-blue-500",
@@ -38,6 +39,9 @@ export default function Calendar() {
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [mobileRange, setMobileRange] = useState<MobileRange>("today");
+  const [customStartDate, setCustomStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [customEndDate, setCustomEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
@@ -45,7 +49,7 @@ export default function Calendar() {
   const { data: users } = trpc.users.list.useQuery();
 
   const createMutation = trpc.schedules.create.useMutation({
-    onSuccess: () => { toast.success("일정이 등록되었습니다."); setShowModal(false); utils.schedules.list.invalidate(); },
+    onSuccess: () => { toast.success("일정이 저장되었습니다. 알림은 설정한 시간에 표시됩니다."); setShowModal(false); utils.schedules.list.invalidate(); },
   });
   const deleteMutation = trpc.schedules.delete.useMutation({
     onSuccess: () => { toast.success("일정이 삭제되었습니다."); setSelectedSchedule(null); utils.schedules.list.invalidate(); },
@@ -91,6 +95,18 @@ export default function Calendar() {
     const wEnd = endOfWeek(today, { weekStartsOn: 1 });
     return d >= wStart && d <= wEnd;
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+  const mobileList = (schedules ?? []).filter((s) => {
+    const d = new Date(s.startTime);
+    if (mobileRange === "all") return true;
+    if (mobileRange === "today") return isSameDay(d, today);
+    if (mobileRange === "week") return d >= startOfWeek(today, { weekStartsOn: 1 }) && d <= endOfWeek(today, { weekStartsOn: 1 });
+    if (mobileRange === "custom") {
+      const start = new Date(`${customStartDate}T00:00:00`);
+      const end = new Date(`${customEndDate}T23:59:59`);
+      return d >= start && d <= end;
+    }
+    return isWithinInterval(d, { start: startOfMonth(today), end: endOfMonth(today) });
+  }).sort((a,b)=>new Date(a.startTime).getTime()-new Date(b.startTime).getTime());
 
   if (isMobile) {
     return (
@@ -157,14 +173,26 @@ export default function Calendar() {
 
           {/* 이번 주 일정 */}
           <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="p-3 flex gap-2 flex-wrap">
+              {["today","week","month","all","custom"].map((r) => <Button key={r} variant={mobileRange===r?"default":"outline"} size="sm" onClick={()=>setMobileRange(r as MobileRange)}>{r==="today"?"오늘":r==="week"?"이번주":r==="month"?"이번달":r==="all"?"전체":"기간선택"}</Button>)}
+              {mobileRange === "custom" && (
+                <div className="grid grid-cols-2 gap-2 w-full">
+                  <Input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="h-9" />
+                  <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="h-9" />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm"><Clock3 className="h-4 w-4 text-[#b99b5f]" /> 이번 주 일정 ({thisWeekSchedules.length})</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-sm"><Clock3 className="h-4 w-4 text-[#b99b5f]" /> 조회 일정 ({mobileList.length})</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              {thisWeekSchedules.length === 0 ? (
+              {mobileList.length === 0 ? (
                 <p className="text-xs text-muted-foreground py-2">이번 주 일정이 없습니다.</p>
               ) : (
-                thisWeekSchedules.map((s) => (
+                mobileList.map((s) => (
                   <div
                     key={s.id}
                     className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:bg-slate-50"
@@ -332,7 +360,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
   const defaultStart = defaultDate ? format(defaultDate, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'09:00");
   const [form, setForm] = useState({
     title: "", type: "기타" as string, status: "예정" as string,
-    startTime: defaultStart, endTime: "", memo: "", targetUserId: "self",
+    startTime: defaultStart, endTime: "", memo: "", targetUserId: "self", reminderOffsetMinutes: "30",
   });
 
   return (
@@ -356,6 +384,15 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
                 <SelectContent>{SCHEDULE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
+          </div>
+          <div>
+            <Label className="text-xs">알림 시간</Label>
+            <Select value={form.reminderOffsetMinutes} onValueChange={(v) => setForm({ ...form, reminderOffsetMinutes: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="-1">알림 없음</SelectItem><SelectItem value="0">일정 시각</SelectItem><SelectItem value="30">30분 전</SelectItem><SelectItem value="60">1시간 전</SelectItem><SelectItem value="120">2시간 전</SelectItem><SelectItem value="180">3시간 전</SelectItem><SelectItem value="1440">1일 전</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label className="text-xs">시작 시간</Label><Input type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="h-9 mt-1" /></div>
@@ -382,6 +419,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
               title: form.title, type: form.type, status: form.status,
               startTime: form.startTime, endTime: form.endTime || undefined,
               memo: form.memo || undefined,
+              reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
               targetUserId: form.targetUserId && form.targetUserId !== "self" ? Number(form.targetUserId) : undefined,
             })}>
               {loading ? "저장 중..." : "저장"}

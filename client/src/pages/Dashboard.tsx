@@ -8,6 +8,7 @@ import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/n
 import { trpc } from "@/lib/trpc";
 import {
   AlertCircle,
+  ArrowUp,
   BellDot,
   BarChart3,
   Bell,
@@ -152,7 +153,7 @@ function TodayWorkSection() {
   const topContacts = recommendationSummary?.topContacts ?? [];
   const fieldQueue = [
     {
-      title: "지금 연락 필요한 고객",
+      title: "우선 연락",
       count: cards?.overdueFollowUpCount ?? 0,
       hint: "기한이 지난 재연락 업무",
       actionLabel: "후속관리 열기",
@@ -160,7 +161,7 @@ function TodayWorkSection() {
       tone: "border-red-200 bg-red-50/55 dark:border-red-900/40 dark:bg-red-950/20",
     },
     {
-      title: "오늘 미완료 일정",
+      title: "오늘 일정",
       count: cards?.incompleteScheduleCount ?? 0,
       hint: "완료/보류 처리 필요한 일정",
       actionLabel: "일정 캘린더",
@@ -168,7 +169,7 @@ function TodayWorkSection() {
       tone: "border-amber-200 bg-amber-50/55 dark:border-amber-900/40 dark:bg-amber-950/20",
     },
     {
-      title: "미확인 알림",
+      title: "미확인",
       count: cards?.pendingNotificationCount ?? 0,
       hint: "즉시 확인이 필요한 알림",
       actionLabel: "알림센터",
@@ -199,71 +200,32 @@ function TodayWorkSection() {
         <PremiumStatCard title="월납보험료 실적" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} tone="navy" helper="입력 계약 기준" />
       </div>
 
-      <Card className="overflow-hidden border-l-[3px] border-l-sidebar-primary shadow-sm">
-        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 pb-3">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-ring/40 bg-ring/[0.08] text-foreground">
-                <Target className="h-4 w-4" />
-              </span>
-              오늘 우선 연락 고객
-            </CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">후속관리, 우선순위, 경고 기준으로 먼저 볼 고객을 정리했습니다.</p>
-          </div>
-          <div className="hidden grid-cols-3 gap-2 text-xs sm:grid">
-            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
-              <p className="text-muted-foreground">추천</p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">
-                {recommendationSummary?.priorityContactCount ?? 0}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
-              <p className="text-muted-foreground">긴급</p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">
-                {recommendationSummary?.highUrgencyCount ?? 0}
-              </p>
-            </div>
-            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
-              <p className="text-muted-foreground">경고</p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-amber-800 dark:text-amber-300">
-                {recommendationSummary?.warningCount ?? 0}
-              </p>
-            </div>
-          </div>
+      <Card className="md:hidden shadow-sm">
+        <CardHeader className="flex-row items-center justify-between gap-2 border-b border-border/60 pb-3">
+          <CardTitle className="text-sm font-semibold tracking-tight">오늘 업무 요약</CardTitle>
+          <button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">
+            바로 처리
+          </button>
         </CardHeader>
-        <CardContent className="px-5 pb-5">
-          {topContacts.length === 0 ? (
-            <EmptyState
-              action={
-                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
-                  고객 DB에서 확인하기
-                </Button>
-              }
-            >
-              오늘 우선 연락 추천 고객이 없습니다.
-            </EmptyState>
-          ) : (
-            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
-              {topContacts.slice(0, 5).map((contact) => (
-                <button
-                  key={contact.customerId}
-                  type="button"
-                  onClick={() => setLocation(`/customers/${contact.customerId}`)}
-                  className="rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/35"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-sm font-bold text-foreground">{contact.customerName}</span>
-                    <Badge className={contact.urgency === "high" ? "border-0 bg-red-100 text-red-700" : contact.urgency === "medium" ? "border-0 bg-amber-100 text-amber-700" : "border-0 bg-slate-100 text-slate-600"}>
-                      {contact.urgency === "high" ? "높음" : contact.urgency === "medium" ? "중간" : "낮음"}
-                    </Badge>
-                  </div>
-                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">
-                    {contact.reasons.slice(0, 2).join(" · ") || contact.recommendedAction}
-                  </p>
-                </button>
-              ))}
-            </div>
-          )}
+        <CardContent className="space-y-2 px-4 pb-4">
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { label: "미확인", value: cards?.pendingNotificationCount ?? 0, path: "/notifications" },
+              { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar" },
+              { label: "우선 연락", value: cards?.todayFollowUpCount ?? 0, path: "/customers" },
+              { label: "미처리 후속", value: cards?.overdueFollowUpCount ?? 0, path: "/customers" },
+            ].map((item) => (
+              <button
+                key={item.label}
+                type="button"
+                onClick={() => setLocation(item.path)}
+                className="min-h-11 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
+              >
+                <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">{item.value}</p>
+              </button>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -343,7 +305,13 @@ function TodayWorkSection() {
             </button>
           </div>
           {sortedPendingNotifications.length === 0 ? (
-            <EmptyState>
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/notifications")}>
+                  알림센터에서 전체 확인
+                </Button>
+              }
+            >
               {queuePriorityFilter === "all" ? "즉시 처리할 미확인 알림이 없습니다." : "선택한 우선순위 알림이 없습니다."}
             </EmptyState>
           ) : (
@@ -391,6 +359,61 @@ function TodayWorkSection() {
                 </div>
               );
             })
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="overflow-hidden border-l-[3px] border-l-sidebar-primary shadow-sm">
+        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 pb-3">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-ring/40 bg-ring/[0.08] text-foreground">
+                <Target className="h-4 w-4" />
+              </span>
+              오늘 우선 연락 고객
+            </CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">후속관리, 우선순위, 경고 기준으로 먼저 볼 고객을 정리했습니다.</p>
+          </div>
+          <div className="hidden grid-cols-3 gap-2 text-xs sm:grid">
+            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
+              <p className="text-muted-foreground">추천</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">{recommendationSummary?.priorityContactCount ?? 0}</p>
+            </div>
+            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
+              <p className="text-muted-foreground">긴급</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">{recommendationSummary?.highUrgencyCount ?? 0}</p>
+            </div>
+            <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
+              <p className="text-muted-foreground">경고</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-amber-800 dark:text-amber-300">{recommendationSummary?.warningCount ?? 0}</p>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-5 pb-5">
+          {topContacts.length === 0 ? (
+            <EmptyState
+              action={
+                <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                  고객 DB에서 확인하기
+                </Button>
+              }
+            >
+              오늘 우선 연락 추천 고객이 없습니다.
+            </EmptyState>
+          ) : (
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
+              {topContacts.slice(0, 5).map((contact) => (
+                <button key={contact.customerId} type="button" onClick={() => setLocation(`/customers/${contact.customerId}`)} className="rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/35">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-bold text-foreground">{contact.customerName}</span>
+                    <Badge className={contact.urgency === "high" ? "border-0 bg-red-100 text-red-700" : contact.urgency === "medium" ? "border-0 bg-amber-100 text-amber-700" : "border-0 bg-slate-100 text-slate-600"}>
+                      {contact.urgency === "high" ? "높음" : contact.urgency === "medium" ? "중간" : "낮음"}
+                    </Badge>
+                  </div>
+                  <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{contact.reasons.slice(0, 2).join(" · ") || contact.recommendedAction}</p>
+                </button>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -657,10 +680,10 @@ export default function Dashboard() {
                 BOA Premium CRM
               </Badge>
               <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                {user?.name}님, 오늘의 지점 운영 흐름입니다.
+                {user?.name}님, 오늘의 지휘센터입니다.
               </h1>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                신규 계약, 월납보험료 실적, 일정, 알림, 후속관리까지 권한 범위 안에서 필요한 업무를 빠르게 확인하세요.
+                미확인 알림 · 오늘 일정 · 우선 연락 · 미처리 후속을 먼저 보고 바로 처리하세요.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -681,12 +704,16 @@ export default function Dashboard() {
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
-            variant="outline"
+            variant="default"
             onClick={() => setLocation("/sales-pipeline")}
-            className="gap-2 rounded-lg border-border shadow-sm"
+            className="min-h-11 gap-2 rounded-lg shadow-sm"
           >
             <LayoutGrid className="h-4 w-4 text-sidebar-primary" />
             세일즈 파이프라인
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setLocation("/notifications")} className="min-h-11 gap-2 rounded-lg">
+            <Bell className="h-4 w-4" />
+            미확인 알림 확인
           </Button>
         </div>
 
@@ -845,6 +872,18 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+        <div className="fixed bottom-24 right-4 z-40 md:hidden">
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="h-11 w-11 rounded-full border border-border shadow-md"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            aria-label="맨 위로"
+          >
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -172,11 +172,13 @@ import {
 import {
   cancelPendingNotifications,
   cancelScheduleIncompleteNotification,
+  cancelScheduleTimingNotifications,
   createBirthdayReminder,
   createContractReminders,
   createPaymentStatusReminder,
   createReconsultReminder,
   createScheduleIncompleteReminder,
+  createScheduleReminderByOffset,
   createScheduleReminders,
   createUncontactedReminder,
   refreshLongUnmanagedReminder,
@@ -4154,6 +4156,7 @@ export const appRouter = router({
         reminderDayBefore: z.boolean().default(true),
         reminderSameDay: z.boolean().default(true),
         reminderOneHourBefore: z.boolean().default(true),
+        reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).default(30),
         targetUserId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -4172,7 +4175,12 @@ export const appRouter = router({
         const allSchedules = await getSchedules({ userId: targetUserId });
         const newSchedule = allSchedules.find((s) => s.title === input.title && s.startTime.getTime() === startTimeDate.getTime());
         if (newSchedule) {
-          await createScheduleReminders(newSchedule.id, targetUserId, startTimeDate, input.title, input.reminderDayBefore, input.reminderSameDay, input.reminderOneHourBefore);
+          await cancelScheduleTimingNotifications(targetUserId, newSchedule.id);
+          if (input.reminderOffsetMinutes >= 0) {
+            await createScheduleReminderByOffset(newSchedule.id, targetUserId, startTimeDate, input.title, input.reminderOffsetMinutes);
+          } else {
+            await createScheduleReminders(newSchedule.id, targetUserId, startTimeDate, input.title, input.reminderDayBefore, input.reminderSameDay, input.reminderOneHourBefore);
+          }
           if (endTimeDate) await createScheduleIncompleteReminder(newSchedule.id, targetUserId, endTimeDate, input.title);
         }
         return { success: true };
@@ -4187,9 +4195,10 @@ export const appRouter = router({
         startTime: z.string().optional(),
         endTime: z.string().optional(),
         memo: z.string().optional(),
+        reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { id, startTime, endTime, status, ...rest } = input;
+        const { id, startTime, endTime, status, reminderOffsetMinutes, ...rest } = input;
         const user = ctx.user;
 
         // 역할별 범위 조회로 소유권 검증 (조건 3 수정)
@@ -4208,6 +4217,13 @@ export const appRouter = router({
           await cancelScheduleIncompleteNotification(existing.userId, id);
         } else {
           await updateSchedule(id, { status, startTime: startTime ? new Date(startTime) : undefined, endTime: endTime ? new Date(endTime) : undefined, ...rest });
+        }
+        if (status !== "완료" && status !== "취소" && status !== "노쇼") {
+          await cancelScheduleTimingNotifications(existing.userId, id);
+          const effectiveStartTime = startTime ? new Date(startTime) : existing.startTime;
+          if (reminderOffsetMinutes !== undefined && reminderOffsetMinutes >= 0) {
+            await createScheduleReminderByOffset(id, existing.userId, effectiveStartTime, rest.title ?? existing.title, reminderOffsetMinutes);
+          }
         }
         await log(ctx.user.id, actionLabel, "schedule", id);
         return { success: true };

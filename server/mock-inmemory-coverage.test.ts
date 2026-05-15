@@ -190,8 +190,10 @@ function performanceContracts(actor: TestUser, filters: { agentIdFilter?: number
 }
 
 function filterNotifications(actor: TestUser, filter: { processStatus?: string; isRead?: boolean; type?: string; dateFrom?: Date; dateTo?: Date; limit?: number; offset?: number } = {}) {
+  const now = new Date("2026-05-15T12:00:00.000Z");
   const rows = seed.notifications.filter((notification) => {
     if (!canAccessNotification(actor, notification)) return false;
+    if (notification.dueAt && notification.dueAt > now) return false;
     if (filter.processStatus && notification.processStatus !== filter.processStatus) return false;
     if (filter.isRead !== undefined && notification.isRead !== filter.isRead) return false;
     if (filter.type && notification.type !== filter.type) return false;
@@ -355,9 +357,29 @@ describe("mock schedule and notification coverage", () => {
     expect(canAccessNotification(user(20), seed.notifications[2])).toBe(false);
   });
 
+  it("hides future dueAt notifications from list/count while keeping dueAt null visible", () => {
+    const actor = user(30);
+    const base = filterNotifications(actor, { isRead: false });
+    const unreadVisibleCount = base.items.length;
+
+    seed.notifications.push(
+      { id: 9991, userId: 30, type: "general", isRead: false, processStatus: "미확인", dueAt: new Date("2026-05-20T09:00:00.000Z") },
+      { id: 9992, userId: 30, type: "general", isRead: false, processStatus: "미확인", dueAt: new Date("2026-05-15T08:00:00.000Z") },
+      { id: 9993, userId: 30, type: "general", isRead: false, processStatus: "미확인", dueAt: null as unknown as Date },
+    );
+
+    const result = filterNotifications(actor, { isRead: false, limit: 100 });
+    const ids = result.items.map((item) => item.id);
+    expect(ids).not.toContain(9991); // 미래 dueAt 숨김
+    expect(ids).toContain(9992); // 현재 이하 dueAt 노출
+    expect(ids).toContain(9993); // dueAt null 노출 유지
+    expect(result.totalCount).toBe(unreadVisibleCount + 2);
+  });
+
   it("models expected reminder types and duplicate-prevention key", () => {
     const reminderKeys = new Set<string>();
     for (const item of seed.notifications.filter((notification) => notification.userId === 30)) {
+      if (!item.dueAt) continue;
       const key = `${item.userId}:${item.type}:${item.dueAt.toISOString()}`;
       expect(reminderKeys.has(key)).toBe(false);
       reminderKeys.add(key);
