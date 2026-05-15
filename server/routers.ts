@@ -3104,7 +3104,7 @@ export const appRouter = router({
         });
 
         const errorCount = validationResults.filter((r) => !r.isValid).length;
-        const duplicateCount = validationResults.filter((r) => r.errors.some((e) => e.includes("?? DB? ??"))).length;
+        const duplicateCount = validationResults.filter((r) => r.errors.some((e) => e.includes("기존 DB에 존재"))).length;
 
         await runDbTransaction(async (tx) => {
           await createImportBatch({

@@ -6,6 +6,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import { AlertCircle, CheckCircle2, Download, Upload, AlertTriangle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -33,6 +34,7 @@ export default function CustomerBulkImport() {
   const [validationResults, setValidationResults] = useState<ValidationResult[]>([]);
   const [stage, setStage] = useState<"upload" | "preview" | "result">("upload");
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState<string>("");
   const [importBatchId, setImportBatchId] = useState<string>("");
   const [assignmentMode, setAssignmentMode] = useState<string>("csv");
 
@@ -122,6 +124,8 @@ export default function CustomerBulkImport() {
     setFileSize(file.size);
     const nextMimeType = file.type || (isXlsx ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv");
     setMimeType(nextMimeType);
+    setIsLoading(true);
+    setLoadingMessage("파일 파싱 중...");
 
     if (isXlsx) {
       file.arrayBuffer()
@@ -133,6 +137,8 @@ export default function CustomerBulkImport() {
           handlePreview(rows, file.name, file.size, nextMimeType);
         })
         .catch((error: any) => {
+          setIsLoading(false);
+          setLoadingMessage("");
           alert(`파일 파싱 오류: ${error.message}`);
         });
       return;
@@ -147,6 +153,8 @@ export default function CustomerBulkImport() {
         handlePreview(rows, file.name, file.size, nextMimeType);
       },
       error: (error: any) => {
+        setIsLoading(false);
+        setLoadingMessage("");
         alert(`파일 파싱 오류: ${error.message}`);
       },
     });
@@ -154,11 +162,14 @@ export default function CustomerBulkImport() {
 
   const handlePreview = async (rows: ParsedRow[], selectedFileName = fileName, selectedFileSize = fileSize, selectedMimeType = mimeType) => {
     if (rows.length === 0) {
+      setIsLoading(false);
+      setLoadingMessage("");
       alert("파일에 데이터가 없습니다.");
       return;
     }
 
     setIsLoading(true);
+    setLoadingMessage(`서버 검증 중... (${rows.length}행)`);
     try {
       const result = await previewImportMutation.mutateAsync({ rows, fileName: selectedFileName, fileSize: selectedFileSize, mimeType: selectedMimeType, agentId: selectedAgentId });
       setValidationResults(result.validationResults);
@@ -167,6 +178,7 @@ export default function CustomerBulkImport() {
       alert(`검증 오류: ${error.message}`);
     } finally {
       setIsLoading(false);
+      setLoadingMessage("");
     }
   };
 
@@ -174,6 +186,7 @@ export default function CustomerBulkImport() {
     if (!confirm("정상 행만 등록합니다. 계속하시겠습니까?")) return;
 
     setIsLoading(true);
+    setLoadingMessage(`DB 등록 중... (${successCount}건)`);
     try {
       const result = await bulkImportMutation.mutateAsync({
         rows: parsedRows,
@@ -189,6 +202,7 @@ export default function CustomerBulkImport() {
       alert(`등록 오류: ${error.message}`);
     } finally {
       setIsLoading(false);
+      setLoadingMessage("");
     }
   };
 
@@ -201,6 +215,14 @@ export default function CustomerBulkImport() {
   return (
     <DashboardLayout>
       <div className="max-w-4xl mx-auto space-y-6">
+        {/* Loading progress banner */}
+        {isLoading && loadingMessage && (
+          <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 flex items-center gap-3">
+            <Spinner className="size-5 text-primary shrink-0" />
+            <span className="text-sm text-primary font-medium">{loadingMessage}</span>
+          </div>
+        )}
+
         <p className="text-sm text-muted-foreground">
           엑셀 또는 CSV 파일을 통해 여러 고객을 한 번에 등록할 수 있습니다.
           {canSelectAssignee ? " 담당자 지정 방식은 아래에서 선택하세요." : " 등록된 고객은 내 고객으로 자동 배정됩니다."}
@@ -441,8 +463,16 @@ export default function CustomerBulkImport() {
               <Button
                 onClick={handleBulkImport}
                 disabled={isLoading || successCount === 0}
+                className="gap-2"
               >
-                {isLoading ? "처리 중..." : `정상 행 ${successCount}건 등록`}
+                {isLoading ? (
+                  <>
+                    <Spinner className="size-4" />
+                    {loadingMessage || "처리 중..."}
+                  </>
+                ) : (
+                  `정상 행 ${successCount}건 등록`
+                )}
               </Button>
             </div>
           </div>
