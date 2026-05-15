@@ -549,6 +549,11 @@ class _HomeNotificationTile extends ConsumerWidget {
     final id = idVal is int ? idVal : int.tryParse('$idVal') ?? 0;
     final title = '${raw['title'] ?? '알림'}';
     final type = '${raw['type'] ?? ''}';
+    final accentColor = switch (priority) {
+      NotificationPriority.urgent => Colors.red.shade400,
+      NotificationPriority.today => Colors.orange.shade400,
+      NotificationPriority.general => Colors.blueGrey.shade400,
+    };
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -556,27 +561,42 @@ class _HomeNotificationTile extends ConsumerWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.notification_important_outlined, size: 18, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
+            Container(
+              width: 4,
+              height: 42,
+              margin: const EdgeInsets.only(top: 2, right: 8),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      Icon(Icons.notification_important_outlined, size: 16, color: theme.colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                   ),
                   if (type.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.only(top: 3),
                       child: Text(
                         type,
                         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ),
-                  const SizedBox(height: 3),
+                  const SizedBox(height: 4),
                   _PriorityBadge(priority: priority),
                 ],
               ),
@@ -596,6 +616,10 @@ class _HomeNotificationTile extends ConsumerWidget {
                         }
                       }
                     },
+              style: TextButton.styleFrom(
+                minimumSize: const Size(40, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+              ),
               child: const Text('읽음'),
             ),
           ],

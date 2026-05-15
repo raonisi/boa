@@ -297,10 +297,10 @@ function TodayWorkSection() {
               type="button"
               aria-pressed={queuePriorityFilter === "all"}
               onClick={() => setQueuePriorityFilter("all")}
-              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+              className={`crm-priority-chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                 queuePriorityFilter === "all"
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  ? "bg-primary/15 text-primary crm-priority-chip-active"
+                  : "crm-priority-neutral"
               }`}
             >
               전체 {pendingNotifications.length}건
@@ -309,10 +309,10 @@ function TodayWorkSection() {
               type="button"
               aria-pressed={queuePriorityFilter === "urgent"}
               onClick={() => setQueuePriorityFilter("urgent")}
-              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+              className={`crm-priority-chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                 queuePriorityFilter === "urgent"
-                  ? "bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200"
-                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  ? "crm-priority-urgent crm-priority-chip-active"
+                  : "crm-priority-neutral"
               }`}
             >
               긴급 {priorityCounts.urgent}건
@@ -321,10 +321,10 @@ function TodayWorkSection() {
               type="button"
               aria-pressed={queuePriorityFilter === "today"}
               onClick={() => setQueuePriorityFilter("today")}
-              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+              className={`crm-priority-chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                 queuePriorityFilter === "today"
-                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200"
-                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  ? "crm-priority-today crm-priority-chip-active"
+                  : "crm-priority-neutral"
               }`}
             >
               오늘 처리 {priorityCounts.today}건
@@ -333,10 +333,10 @@ function TodayWorkSection() {
               type="button"
               aria-pressed={queuePriorityFilter === "general"}
               onClick={() => setQueuePriorityFilter("general")}
-              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+              className={`crm-priority-chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
                 queuePriorityFilter === "general"
-                  ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
-                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  ? "crm-priority-general crm-priority-chip-active"
+                  : "crm-priority-neutral"
               }`}
             >
               일반 {priorityCounts.general}건
@@ -350,15 +350,15 @@ function TodayWorkSection() {
             sortedPendingNotifications.slice(0, 3).map((notification) => {
               const priority = classifyNotificationPriority(notification);
               return (
-                <div key={notification.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+                <div key={notification.id} className="crm-elevated-card p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                       priority === "urgent"
-                        ? "bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200"
+                        ? "crm-priority-urgent"
                         : priority === "today"
-                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200"
-                          : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          ? "crm-priority-today"
+                          : "crm-priority-general"
                     }`}>
                       {priority === "urgent" ? "긴급" : priority === "today" ? "오늘 처리" : "일반"}
                     </span>

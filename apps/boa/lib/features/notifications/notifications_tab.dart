@@ -254,6 +254,11 @@ class _NotificationTile extends ConsumerWidget {
     final id = idVal is int ? idVal : int.tryParse('$idVal') ?? 0;
     final isRead = notificationIsRead(raw);
     final title = '${raw['title'] ?? '알림'}';
+    final accentColor = switch (priority) {
+      NotificationPriority.urgent => Colors.red.shade400,
+      NotificationPriority.today => Colors.orange.shade400,
+      NotificationPriority.general => Colors.blueGrey.shade400,
+    };
     final sub = [
       '${raw['type'] ?? ''}',
       '${raw['processStatus'] ?? ''}',
@@ -262,18 +267,8 @@ class _NotificationTile extends ConsumerWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: isRead ? const Icon(Icons.notifications_none_outlined) : Icon(Icons.mark_email_unread_outlined, color: theme.colorScheme.primary),
-        title: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(fontWeight: isRead ? FontWeight.normal : FontWeight.w600)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (sub.isNotEmpty) Text(sub, style: theme.textTheme.bodySmall),
-            const SizedBox(height: 3),
-            _PriorityBadge(priority: priority),
-          ],
-        ),
-        trailing: const Icon(Icons.done_all_outlined, size: 20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
         onTap: id == 0
             ? null
             : () async {
@@ -288,6 +283,55 @@ class _NotificationTile extends ConsumerWidget {
                   }
                 }
               },
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 4,
+                height: 42,
+                margin: const EdgeInsets.only(top: 1, right: 8),
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        isRead
+                            ? const Icon(Icons.notifications_none_outlined, size: 18)
+                            : Icon(Icons.mark_email_unread_outlined, size: 18, color: theme.colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontWeight: isRead ? FontWeight.w500 : FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        const Icon(Icons.done_all_outlined, size: 18),
+                      ],
+                    ),
+                    if (sub.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 3),
+                        child: Text(sub, style: theme.textTheme.bodySmall),
+                      ),
+                    const SizedBox(height: 4),
+                    _PriorityBadge(priority: priority),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

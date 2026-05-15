@@ -206,7 +206,7 @@ export default function Notifications() {
           <button
             type="button"
             aria-pressed={priorityFilter === "urgent"}
-            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "urgent" ? "border-red-300 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/25" : "border-border bg-card hover:bg-muted/35"}`}
+            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "urgent" ? "crm-priority-urgent crm-priority-chip-active border-red-300 dark:border-red-900/60" : "border-border bg-card hover:bg-muted/35"}`}
             onClick={() => setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent")}
           >
             <p className="text-[11px] text-muted-foreground">긴급</p>
@@ -215,7 +215,7 @@ export default function Notifications() {
           <button
             type="button"
             aria-pressed={priorityFilter === "today"}
-            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "today" ? "border-amber-300 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/25" : "border-border bg-card hover:bg-muted/35"}`}
+            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "today" ? "crm-priority-today crm-priority-chip-active border-amber-300 dark:border-amber-900/60" : "border-border bg-card hover:bg-muted/35"}`}
             onClick={() => setPriorityFilter(priorityFilter === "today" ? "all" : "today")}
           >
             <p className="text-[11px] text-muted-foreground">오늘 처리</p>
@@ -224,7 +224,7 @@ export default function Notifications() {
           <button
             type="button"
             aria-pressed={priorityFilter === "general"}
-            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "general" ? "border-slate-300 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/35" : "border-border bg-card hover:bg-muted/35"}`}
+            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "general" ? "crm-priority-general crm-priority-chip-active border-slate-300 dark:border-slate-700" : "border-border bg-card hover:bg-muted/35"}`}
             onClick={() => setPriorityFilter(priorityFilter === "general" ? "all" : "general")}
           >
             <p className="text-[11px] text-muted-foreground">일반</p>
@@ -246,19 +246,19 @@ export default function Notifications() {
               const colorClass = processStatusColors[processStatus] ?? processStatusColors["미확인"];
               const priority = classifyNotificationPriority(n);
               return (
-                <Card key={n.id} className={`border-l-4 shadow-sm transition-colors ${colorClass}`}>
+                <Card key={n.id} className={`crm-elevated-card border-l-4 transition-colors ${colorClass}`}>
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Bell className="h-3.5 w-3.5 shrink-0 text-ring" />
                           <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs font-semibold text-foreground">{typeLabels[n.type] ?? n.type}</span>
-                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                             priority === "urgent"
-                              ? "bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200"
+                              ? "crm-priority-urgent"
                               : priority === "today"
-                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200"
-                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                                ? "crm-priority-today"
+                                : "crm-priority-general"
                           }`}>
                             {priority === "urgent" ? "긴급" : priority === "today" ? "오늘 처리" : "일반"}
                           </span>

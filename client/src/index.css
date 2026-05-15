@@ -254,6 +254,40 @@
     background: linear-gradient(90deg, oklch(0.28 0.12 274), oklch(0.72 0.09 78), oklch(0.28 0.12 274));
   }
 
+  .crm-elevated-card {
+    @apply rounded-xl border border-border/80 bg-card shadow-sm transition-all;
+    box-shadow: 0 8px 24px -18px oklch(0.2 0.04 270 / 0.45);
+  }
+
+  .crm-elevated-card:hover {
+    box-shadow: 0 14px 32px -20px oklch(0.2 0.05 270 / 0.52);
+    transform: translateY(-1px);
+  }
+
+  .crm-priority-chip {
+    @apply rounded-full px-2 py-1 text-[11px] font-semibold transition;
+  }
+
+  .crm-priority-chip-active {
+    @apply ring-1 ring-ring/35;
+  }
+
+  .crm-priority-urgent {
+    @apply bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200;
+  }
+
+  .crm-priority-today {
+    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200;
+  }
+
+  .crm-priority-general {
+    @apply bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300;
+  }
+
+  .crm-priority-neutral {
+    @apply bg-muted text-muted-foreground hover:bg-muted/70;
+  }
+
   .flex {
     min-height: 0;
     min-width: 0;
