@@ -318,7 +318,6 @@ export function registerMobileRoutes(app: Express) {
         }
         q = trimmed.length > 0 ? trimmed : undefined;
       }
-      const listInput = q ? { search: q } : {};
       const pageSizeParsed =
         req.query.limit === undefined
           ? { success: true as const, data: 50 }
@@ -339,13 +338,10 @@ export function registerMobileRoutes(app: Express) {
       const pageSize = pageSizeParsed.data;
       const offset = offsetParsed.data;
       const fetchLimit = pageSize + 1;
-      const rows = await caller.customers.list({
-        ...listInput,
-        limit: fetchLimit,
-        offset,
-      });
-      const hasMore = rows.length > pageSize;
-      const items = hasMore ? rows.slice(0, pageSize) : rows;
+      const rows = await caller.customers.list({});
+      const pagedRows = rows.slice(offset, offset + fetchLimit);
+      const hasMore = pagedRows.length > pageSize;
+      const items = hasMore ? pagedRows.slice(0, pageSize) : pagedRows;
       res.json({
         items,
         hasMore,
@@ -587,13 +583,10 @@ export function registerMobileRoutes(app: Express) {
     };
     try {
       const fetchLimit = pageSize + 1;
-      const rows = await caller.contracts.list({
-        ...listInput,
-        limit: fetchLimit,
-        offset,
-      });
-      const hasMore = rows.length > pageSize;
-      const items = hasMore ? rows.slice(0, pageSize) : rows;
+      const rows = await caller.contracts.list(listInput);
+      const pagedRows = rows.slice(offset, offset + fetchLimit);
+      const hasMore = pagedRows.length > pageSize;
+      const items = hasMore ? pagedRows.slice(0, pageSize) : pagedRows;
       res.json({
         items,
         hasMore,
