@@ -1758,10 +1758,10 @@ export async function getNotifications(userId: number, extraUserIds?: number[], 
   if (extraUserIds && extraUserIds.length > 0) {
     const allIds = [userId, ...extraUserIds];
     return db.select().from(notifications)
-      .where(or(...allIds.map((id) => eq(notifications.userId, id))))
+      .where(and(or(...allIds.map((id) => eq(notifications.userId, id))), or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))))
       .orderBy(desc(notifications.createdAt)).limit(limit);
   }
-  return db.select().from(notifications).where(eq(notifications.userId, userId)).orderBy(desc(notifications.createdAt)).limit(limit);
+  return db.select().from(notifications).where(and(eq(notifications.userId, userId), or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date())))).orderBy(desc(notifications.createdAt)).limit(limit);
 }
 
 export async function getAllNotifications(limit = 500) {
@@ -1801,6 +1801,7 @@ export async function getNotificationsFiltered(filter: {
   if (filter.type) conditions.push(eq(notifications.type, filter.type as any));
   if (filter.dateFrom) conditions.push(gte(notifications.createdAt, filter.dateFrom));
   if (filter.dateTo) conditions.push(lte(notifications.createdAt, filter.dateTo));
+  conditions.push(or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date())));
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
   const [items, countResult] = await Promise.all([
     whereClause
@@ -1839,7 +1840,7 @@ export async function getUnreadCount(userId: number) {
   const db = await getDb();
   if (!db) return 0;
   const result = await db.select({ count: sql<number>`count(*)` }).from(notifications)
-    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+    .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false), or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))));
   return result[0]?.count ?? 0;
 }
 

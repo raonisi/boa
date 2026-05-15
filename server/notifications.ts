@@ -111,6 +111,28 @@ export async function cancelScheduleIncompleteNotification(
   }
 }
 
+export async function cancelScheduleTimingNotifications(
+  userId: number,
+  scheduleId: number
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  try {
+    const conn = (db as any).session?.client ?? (db as any)._client;
+    if (conn) {
+      await conn.execute(
+        `UPDATE notifications SET processStatus = '처리완료'
+         WHERE userId = ? AND relatedType = 'schedule' AND relatedId = ?
+         AND type IN ('schedule_1day','schedule_today','schedule_1hour','general')
+         AND processStatus IN ('미확인', '확인')`,
+        [userId, scheduleId]
+      );
+    }
+  } catch (err) {
+    console.error("[Notification] Failed to cancel schedule timing notifications:", err);
+  }
+}
+
 /**
  * 계약 생성 시 → 90/180/365일 점검 알림 자동 생성
  */
@@ -263,6 +285,29 @@ export async function createScheduleReminders(
         dueAt,
       });
     }
+  }
+}
+
+export async function createScheduleReminderByOffset(
+  scheduleId: number,
+  userId: number,
+  startTime: Date,
+  title: string,
+  offsetMinutes: number
+): Promise<void> {
+  if (offsetMinutes < 0) return;
+  const dueAt = new Date(startTime.getTime() - offsetMinutes * 60 * 1000);
+  if (dueAt > new Date()) {
+    const label = offsetMinutes === 0 ? "일정 시각" : offsetMinutes >= 1440 ? `${offsetMinutes / 1440}일 전` : `${offsetMinutes >= 60 ? `${offsetMinutes / 60}시간` : `${offsetMinutes}분`} 전`;
+    await createNotificationSafe({
+      userId,
+      type: "general",
+      title: `[일정 알림] ${title}`,
+      message: `${label} 일정 알림: ${title}`,
+      relatedType: "schedule",
+      relatedId: scheduleId,
+      dueAt,
+    });
   }
 }
 

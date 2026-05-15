@@ -190,8 +190,10 @@ function performanceContracts(actor: TestUser, filters: { agentIdFilter?: number
 }
 
 function filterNotifications(actor: TestUser, filter: { processStatus?: string; isRead?: boolean; type?: string; dateFrom?: Date; dateTo?: Date; limit?: number; offset?: number } = {}) {
+  const now = new Date("2026-05-15T00:00:00.000Z");
   const rows = seed.notifications.filter((notification) => {
     if (!canAccessNotification(actor, notification)) return false;
+    if (notification.dueAt > now) return false;
     if (filter.processStatus && notification.processStatus !== filter.processStatus) return false;
     if (filter.isRead !== undefined && notification.isRead !== filter.isRead) return false;
     if (filter.type && notification.type !== filter.type) return false;
@@ -353,6 +355,21 @@ describe("mock schedule and notification coverage", () => {
     expect(leaderFiltered.items).toHaveLength(1);
     expect(leaderFiltered.totalCount).toBe(1);
     expect(canAccessNotification(user(20), seed.notifications[2])).toBe(false);
+  });
+
+  it("hides future dueAt notifications and keeps dueAt null notifications visible", () => {
+    const visible = filterNotifications(user(30), {});
+    expect(visible.items.some((item) => item.dueAt > new Date("2026-05-15T00:00:00.000Z"))).toBe(false);
+    const withNullDueAt = {
+      ...seed.notifications[0],
+      id: 9999,
+      dueAt: null as unknown as Date,
+      type: "general" as const,
+    };
+    seed.notifications.push(withNullDueAt);
+    const visibleWithNull = filterNotifications(user(30), {});
+    expect(visibleWithNull.items.some((item) => item.id === 9999)).toBe(true);
+    seed.notifications.pop();
   });
 
   it("models expected reminder types and duplicate-prevention key", () => {
