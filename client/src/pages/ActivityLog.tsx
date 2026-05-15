@@ -1,52 +1,98 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Activity, Search } from "lucide-react";
-import { useState } from "react";
+import { Activity, Search, ShieldAlert } from "lucide-react";
+import { useMemo, useState } from "react";
 
 const actionLabels: Record<string, string> = {
+  USER_LOGIN: "로그인",
+  USER_LOGOUT: "로그아웃",
+  USER_FORCE_LOGOUT: "강제 로그아웃",
+  USER_OAUTH_RESET: "OAuth 초기화",
   USER_ROLE_CHANGED: "권한 변경",
   USER_TEAM_CHANGED: "팀 변경",
   TEAM_CREATED: "팀 생성",
+  CUSTOMER_VIEWED: "고객 조회",
   CUSTOMER_CREATED: "고객 등록",
-  CUSTOMER_UPDATED: "고객 수정",
+  CUSTOMER_UPDATED: "고객 정보 수정",
   CUSTOMER_ASSIGNED: "고객 배정",
+  CUSTOMER_DEACTIVATED: "고객 삭제",
+  CUSTOMER_RESTORED: "고객 복구",
   CONSULTATION_CREATED: "상담기록 추가",
+  CONSULTATION_UPDATED: "상담기록 수정",
   CONTRACT_CREATED: "계약 등록",
   CONTRACT_UPDATED: "계약 수정",
+  CONTRACT_DELETED: "계약 삭제",
+  CONTRACT_RESTORED: "계약 복구",
+  DATA_DOWNLOAD: "데이터 다운로드",
   SCHEDULE_CREATED: "일정 등록",
   SCHEDULE_UPDATED: "일정 수정",
   SCHEDULE_DELETED: "일정 삭제",
+  SCHEDULE_COMPLETED: "일정 완료",
+  SCHEDULE_CANCELLED: "일정 취소",
 };
 
-const actionColors: Record<string, string> = {
-  USER_ROLE_CHANGED: "text-purple-600",
-  USER_TEAM_CHANGED: "text-purple-600",
-  CUSTOMER_CREATED: "text-green-600",
-  CUSTOMER_ASSIGNED: "text-blue-600",
-  CUSTOMER_UPDATED: "text-blue-600",
-  CONSULTATION_CREATED: "text-indigo-600",
-  CONTRACT_CREATED: "text-emerald-600",
-  CONTRACT_UPDATED: "text-emerald-600",
-  SCHEDULE_CREATED: "text-orange-600",
-  SCHEDULE_UPDATED: "text-orange-600",
-  SCHEDULE_DELETED: "text-red-600",
-};
+const riskyPatterns = ["DOWNLOAD", "DELETE", "DELETED", "RESTORE", "RESTORED", "PURGE", "PERMANENT", "FORCE_LOGOUT", "OAUTH_RESET"];
+
+function actionLabel(action: string) {
+  return actionLabels[action] ?? action.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (s) => s.toUpperCase());
+}
+
+function isRiskAction(action: string) {
+  return riskyPatterns.some((pattern) => action.includes(pattern));
+}
+
+function actionCategory(action: string) {
+  if (action.includes("DOWNLOAD")) return "download";
+  if (action.includes("DELETE") || action.includes("RESTORE") || action.includes("PURGE")) return "delete";
+  if (action.includes("USER") || action.includes("OAUTH") || action.includes("LOGIN")) return "user";
+  if (action.includes("CUSTOMER")) return "customer";
+  if (action.includes("CONTRACT")) return "contract";
+  if (action.includes("SCHEDULE")) return "schedule";
+  return "other";
+}
+
+function extractReason(details?: string | null) {
+  if (!details) return "";
+  try {
+    const parsed = JSON.parse(details);
+    return parsed?.metadata?.reason ?? parsed?.reason ?? "";
+  } catch {
+    const match = details.match(/reason["'=:\s]+([^,}\n]+)/i);
+    return match?.[1]?.replaceAll('"', "").trim() ?? "";
+  }
+}
 
 export default function ActivityLog() {
   const [search, setSearch] = useState("");
+  const [userFilter, setUserFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [periodFilter, setPeriodFilter] = useState("30");
+  const [selectedLog, setSelectedLog] = useState<any>(null);
   const { data: logs } = trpc.logs.list.useQuery();
   const { data: users } = trpc.users.list.useQuery();
 
   const getUserName = (userId: number) => users?.find((u) => u.id === userId)?.name ?? `#${userId}`;
+  const userOptions = useMemo(() => Array.from(new Set((logs ?? []).map((log) => log.userId))).filter(Boolean), [logs]);
 
-  const filtered = (logs ?? []).filter((l) => {
-    if (!search) return true;
-    const label = actionLabels[l.action] ?? l.action;
-    const userName = getUserName(l.userId);
-    return label.includes(search) || userName.includes(search) || (l.details ?? "").includes(search);
+  const filtered = (logs ?? []).filter((log) => {
+    const label = actionLabel(log.action);
+    const userName = getUserName(log.userId);
+    const reason = extractReason(log.details);
+    const createdAt = new Date(log.createdAt);
+    const withinPeriod = periodFilter === "all" || createdAt >= new Date(Date.now() - Number(periodFilter) * 24 * 60 * 60 * 1000);
+    const matchSearch = !search || label.includes(search) || log.action.includes(search) || userName.includes(search) || (log.details ?? "").includes(search) || reason.includes(search);
+    const matchUser = userFilter === "all" || String(log.userId) === userFilter;
+    const matchCategory = categoryFilter === "all" || actionCategory(log.action) === categoryFilter;
+    const matchRisk = riskFilter === "all" || (riskFilter === "risk" ? isRiskAction(log.action) : !isRiskAction(log.action));
+    return withinPeriod && matchSearch && matchUser && matchCategory && matchRisk;
   });
 
   return (
@@ -54,23 +100,61 @@ export default function ActivityLog() {
       <div className="space-y-5">
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Activity Log</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Activity Audit</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">활동 로그</h1>
-            <p className="mt-1 text-sm text-slate-500">시스템 내 주요 변경 사항 기록</p>
+            <p className="mt-1 text-sm text-slate-500">운영자가 이해할 수 있는 작업명, 위험도, 사유 중심으로 감사 이력을 확인합니다.</p>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="p-4">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="작업, 사용자, 상세내용 검색"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-10 max-w-sm rounded-xl bg-slate-50 pl-8"
-          />
-        </div>
+          <CardContent className="space-y-3 p-4">
+            <div className="grid gap-2 md:grid-cols-5">
+              <div className="relative md:col-span-2">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="작업, 사용자, 사유, 상세 검색"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="h-10 rounded-xl bg-slate-50 pl-8"
+                />
+              </div>
+              <Select value={userFilter} onValueChange={setUserFilter}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="사용자" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 사용자</SelectItem>
+                  {userOptions.map((userId) => <SelectItem key={userId} value={String(userId)}>{getUserName(userId)}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="작업 유형" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 작업</SelectItem>
+                  <SelectItem value="customer">고객</SelectItem>
+                  <SelectItem value="contract">계약</SelectItem>
+                  <SelectItem value="schedule">일정</SelectItem>
+                  <SelectItem value="download">다운로드</SelectItem>
+                  <SelectItem value="delete">삭제/복구</SelectItem>
+                  <SelectItem value="user">사용자/보안</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={riskFilter} onValueChange={setRiskFilter}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="위험도" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 위험도</SelectItem>
+                  <SelectItem value="risk">위험 작업</SelectItem>
+                  <SelectItem value="normal">일반 작업</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="기간" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="7">최근 7일</SelectItem>
+                  <SelectItem value="30">최근 30일</SelectItem>
+                  <SelectItem value="90">최근 90일</SelectItem>
+                  <SelectItem value="all">전체 기간</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
@@ -84,45 +168,75 @@ export default function ActivityLog() {
                     <TableHead>사용자</TableHead>
                     <TableHead>작업</TableHead>
                     <TableHead>대상</TableHead>
-                    <TableHead>상세</TableHead>
+                    <TableHead>사유/요약</TableHead>
+                    <TableHead className="w-24">상세</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center py-12">
+                      <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Activity className="h-8 w-8 opacity-30" />
-                          <p className="text-sm">활동 로그가 없습니다.</p>
+                          <p className="text-sm font-medium">조건에 맞는 활동 로그가 없습니다.</p>
+                          <p className="text-xs">필터를 초기화하거나 기간을 넓혀보세요.</p>
                         </div>
                       </TableCell>
                     </TableRow>
                   ) : (
-                    filtered.map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString("ko-KR")}
-                        </TableCell>
-                        <TableCell className="font-medium text-sm">{getUserName(log.userId)}</TableCell>
-                        <TableCell>
-                          <span className={`text-sm font-medium ${actionColors[log.action] ?? "text-foreground"}`}>
-                            {actionLabels[log.action] ?? log.action}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {log.targetType ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-48 truncate">
-                          {log.details ?? "-"}
-                        </TableCell>
-                      </TableRow>
-                    ))
+                    filtered.map((log) => {
+                      const reason = extractReason(log.details);
+                      const risky = isRiskAction(log.action);
+                      return (
+                        <TableRow key={log.id} className={risky ? "bg-red-50/30" : ""}>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {new Date(log.createdAt).toLocaleString("ko-KR")}
+                          </TableCell>
+                          <TableCell className="font-medium text-sm">{getUserName(log.userId)}</TableCell>
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-semibold text-slate-900">{actionLabel(log.action)}</span>
+                              {risky && <Badge className="bg-red-100 text-red-700"><ShieldAlert className="h-3 w-3" /> 위험</Badge>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {log.targetType ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
+                          </TableCell>
+                          <TableCell className="max-w-64 text-xs text-muted-foreground">
+                            <span className="line-clamp-2">{reason ? `사유: ${reason}` : log.details ?? "-"}</span>
+                          </TableCell>
+                          <TableCell>
+                            <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>상세보기</Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   )}
                 </TableBody>
               </Table>
             </div>
           </CardContent>
         </Card>
+
+        <Dialog open={Boolean(selectedLog)} onOpenChange={(open) => { if (!open) setSelectedLog(null); }}>
+          <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+            <DialogHeader><DialogTitle>활동 로그 상세</DialogTitle></DialogHeader>
+            {selectedLog && (
+              <div className="space-y-3 text-sm">
+                <div className="grid gap-2 md:grid-cols-2">
+                  <div><p className="text-xs text-muted-foreground">작업</p><p className="font-medium">{actionLabel(selectedLog.action)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">사용자</p><p className="font-medium">{getUserName(selectedLog.userId)}</p></div>
+                  <div><p className="text-xs text-muted-foreground">시각</p><p>{new Date(selectedLog.createdAt).toLocaleString("ko-KR")}</p></div>
+                  <div><p className="text-xs text-muted-foreground">대상</p><p>{selectedLog.targetType ? `${selectedLog.targetType}${selectedLog.targetId ? ` #${selectedLog.targetId}` : ""}` : "-"}</p></div>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">상세</p>
+                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">{selectedLog.details ?? "-"}</pre>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );

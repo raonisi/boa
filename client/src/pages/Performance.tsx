@@ -1,13 +1,15 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
-import { BarChart3, Filter, Target, TrendingUp, Users, WalletCards } from "lucide-react";
+import { BarChart3, FilePlus2, Filter, MessageSquare, Target, TrendingUp, Users, WalletCards } from "lucide-react";
 import { useState, useMemo } from "react";
+import { useLocation } from "wouter";
 import {
   Bar, BarChart, CartesianGrid, Cell,
   ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -38,6 +40,8 @@ function StatCard({ title, value, suffix = "", highlight = false, helper, icon: 
 
 export default function Performance() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const now = new Date();
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [agentIdFilter, setAgentIdFilter] = useState<string>("all");
@@ -73,6 +77,8 @@ export default function Performance() {
   }), [effectiveDateFrom, effectiveDateTo, agentIdFilter, teamIdFilter, productGroupFilter, companyFilter, regionFilter, sourceFilter, scopeFilter, user?.role]);
 
   const { data: stats } = trpc.performance.stats.useQuery(statsInput);
+  const { data: goalDashboard } = trpc.performanceGoals.dashboard.useQuery({ year: now.getFullYear(), month: now.getMonth() + 1 });
+  const { data: workRhythm } = trpc.workRhythm.summary.useQuery({ period: "month" });
 
   const barData = [
     { name: "미상담", value: stats?.uncontacted ?? 0 },
@@ -92,6 +98,14 @@ export default function Performance() {
 
   const roleTitle = user?.role === "branch_admin" ? "전체" : (user?.role === "sub_branch_admin" || user?.role === "team_leader") ? "팀" : "내";
   const agents = (users ?? []).filter((u) => (u as any).accountStatus === "active");
+  const monthlyPremium = stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum ?? 0;
+  const newContracts = stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted ?? 0;
+  const firstGoal = (goalDashboard?.items ?? [])[0] as any;
+  const premiumShortfall = firstGoal?.remaining?.monthlyPremium ?? workRhythm?.remaining?.monthlyPremium ?? 0;
+  const contractShortfall = firstGoal?.remaining?.contractCount ?? workRhythm?.remaining?.contractCount ?? 0;
+  const goalRate = firstGoal?.achievementRate?.monthlyPremium ?? goalDashboard?.summary?.averagePremiumRate ?? 0;
+  const remainingDays = firstGoal?.remainingDays ?? new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1;
+  const hasPerformanceData = Boolean(newContracts || monthlyPremium || stats?.consultRate || stats?.assigned);
 
   return (
     <DashboardLayout>
@@ -108,6 +122,50 @@ export default function Performance() {
                 계약 유지 상태는 GA 본사 전산 기준으로 확인
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#0f3f32]">Monthly Report</p>
+                <h2 className="mt-1 text-xl font-bold text-slate-950">이번 달 성과 요약</h2>
+                <p className="mt-1 text-sm text-slate-500">신규 계약, 월납 실적, 목표 부족분, 오늘 필요한 행동량을 한 번에 확인합니다.</p>
+              </div>
+              <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+                이번 달 남은 기간 {remainingDays}일
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              {[
+                { label: "신규 계약", value: `${newContracts.toLocaleString()}건`, helper: "이번 달 신규 성과" },
+                { label: "월납보험료 실적", value: `${monthlyPremium.toLocaleString()}원`, helper: "월납 기준 합계" },
+                { label: "목표 달성률", value: `${goalRate ?? 0}%`, helper: "목표 대비 진행" },
+                { label: "목표까지 부족분", value: `${Number(premiumShortfall ?? 0).toLocaleString()}원`, helper: `신규 계약 ${contractShortfall ?? 0}건 부족` },
+                { label: "오늘 필요한 행동량", value: `${workRhythm?.recommendedTodayActions?.suggestedConsultationCount ?? 0}건`, helper: "상담/후속 권장" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+                  <p className="text-xs text-slate-500">{item.label}</p>
+                  <p className="mt-1 text-lg font-bold text-slate-950">{item.value}</p>
+                  <p className="mt-1 text-[11px] text-slate-500">{item.helper}</p>
+                </div>
+              ))}
+            </div>
+            {!hasPerformanceData && (
+              <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-white p-4">
+                <p className="text-sm font-semibold text-slate-900">아직 실적 데이터가 없습니다.</p>
+                <p className="mt-1 text-xs text-slate-500">신규 계약 또는 상담기록을 등록하면 실적 흐름이 표시됩니다.</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setLocation("/contracts")}>
+                    <FilePlus2 className="h-4 w-4 mr-1" /> 계약 등록
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                    <MessageSquare className="h-4 w-4 mr-1" /> 상담 기록 확인
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -179,8 +237,8 @@ export default function Performance() {
         {/* 핵심 지표 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <StatCard title="배정 DB" value={stats?.assigned} highlight icon={Users} />
-          <StatCard title="신규 계약" value={stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted} highlight icon={Target} helper="신규 영업 성과 기준" />
-          <StatCard title="월납보험료 실적" value={(stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum)?.toLocaleString()} suffix="원" highlight icon={WalletCards} />
+          <StatCard title="신규 계약" value={newContracts} highlight icon={Target} helper="신규 영업 성과 기준" />
+          <StatCard title="월납보험료 실적" value={monthlyPremium.toLocaleString()} suffix="원" highlight icon={WalletCards} />
           <StatCard title="신규 계약률" value={stats?.contractRate} suffix="%" highlight icon={TrendingUp} />
         </div>
 
@@ -222,11 +280,11 @@ export default function Performance() {
             <CardContent className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-muted-foreground">신규 계약</p>
-                <p className="mt-2 text-2xl font-bold text-primary">{stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted ?? 0}</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{newContracts}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs text-muted-foreground">월납보험료 실적</p>
-                <p className="mt-2 text-2xl font-bold text-primary">{(stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum ?? 0).toLocaleString()}원</p>
+                <p className="mt-2 text-2xl font-bold text-primary">{monthlyPremium.toLocaleString()}원</p>
               </div>
               <p className="sm:col-span-2 text-xs text-muted-foreground">
                 계약 유지 상태는 GA 본사 전산 기준으로 확인하고, BOA CRM은 신규 영업 성과와 월납보험료 실적을 중심으로 표시합니다.

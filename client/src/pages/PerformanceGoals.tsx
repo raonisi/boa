@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,16 @@ const targetTypeLabels: Record<string, string> = {
 
 function formatWon(value: number | undefined | null) {
   return `${Number(value ?? 0).toLocaleString()}원`;
+}
+
+function goalStatus(item: any) {
+  if (!item) return { label: "목표 없음", className: "bg-slate-100 text-slate-600" };
+  const contractRate = Number(item?.achievementRate?.contractCount ?? 0);
+  const premiumRate = Number(item?.achievementRate?.monthlyPremium ?? 0);
+  const bestRate = Math.max(contractRate, premiumRate);
+  if (bestRate >= 100) return { label: "목표 달성", className: "bg-emerald-100 text-emerald-700" };
+  if ((item?.remainingDays ?? 0) <= 5 && bestRate < 80) return { label: "미달 위험", className: "bg-red-100 text-red-700" };
+  return { label: "진행중", className: "bg-amber-100 text-amber-700" };
 }
 
 export default function PerformanceGoals() {
@@ -69,6 +80,7 @@ export default function PerformanceGoals() {
 
   const items = dashboard?.items ?? [];
   const firstGoal = items[0];
+  const firstGoalStatus = goalStatus(firstGoal);
 
   return (
     <DashboardLayout>
@@ -117,11 +129,30 @@ export default function PerformanceGoals() {
           </Card>
         </div>
 
+        {items.length === 0 && (
+          <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
+            <CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <Badge className="bg-amber-100 text-amber-800">목표 없음</Badge>
+                <h2 className="mt-2 text-lg font-bold text-slate-950">이번 달 목표가 설정되지 않았습니다.</h2>
+                <p className="mt-1 text-sm text-slate-600">목표를 설정하면 필요한 상담량과 계약량을 계산할 수 있습니다.</p>
+              </div>
+              {user?.role === "branch_admin" && (
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => setContractCountGoal(Math.max(contractCountGoal, 10))}>신규 계약 목표 설정</Button>
+                  <Button size="sm" variant="outline" onClick={() => setMonthlyPremiumGoal(Math.max(monthlyPremiumGoal, 1000000))}>월납보험료 목표 설정</Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {firstGoal && (
           <Card className="border-[#d9c99f] bg-white/95 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <TrendingUp className="h-4 w-4 text-primary" /> 이번 달 핵심 목표
+                <Badge className={firstGoalStatus.className}>{firstGoalStatus.label}</Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-4">
@@ -132,14 +163,17 @@ export default function PerformanceGoals() {
               <div>
                 <p className="text-xs text-muted-foreground">신규 계약</p>
                 <p className="font-medium">{firstGoal.actual.contractCount} / {firstGoal.goal.contractCountGoal}건</p>
+                <p className="text-xs text-muted-foreground">달성률 {firstGoal.achievementRate.contractCount ?? 0}%</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">월납보험료 목표</p>
                 <p className="font-medium">{formatWon(firstGoal.actual.monthlyPremium)} / {formatWon(firstGoal.goal.monthlyPremiumGoal)}</p>
+                <p className="text-xs text-muted-foreground">부족분 {formatWon(firstGoal.remaining.monthlyPremium)}</p>
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">오늘 필요한 목표</p>
                 <p className="font-medium">{firstGoal.dailyRequired.contractCount}건 · {formatWon(firstGoal.dailyRequired.monthlyPremium)}</p>
+                <p className="text-xs text-muted-foreground">남은 기간 {firstGoal.remainingDays}일</p>
               </div>
             </CardContent>
           </Card>
@@ -196,6 +230,20 @@ export default function PerformanceGoals() {
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-6">
+              <div className="md:col-span-6 grid gap-2 md:grid-cols-3">
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-700">1. 기간 선택</p>
+                  <p className="text-[11px] text-slate-500">월간 운영 기준을 먼저 정합니다.</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-700">2. 대상 선택</p>
+                  <p className="text-[11px] text-slate-500">지점, 팀, 개인 목표를 구분합니다.</p>
+                </div>
+                <div className="rounded-lg bg-slate-50 p-3">
+                  <p className="text-xs font-semibold text-slate-700">3. 숫자 입력</p>
+                  <p className="text-[11px] text-slate-500">신규 계약과 월납 목표를 함께 설정합니다.</p>
+                </div>
+              </div>
               <div>
                 <Label className="text-xs">연도</Label>
                 <Input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
@@ -279,12 +327,17 @@ export default function PerformanceGoals() {
                 {items.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={user?.role === "branch_admin" ? 9 : 8} className="py-8 text-center text-sm text-muted-foreground">
-                      설정된 목표가 없습니다.
+                      조건에 맞는 목표가 없습니다. 목표를 설정하면 필요한 상담량과 계약량을 계산할 수 있습니다.
                     </TableCell>
                   </TableRow>
                 ) : items.map((item: any) => (
                   <TableRow key={item.goal.id}>
-                    <TableCell className="font-medium">{item.targetLabel}</TableCell>
+                    <TableCell className="font-medium">
+                      <div className="flex flex-col gap-1">
+                        <span>{item.targetLabel}</span>
+                        <Badge className={goalStatus(item).className}>{goalStatus(item).label}</Badge>
+                      </div>
+                    </TableCell>
                     <TableCell>{targetTypeLabels[item.goal.targetType] ?? item.goal.targetType}</TableCell>
                     <TableCell>{item.actual.contractCount} / {item.goal.contractCountGoal}건</TableCell>
                     <TableCell>{item.achievementRate.contractCount ?? "-"}%</TableCell>

@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Activity, AlertTriangle, ShieldCheck } from "lucide-react";
+import { Activity, AlertTriangle, Bell, Database, Download, ShieldCheck, Trash2, Users } from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 
 const riskLabels: Record<string, string> = {
   high: "높음",
@@ -23,7 +24,24 @@ const riskClasses: Record<string, string> = {
   normal: "bg-gray-100 text-gray-600",
 };
 
+const actionLabels: Record<string, string> = {
+  DATA_DOWNLOAD: "데이터 다운로드",
+  CUSTOMER_DEACTIVATED: "고객 삭제",
+  CUSTOMER_RESTORED: "고객 복구",
+  CONTRACT_DELETED: "계약 삭제",
+  CONTRACT_RESTORED: "계약 복구",
+  ALL_USERS_FORCE_LOGOUT: "전체 사용자 강제 로그아웃",
+  USER_FORCE_LOGOUT: "강제 로그아웃",
+  USER_OAUTH_RESET: "OAuth 초기화",
+  LOGIN_BLOCKED: "로그인 차단",
+};
+
+function actionLabel(action: string) {
+  return actionLabels[action] ?? action.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (s) => s.toUpperCase());
+}
+
 export default function AdminAuditDashboard() {
+  const [, setLocation] = useLocation();
   const [datePreset, setDatePreset] = useState<"today" | "7d" | "30d" | "custom">("7d");
   const [category, setCategory] = useState<string>("all");
   const [targetType, setTargetType] = useState<string>("all");
@@ -42,21 +60,31 @@ export default function AdminAuditDashboard() {
     limit: 50,
   });
 
-  const cards = [
-    ["activeUsers", "active 사용자", "현재"],
-    ["inactiveUsers", "inactive 사용자", "현재"],
-    ["resignedUsers", "resigned 사용자", "현재"],
-    ["activeCustomers", "active 고객", "현재"],
-    ["softDeletedCustomers", "soft deleted 고객", "현재"],
-    ["activeContracts", "active 계약", "현재"],
-    ["softDeletedContracts", "soft deleted 계약", "현재"],
-    ["unreadNotifications", "미확인 알림", "현재"],
-    ["todayCustomers", "오늘 등록 고객", "오늘"],
-    ["todayContracts", "오늘 계약", "오늘"],
-    ["recentDownloads", "다운로드", "최근 7일"],
-    ["recentDeleteRestore", "삭제/복구/완전삭제", "최근 7일"],
-    ["recentLoginBlocked", "로그인 차단", "최근 7일"],
-    ["recentSecurityActions", "OAuth/강제 로그아웃", "최근 7일"],
+  const metric = (key: keyof NonNullable<typeof summary>["cards"]) => Number(summary?.cards?.[key] ?? 0);
+  const cautionCount = metric("unreadNotifications") + metric("inactiveUsers") + metric("softDeletedCustomers") + metric("softDeletedContracts");
+  const riskCount = metric("recentDownloads") + metric("recentDeleteRestore") + metric("recentLoginBlocked") + metric("recentSecurityActions");
+  const health = riskCount >= 10 ? { label: "위험", className: "bg-red-100 text-red-700", helper: "위험 작업이 많습니다. 사유 로그 확인이 필요합니다." }
+    : cautionCount > 0 || riskCount > 0 ? { label: "주의", className: "bg-amber-100 text-amber-800", helper: "확인할 운영 항목이 있습니다." }
+    : { label: "정상", className: "bg-emerald-100 text-emerald-700", helper: "현재 주요 운영 위험이 낮습니다." };
+  const cautionCards = [
+    { key: "unreadNotifications", label: "미확인 알림", helper: "알림센터에서 처리하세요.", icon: Bell, onClick: () => setLocation("/notifications") },
+    { key: "inactiveUsers", label: "inactive 사용자", helper: "계정 상태를 확인하세요.", icon: Users, onClick: () => setLocation("/users") },
+    { key: "softDeletedCustomers", label: "삭제 처리 고객", helper: "복구/정리 정책을 확인하세요.", icon: Database, onClick: () => setLocation("/deleted-data") },
+    { key: "softDeletedContracts", label: "삭제 처리 계약", helper: "삭제 요청 이력을 확인하세요.", icon: Database, onClick: () => setLocation("/deleted-data") },
+  ] as const;
+  const riskCards = [
+    { key: "recentDownloads", label: "최근 다운로드", helper: "최근 데이터 다운로드가 많으면 사유 로그를 확인하세요.", icon: Download },
+    { key: "recentDeleteRestore", label: "삭제·복구·완전삭제", helper: "위험 작업 이력과 승인 흐름을 확인하세요.", icon: Trash2 },
+    { key: "recentLoginBlocked", label: "로그인 차단", helper: "계정 상태와 접근 시도를 확인하세요.", icon: ShieldCheck },
+    { key: "recentSecurityActions", label: "OAuth/강제 로그아웃", helper: "보안 조치 사유를 확인하세요.", icon: ShieldCheck },
+  ] as const;
+  const systemCards = [
+    { key: "activeUsers", label: "활성 사용자", period: "현재" },
+    { key: "resignedUsers", label: "퇴사 사용자", period: "현재" },
+    { key: "activeCustomers", label: "활성 고객", period: "현재" },
+    { key: "activeContracts", label: "활성 계약", period: "현재" },
+    { key: "todayCustomers", label: "오늘 등록 고객", period: "오늘" },
+    { key: "todayContracts", label: "오늘 계약", period: "오늘" },
   ] as const;
 
   return (
@@ -72,17 +100,105 @@ export default function AdminAuditDashboard() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {cards.map(([key, label, period]) => (
-            <Card key={key} className="border-slate-200/80 bg-white/95 shadow-sm">
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">{period}</p>
-                <p className="mt-1 text-sm font-medium">{label}</p>
-                <p className="mt-2 text-2xl font-bold">{summary?.cards?.[key] ?? 0}</p>
-              </CardContent>
-            </Card>
-          ))}
+        <div className="grid gap-3 xl:grid-cols-[1.05fr_1.95fr]">
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="space-y-4 p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500">운영 건강도</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-700" />
+                    <span className="text-2xl font-bold text-slate-950">{health.label}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-500">{health.helper}</p>
+                </div>
+                <Badge className={health.className}>{health.label}</Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
+                  <p className="text-xs text-amber-800">주의 필요</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-900">{cautionCount}</p>
+                </div>
+                <div className="rounded-xl border border-red-100 bg-red-50/70 p-3">
+                  <p className="text-xs text-red-700">위험 작업</p>
+                  <p className="mt-1 text-2xl font-bold text-red-800">{riskCount}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-500" /> 주의 필요
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              {cautionCards.map((card) => {
+                const Icon = card.icon;
+                const value = metric(card.key);
+                return (
+                  <div key={card.key} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Icon className="h-4 w-4 text-slate-600" />
+                      {value > 0 && <Badge className="bg-amber-100 text-amber-800">확인 필요</Badge>}
+                    </div>
+                    <p className="mt-3 text-xs text-slate-500">{card.label}</p>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
+                    <p className="mt-1 min-h-8 text-xs text-slate-500">{card.helper}</p>
+                    <Button type="button" size="sm" variant="outline" className="mt-3 h-8 w-full" onClick={card.onClick}>
+                      관련 화면
+                    </Button>
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
         </div>
+
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <ShieldCheck className="h-4 w-4 text-red-600" /> 위험 작업
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            {riskCards.map((card) => {
+              const Icon = card.icon;
+              const value = metric(card.key);
+              return (
+                <div key={card.key} className="rounded-2xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <Icon className={value > 0 ? "h-5 w-5 text-red-600" : "h-5 w-5 text-slate-400"} />
+                    <Badge className={value > 0 ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"}>
+                      {value > 0 ? "위험" : "정상"}
+                    </Badge>
+                  </div>
+                  <p className="mt-3 text-sm font-semibold text-slate-900">{card.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
+                  <p className="mt-1 text-xs text-slate-500">{card.helper}</p>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <Activity className="h-4 w-4 text-slate-700" /> 시스템 상태
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+            {systemCards.map((card) => (
+              <div key={card.key} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                <p className="text-xs text-slate-500">{card.period}</p>
+                <p className="mt-1 text-sm font-medium text-slate-900">{card.label}</p>
+                <p className="mt-2 text-2xl font-bold text-slate-950">{metric(card.key)}</p>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
 
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardHeader className="pb-2">
@@ -96,7 +212,7 @@ export default function AdminAuditDashboard() {
                 <TableHeader className="bg-slate-50/80">
                   <TableRow>
                     <TableHead>발생일시</TableHead>
-                    <TableHead>action</TableHead>
+                    <TableHead>작업</TableHead>
                     <TableHead>대상</TableHead>
                     <TableHead>사유/요약</TableHead>
                     <TableHead>위험도</TableHead>
@@ -106,7 +222,7 @@ export default function AdminAuditDashboard() {
                   {(summary?.recentRiskEvents ?? []).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                        최근 위험 작업이 없습니다.
+                        최근 위험 작업이 없습니다. 다운로드, 삭제, 복구, 보안 조치가 발생하면 이곳에 표시됩니다.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -115,7 +231,10 @@ export default function AdminAuditDashboard() {
                         <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {new Date(entry.createdAt).toLocaleString("ko-KR")}
                         </TableCell>
-                        <TableCell className="text-xs font-medium">{entry.action}</TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-semibold text-slate-900">{actionLabel(entry.action)}</div>
+                          <div className="text-slate-400">{entry.action}</div>
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {entry.targetType ?? "-"}{entry.targetId ? ` #${entry.targetId}` : ""}
                         </TableCell>
@@ -123,7 +242,7 @@ export default function AdminAuditDashboard() {
                           {entry.reason ?? entry.summary ?? "-"}
                         </TableCell>
                         <TableCell>
-                          <Badge className={riskClasses[entry.riskLevel]}>{riskLabels[entry.riskLevel]}</Badge>
+                          <Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge>
                         </TableCell>
                       </TableRow>
                     ))
@@ -174,7 +293,7 @@ export default function AdminAuditDashboard() {
                   <SelectItem value="contracts">contracts</SelectItem>
                 </SelectContent>
               </Select>
-              <Input value={action} onChange={(e) => setAction(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="action" />
+              <Input value={action} onChange={(e) => setAction(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="작업 코드" />
               <Input value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="검색어" />
               <Button variant={riskOnly ? "default" : "outline"} onClick={() => setRiskOnly((value) => !value)} className="h-9">
                 위험 작업만
@@ -186,7 +305,7 @@ export default function AdminAuditDashboard() {
                   <TableRow>
                     <TableHead>시각</TableHead>
                     <TableHead>작업자</TableHead>
-                    <TableHead>action</TableHead>
+                    <TableHead>작업</TableHead>
                     <TableHead>대상</TableHead>
                     <TableHead>요약</TableHead>
                     <TableHead>위험도</TableHead>
@@ -196,7 +315,7 @@ export default function AdminAuditDashboard() {
                   {(logs?.items ?? []).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                        조건에 맞는 로그가 없습니다.
+                        조건에 맞는 활동 로그가 없습니다. 필터를 초기화하거나 기간을 넓혀보세요.
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -207,10 +326,13 @@ export default function AdminAuditDashboard() {
                           <div className="font-medium">{entry.actor?.name ?? "-"}</div>
                           <div className="text-muted-foreground">{entry.actor?.email ?? "-"}</div>
                         </TableCell>
-                        <TableCell className="text-xs font-medium">{entry.action}</TableCell>
+                        <TableCell className="text-xs">
+                          <div className="font-semibold text-slate-900">{actionLabel(entry.action)}</div>
+                          <div className="text-slate-400">{entry.action}</div>
+                        </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{entry.targetType ?? "-"}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
                         <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{entry.reason ?? entry.summary ?? "-"}</TableCell>
-                        <TableCell><Badge className={riskClasses[entry.riskLevel]}>{riskLabels[entry.riskLevel]}</Badge></TableCell>
+                        <TableCell><Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge></TableCell>
                       </TableRow>
                     ))
                   )}
