@@ -11,7 +11,7 @@ final sessionProvider = NotifierProvider<SessionNotifier, SessionState?>(Session
 
 class SessionNotifier extends Notifier<SessionState?> {
   static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+    aOptions: AndroidOptions(),
   );
 
   @override
