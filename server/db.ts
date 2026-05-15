@@ -645,6 +645,7 @@ export async function getCustomers(filter: {
   teamId?: number;
   subBranchAdminId?: number;
   unassigned?: boolean;
+  assignmentStatus?: string;
   status?: string;
   includeInactive?: boolean;
   region?: string;
@@ -680,6 +681,7 @@ export async function getCustomers(filter: {
     conditions.push(eq(customers.subBranchAdminId, filter.subBranchAdminId));
   }
 
+  if (filter.assignmentStatus) conditions.push(eq(customers.assignmentStatus, filter.assignmentStatus as any));
   if (filter.status) conditions.push(eq(customers.consultStatus, filter.status as any));
   if (filter.region) conditions.push(eq(customers.region, filter.region));
   if (filter.source) conditions.push(eq(customers.source, filter.source));
