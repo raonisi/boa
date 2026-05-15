@@ -5,6 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -17,7 +23,7 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
-import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2 } from "lucide-react";
+import { ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -53,6 +59,72 @@ function priorityLabel(priority?: string | null) {
   return priority && priority !== "unclassified" ? priority : "미분류";
 }
 
+function formatDate(value?: string | Date | null) {
+  return value ? new Date(value).toLocaleDateString("ko-KR") : "-";
+}
+
+function buildCustomerAction({
+  customer,
+  latestConsult,
+  nextFollowUp,
+  customerTags,
+  isLongUnmanaged,
+}: {
+  customer: any;
+  latestConsult?: any;
+  nextFollowUp?: any;
+  customerTags: string[];
+  isLongUnmanaged: boolean;
+}) {
+  if (isLongUnmanaged) {
+    return {
+      title: "기존 기준 점검 연락 필요",
+      description: "장기 미관리 고객입니다. 최근 상황 변화 여부와 기존 보장 기준을 점검할 명분이 있습니다.",
+      next: "기존 기준 점검",
+    };
+  }
+  if (!latestConsult) {
+    return {
+      title: "첫 상담 연결 필요",
+      description: "아직 상담기록이 없습니다. 유입 경로와 관심 보장 기준을 바탕으로 첫 상담을 시작하세요.",
+      next: "첫 상담 연결",
+    };
+  }
+  if (!nextFollowUp) {
+    return {
+      title: "다음 연락일 설정 필요",
+      description: "상담 흐름이 끊기지 않도록 다음 연락일을 먼저 설정하세요.",
+      next: "다음 연락일 설정",
+    };
+  }
+  if ((customer.expectedPremium ?? 0) >= 100000) {
+    return {
+      title: "보장 설계 우선 검토",
+      description: "예상보험료가 높은 고객입니다. 보장 니즈와 납입 여력을 함께 확인하세요.",
+      next: "보장 설계 검토",
+    };
+  }
+  if (customerTags.some((tag) => tag.includes("해지위험") || tag.includes("해지"))) {
+    return {
+      title: "유지 관리 우선 필요",
+      description: "해지위험 태그가 있는 고객입니다. 불만 요인과 보장 만족도를 먼저 확인하세요.",
+      next: "유지 관리 상담",
+    };
+  }
+  if (!customer.priority || customer.priority === "unclassified") {
+    return {
+      title: "우선순위 설정 필요",
+      description: "고객 관리 기준을 명확히 하기 위해 우선순위를 설정하세요.",
+      next: "우선순위 설정",
+    };
+  }
+  return {
+    title: "상담 흐름 유지",
+    description: "최근 상담 흐름을 확인하고 다음 행동을 이어가세요.",
+    next: customer.nextAction ?? "후속 상담",
+  };
+}
+
 export default function CustomerDetail({ id }: { id: number }) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -77,6 +149,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [handoffNoteTitle, setHandoffNoteTitle] = useState("");
   const [handoffNoteType, setHandoffNoteType] = useState<"handoff" | "caution" | "approach" | "avoid" | "relationship" | "next_action">("handoff");
   const [handoffNoteBody, setHandoffNoteBody] = useState("");
+  const [showHandoffNoteModal, setShowHandoffNoteModal] = useState(false);
   const [selectedScriptId, setSelectedScriptId] = useState<string>("");
 
   const utils = trpc.useUtils();
@@ -225,6 +298,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       toast.success("인수인계 메모를 추가했습니다.");
       setHandoffNoteTitle("");
       setHandoffNoteBody("");
+      setShowHandoffNoteModal(false);
       utils.customerHandoffNotes.listByCustomer.invalidate({ customerId: id });
     },
     onError: (err) => toast.error(err.message || "인수인계 메모 저장에 실패했습니다."),
@@ -306,101 +380,137 @@ export default function CustomerDetail({ id }: { id: number }) {
   const editingContract = contracts?.find((c) => c.id === editingContractId);
   const customerTags = parseCustomerTags((customer as any).customerTags);
   const latestConsult = (consultations ?? [])[0] as any;
+  const openFollowUps = (followUps ?? []).filter((item: any) => item.status === "scheduled" || item.status === "postponed");
+  const nextFollowUp = openFollowUps
+    .slice()
+    .sort((a: any, b: any) => new Date(a.nextContactDate).getTime() - new Date(b.nextContactDate).getTime())[0];
+  const latestConsultDate = latestConsult?.consultationDate ?? latestConsult?.createdAt ?? latestConsult?.updatedAt;
+  const isLongUnmanaged = !latestConsultDate || Date.now() - new Date(latestConsultDate).getTime() > 90 * 24 * 60 * 60 * 1000;
+  const recommendedAction = buildCustomerAction({
+    customer,
+    latestConsult,
+    nextFollowUp,
+    customerTags,
+    isLongUnmanaged,
+  });
 
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        {/* Header */}
+        {/* Customer execution summary */}
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <Button variant="ghost" size="sm" className="mt-0.5 shrink-0" onClick={() => setLocation("/customers")}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> 목록
-              </Button>
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Customer Detail</p>
-                <div className="mt-1 flex flex-wrap items-center gap-2">
-                  <h1 className="text-2xl font-bold text-slate-950">{customer.name}</h1>
-                  <StatusBadge status={customer.consultStatus} />
-                  {!customer.isActive && (
-                    <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">비활성</span>
-                  )}
-                </div>
-                <p className="mt-1 text-sm text-slate-500">담당: {agentName}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-            {customer.phone && (
-              <a href={`tel:${customer.phone}`}>
-                <Button variant="outline" size="sm" className="h-8">
-                  <Phone className="h-3.5 w-3.5 mr-1" /> 전화
+          <CardContent className="space-y-5 p-4 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Button variant="ghost" size="sm" className="mt-0.5 shrink-0" onClick={() => setLocation("/customers")}>
+                  <ArrowLeft className="h-4 w-4 mr-1" /> 목록
                 </Button>
-              </a>
-            )}
-            <Button variant="outline" size="sm" className="h-8" onClick={() => setShowEditModal(true)}>
-              <Edit2 className="h-3.5 w-3.5 mr-1" /> 정보 수정
-            </Button>
-            {canChangeAgent && (
-              <Button variant="outline" size="sm" className="h-8" onClick={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(true); }}>
-                <UserCog className="h-3.5 w-3.5 mr-1" /> 담당자 변경
-              </Button>
-            )}
-            {canDeactivateCustomer && customer.isActive && (
-              <Button
-                variant="outline" size="sm" className="h-8 text-destructive border-destructive/30 hover:bg-destructive/10"
-                onClick={() => { if (confirm("이 고객을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다.\n이 작업은 활동 로그에 기록됩니다.")) deactivateMutation.mutate({ id }); }}
-              >
-                <AlertTriangle className="h-3.5 w-3.5 mr-1" /> 고객 삭제
-              </Button>
-            )}
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a6d2f]">Customer Execution</p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <h1 className="text-2xl font-bold text-slate-950">{customer.name}</h1>
+                    <StatusBadge status={customer.consultStatus} />
+                    {isLongUnmanaged && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">장기 미관리</span>}
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${customer.priority && customer.priority !== "unclassified" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                      우선순위 {priorityLabel((customer as any).priority)}
+                    </span>
+                    {!customer.isActive && (
+                      <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">비활성</span>
+                    )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                    <span>상담상태 · {customer.consultStatus}</span>
+                    <span>담당자 · {agentName}</span>
+                  </div>
+                </div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-fit">
+                    <MoreHorizontal className="h-4 w-4 mr-1" /> 더보기
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                    <Edit2 className="h-4 w-4" /> 정보 수정
+                  </DropdownMenuItem>
+                  {canChangeAgent && (
+                    <DropdownMenuItem onClick={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(true); }}>
+                      <UserCog className="h-4 w-4" /> 담당자 변경
+                    </DropdownMenuItem>
+                  )}
+                  {canDeactivateCustomer && customer.isActive && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => { if (confirm("이 고객을 삭제하시겠습니까?\n완전 삭제가 아니라 비활성 처리됩니다.\n활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다.\n이 작업은 활동 로그에 기록됩니다.")) deactivateMutation.mutate({ id }); }}
+                    >
+                      <Trash2 className="h-4 w-4" /> 고객 삭제
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+              {[
+                { label: "담당자", value: agentName },
+                { label: "예상보험료", value: customer.expectedPremium != null ? formatExpectedPremiumManwon(customer.expectedPremium) : "-" },
+                { label: "마지막 상담일", value: latestConsultDate ? formatDate(latestConsultDate) : "상담 없음" },
+                { label: "다음 연락일", value: nextFollowUp ? formatDate(nextFollowUp.nextContactDate) : "설정 없음" },
+                { label: "유입경로", value: customer.source ?? "-" },
+                { label: "지역", value: customer.region ?? "-" },
+              ].map((item) => (
+                <div key={item.label} className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2">
+                  <p className="text-[11px] font-medium text-slate-500">{item.label}</p>
+                  <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">{item.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">추천 행동</p>
+                  <h2 className="mt-1 text-base font-bold text-slate-950">{recommendedAction.title}</h2>
+                  <p className="mt-1 text-sm text-slate-700">{recommendedAction.description}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" className="bg-white" onClick={() => setActiveTab("tools")}>
+                    <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
+                  </Button>
+                  <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                    <MessageSquare className="h-4 w-4 mr-1" /> 상담기록에 추가
+                  </Button>
+                  <Button variant="outline" size="sm" className="bg-white" onClick={() => setShowFollowUpModal(true)}>
+                    <CalendarPlus className="h-4 w-4 mr-1" /> 다음 연락일 설정
+                  </Button>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="sticky top-[4.6rem] z-20 border-slate-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
-          <CardContent className="space-y-3 p-4">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <p className="text-sm font-semibold">현장 빠른 액션</p>
-                <p className="text-xs text-muted-foreground">스크롤 중에도 유지되며 상담·후속·계약·문구 작업을 바로 실행합니다.</p>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 justify-start gap-2 text-xs sm:text-sm"
-                onClick={() => setShowConsultModal(true)}
-              >
-                <MessageSquare className="h-4 w-4" />
-                상담기록 추가
+          <CardContent className="space-y-3 p-3 sm:p-4">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+              {customer.phone ? (
+                <Button variant="outline" className="h-11 justify-start gap-2" asChild>
+                  <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
+                </Button>
+              ) : (
+                <Button variant="outline" className="h-11 justify-start gap-2" disabled><Phone className="h-4 w-4" /> 전화</Button>
+              )}
+              <Button className="h-11 justify-start gap-2" onClick={() => setShowConsultModal(true)}>
+                <MessageSquare className="h-4 w-4" /> 상담기록 추가
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 justify-start gap-2 text-xs sm:text-sm"
-                onClick={() => setShowFollowUpModal(true)}
-              >
-                <CalendarPlus className="h-4 w-4" />
-                다음 연락일
+              <Button variant="secondary" className="h-11 justify-start gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
+                <CalendarPlus className="h-4 w-4" /> 다음 연락일
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 justify-start gap-2 text-xs sm:text-sm"
-                onClick={() => setShowContractModal(true)}
-              >
-                <FilePlus2 className="h-4 w-4" />
-                계약 등록
+              <Button variant="secondary" className="h-11 justify-start gap-2 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
+                <FilePlus2 className="h-4 w-4" /> 계약 등록
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-10 justify-start gap-2 text-xs sm:text-sm"
-                onClick={() => setActiveTab("tools")}
-              >
-                <Copy className="h-4 w-4" />
-                메시지 문구
+              <Button variant="ghost" className="h-11 justify-start gap-2" onClick={() => setActiveTab("tools")}>
+                <Copy className="h-4 w-4" /> 메시지 문구
               </Button>
             </div>
           </CardContent>
@@ -410,12 +520,14 @@ export default function CustomerDetail({ id }: { id: number }) {
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
               <div>
-                <p className="text-sm font-semibold">고객 관리 정보</p>
-                <p className="text-xs text-muted-foreground">우선순위, 성향 태그, 다음 액션은 권한 범위 내에서만 수정됩니다.</p>
+                <p className="text-sm font-semibold">관리 요약</p>
+                <p className="text-xs text-muted-foreground">현재 조치 상태를 먼저 확인하고 필요한 값만 바로 설정합니다.</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-1 text-xs text-[#7a5d1d]">우선순위 {priorityLabel((customer as any).priority)}</span>
-                {(customer as any).nextAction && <span className="rounded-full border border-slate-200 px-2 py-1 text-xs text-slate-600">다음: {(customer as any).nextAction}</span>}
+                <span className={`rounded-full border px-2 py-1 text-xs ${(customer as any).priority === "unclassified" ? "border-red-200 bg-red-50 text-red-700" : "border-[#d9c99f] bg-[#fff8e8] text-[#7a5d1d]"}`}>우선순위 {priorityLabel((customer as any).priority)}</span>
+                <span className={`rounded-full border px-2 py-1 text-xs ${(customer as any).nextAction ? "border-slate-200 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                  다음 액션: {(customer as any).nextAction ?? "설정 필요"}
+                </span>
               </div>
             </div>
             <div className="grid md:grid-cols-3 gap-3">
@@ -439,19 +551,19 @@ export default function CustomerDetail({ id }: { id: number }) {
                 >
                   <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="선택" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">선택 안 함</SelectItem>
+                    <SelectItem value="none">선택 안 함 · 설정 필요</SelectItem>
                     {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label className="text-xs">최근 상담 요약</Label>
-                <p className="text-sm mt-2 line-clamp-2">{latestConsult?.summary ?? latestConsult?.content ?? "등록된 상담 요약이 없습니다."}</p>
+                <p className="text-sm mt-2 line-clamp-2">{latestConsult?.summary ?? latestConsult?.content ?? "최근 상담 없음"}</p>
               </div>
             </div>
             <div>
-              <Label className="text-xs">고객 성향 태그</Label>
-              <div className="flex gap-1.5 mt-2 flex-wrap">
+              <Label className="text-xs">상담 성향</Label>
+              <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1 md:max-h-none">
                 {CUSTOMER_TAGS.map((tag) => {
                   const selected = customerTags.includes(tag);
                   const nextTags = selected ? customerTags.filter((item) => item !== tag) : [...customerTags, tag];
@@ -474,12 +586,12 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Card className="border-amber-100 bg-white/95 shadow-sm">
+        <Card className="border-emerald-100 bg-white/95 shadow-sm">
           <CardContent className="p-4 space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-semibold">상담 명분 추천</h3>
-                <p className="text-xs text-muted-foreground">기존 데이터 기준의 참고용 추천이며 고객 상태를 자동 변경하지 않습니다.</p>
+                <p className="text-xs text-muted-foreground">추천 사유와 다음 행동을 분리해서 확인하고 바로 실행합니다.</p>
               </div>
               <span className={`w-fit rounded-full px-2 py-0.5 text-xs ${contactReasons?.urgency === "high" ? "bg-red-100 text-red-700" : contactReasons?.urgency === "medium" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}>
                 {contactReasons?.urgency ?? "low"}
@@ -501,11 +613,22 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </div>
               ))}
             </div>
+            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+              <Button variant="outline" size="sm" onClick={() => setActiveTab("tools")}>
+                <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
+              </Button>
+              <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                <MessageSquare className="h-4 w-4 mr-1" /> 상담기록에 추가
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setShowFollowUpModal(true)}>
+                <CalendarPlus className="h-4 w-4 mr-1" /> 다음 연락일 설정
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 shadow-sm md:flex-wrap">
             <TabsTrigger value="info">기본정보</TabsTrigger>
             <TabsTrigger value="consult">상담기록 ({consultations?.length ?? 0})</TabsTrigger>
             <TabsTrigger value="contract">계약정보 ({contracts?.length ?? 0})</TabsTrigger>
@@ -537,7 +660,13 @@ export default function CustomerDetail({ id }: { id: number }) {
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <p className="text-xs text-muted-foreground">{label}</p>
-                      <p className="font-medium mt-0.5">{value}</p>
+                      {label.includes("동의") ? (
+                        <span className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${String(value).includes("동의") && !String(value).includes("미동의") ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                          {value}
+                        </span>
+                      ) : (
+                        <p className="font-medium mt-0.5">{value}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -559,13 +688,18 @@ export default function CustomerDetail({ id }: { id: number }) {
             />
             <Card>
               <CardContent className="p-4 space-y-4">
-                <div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
                   <h3 className="font-semibold">인수인계 메모</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     고객 성향, 주의사항, 피해야 할 말, 추천 접근 방식을 내부용으로 남깁니다. 주민등록번호, 계좌번호, 증권번호, 병력상세 등 민감정보는 입력하지 마세요.
                   </p>
+                  </div>
+                  <Button type="button" size="sm" className="md:hidden" onClick={() => setShowHandoffNoteModal(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> 메모 추가
+                  </Button>
                 </div>
-                <div className="grid gap-2 md:grid-cols-5">
+                <div className="hidden gap-2 md:grid md:grid-cols-5">
                   <div>
                     <Label className="text-xs">유형</Label>
                     <Select value={handoffNoteType} onValueChange={(value) => setHandoffNoteType(value as any)}>
@@ -1075,6 +1209,44 @@ export default function CustomerDetail({ id }: { id: number }) {
         onSubmit={(data) => postponeFollowUpId && postponeFollowUpMutation.mutate({ id: postponeFollowUpId, nextContactDate: data.nextContactDate, reason: data.reason })}
         loading={postponeFollowUpMutation.isPending}
       />
+
+      <Dialog open={showHandoffNoteModal} onOpenChange={setShowHandoffNoteModal}>
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
+          <DialogHeader><DialogTitle>인수인계 메모 추가</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-xs text-muted-foreground">민감정보는 입력하지 말고, 다음 상담자가 바로 참고할 행동 정보만 남기세요.</p>
+            <div>
+              <Label className="text-xs">유형</Label>
+              <Select value={handoffNoteType} onValueChange={(value) => setHandoffNoteType(value as any)}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Object.entries(handoffNoteTypeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">제목</Label>
+              <Input className="mt-1" value={handoffNoteTitle} onChange={(event) => setHandoffNoteTitle(event.target.value)} placeholder="예: 추천 접근 방식" />
+            </div>
+            <div>
+              <Label className="text-xs">내용</Label>
+              <Textarea className="mt-1" rows={4} value={handoffNoteBody} onChange={(event) => setHandoffNoteBody(event.target.value)} placeholder="고객 응대에 필요한 최소 정보만 기록하세요." />
+            </div>
+            <div className="sticky bottom-0 flex gap-2 bg-background pt-2">
+              <Button variant="outline" className="flex-1" onClick={() => setShowHandoffNoteModal(false)}>취소</Button>
+              <Button
+                className="flex-1"
+                disabled={!handoffNoteTitle.trim() || !handoffNoteBody.trim() || createHandoffNoteMutation.isPending}
+                onClick={() => createHandoffNoteMutation.mutate({ customerId: id, noteType: handoffNoteType, title: handoffNoteTitle, body: handoffNoteBody })}
+              >
+                메모 추가
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {showChangeAgentModal && (
         <Dialog open={true} onOpenChange={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(false); }}>

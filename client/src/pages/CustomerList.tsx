@@ -21,7 +21,7 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { useIsMobile } from "@/hooks/useMobile";
-import { Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye } from "lucide-react";
+import { Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -42,6 +42,22 @@ function parseCustomerTags(value?: string | null): string[] {
 
 function priorityLabel(priority?: string | null) {
   return priority && priority !== "unclassified" ? priority : "미분류";
+}
+
+function executionBadges(customer: any, recommendation?: any) {
+  const badges: { label: string; className: string }[] = [];
+  if (customer.consultStatus === "미상담") badges.push({ label: "미상담", className: "bg-slate-100 text-slate-700" });
+  if (recommendation?.warnings?.some((warning: any) => String(warning.message).includes("장기") || String(warning.warningType).includes("long"))) {
+    badges.push({ label: "장기 미관리", className: "bg-amber-100 text-amber-800" });
+  }
+  if (recommendation) badges.push({ label: "우선 연락", className: recommendation.urgency === "high" ? "bg-red-100 text-red-700" : "bg-emerald-50 text-emerald-700" });
+  if (!customer.priority || customer.priority === "unclassified") badges.push({ label: "우선순위 미분류", className: "bg-red-50 text-red-700" });
+  return badges;
+}
+
+function nextExecutionAction(customer: any, recommendation?: any) {
+  const firstReason = recommendation?.reasons?.[0]?.title ?? recommendation?.warnings?.[0]?.message;
+  return customer.nextAction ?? firstReason ?? (customer.consultStatus === "미상담" ? "첫 상담 연결" : "다음 행동 설정");
 }
 
 function maskPhone(phone?: string | null) {
@@ -297,6 +313,7 @@ export default function CustomerList() {
             ) : (
               filtered.map((c) => {
                 const recommendation = recommendationByCustomerId.get(c.id);
+                const badges = executionBadges(c, recommendation);
                 return (
                 <Card key={c.id} className="cursor-pointer border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-4">
@@ -305,8 +322,11 @@ export default function CustomerList() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{c.name}</span>
                           <StatusBadge status={c.consultStatus} />
-                          <span className="text-[10px] rounded-full border border-border bg-muted px-2 py-0.5 text-muted-foreground">{priorityLabel((c as any).priority)}</span>
-                          {recommendation && <span className={`text-[10px] rounded-full px-2 py-0.5 ${recommendation.urgency === "high" ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-sidebar-primary/12 text-foreground"}`}>우선 연락</span>}
+                        </div>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {badges.map((badge) => (
+                            <span key={badge.label} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
+                          ))}
                         </div>
                         <div className="flex gap-1 mt-1 flex-wrap">
                           {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
@@ -325,7 +345,11 @@ export default function CustomerList() {
                           )}
                           {c.region && <span className="text-xs text-muted-foreground">{c.region}</span>}
                         </div>
-                        <p className="mt-1 text-xs text-muted-foreground">담당: {formatUserWithRole(agentById.get(c.agentId ?? 0))}</p>
+                        <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
+                          <p className="text-xs text-muted-foreground">담당자 {formatUserWithRole(agentById.get(c.agentId ?? 0))}</p>
+                          <p className="text-sm font-bold tabular-nums text-slate-950">{c.expectedPremium != null ? formatExpectedPremiumManwon(c.expectedPremium) : "보험료 -"}</p>
+                        </div>
+                        <p className="mt-2 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">다음 액션: {nextExecutionAction(c, recommendation)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -356,16 +380,11 @@ export default function CustomerList() {
                       </DropdownMenu>
                     </div>
                     <div className="flex gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
-                      {["부재", "통화완료", "상담예정"].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => updateMutation.mutate({ id: c.id, consultStatus: s as any })}
-                          className={`min-h-9 rounded-full border px-3 text-[10px] font-medium transition-colors ${c.consultStatus === s ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted/60"}`}
-                        >
-                          {s}
-                        </button>
-                      ))}
+                      {c.phone ? (
+                        <a href={`tel:${c.phone}`} className="inline-flex min-h-9 items-center rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60">
+                          전화
+                        </a>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => setLocation(`/customers/${c.id}`)}
@@ -379,6 +398,13 @@ export default function CustomerList() {
                         className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
                       >
                         다음 연락일
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setLocation(`/customers/${c.id}`)}
+                        className="min-h-9 rounded-full border border-border px-3 text-[11px] font-medium hover:bg-muted/60"
+                      >
+                        상세
                       </button>
                     </div>
                   </CardContent>
@@ -395,17 +421,16 @@ export default function CustomerList() {
                 <Table>
                   <TableHeader className="bg-muted/40">
                     <TableRow className="hover:bg-transparent">
-                      <TableHead>이름</TableHead>
-                      <TableHead>연락처</TableHead>
-                      <TableHead>지역</TableHead>
-                      <TableHead>유입경로</TableHead>
+                      <TableHead>고객 / 상태</TableHead>
+                      <TableHead>우선 연락</TableHead>
+                      <TableHead>다음 액션</TableHead>
                       <TableHead>상담상태</TableHead>
                       <TableHead>우선순위</TableHead>
-                      <TableHead>성향/다음 액션</TableHead>
+                      <TableHead>성향</TableHead>
                       <TableHead>담당자</TableHead>
-                      <TableHead>배정일</TableHead>
-                      <TableHead>예상보험료(만원)</TableHead>
-                      <TableHead className="w-20"></TableHead>
+                      <TableHead>지역/유입</TableHead>
+                      <TableHead>예상보험료</TableHead>
+                      <TableHead className="w-36">빠른 액션</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -432,6 +457,7 @@ export default function CustomerList() {
                     ) : (
                       filtered.map((c) => {
                         const recommendation = recommendationByCustomerId.get(c.id);
+                        const badges = executionBadges(c, recommendation);
                         return (
                         <TableRow
                           key={c.id}
@@ -441,16 +467,26 @@ export default function CustomerList() {
                           <TableCell className="font-medium text-foreground">
                             <div className="flex flex-col gap-1">
                               <span>{c.name}</span>
-                              {recommendation && <span className={`w-fit rounded-full px-2 py-0.5 text-[10px] ${recommendation.urgency === "high" ? "bg-red-500/10 text-red-700 dark:text-red-400" : "bg-sidebar-primary/12 text-foreground"}`}>우선 연락 · <span className="tabular-nums">{recommendation.totalScore}</span></span>}
+                              <div className="flex flex-wrap gap-1">
+                                {badges.map((badge) => (
+                                  <span key={badge.label} className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
+                                ))}
+                              </div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline flex items-center gap-1">
-                              <Phone className="h-3 w-3" />{c.phone ?? "-"}
-                            </a>
+                          <TableCell className="text-xs">
+                            {recommendation ? (
+                              <div className="flex flex-col gap-1">
+                                <span className="font-semibold text-slate-900">점수 {recommendation.totalScore}</span>
+                                {recommendation?.warnings?.[0] && <span className="text-red-600">{recommendation.warnings[0].message}</span>}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">일반</span>
+                            )}
                           </TableCell>
-                          <TableCell>{c.region ?? "-"}</TableCell>
-                          <TableCell>{c.source ?? "-"}</TableCell>
+                          <TableCell className="max-w-[180px]">
+                            <span className="line-clamp-2 text-sm font-medium text-slate-800">{nextExecutionAction(c, recommendation)}</span>
+                          </TableCell>
                           <TableCell><StatusBadge status={c.consultStatus} /></TableCell>
                           <TableCell><span className="text-xs rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span></TableCell>
                           <TableCell className="max-w-[220px]">
@@ -458,23 +494,21 @@ export default function CustomerList() {
                               {parseCustomerTags((c as any).customerTags).slice(0, 3).map((tag) => (
                                 <span key={tag} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">{tag}</span>
                               ))}
-                              {(c as any).nextAction && <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-0.5 text-[10px] text-[#7a5d1d]">다음: {(c as any).nextAction}</span>}
-                              {parseCustomerTags((c as any).customerTags).length === 0 && !(c as any).nextAction && <span className="text-xs text-muted-foreground">-</span>}
+                              {parseCustomerTags((c as any).customerTags).length === 0 && <span className="text-xs text-muted-foreground">-</span>}
                             </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">{formatUserWithRole(agentById.get(c.agentId ?? 0))}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {recommendation?.warnings?.[0] ? (
-                              <span className="text-red-600">{recommendation.warnings[0].message}</span>
-                            ) : (
-                              c.assignedAt ? new Date(c.assignedAt).toLocaleDateString("ko-KR") : "-"
-                            )}
+                            <div className="flex flex-col">
+                              <span>{c.region ?? "-"}</span>
+                              <span>{c.source ?? "-"}</span>
+                            </div>
                           </TableCell>
-                          <TableCell className="text-right tabular-nums font-semibold text-foreground">
+                          <TableCell className="text-right tabular-nums text-base font-bold text-slate-950">
                             {c.expectedPremium != null ? formatExpectedPremiumManwon(c.expectedPremium) : "-"}
                           </TableCell>
                           <TableCell className="w-[148px] text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex items-center justify-end gap-0.5 md:pointer-events-none md:opacity-0 md:transition-opacity md:duration-200 md:group-hover:pointer-events-auto md:group-hover:opacity-100 md:group-focus-within:pointer-events-auto md:group-focus-within:opacity-100">
+                            <div className="flex items-center justify-end gap-0.5">
                               {c.phone ? (
                                 <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" asChild title="전화">
                                   <a href={`tel:${c.phone}`} onClick={(e) => e.stopPropagation()}>
@@ -490,6 +524,30 @@ export default function CustomerList() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-9 w-9 shrink-0"
+                                title="상담기록"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLocation(`/customers/${c.id}`);
+                                }}
+                              >
+                                <MessageSquare className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                title="다음 연락"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setLocation(`/customers/${c.id}`);
+                                }}
+                              >
+                                <CalendarPlus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
                                 title="상세"
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -499,15 +557,18 @@ export default function CustomerList() {
                                 <Eye className="h-4 w-4" />
                               </Button>
                               {canDeactivateCustomer && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 shrink-0 text-muted-foreground hover:text-destructive"
-                                  onClick={(e) => handleDeactivateCustomer(c.id, e)}
-                                  title="고객 삭제"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0" title="더보기">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem variant="destructive" onClick={(e) => handleDeactivateCustomer(c.id, e as any)}>
+                                      <Trash2 className="h-4 w-4" /> 고객 삭제
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               )}
                             </div>
                           </TableCell>
