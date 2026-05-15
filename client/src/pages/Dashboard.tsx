@@ -4,9 +4,11 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import {
   AlertCircle,
+  BellDot,
   BarChart3,
   Bell,
   CalendarDays,
@@ -21,7 +23,9 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
+import { useState } from "react";
 import { useLocation } from "wouter";
+import { toast } from "sonner";
 
 function formatNumber(value: number | string | undefined) {
   if (value === undefined || value === null || value === "") return "0";
@@ -124,10 +128,64 @@ function SectionCard({
 
 function TodayWorkSection() {
   const [, setLocation] = useLocation();
+  const [queuePriorityFilter, setQueuePriorityFilter] = useState<"all" | "urgent" | "today" | "general">("all");
+  const utils = trpc.useUtils();
   const { data, isLoading } = trpc.dashboard.todayWork.useQuery({});
   const { data: recommendationSummary } = trpc.recommendations.dashboardSummary.useQuery({});
+  const markReadMutation = trpc.notifications.markRead.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+      utils.dashboard.todayWork.invalidate();
+    },
+    onError: () => toast.error("알림 읽음 처리에 실패했습니다."),
+  });
+  const completeMutation = trpc.notifications.updateProcessStatus.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+      utils.dashboard.todayWork.invalidate();
+    },
+    onError: () => toast.error("알림 상태 변경에 실패했습니다."),
+  });
   const cards = data?.cards;
   const topContacts = recommendationSummary?.topContacts ?? [];
+  const fieldQueue = [
+    {
+      title: "지금 연락 필요한 고객",
+      count: cards?.overdueFollowUpCount ?? 0,
+      hint: "기한이 지난 재연락 업무",
+      actionLabel: "후속관리 열기",
+      onClick: () => setLocation("/customers"),
+      tone: "border-red-200 bg-red-50/55 dark:border-red-900/40 dark:bg-red-950/20",
+    },
+    {
+      title: "오늘 미완료 일정",
+      count: cards?.incompleteScheduleCount ?? 0,
+      hint: "완료/보류 처리 필요한 일정",
+      actionLabel: "일정 캘린더",
+      onClick: () => setLocation("/calendar"),
+      tone: "border-amber-200 bg-amber-50/55 dark:border-amber-900/40 dark:bg-amber-950/20",
+    },
+    {
+      title: "미확인 알림",
+      count: cards?.pendingNotificationCount ?? 0,
+      hint: "즉시 확인이 필요한 알림",
+      actionLabel: "알림센터",
+      onClick: () => setLocation("/notifications"),
+      tone: "border-blue-200 bg-blue-50/55 dark:border-blue-900/40 dark:bg-blue-950/20",
+    },
+  ];
+  const pendingNotifications = data?.pendingNotifications ?? [];
+  const priorityCounts = {
+    urgent: pendingNotifications.filter((n) => classifyNotificationPriority(n) === "urgent").length,
+    today: pendingNotifications.filter((n) => classifyNotificationPriority(n) === "today").length,
+    general: pendingNotifications.filter((n) => classifyNotificationPriority(n) === "general").length,
+  };
+  const filteredPendingNotifications = pendingNotifications.filter((notification) =>
+    queuePriorityFilter === "all" ? true : classifyNotificationPriority(notification) === queuePriorityFilter
+  );
+  const sortedPendingNotifications = sortNotificationsForQueue(filteredPendingNotifications);
 
   return (
     <section className="space-y-5">
@@ -205,6 +263,134 @@ function TodayWorkSection() {
                 </button>
               ))}
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-sm">
+        <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
+              <BellDot className="h-4 w-4" />
+            </span>
+            현장 즉시 처리 큐
+          </CardTitle>
+          <button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">
+            전체 보기
+          </button>
+        </CardHeader>
+        <CardContent className="space-y-3 px-5 pb-5">
+          <div className="grid gap-2 md:grid-cols-3">
+            {fieldQueue.map((item) => (
+              <div key={item.title} className={`rounded-lg border p-3 shadow-sm ${item.tone}`}>
+                <p className="text-xs text-muted-foreground">{item.title}</p>
+                <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">{item.count}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.hint}</p>
+                <button type="button" onClick={item.onClick} className="mt-2 text-xs font-semibold text-primary hover:underline">
+                  {item.actionLabel}
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              aria-pressed={queuePriorityFilter === "all"}
+              onClick={() => setQueuePriorityFilter("all")}
+              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                queuePriorityFilter === "all"
+                  ? "bg-primary/15 text-primary"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              전체 {pendingNotifications.length}건
+            </button>
+            <button
+              type="button"
+              aria-pressed={queuePriorityFilter === "urgent"}
+              onClick={() => setQueuePriorityFilter("urgent")}
+              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                queuePriorityFilter === "urgent"
+                  ? "bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              긴급 {priorityCounts.urgent}건
+            </button>
+            <button
+              type="button"
+              aria-pressed={queuePriorityFilter === "today"}
+              onClick={() => setQueuePriorityFilter("today")}
+              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                queuePriorityFilter === "today"
+                  ? "bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              오늘 처리 {priorityCounts.today}건
+            </button>
+            <button
+              type="button"
+              aria-pressed={queuePriorityFilter === "general"}
+              onClick={() => setQueuePriorityFilter("general")}
+              className={`rounded-full px-2 py-1 text-[11px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${
+                queuePriorityFilter === "general"
+                  ? "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  : "bg-muted text-muted-foreground hover:bg-muted/70"
+              }`}
+            >
+              일반 {priorityCounts.general}건
+            </button>
+          </div>
+          {sortedPendingNotifications.length === 0 ? (
+            <EmptyState>
+              {queuePriorityFilter === "all" ? "즉시 처리할 미확인 알림이 없습니다." : "선택한 우선순위 알림이 없습니다."}
+            </EmptyState>
+          ) : (
+            sortedPendingNotifications.slice(0, 3).map((notification) => {
+              const priority = classifyNotificationPriority(notification);
+              return (
+                <div key={notification.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      priority === "urgent"
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200"
+                        : priority === "today"
+                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200"
+                          : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                    }`}>
+                      {priority === "urgent" ? "긴급" : priority === "today" ? "오늘 처리" : "일반"}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={markReadMutation.isPending}
+                        onClick={() => markReadMutation.mutate({ id: notification.id })}
+                      >
+                        읽음
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 text-xs"
+                        disabled={completeMutation.isPending}
+                        onClick={() => completeMutation.mutate({ id: notification.id, processStatus: "처리완료" })}
+                      >
+                        처리완료
+                      </Button>
+                    </div>
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {notification.customerName ? `${notification.customerName} · ` : ""}
+                    {notification.type}
+                  </p>
+                </div>
+              );
+            })
           )}
         </CardContent>
       </Card>
@@ -430,9 +616,22 @@ function WorkRhythmSummaryCard() {
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
   const { data: stats } = trpc.performance.stats.useQuery();
   const { data: myBranchAdminStats } = trpc.performance.stats.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
   const { data: notifResult } = trpc.notifications.list.useQuery({});
+  const markReadMutation = trpc.notifications.markRead.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+    },
+  });
+  const completeMutation = trpc.notifications.updateProcessStatus.useMutation({
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+    },
+  });
   const notifications = notifResult?.items ?? [];
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: customers } = trpc.customers.list.useQuery({});
@@ -579,8 +778,33 @@ export default function Dashboard() {
               </EmptyState>
             ) : unreadNotifs.slice(0, 5).map((notification) => (
               <div key={notification.id} className="rounded-lg border border-border border-l-[3px] border-l-sidebar-primary bg-muted/25 p-3 shadow-sm">
-                <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
+                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
+                  </div>
+                  <div className="flex shrink-0 gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled={markReadMutation.isPending}
+                      onClick={() => markReadMutation.mutate({ id: notification.id })}
+                    >
+                      읽음
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={completeMutation.isPending}
+                      onClick={() => completeMutation.mutate({ id: notification.id, processStatus: "처리완료" })}
+                    >
+                      완료
+                    </Button>
+                  </div>
+                </div>
               </div>
             ))}
           </SectionCard>

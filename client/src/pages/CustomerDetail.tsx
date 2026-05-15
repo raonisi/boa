@@ -17,7 +17,7 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
-import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History, Copy } from "lucide-react";
+import { ArrowLeft, Phone, Plus, UserCog, AlertTriangle, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -68,6 +68,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [requestMemo, setRequestMemo] = useState("");
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState("info");
   const [timelineFilter, setTimelineFilter] = useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
   const [timelineRange, setTimelineRange] = useState<"all" | "30" | "90">("all");
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
@@ -356,6 +357,55 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
+        <Card className="sticky top-[4.6rem] z-20 border-slate-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold">현장 빠른 액션</p>
+                <p className="text-xs text-muted-foreground">스크롤 중에도 유지되며 상담·후속·계약·문구 작업을 바로 실행합니다.</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-start gap-2 text-xs sm:text-sm"
+                onClick={() => setShowConsultModal(true)}
+              >
+                <MessageSquare className="h-4 w-4" />
+                상담기록 추가
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-start gap-2 text-xs sm:text-sm"
+                onClick={() => setShowFollowUpModal(true)}
+              >
+                <CalendarPlus className="h-4 w-4" />
+                다음 연락일
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-start gap-2 text-xs sm:text-sm"
+                onClick={() => setShowContractModal(true)}
+              >
+                <FilePlus2 className="h-4 w-4" />
+                계약 등록
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-10 justify-start gap-2 text-xs sm:text-sm"
+                onClick={() => setActiveTab("tools")}
+              >
+                <Copy className="h-4 w-4" />
+                메시지 문구
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-4 space-y-4">
             <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -454,7 +504,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="info" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
             <TabsTrigger value="info">기본정보</TabsTrigger>
             <TabsTrigger value="consult">상담기록 ({consultations?.length ?? 0})</TabsTrigger>

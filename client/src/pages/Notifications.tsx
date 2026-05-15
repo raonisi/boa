@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight, Filter } from "lucide-react";
@@ -35,6 +36,7 @@ const processStatusColors: Record<string, string> = {
 };
 
 type ProcessStatus = "미확인" | "확인" | "처리완료" | "보류";
+type PriorityFilter = "all" | "urgent" | "today" | "general";
 
 const titleMap: Record<string, string> = {
   branch_admin: "전체 알림 관리",
@@ -50,6 +52,7 @@ export default function Notifications() {
   const utils = trpc.useUtils();
 
   // 서버 사이드 필터 상태
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const [processStatusFilter, setProcessStatusFilter] = useState<string>("all");
   const [isReadFilter, setIsReadFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -69,6 +72,13 @@ export default function Notifications() {
 
   const { data: result } = trpc.notifications.list.useQuery(queryInput);
   const notifications = result?.items ?? [];
+  const filteredNotifications = notifications.filter((n) => priorityFilter === "all" ? true : classifyNotificationPriority(n) === priorityFilter);
+  const sortedNotifications = sortNotificationsForQueue(filteredNotifications);
+  const priorityCounts = {
+    urgent: notifications.filter((n) => classifyNotificationPriority(n) === "urgent").length,
+    today: notifications.filter((n) => classifyNotificationPriority(n) === "today").length,
+    general: notifications.filter((n) => classifyNotificationPriority(n) === "general").length,
+  };
   const totalCount = result?.totalCount ?? 0;
   const hasMore = result?.hasMore ?? false;
   const totalPages = Math.ceil(totalCount / LIMIT);
@@ -94,7 +104,7 @@ export default function Notifications() {
     onError: () => toast.error("상태 변경에 실패했습니다."),
   });
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = filteredNotifications.filter((n) => !n.isRead).length;
 
   const handleMarkAllRead = () => {
     const isBranchAdmin = user?.role === "branch_admin";
@@ -120,7 +130,7 @@ export default function Notifications() {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ring">Notifications</p>
               <h1 className="mt-1 text-2xl font-bold text-foreground">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                전체 {totalCount.toLocaleString()}건 · 미읽은 {unreadCount}건
+                전체 {totalCount.toLocaleString()}건 · 현재 보기 {filteredNotifications.length}건 · 미읽은 {unreadCount}건
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -140,6 +150,15 @@ export default function Notifications() {
               <Filter className="h-4 w-4 text-ring" /> 알림 필터
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+          <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}>
+            <SelectTrigger className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-32"><SelectValue placeholder="우선순위" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">전체 우선순위</SelectItem>
+              <SelectItem value="urgent">긴급</SelectItem>
+              <SelectItem value="today">오늘 처리</SelectItem>
+              <SelectItem value="general">일반</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={processStatusFilter} onValueChange={handleFilterChange(setProcessStatusFilter)}>
             <SelectTrigger className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
             <SelectContent>
@@ -183,18 +202,49 @@ export default function Notifications() {
           </CardContent>
         </Card>
 
+        <div className="grid grid-cols-3 gap-2">
+          <button
+            type="button"
+            aria-pressed={priorityFilter === "urgent"}
+            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "urgent" ? "border-red-300 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/25" : "border-border bg-card hover:bg-muted/35"}`}
+            onClick={() => setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent")}
+          >
+            <p className="text-[11px] text-muted-foreground">긴급</p>
+            <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.urgent}</p>
+          </button>
+          <button
+            type="button"
+            aria-pressed={priorityFilter === "today"}
+            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "today" ? "border-amber-300 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/25" : "border-border bg-card hover:bg-muted/35"}`}
+            onClick={() => setPriorityFilter(priorityFilter === "today" ? "all" : "today")}
+          >
+            <p className="text-[11px] text-muted-foreground">오늘 처리</p>
+            <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.today}</p>
+          </button>
+          <button
+            type="button"
+            aria-pressed={priorityFilter === "general"}
+            className={`rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityFilter === "general" ? "border-slate-300 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/35" : "border-border bg-card hover:bg-muted/35"}`}
+            onClick={() => setPriorityFilter(priorityFilter === "general" ? "all" : "general")}
+          >
+            <p className="text-[11px] text-muted-foreground">일반</p>
+            <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.general}</p>
+          </button>
+        </div>
+
         {/* 알림 목록 */}
-        {notifications.length === 0 ? (
+        {filteredNotifications.length === 0 ? (
           <EmptyState
             icon={BellOff}
             title="알림이 없습니다"
-            description="조건에 맞는 알림이 없거나 모두 처리되었습니다."
+            description={priorityFilter === "all" ? "조건에 맞는 알림이 없거나 모두 처리되었습니다." : "선택한 우선순위 조건에 맞는 알림이 없습니다."}
           />
         ) : (
           <div className="space-y-3">
-            {notifications.map((n) => {
+            {sortedNotifications.map((n) => {
               const processStatus = (n.processStatus as ProcessStatus) ?? "미확인";
               const colorClass = processStatusColors[processStatus] ?? processStatusColors["미확인"];
+              const priority = classifyNotificationPriority(n);
               return (
                 <Card key={n.id} className={`border-l-4 shadow-sm transition-colors ${colorClass}`}>
                   <CardContent className="p-4">
@@ -203,6 +253,15 @@ export default function Notifications() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <Bell className="h-3.5 w-3.5 shrink-0 text-ring" />
                           <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs font-semibold text-foreground">{typeLabels[n.type] ?? n.type}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                            priority === "urgent"
+                              ? "bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200"
+                              : priority === "today"
+                                ? "bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200"
+                                : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                          }`}>
+                            {priority === "urgent" ? "긴급" : priority === "today" ? "오늘 처리" : "일반"}
+                          </span>
                           {!n.isRead && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">미읽음</span>}
                           <span className="text-xs text-muted-foreground sm:ml-auto">{new Date(n.createdAt).toLocaleString("ko-KR")}</span>
                         </div>
