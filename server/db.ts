@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNotNull, isNull, like, lte, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
@@ -639,6 +639,11 @@ export async function permanentlyDeleteTeam(id: number, client?: DbExecutor) {
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 /** 역할별 고객 목록 조회 */
+/** MySQL `LIKE` 패턴에 사용자 입력을 넣기 전 `%`·`_`·`\` 이스케이프 */
+function escapeLikeWildcards(s: string): string {
+  return s.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
 export async function getCustomers(filter: {
   agentId?: number;
   agentIds?: number[];
@@ -652,6 +657,11 @@ export async function getCustomers(filter: {
   priority?: string;
   tag?: string;
   nextAction?: string;
+  /** 이름 부분 일치(공백 제거 후). 전화는 숫자만 추출해 1자 이상일 때 OR 조건 */
+  search?: string;
+  /** 지정 시 `offset`과 함께 페이지 단위 조회(미지정이면 전체) */
+  limit?: number;
+  offset?: number;
   assignedDateFrom?: Date;
   assignedDateTo?: Date;
 }) {
@@ -689,9 +699,30 @@ export async function getCustomers(filter: {
   if (filter.assignedDateFrom) conditions.push(gte(customers.assignedAt, filter.assignedDateFrom) as any);
   if (filter.assignedDateTo) conditions.push(lte(customers.assignedAt, filter.assignedDateTo) as any);
 
-  return db.select().from(customers)
+  if (filter.search !== undefined) {
+    const raw = filter.search.trim();
+    if (raw.length > 0) {
+      const escaped = escapeLikeWildcards(raw);
+      const nameCond = like(customers.name, `%${escaped}%`);
+      const digits = raw.replace(/\D/g, "");
+      if (digits.length > 0) {
+        conditions.push(or(nameCond, like(customers.phone, `%${digits}%`)) as any);
+      } else {
+        conditions.push(nameCond);
+      }
+    }
+  }
+
+  const qb = db
+    .select()
+    .from(customers)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(customers.createdAt));
+
+  if (filter.limit !== undefined) {
+    return qb.limit(filter.limit).offset(filter.offset ?? 0);
+  }
+  return qb;
 }
 
 const CONSULT_TA_OR_BEYOND = ["통화완료", "상담예정", "설계중", "계약"] as const;
@@ -1428,29 +1459,65 @@ export async function getContractsByCustomerIncludingInactive(customerId: number
     .orderBy(desc(contracts.createdAt));
 }
 
-export async function getAllContracts(filter: { agentId?: number; agentIds?: number[]; teamId?: number; subBranchAdminId?: number }) {
+export async function getAllContracts(filter: {
+  agentId?: number;
+  agentIds?: number[];
+  teamId?: number;
+  subBranchAdminId?: number;
+  /** 상품명·보험사 부분 일치. 숫자만 입력 시 고객 ID 일치도 허용 */
+  search?: string;
+  limit?: number;
+  offset?: number;
+}) {
   const db = await getDb();
   if (!db) return [];
 
-  const baseCondition = eq(contracts.isActive, true);
+  const conditions: any[] = [eq(contracts.isActive, true)];
+
   if (filter.agentIds !== undefined) {
     if (filter.agentIds.length === 0) return [];
-    return db.select().from(contracts).where(and(baseCondition, or(...filter.agentIds.map((id) => eq(contracts.agentId, id))))).orderBy(desc(contracts.createdAt));
+    conditions.push(or(...filter.agentIds.map((id) => eq(contracts.agentId, id))) as any);
   } else if (filter.agentId !== undefined) {
-    return db.select().from(contracts).where(and(baseCondition, eq(contracts.agentId, filter.agentId))).orderBy(desc(contracts.createdAt));
+    conditions.push(eq(contracts.agentId, filter.agentId));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
     const agentIds = teamAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    return db.select().from(contracts).where(and(baseCondition, or(...agentIds.map((id) => eq(contracts.agentId, id))))).orderBy(desc(contracts.createdAt));
+    conditions.push(or(...agentIds.map((id) => eq(contracts.agentId, id))) as any);
   } else if (filter.subBranchAdminId !== undefined) {
-    // 부지점장 산하 팀원들의 계약
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    return db.select().from(contracts).where(and(baseCondition, or(...agentIds.map((id) => eq(contracts.agentId, id))))).orderBy(desc(contracts.createdAt));
+    conditions.push(or(...agentIds.map((id) => eq(contracts.agentId, id))) as any);
   }
-  return db.select().from(contracts).where(baseCondition).orderBy(desc(contracts.createdAt));
+
+  const rawSearch = filter.search?.trim();
+  if (rawSearch && rawSearch.length > 0) {
+    const esc = escapeLikeWildcards(rawSearch);
+    const productLike = like(contracts.productName, `%${esc}%`);
+    const companyLike = like(contracts.company, `%${esc}%`);
+    if (/^\d+$/.test(rawSearch)) {
+      const idNum = Number(rawSearch);
+      if (Number.isSafeInteger(idNum) && idNum > 0) {
+        conditions.push(or(productLike, companyLike, eq(contracts.customerId, idNum)) as any);
+      } else {
+        conditions.push(or(productLike, companyLike) as any);
+      }
+    } else {
+      conditions.push(or(productLike, companyLike) as any);
+    }
+  }
+
+  const qb = db
+    .select()
+    .from(contracts)
+    .where(and(...conditions))
+    .orderBy(desc(contracts.createdAt));
+
+  if (filter.limit !== undefined) {
+    return qb.limit(filter.limit).offset(filter.offset ?? 0);
+  }
+  return qb;
 }
 
 export async function createContract(data: InsertContract) {

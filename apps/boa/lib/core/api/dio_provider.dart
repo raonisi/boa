@@ -26,6 +26,25 @@ final dioProvider = Provider<Dio>((ref) {
         }
         return handler.next(options);
       },
+      onResponse: (response, handler) {
+        if (response.statusCode == 401) {
+          final path = response.requestOptions.uri.path;
+          if (!path.contains('/api/mobile/auth/google')) {
+            ref.read(sessionProvider.notifier).signOut();
+          }
+        }
+        handler.next(response);
+      },
+      onError: (DioException e, ErrorInterceptorHandler handler) {
+        final code = e.response?.statusCode;
+        if (code == 401) {
+          final path = e.requestOptions.uri.path;
+          if (!path.contains('/api/mobile/auth/google')) {
+            ref.read(sessionProvider.notifier).signOut();
+          }
+        }
+        handler.next(e);
+      },
     ),
   );
   return dio;

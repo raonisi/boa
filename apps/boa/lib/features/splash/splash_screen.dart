@@ -28,7 +28,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
       if (!mounted) return;
       final session = ref.read(sessionProvider);
       if (session != null) {
-        unawaited(registerDeviceTokenWithRetry(ref.read(dioProvider)));
+        final dio = ref.read(dioProvider);
+        unawaited(registerDeviceTokenWithRetry(dio));
+        bindFcmTokenRefresh(dio);
       }
     } finally {
       if (mounted) {

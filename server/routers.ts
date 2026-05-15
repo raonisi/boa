@@ -2513,12 +2513,20 @@ export const appRouter = router({
         assignedDateFrom: z.string().optional(),
         assignedDateTo: z.string().optional(),
         scope: z.enum(["all", "mine"]).optional(),
+        search: z.string().max(100).optional(),
+        limit: z.number().int().min(1).max(501).optional(),
+        offset: z.number().int().min(0).max(500_000).optional(),
       }))
       .query(async ({ ctx, input }) => {
         const user = ctx.user;
         if (input.scope === "all" && user.role !== "branch_admin") {
           throw new TRPCError({ code: "FORBIDDEN", message: "전체 DB는 지점장만 조회할 수 있습니다." });
         }
+        const searchTrimmed = input.search?.trim();
+        const paging =
+          input.limit !== undefined
+            ? { limit: input.limit, offset: input.offset ?? 0 }
+            : {};
         const baseFilter = {
           status: input.status,
           unassigned: input.unassigned,
@@ -2529,6 +2537,8 @@ export const appRouter = router({
           nextAction: input.nextAction,
           assignedDateFrom: input.assignedDateFrom ? new Date(input.assignedDateFrom) : undefined,
           assignedDateTo: input.assignedDateTo ? new Date(input.assignedDateTo) : undefined,
+          ...(searchTrimmed ? { search: searchTrimmed } : {}),
+          ...paging,
         };
         if (user.role === "branch_admin") {
           const scopedAgentId = input.scope === "mine" ? user.id : input.agentIdFilter;
@@ -3633,18 +3643,37 @@ export const appRouter = router({
       }),
 
     list: activeUserProcedure
-      .input(z.object({ scope: z.enum(["all", "mine"]).optional() }).optional())
+      .input(
+        z
+          .object({
+            scope: z.enum(["all", "mine"]).optional(),
+            search: z.string().max(100).optional(),
+            limit: z.number().int().min(1).max(501).optional(),
+            offset: z.number().int().min(0).max(500_000).optional(),
+          })
+          .optional(),
+      )
       .query(async ({ ctx, input }) => {
-      const user = ctx.user;
-      if (input?.scope === "all" && user.role !== "branch_admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "전체 계약은 지점장만 조회할 수 있습니다." });
-      }
-      if (user.role === "branch_admin") return getAllContracts(input?.scope === "mine" ? { agentId: user.id } : {});
-      if (user.role === "sub_branch_admin" || user.role === "team_leader") {
-        return getAllContracts({ agentIds: await getHierarchyScopeUserIds(user) });
-      }
-      return getAllContracts({ agentId: user.id });
-    }),
+        const user = ctx.user;
+        const inp = input ?? {};
+        if (inp.scope === "all" && user.role !== "branch_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "전체 계약은 지점장만 조회할 수 있습니다." });
+        }
+        const searchTrimmed = inp.search?.trim();
+        const paging =
+          inp.limit !== undefined ? { limit: inp.limit, offset: inp.offset ?? 0 } : {};
+        const extras = {
+          ...(searchTrimmed ? { search: searchTrimmed } : {}),
+          ...paging,
+        };
+        if (user.role === "branch_admin") {
+          return getAllContracts({ ...(inp.scope === "mine" ? { agentId: user.id } : {}), ...extras });
+        }
+        if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+          return getAllContracts({ agentIds: await getHierarchyScopeUserIds(user), ...extras });
+        }
+        return getAllContracts({ agentId: user.id, ...extras });
+      }),
 
     contractHistory: activeUserProcedure
       .input(z.object({ contractId: z.number() }))

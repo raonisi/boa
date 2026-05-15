@@ -22,14 +22,25 @@ build/
 .env.test.local
 .env.production.local
 
-# Android internal build/signing artifacts
+# Firebase / Android secrets
+google-services.json
+android/app/google-services.json
+apps/boa/android/app/google-services.json
+
+# Android build/signing files
 *.apk
 *.aab
 *.jks
 *.keystore
-google-services.json
 local.properties
 android/local.properties
+apps/boa/android/local.properties
+
+# Firebase Admin SDK / service account JSON
+*firebase-adminsdk*.json
+*serviceAccount*.json
+*service-account*.json
+boa-firebase-adminsdk.json
 
 # IDE and editor files
 .vscode/
@@ -91,7 +102,7 @@ jspm_packages/
 # Optional REPL history
 .node_repl_history
 
-# Output of 'npm pack'
+# Output of `npm pack`
 *.tgz
 
 # Yarn Integrity file
@@ -128,93 +139,3 @@ temp/
 
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
-# BOA 지점관리 CRM Android 내부 APK 설정
-
-## 목적
-BOA 지점관리 CRM을 Play Store 배포가 아닌 내부 APK 파일로 설치해 사용하기 위한 Android 앱 셸입니다.
-
-## 앱 정보
-- App ID: kr.raonisis.boa
-- App Name: BOA 지점관리 CRM
-- Web URL: https://raonisis.kr
-- Web Dir: dist/public
-
-## 빌드 전 준비
-- Android Studio
-- Android SDK
-- Android SDK Command-line Tools
-- Android SDK Platform-Tools
-- Android SDK Build-Tools
-- JDK
-
-## 검증 명령
-```powershell
-pnpm.cmd check
-pnpm.cmd test
-pnpm.cmd build
-pnpm.cmd exec cap sync android
-
-cd android
-.\gradlew.bat assembleDebug
-cd ..
-@'
-# BOA 지점관리 CRM Android 내부 APK 설정
-
-## 목적
-BOA 지점관리 CRM을 Play Store 배포가 아닌 내부 APK 파일로 설치해 사용하기 위한 Android 앱 셸입니다.
-
-## 앱 정보
-- App ID: kr.raonisis.boa
-- App Name: BOA 지점관리 CRM
-- Web URL: https://raonisis.kr
-- Web Dir: dist/public
-
-## 빌드 전 준비
-- Android Studio
-- Android SDK
-- Android SDK Command-line Tools
-- Android SDK Platform-Tools
-- Android SDK Build-Tools
-- JDK
-
-## 검증 명령
-```powershell
-pnpm.cmd check
-pnpm.cmd test
-pnpm.cmd build
-pnpm.cmd exec cap sync android
-
-cd android
-.\gradlew.bat assembleDebug
-cd ..
-Select-String -Path .gitignore -Pattern "\*.apk","\*.aab","\*.jks","\*.keystore","google-services.json","local.properties","android/local.properties",".env.production"
-@'
-
-# Android internal APK / signing / local secrets
-*.apk
-*.aab
-*.jks
-*.keystore
-google-services.json
-local.properties
-android/local.properties
-.env.production
-*firebase-adminsdk*.json
-
-# Firebase Admin service account secrets
-*firebase-adminsdk*.json
-*serviceAccount*.json
-*service-account*.json
-boa-firebase-adminsdk.json
-
-# Firebase Admin service account secrets
-*firebase-adminsdk*.json
-*serviceAccount*.json
-*service-account*.json
-boa-firebase-adminsdk.json
-
-# Firebase Admin service account secrets
-*firebase-adminsdk*.json
-*serviceAccount*.json
-*service-account*.json
-boa-firebase-adminsdk.json

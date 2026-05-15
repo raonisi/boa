@@ -4,7 +4,6 @@ import 'package:boa/core/router/go_router_refresh.dart';
 import 'package:boa/features/auth/sign_in_screen.dart';
 import 'package:boa/features/shell/boa_shell_screen.dart';
 import 'package:boa/features/splash/splash_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
