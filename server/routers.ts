@@ -44,6 +44,11 @@ import {
   softDeleteSchedule,
   softDeleteCustomer,
   getActivityLogs,
+  getActivityLogsByDateRange,
+  getActivityLogCountByDateRange,
+  createLogArchive,
+  getLogArchives,
+  getLogArchiveMonths,
   getAllContracts,
   getAllTeams,
   getAllUsers,
@@ -4748,6 +4753,80 @@ export const appRouter = router({
       if (user.role === "sub_branch_admin") return getActivityLogs(500, user.id);
       return getActivityLogs(500, undefined, user.teamId ?? undefined);
     }),
+
+    archiveMonths: branchAdminProcedure.query(async () => {
+      return getLogArchiveMonths();
+    }),
+
+    archiveHistory: branchAdminProcedure.query(async () => {
+      return getLogArchives();
+    }),
+
+    getArchiveData: branchAdminProcedure
+      .input(z.object({
+        dateFrom: z.string(),
+        dateTo: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const dateFrom = new Date(input.dateFrom);
+        const dateTo = new Date(input.dateTo);
+        dateTo.setHours(23, 59, 59, 999);
+
+        const logs = await getActivityLogsByDateRange(dateFrom, dateTo);
+        const allUsers = await getAllUsers();
+        const usersById = new Map(allUsers.map((u) => [u.id, u]));
+
+        const exportData = logs.map((entry) => {
+          const actor = usersById.get(entry.userId);
+          return {
+            id: entry.id,
+            날짜: new Date(entry.createdAt).toLocaleString("ko-KR"),
+            사용자: actor?.name ?? `#${entry.userId}`,
+            작업: entry.action,
+            대상유형: entry.targetType ?? "",
+            대상ID: entry.targetId ?? "",
+            상세: entry.details ?? "",
+            IP: entry.ipAddress ?? "",
+          };
+        });
+
+        await log(ctx.user.id, "LOG_ARCHIVE_EXPORTED", "activity_log", undefined,
+          JSON.stringify({ dateFrom: input.dateFrom, dateTo: input.dateTo, totalLogs: logs.length }));
+
+        return { logs: exportData, totalCount: logs.length };
+      }),
+
+    createArchive: branchAdminProcedure
+      .input(z.object({
+        archiveMonth: z.string().regex(/^\d{4}-\d{2}$/),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const [year, month] = input.archiveMonth.split("-").map(Number);
+        const dateFrom = new Date(year, month - 1, 1);
+        const dateTo = new Date(year, month, 0, 23, 59, 59, 999);
+
+        const logCount = await getActivityLogCountByDateRange(dateFrom, dateTo);
+        if (logCount === 0) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "해당 월에 아카이빙할 로그가 없습니다." });
+        }
+
+        const fileName = `activity_logs_${input.archiveMonth}.csv`;
+        await createLogArchive({
+          archiveMonth: input.archiveMonth,
+          totalLogs: logCount,
+          archivedBy: ctx.user.id,
+          archiveType: "manual",
+          dateFrom,
+          dateTo,
+          fileName,
+          status: "completed",
+        });
+
+        await log(ctx.user.id, "LOG_ARCHIVED", "activity_log", undefined,
+          JSON.stringify({ archiveMonth: input.archiveMonth, totalLogs: logCount, fileName }));
+
+        return { archiveMonth: input.archiveMonth, totalLogs: logCount, fileName };
+      }),
   }),
 });
 

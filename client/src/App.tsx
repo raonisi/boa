@@ -25,6 +25,7 @@ import OrganizationManagement from "./pages/OrganizationManagement";
 import UserHandoffManagement from "./pages/UserHandoffManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
+import LogArchive from "./pages/LogArchive";
 import AdminAuditDashboard from "./pages/AdminAuditDashboard";
 import Download from "./pages/Download";
 import Settings from "./pages/Settings";
@@ -226,6 +227,13 @@ function Router() {
         <AuthGuard>
           <AdminGuard>
             <TeamManagement />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/logs/archive">
+        <AuthGuard>
+          <AdminGuard>
+            <LogArchive />
           </AdminGuard>
         </AuthGuard>
       </Route>

@@ -491,6 +491,22 @@ export const activityLogs = mysqlTable("activity_logs", {
 export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
 
+// ─── Activity Log Archives ───────────────────────────────────────────────────
+export const activityLogArchives = mysqlTable("activity_log_archives", {
+  id: int("id").autoincrement().primaryKey(),
+  archiveMonth: varchar("archiveMonth", { length: 7 }).notNull(),
+  totalLogs: int("totalLogs").notNull(),
+  archivedBy: int("archivedBy").notNull(),
+  archiveType: mysqlEnum("archiveType", ["monthly", "manual"]).default("manual").notNull(),
+  dateFrom: timestamp("dateFrom").notNull(),
+  dateTo: timestamp("dateTo").notNull(),
+  fileName: varchar("fileName", { length: 255 }),
+  status: mysqlEnum("status", ["completed", "failed"]).default("completed").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type ActivityLogArchive = typeof activityLogArchives.$inferSelect;
+export type InsertActivityLogArchive = typeof activityLogArchives.$inferInsert;
+
 // ─── Device Tokens (FCM 준비) ────────────────────────────────────────────────
 export const userDeviceTokens = mysqlTable("user_device_tokens", {
   id: int("id").autoincrement().primaryKey(),

@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from "dr
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
+  activityLogArchives,
   assignmentHistory,
   consentLogs,
   consultations,
@@ -37,6 +38,7 @@ import {
   InsertStatusHistory,
   InsertMessageTemplate,
   InsertUserDeviceToken,
+  InsertActivityLogArchive,
   messageTemplates,
   notifications,
   performanceGoals,
@@ -1935,6 +1937,50 @@ export async function getActivityLogs(limit = 500, subBranchAdminId?: number, te
   }
 
   return db.select().from(activityLogs).orderBy(desc(activityLogs.createdAt)).limit(limit);
+}
+
+// ─── Activity Log Archives ───────────────────────────────────────────────────
+export async function getActivityLogsByDateRange(dateFrom: Date, dateTo: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(activityLogs)
+    .where(and(gte(activityLogs.createdAt, dateFrom), lte(activityLogs.createdAt, dateTo)))
+    .orderBy(desc(activityLogs.createdAt));
+}
+
+export async function getActivityLogCountByDateRange(dateFrom: Date, dateTo: Date) {
+  const db = await getDb();
+  if (!db) return 0;
+  const result = await db.select({ count: sql<number>`count(*)` }).from(activityLogs)
+    .where(and(gte(activityLogs.createdAt, dateFrom), lte(activityLogs.createdAt, dateTo)));
+  return result[0]?.count ?? 0;
+}
+
+export async function createLogArchive(data: InsertActivityLogArchive) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(activityLogArchives).values(data);
+  return result[0]?.insertId ?? null;
+}
+
+export async function getLogArchives() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(activityLogArchives).orderBy(desc(activityLogArchives.createdAt));
+}
+
+export async function getLogArchiveMonths() {
+  const db = await getDb();
+  if (!db) return [];
+  const result = await db.select({
+    month: sql<string>`DATE_FORMAT(createdAt, '%Y-%m')`,
+    count: sql<number>`count(*)`,
+    minDate: sql<Date>`MIN(createdAt)`,
+    maxDate: sql<Date>`MAX(createdAt)`,
+  }).from(activityLogs)
+    .groupBy(sql`DATE_FORMAT(createdAt, '%Y-%m')`)
+    .orderBy(desc(sql`DATE_FORMAT(createdAt, '%Y-%m')`));
+  return result;
 }
 
 // ─── User Device Tokens ──────────────────────────────────────────────────────
