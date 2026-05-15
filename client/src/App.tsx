@@ -140,7 +140,9 @@ function Router() {
       </Route>
       <Route path="/customers/bulk-import">
         <AuthGuard>
-          <CustomerBulkImport />
+          <AdminGuard>
+            <CustomerBulkImport />
+          </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/import-batches">

@@ -166,9 +166,11 @@ export default function CustomerList() {
                     <UserPlus className="h-4 w-4 mr-1" /> DB 배정
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
-                  <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
-                </Button>
+                {user?.role === "branch_admin" && (
+                  <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
+                    <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
+                  </Button>
+                )}
                 <Button size="sm" onClick={() => setShowCreate(true)}>
                   <Plus className="h-4 w-4 mr-1" /> 신규 고객 등록
                 </Button>

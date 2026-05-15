@@ -86,7 +86,7 @@ const navGroups: NavGroup[] = [
     label: "고객 관리",
     items: [
       { icon: Users, label: "고객 DB", path: "/customers" },
-      { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import" },
+      { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", roles: ["branch_admin"] },
       { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
       { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
       { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },

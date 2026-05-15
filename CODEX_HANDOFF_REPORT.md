@@ -1,9 +1,9 @@
 # 보험 CRM 시스템 - Codex 인수인계 보고서
 
-**작성일**: 2026-05-11  
+**작성일**: 2026-05-15  
 **프로젝트**: 보험 영업 사내 전산 CRM  
-**상태**: ✅ 인수인계 준비 완료  
-**버전**: 10.0 (고객 DB 일괄 업로드 기능 구현)
+**상태**: ✅ 현재 저장소 기준 문서 정합화 완료  
+**버전**: 10.1 (인수인계 문서 정정)
 
 ---
 
@@ -35,7 +35,7 @@
 
 ## 🎯 프로젝트 현황
 
-### 완료된 기능 (10차 수정)
+### 완료된 기능 (현재 저장소 기준)
 
 | 항목 | 상태 | 설명 |
 |---|---|---|
@@ -48,7 +48,9 @@
 | 데이터 다운로드 | ✅ | CSV 내보내기 (관리자) |
 | 사용자 관리 | ✅ | 신규 추가, 권한 변경, 팀 배치 |
 | 팀 관리 | ✅ | 팀 생성, 팀장 배치, 계층 구조 |
-| **고객 일괄 등록** | ✅ **NEW** | CSV 파일 업로드, 14가지 검증, 배치 관리 |
+| **고객 일괄 등록** | ✅ | CSV/XLSX 업로드, 14가지 검증, 배치 관리 |
+| **업로드 batch 관리** | ✅ | 이력 조회, 상세 확인, soft delete 취소 |
+| **삭제 데이터 관리** | ✅ | 고객/계약/팀 복구 및 위험 작업 통제 |
 
 ### 기술 스택
 
@@ -56,7 +58,7 @@
 Frontend:  React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui
 Backend:   Express 4 + tRPC 11 + Node.js
 Database:  MySQL/TiDB + Drizzle ORM
-Auth:      Manus OAuth 2.0
+Auth:      Google OAuth 2.0 Web Server Flow
 Testing:   Vitest
 Build:     Vite + pnpm
 ```
@@ -98,11 +100,12 @@ Build:     Vite + pnpm
   3. 결과 화면 (배치 ID, 통계, 재업로드)
 
 - **주요 기능**
-  - CSV 파싱 (papaparse)
+  - CSV/XLSX 파싱 (papaparse + xlsx)
   - 실시간 검증 (14가지 규칙)
   - 오류 행 하이라이트
   - 최종 확인 모달
   - 배치 ID 추적
+  - 업로드 이력/상세/취소 연계
 
 #### 3. 검증 규칙 (14가지)
 
@@ -237,14 +240,13 @@ pnpm test
 
 ## 📊 남은 작업 목록
 
-### 즉시 필요 (1-2주)
-- [ ] XLSX 파일 지원 추가
+### 즉시 필요
 - [ ] 오류 행 CSV 다운로드 기능
 - [ ] 일괄 등록 진행률 표시
-- [ ] 배치 이력 조회 페이지
-- [ ] 일괄 등록 취소 기능
+- [ ] 월별 활동 로그 아카이빙 자동화 설계
+- [ ] 백업/복구 runbook 문서화
 
-### 중간 우선순위 (2-3주)
+### 중간 우선순위
 - [ ] 고객 수정 UI 개선
 - [ ] 상담기록 수정 기능 강화
 - [ ] 계약 관리 필터 확장
@@ -262,27 +264,16 @@ pnpm test
 
 ## 📞 Codex 첫 작업 지시문
 
-### 우선순위 1: XLSX 지원 추가 (4시간)
+### 우선순위 1: 대용량 업로드 진행률 표시
 
-**목표**: CSV와 XLSX 파일 모두 지원
+**목표**: 긴 업로드에서도 진행 상태를 명확히 제공
 
 **작업 순서**:
-1. `xlsx` 패키지 설치
-   ```bash
-   pnpm add xlsx @types/xlsx
-   ```
-
-2. `client/src/pages/CustomerBulkImport.tsx` 수정
-   - 파일 타입 감지 (CSV vs XLSX)
-   - XLSX 파싱 로직 추가
-   - 파일 확장자 검증
-
-3. 테스트 작성
-   - XLSX 파일 파싱 테스트
-   - 샘플 XLSX 파일 생성
-
-4. 문서 업데이트
-   - HANDOFF.md 수정 (XLSX 지원 추가)
+1. `client/src/pages/CustomerBulkImport.tsx` 수정
+   - preview / import 대기 상태를 더 명확히 표시
+   - 가능하면 행 수 기반 진행률 제공
+2. 필요 시 서버 chunk 처리 또는 배치 상태 polling 설계
+3. 대용량 샘플 기준 UX 검증
 
 ### 우선순위 2: 오류 행 다운로드 (2시간)
 
@@ -305,33 +296,14 @@ pnpm test
 
 3. 테스트 작성
 
-### 우선순위 3: 배치 이력 조회 페이지 (4시간)
+### 우선순위 3: 운영 아카이빙 / 복구 문서화
 
-**목표**: 지점장이 과거 일괄 등록 이력 조회
+**목표**: 앱 구현과 운영 절차를 분리해 검수 혼선을 줄이기
 
 **작업 순서**:
-1. 새 페이지 생성
-   ```
-   client/src/pages/BulkImportHistory.tsx
-   ```
-
-2. 라우터 추가
-   ```typescript
-   customers.getBulkImportHistory: branchAdminProcedure
-     .input(z.object({ 
-       limit: z.number(), 
-       offset: z.number() 
-     }))
-     .query(async ({ input, ctx }) => {
-       // importBatchId별 통계 조회
-       // 총 등록 수, 성공/실패 수, 등록 시간
-     })
-   ```
-
-3. DashboardLayout에 메뉴 추가
-   - "일괄 등록 이력" 메뉴 항목
-
-4. 필터 및 페이지네이션 구현
+1. 활동 로그 아카이빙 정책 문서 작성
+2. 인프라 백업/복구 runbook 문서 작성
+3. 외부 검수 문서와 인수인계 문서의 기능 매트릭스 동기화
 
 ---
 
@@ -375,13 +347,12 @@ pnpm test
 
 ## 📞 연락처 및 지원
 
-**마누스 개발팀**: support@manus.im  
 **프로젝트 저장소**: https://github.com/raonisi/boa  
 **이슈 트래킹**: GitHub Issues
 
 ---
 
-**작성일**: 2026-05-11  
-**작성자**: Manus AI Agent  
-**상태**: ✅ 인수인계 준비 완료  
-**다음 단계**: Codex 개발 시작
+**작성일**: 2026-05-15  
+**작성자**: Cursor Cloud Agent  
+**상태**: ✅ 현재 저장소 기준 문서 정합화 완료  
+**다음 단계**: 진행률 UI 및 운영 문서 보강

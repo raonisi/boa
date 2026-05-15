@@ -2942,7 +2942,7 @@ export const appRouter = router({
         });
       }),
 
-    downloadImportTemplate: activeUserProcedure.query(async ({ ctx }) => {
+    downloadImportTemplate: branchAdminProcedure.query(async ({ ctx }) => {
       const baseHeaders = [
         "이름",
         "생년월일",
@@ -2967,7 +2967,7 @@ export const appRouter = router({
       };
     }),
 
-    previewImport: activeUserProcedure
+    previewImport: branchAdminProcedure
       .input(z.object({
         rows: z.array(z.record(z.string(), z.any())).max(5000),
         fileName: z.string().optional(),
@@ -3019,7 +3019,7 @@ export const appRouter = router({
         };
       }),
 
-    bulkImport: activeUserProcedure
+    bulkImport: branchAdminProcedure
       .input(z.object({
         rows: z.array(z.record(z.string(), z.any())).max(5000),
         fileName: z.string().optional(),

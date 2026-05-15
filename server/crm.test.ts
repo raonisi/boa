@@ -163,20 +163,20 @@ describe("Bulk import router policy", () => {
     ).rejects.toThrow();
   });
 
-  it("returns role-specific bulk import template columns", async () => {
+  it("returns branch-admin bulk import template columns and blocks non-admin download", async () => {
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
     const branchTemplate = await appRouter.createCaller(createCtx("branch_admin")).customers.downloadImportTemplate();
-    const memberTemplate = await appRouter.createCaller(createCtx("member")).customers.downloadImportTemplate();
 
     expect(branchTemplate.requiredHeaders).toEqual(["이름", "생년월일", "연락처"]);
     expect(branchTemplate.headers).toContain("담당자");
     expect(branchTemplate.headers).not.toContain("부지점장");
     expect(branchTemplate.headers).not.toContain("팀");
-    expect(memberTemplate.headers).not.toContain("담당자");
-    expect(memberTemplate.headers).not.toContain("부지점장");
-    expect(memberTemplate.headers).not.toContain("팀");
-    expect(memberTemplate.assigneeHeaderEnabled).toBe(false);
+    expect(branchTemplate.assigneeHeaderEnabled).toBe(true);
+
+    await expect(
+      appRouter.createCaller(createCtx("member")).customers.downloadImportTemplate()
+    ).rejects.toThrow();
   });
 });
 
@@ -295,39 +295,23 @@ describe("PR18-4 - direct customer creation assignment policy", () => {
   });
 });
 
-describe("PR18-4 - customer bulk import self assignment policy", () => {
-  it("allows member bulk import and forces rows to the member", async () => {
-    vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
-    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
-    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
-    const bulkCreateSpy = vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
-    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
-
-    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
-      fileName: "customers.csv",
-      rows: [{ 이름: "[TEST] Bulk Member", 생년월일: "1990-01-15", 연락처: "010-2000-0001", 담당자: "다른사람" }],
-    });
-
-    expect(bulkCreateSpy).toHaveBeenCalledWith([
-      expect.objectContaining({
-        name: "[TEST] Bulk Member",
-        consultStatus: "미상담",
-        agentId: 44,
-        assignedTeamId: 10,
-        subBranchAdminId: 2,
-        assignmentStatus: "assigned_to_agent",
-      }),
-    ], {});
-  });
-
-  it("blocks member bulk import when trying to submit another agentId", async () => {
+describe("PR18-4 - customer bulk import branch-admin policy", () => {
+  it("blocks non-admin bulk import preview", async () => {
     await expect(
       appRouter.createCaller(createCtx("member", { userId: 44 })).customers.previewImport({
         fileName: "customers.csv",
         rows: [{ 이름: "[TEST] Bulk Bad", 생년월일: "1990-01-15", 연락처: "010-2000-0002" }],
-        agentId: 45,
       })
-    ).rejects.toThrow("본인만 지정");
+    ).rejects.toThrow();
+  });
+
+  it("blocks non-admin bulk import submit", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
+        fileName: "customers.csv",
+        rows: [{ 이름: "[TEST] Bulk Member", 생년월일: "1990-01-15", 연락처: "010-2000-0001" }],
+      })
+    ).rejects.toThrow();
   });
 
   it("allows branch_admin bulk import to force a selected assignee", async () => {
@@ -356,15 +340,23 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
     });
   });
 
-  it("keeps provided consultation status during bulk import", async () => {
+  it("keeps provided consultation status during branch-admin bulk import", async () => {
     vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      role: "member",
+      accountStatus: "active",
+      teamId: 10,
+      subBranchAdminId: 2,
+    } as any);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
     vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
     const bulkCreateSpy = vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
     vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
 
-    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.bulkImport({
       fileName: "customers.xlsx",
+      agentId: 4,
       rows: [{ 이름: "[TEST] Bulk Status", 생년월일: "1990-01-15", 연락처: "010-2000-0004", 상담상태: "상담예정" }],
     });
 
@@ -372,7 +364,7 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
       expect.objectContaining({
         name: "[TEST] Bulk Status",
         consultStatus: "상담예정",
-        agentId: 44,
+        agentId: 4,
       }),
     ], {});
   });
