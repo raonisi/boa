@@ -1,11 +1,16 @@
 import type { Express, Request, Response } from "express";
 import axios from "axios";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 import { z } from "zod";
 import { HttpError } from "@shared/_core/errors";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { getSessionCookieOptions } from "./_core/cookies";
 import { ENV } from "./_core/env";
-import { GoogleLoginError, completeGoogleLoginWithUserInfo } from "./_core/googleLoginFlow";
+import {
+  GoogleLoginError,
+  completeGoogleLoginWithUserInfo,
+} from "./_core/googleLoginFlow";
 import { sdk, type GoogleUserInfo } from "./_core/sdk";
 import { createActivityLog, upsertUserDeviceToken } from "./db";
 import { hashDeviceToken, maskDeviceToken } from "./deviceTokenUtil";
@@ -21,6 +26,82 @@ const deviceRegisterBody = z.object({
   appVersion: z.string().max(50).optional(),
   deviceModel: z.string().max(200).optional(),
   osVersion: z.string().max(100).optional(),
+});
+
+const followUpPostponeBody = z.object({
+  nextContactDate: z.string().min(1),
+  reason: z.string().optional(),
+});
+
+const followUpCreateBody = z.object({
+  nextContactDate: z.string().min(1),
+  reason: z.string().min(1),
+  nextAction: z
+    .enum([
+      "전화",
+      "카톡",
+      "문자",
+      "방문",
+      "설계안 발송",
+      "계약 확인",
+      "보장분석",
+      "사후관리",
+      "기타",
+    ])
+    .optional(),
+  memo: z.string().optional(),
+});
+
+const scheduleCreateBody = z.object({
+  title: z.string().min(1),
+  type: z.enum([
+    "고객상담",
+    "재통화",
+    "계약예정",
+    "보장분석",
+    "해지방어",
+    "팀회의",
+    "교육",
+    "외근",
+    "휴무",
+    "기타",
+  ]),
+  startTime: z.string().min(1),
+  endTime: z.string().optional(),
+  memo: z.string().optional(),
+  description: z.string().optional(),
+  reminderDayBefore: z.boolean().optional(),
+  reminderSameDay: z.boolean().optional(),
+  reminderOneHourBefore: z.boolean().optional(),
+});
+
+const pushPrefsPatchBody = z.object({
+  followUpTodayEnabled: z.boolean().optional(),
+  scheduleReminderEnabled: z.boolean().optional(),
+  deleteRequestEnabled: z.boolean().optional(),
+  testNotificationEnabled: z.boolean().optional(),
+  quietHoursEnabled: z.boolean().optional(),
+  quietHoursStart: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
+  quietHoursEnd: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .optional(),
+  timezone: z.string().max(64).optional(),
+});
+
+const performanceStatsQuerySchema = z.object({
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  agentIdFilter: z.coerce.number().int().optional(),
+  teamIdFilter: z.coerce.number().int().optional(),
+  productGroup: z.string().optional(),
+  company: z.string().optional(),
+  region: z.string().optional(),
+  source: z.string().optional(),
+  scope: z.enum(["all", "mine"]).optional(),
 });
 
 function serializePublicUser(user: {
@@ -45,6 +126,40 @@ async function getAuthenticatedUser(req: Request) {
   } catch {
     return null;
   }
+}
+
+/** 모바일 라우트용: 세션이 없으면 401 응답 후 `null`. */
+function getBearerSessionToken(req: Request) {
+  const auth = req.headers.authorization;
+  if (typeof auth !== "string" || !auth.toLowerCase().startsWith("bearer ")) {
+    return null;
+  }
+  const token = auth.slice(7).trim();
+  return token.length > 0 ? token : null;
+}
+
+function getSafeWebRedirect(req: Request) {
+  const raw =
+    typeof req.query.redirect === "string" ? req.query.redirect.trim() : "/";
+  if (!raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
+    return "/";
+  }
+  return raw;
+}
+
+async function getMobileCaller(req: Request, res: Response) {
+  let user;
+  try {
+    user = await sdk.authenticateRequest(req);
+  } catch (e) {
+    if (e instanceof HttpError && e.statusCode === 403) {
+      res.status(401).json({ error: "Unauthorized" });
+      return null;
+    }
+    throw e;
+  }
+  const ctx: TrpcContext = { req, res, user };
+  return appRouter.createCaller(ctx);
 }
 
 /**
@@ -73,9 +188,13 @@ export function registerMobileRoutes(app: Express) {
         sub: String(data.sub ?? ""),
         name: typeof data.name === "string" ? data.name : undefined,
         email: typeof data.email === "string" ? data.email : undefined,
-        email_verified: data.email_verified === true || data.email_verified === "true",
+        email_verified:
+          data.email_verified === true || data.email_verified === "true",
       };
-      const { sessionToken, user } = await completeGoogleLoginWithUserInfo(userInfo, req);
+      const { sessionToken, user } = await completeGoogleLoginWithUserInfo(
+        userInfo,
+        req
+      );
       res.json({
         sessionToken,
         user: serializePublicUser(user),
@@ -90,6 +209,25 @@ export function registerMobileRoutes(app: Express) {
     }
   });
 
+  app.get("/api/mobile/web-session", async (req: Request, res: Response) => {
+    const sessionToken = getBearerSessionToken(req);
+    if (!sessionToken) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const user = await getAuthenticatedUser(req);
+    if (!user || user.accountStatus !== "active") {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const cookieOptions = getSessionCookieOptions(req);
+    res.cookie(COOKIE_NAME, sessionToken, {
+      ...cookieOptions,
+      maxAge: ONE_YEAR_MS,
+    });
+    res.redirect(302, getSafeWebRedirect(req));
+  });
+
   app.get("/api/mobile/auth/me", async (req: Request, res: Response) => {
     const user = await getAuthenticatedUser(req);
     if (!user) {
@@ -99,52 +237,61 @@ export function registerMobileRoutes(app: Express) {
     res.json({ user: serializePublicUser(user) });
   });
 
-  app.post("/api/mobile/device-tokens/register", async (req: Request, res: Response) => {
-    const user = await getAuthenticatedUser(req);
-    if (!user || user.accountStatus !== "active") {
-      res.status(401).json({ error: "Unauthorized" });
-      return;
-    }
-    const parsed = deviceRegisterBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: "Invalid body", details: parsed.error.flatten() });
-      return;
-    }
-    const input = parsed.data;
-    const saved = await upsertUserDeviceToken({
-      userId: user.id,
-      platform: "android",
-      token: input.token,
-      deviceId: input.deviceId ?? null,
-      appVersion: input.appVersion ?? null,
-      deviceModel: input.deviceModel ?? null,
-      osVersion: input.osVersion ?? null,
-      isActive: true,
-      lastSeenAt: new Date(),
-    });
-    const tokenHash = hashDeviceToken(input.token);
-    await createActivityLog({
-      userId: user.id,
-      action: "DEVICE_TOKEN_REGISTERED",
-      targetType: "user_device_token",
-      targetId: saved?.id,
-      details: JSON.stringify({
-        actor: user.id,
-        targetId: saved?.id ?? null,
+  app.post(
+    "/api/mobile/device-tokens/register",
+    async (req: Request, res: Response) => {
+      const user = await getAuthenticatedUser(req);
+      if (!user || user.accountStatus !== "active") {
+        res.status(401).json({ error: "Unauthorized" });
+        return;
+      }
+      const parsed = deviceRegisterBody.safeParse(req.body);
+      if (!parsed.success) {
+        res
+          .status(400)
+          .json({ error: "Invalid body", details: parsed.error.flatten() });
+        return;
+      }
+      const input = parsed.data;
+      const saved = await upsertUserDeviceToken({
+        userId: user.id,
+        platform: "android",
+        token: input.token,
+        deviceId: input.deviceId ?? null,
+        appVersion: input.appVersion ?? null,
+        deviceModel: input.deviceModel ?? null,
+        osVersion: input.osVersion ?? null,
+        isActive: true,
+        lastSeenAt: new Date(),
+      });
+      const tokenHash = hashDeviceToken(input.token);
+      await createActivityLog({
+        userId: user.id,
+        action: "DEVICE_TOKEN_REGISTERED",
         targetType: "user_device_token",
-        beforeValue: null,
-        afterValue: null,
-        metadata: {
-          platform: "android",
-          tokenHash,
-          tokenMasked: maskDeviceToken(input.token),
-          deviceId: input.deviceId ?? null,
-          appVersion: input.appVersion ?? null,
-        },
-      }),
-    });
-    res.json({ success: true, id: saved?.id ?? null, tokenMasked: maskDeviceToken(input.token) });
-  });
+        targetId: saved?.id,
+        details: JSON.stringify({
+          actor: user.id,
+          targetId: saved?.id ?? null,
+          targetType: "user_device_token",
+          beforeValue: null,
+          afterValue: null,
+          metadata: {
+            platform: "android",
+            tokenHash,
+            tokenMasked: maskDeviceToken(input.token),
+            deviceId: input.deviceId ?? null,
+            appVersion: input.appVersion ?? null,
+          },
+        }),
+      });
+      res.json({
+        success: true,
+        id: saved?.id ?? null,
+        tokenMasked: maskDeviceToken(input.token),
+      });
+    }
+  );
 
   app.get("/api/mobile/customers", async (req: Request, res: Response) => {
     let user;
@@ -160,63 +307,230 @@ export function registerMobileRoutes(app: Express) {
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
     try {
-      const items = await caller.customers.list({});
-      res.json({ items });
+      const rawSearch =
+        typeof req.query.search === "string" ? req.query.search : undefined;
+      let q: string | undefined;
+      if (rawSearch !== undefined) {
+        const trimmed = rawSearch.trim();
+        if (trimmed.length > 100) {
+          res.status(400).json({ error: "Invalid search query" });
+          return;
+        }
+        q = trimmed.length > 0 ? trimmed : undefined;
+      }
+      const listInput = q ? { search: q } : {};
+      const pageSizeParsed =
+        req.query.limit === undefined
+          ? { success: true as const, data: 50 }
+          : z.coerce.number().int().min(1).max(100).safeParse(req.query.limit);
+      const offsetParsed =
+        req.query.offset === undefined
+          ? { success: true as const, data: 0 }
+          : z.coerce
+              .number()
+              .int()
+              .min(0)
+              .max(500_000)
+              .safeParse(req.query.offset);
+      if (!pageSizeParsed.success || !offsetParsed.success) {
+        res.status(400).json({ error: "Invalid limit or offset" });
+        return;
+      }
+      const pageSize = pageSizeParsed.data;
+      const offset = offsetParsed.data;
+      const fetchLimit = pageSize + 1;
+      const rows = await caller.customers.list({
+        ...listInput,
+        limit: fetchLimit,
+        offset,
+      });
+      const hasMore = rows.length > pageSize;
+      const items = hasMore ? rows.slice(0, pageSize) : rows;
+      res.json({
+        items,
+        hasMore,
+        nextOffset: hasMore ? offset + pageSize : null,
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to list customers";
       res.status(400).json({ error: msg });
     }
   });
 
-  app.get("/api/mobile/customers/:customerId", async (req: Request, res: Response) => {
-    const parsedId = z.coerce.number().int().positive().safeParse(req.params.customerId);
-    if (!parsedId.success) {
-      res.status(400).json({ error: "Invalid customer id" });
-      return;
-    }
-    let user;
-    try {
-      user = await sdk.authenticateRequest(req);
-    } catch (e) {
-      if (e instanceof HttpError && e.statusCode === 403) {
-        res.status(401).json({ error: "Unauthorized" });
+  /** `/customers/:id` 보다 구체적인 경로이므로 먼저 등록합니다. */
+  app.get(
+    "/api/mobile/customers/:customerId/contracts",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.customerId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid customer id" });
         return;
       }
-      throw e;
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      try {
+        const items = await caller.contracts.listByCustomer({
+          customerId: parsedId.data,
+        });
+        res.json({ items });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to list contracts";
+        res.status(400).json({ error: msg });
+      }
     }
-    const ctx: TrpcContext = { req, res, user };
-    const caller = appRouter.createCaller(ctx);
-    try {
-      const customer = await caller.customers.get({ id: parsedId.data });
-      res.json({ customer });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to load customer";
-      res.status(400).json({ error: msg });
-    }
-  });
+  );
 
-  app.get("/api/mobile/dashboard/today-work", async (req: Request, res: Response) => {
-    let user;
-    try {
-      user = await sdk.authenticateRequest(req);
-    } catch (e) {
-      if (e instanceof HttpError && e.statusCode === 403) {
-        res.status(401).json({ error: "Unauthorized" });
+  app.get(
+    "/api/mobile/customers/:customerId/follow-ups",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.customerId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid customer id" });
         return;
       }
-      throw e;
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      try {
+        const items = await caller.followUps.listByCustomer({
+          customerId: parsedId.data,
+        });
+        res.json({ items });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to list follow-ups";
+        res.status(400).json({ error: msg });
+      }
     }
-    const ctx: TrpcContext = { req, res, user };
-    const caller = appRouter.createCaller(ctx);
-    const dateRaw = typeof req.query.date === "string" ? req.query.date.trim() : "";
-    try {
-      const payload = await caller.dashboard.todayWork(dateRaw.length > 0 ? { date: dateRaw } : {});
-      res.json(payload);
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to load dashboard";
-      res.status(400).json({ error: msg });
+  );
+
+  app.post(
+    "/api/mobile/customers/:customerId/follow-ups",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.customerId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid customer id" });
+        return;
+      }
+      const bodyParsed = followUpCreateBody.safeParse(req.body);
+      if (!bodyParsed.success) {
+        res
+          .status(400)
+          .json({ error: "nextContactDate and reason are required" });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        await caller.followUps.create({
+          customerId: parsedId.data,
+          nextContactDate: bodyParsed.data.nextContactDate,
+          reason: bodyParsed.data.reason,
+          nextAction: bodyParsed.data.nextAction ?? "전화",
+          memo: bodyParsed.data.memo,
+        });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to create follow-up";
+        res.status(400).json({ error: msg });
+      }
     }
-  });
+  );
+
+  app.get(
+    "/api/mobile/customers/:customerId",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.customerId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid customer id" });
+        return;
+      }
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      try {
+        const customer = await caller.customers.get({ id: parsedId.data });
+        res.json({ customer });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to load customer";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.get(
+    "/api/mobile/dashboard/today-work",
+    async (req: Request, res: Response) => {
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      const dateRaw =
+        typeof req.query.date === "string" ? req.query.date.trim() : "";
+      try {
+        const payload = await caller.dashboard.todayWork(
+          dateRaw.length > 0 ? { date: dateRaw } : {}
+        );
+        res.json(payload);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to load dashboard";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
 
   app.get("/api/mobile/contracts", async (req: Request, res: Response) => {
     let user;
@@ -231,17 +545,91 @@ export function registerMobileRoutes(app: Express) {
     }
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
-    const scopeParsed = z.enum(["all", "mine"]).optional().safeParse(req.query.scope);
-    const listInput =
-      scopeParsed.success && scopeParsed.data !== undefined ? { scope: scopeParsed.data } : {};
+    const scopeParsed = z
+      .enum(["all", "mine"])
+      .optional()
+      .safeParse(req.query.scope);
+    const rawSearch =
+      typeof req.query.search === "string" ? req.query.search : undefined;
+    let search: string | undefined;
+    if (rawSearch !== undefined) {
+      const trimmed = rawSearch.trim();
+      if (trimmed.length > 100) {
+        res.status(400).json({ error: "Invalid search query" });
+        return;
+      }
+      search = trimmed.length > 0 ? trimmed : undefined;
+    }
+    const pageSizeParsed =
+      req.query.limit === undefined
+        ? { success: true as const, data: 50 }
+        : z.coerce.number().int().min(1).max(100).safeParse(req.query.limit);
+    const offsetParsed =
+      req.query.offset === undefined
+        ? { success: true as const, data: 0 }
+        : z.coerce
+            .number()
+            .int()
+            .min(0)
+            .max(500_000)
+            .safeParse(req.query.offset);
+    if (!pageSizeParsed.success || !offsetParsed.success) {
+      res.status(400).json({ error: "Invalid limit or offset" });
+      return;
+    }
+    const pageSize = pageSizeParsed.data;
+    const offset = offsetParsed.data;
+    const listInput = {
+      ...(scopeParsed.success && scopeParsed.data !== undefined
+        ? { scope: scopeParsed.data }
+        : {}),
+      ...(search ? { search } : {}),
+    };
     try {
-      const items = await caller.contracts.list(listInput);
-      res.json({ items });
+      const fetchLimit = pageSize + 1;
+      const rows = await caller.contracts.list({
+        ...listInput,
+        limit: fetchLimit,
+        offset,
+      });
+      const hasMore = rows.length > pageSize;
+      const items = hasMore ? rows.slice(0, pageSize) : rows;
+      res.json({
+        items,
+        hasMore,
+        nextOffset: hasMore ? offset + pageSize : null,
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to list contracts";
       res.status(400).json({ error: msg });
     }
   });
+
+  app.get(
+    "/api/mobile/notifications/unread-count",
+    async (req: Request, res: Response) => {
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      try {
+        const count = await caller.notifications.unreadCount();
+        res.json({ count });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to read unread count";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
 
   app.get("/api/mobile/notifications", async (req: Request, res: Response) => {
     let user;
@@ -256,29 +644,72 @@ export function registerMobileRoutes(app: Express) {
     }
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
-    const limitParsed = z.coerce.number().int().min(1).max(200).safeParse(req.query.limit);
-    const offsetParsed = z.coerce.number().int().min(0).safeParse(req.query.offset);
+    const limitParsed = z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(200)
+      .safeParse(req.query.limit);
+    const offsetParsed = z.coerce
+      .number()
+      .int()
+      .min(0)
+      .safeParse(req.query.offset);
     const listInput = {
       limit: limitParsed.success ? limitParsed.data : 50,
       offset: offsetParsed.success ? offsetParsed.data : 0,
       isRead:
-        req.query.isRead === "true" ? true : req.query.isRead === "false" ? false : undefined,
+        req.query.isRead === "true"
+          ? true
+          : req.query.isRead === "false"
+            ? false
+            : undefined,
     };
     try {
       const items = await caller.notifications.list(listInput);
       res.json({ items });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to list notifications";
+      const msg =
+        e instanceof Error ? e.message : "Failed to list notifications";
       res.status(400).json({ error: msg });
     }
   });
 
-  app.post("/api/mobile/notifications/:notificationId/read", async (req: Request, res: Response) => {
-    const parsedId = z.coerce.number().int().positive().safeParse(req.params.notificationId);
-    if (!parsedId.success) {
-      res.status(400).json({ error: "Invalid notification id" });
-      return;
+  app.post(
+    "/api/mobile/notifications/:notificationId/read",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.notificationId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid notification id" });
+        return;
+      }
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      try {
+        await caller.notifications.markRead({ id: parsedId.data });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to mark read";
+        res.status(400).json({ error: msg });
+      }
     }
+  );
+
+  app.get("/api/mobile/schedules", async (req: Request, res: Response) => {
     let user;
     try {
       user = await sdk.authenticateRequest(req);
@@ -292,11 +723,320 @@ export function registerMobileRoutes(app: Express) {
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
     try {
-      await caller.notifications.markRead({ id: parsedId.data });
-      res.json({ success: true });
+      const items = await caller.schedules.list();
+      res.json({ items });
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Failed to mark read";
+      const msg = e instanceof Error ? e.message : "Failed to list schedules";
       res.status(400).json({ error: msg });
     }
   });
+
+  app.post("/api/mobile/schedules", async (req: Request, res: Response) => {
+    const bodyParsed = scheduleCreateBody.safeParse(req.body);
+    if (!bodyParsed.success) {
+      res
+        .status(400)
+        .json({ error: "Invalid body", details: bodyParsed.error.flatten() });
+      return;
+    }
+    const caller = await getMobileCaller(req, res);
+    if (!caller) return;
+    const d = bodyParsed.data;
+    try {
+      await caller.schedules.create({
+        title: d.title,
+        type: d.type,
+        startTime: d.startTime,
+        endTime: d.endTime,
+        memo: d.memo,
+        description: d.description,
+        reminderDayBefore: d.reminderDayBefore ?? true,
+        reminderSameDay: d.reminderSameDay ?? true,
+        reminderOneHourBefore: d.reminderOneHourBefore ?? true,
+      });
+      res.json({ success: true });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Failed to create schedule";
+      res.status(400).json({ error: msg });
+    }
+  });
+
+  app.get(
+    "/api/mobile/follow-ups/today",
+    async (req: Request, res: Response) => {
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      const dateRaw =
+        typeof req.query.date === "string" ? req.query.date.trim() : "";
+      try {
+        const items = await caller.followUps.listToday(
+          dateRaw.length > 0 ? { date: dateRaw } : {}
+        );
+        res.json({ items });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to list today follow-ups";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.get(
+    "/api/mobile/follow-ups/overdue",
+    async (req: Request, res: Response) => {
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      const dateRaw =
+        typeof req.query.date === "string" ? req.query.date.trim() : "";
+      try {
+        const items = await caller.followUps.listOverdue(
+          dateRaw.length > 0 ? { date: dateRaw } : {}
+        );
+        res.json({ items });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to list overdue follow-ups";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.post(
+    "/api/mobile/follow-ups/:followUpId/complete",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.followUpId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid follow-up id" });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        await caller.followUps.complete({ id: parsedId.data });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to complete follow-up";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.post(
+    "/api/mobile/follow-ups/:followUpId/postpone",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.followUpId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid follow-up id" });
+        return;
+      }
+      const bodyParsed = followUpPostponeBody.safeParse(req.body);
+      if (!bodyParsed.success) {
+        res.status(400).json({ error: "nextContactDate is required" });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        await caller.followUps.postpone({
+          id: parsedId.data,
+          nextContactDate: bodyParsed.data.nextContactDate,
+          reason: bodyParsed.data.reason,
+        });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to postpone follow-up";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.post(
+    "/api/mobile/follow-ups/:followUpId/cancel",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.followUpId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid follow-up id" });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        await caller.followUps.cancel({ id: parsedId.data });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to cancel follow-up";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.post(
+    "/api/mobile/schedules/:scheduleId/complete",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.scheduleId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid schedule id" });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        await caller.schedules.update({ id: parsedId.data, status: "완료" });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to complete schedule";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.get(
+    "/api/mobile/performance/stats",
+    async (req: Request, res: Response) => {
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      const q = performanceStatsQuerySchema.safeParse(req.query);
+      const input =
+        q.success && Object.values(q.data).some(v => v !== undefined)
+          ? q.data
+          : undefined;
+      try {
+        const stats = await caller.performance.stats(input);
+        res.json(stats);
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to load performance stats";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.get(
+    "/api/mobile/performance-goals/dashboard",
+    async (req: Request, res: Response) => {
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      const yearParsed = z.coerce
+        .number()
+        .int()
+        .min(2000)
+        .max(2100)
+        .safeParse(req.query.year);
+      const monthParsed = z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(12)
+        .safeParse(req.query.month);
+      const input =
+        yearParsed.success || monthParsed.success
+          ? {
+              ...(yearParsed.success ? { year: yearParsed.data } : {}),
+              ...(monthParsed.success ? { month: monthParsed.data } : {}),
+            }
+          : undefined;
+      try {
+        const dashboard = await caller.performanceGoals.dashboard(input);
+        res.json(dashboard);
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to load goals dashboard";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.get(
+    "/api/mobile/push-preferences",
+    async (req: Request, res: Response) => {
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        const prefs = await caller.pushNotifications.getPreferences();
+        res.json(prefs);
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to load push preferences";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/mobile/push-preferences",
+    async (req: Request, res: Response) => {
+      const bodyParsed = pushPrefsPatchBody.safeParse(req.body);
+      if (!bodyParsed.success) {
+        res.status(400).json({ error: "Invalid body" });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        const updated = await caller.pushNotifications.updatePreferences(
+          bodyParsed.data
+        );
+        res.json(updated);
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to update push preferences";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.post(
+    "/api/mobile/notifications/read-all",
+    async (req: Request, res: Response) => {
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      try {
+        await caller.notifications.markAllRead();
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to mark all read";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
 }

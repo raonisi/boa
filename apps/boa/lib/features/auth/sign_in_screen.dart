@@ -86,7 +86,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
       await ref.read(sessionProvider.notifier).signInFromServer(token, user);
       if (!mounted) return;
-      unawaited(registerDeviceTokenWithRetry(ref.read(dioProvider)));
+      final dio = ref.read(dioProvider);
+      unawaited(registerDeviceTokenWithRetry(dio));
+      bindFcmTokenRefresh(dio);
     } on DioException catch (e) {
       final body = e.response?.data;
       String msg = '로그인에 실패했습니다.';
