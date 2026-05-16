@@ -23,7 +23,7 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { useIsMobile } from "@/hooks/useMobile";
-import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2 } from "lucide-react";
+import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2, UserCog } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -90,7 +90,10 @@ export default function CustomerList() {
   const [deleteCustomerId, setDeleteCustomerId] = useState<number | null>(null);
   const [reclaimCustomerId, setReclaimCustomerId] = useState<number | null>(null);
   const [bulkReclaimOpen, setBulkReclaimOpen] = useState(false);
+  const [bulkAssigneeOpen, setBulkAssigneeOpen] = useState(false);
   const [reclaimReason, setReclaimReason] = useState("");
+  const [bulkAssigneeId, setBulkAssigneeId] = useState("");
+  const [bulkAssigneeReason, setBulkAssigneeReason] = useState("");
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
   const isMobile = useIsMobile();
 
@@ -149,10 +152,24 @@ export default function CustomerList() {
     onError: (err) => toast.error(err.message || "선택 DB 회수에 실패했습니다."),
   });
 
+  const bulkChangeAgentMutation = trpc.customers.bulkChangeAgent.useMutation({
+    onSuccess: (result) => {
+      toast.success(`${result.changedCount}명의 담당자를 변경했습니다.${result.skippedCount ? ` (${result.skippedCount}건 제외)` : ""}`);
+      setBulkAssigneeOpen(false);
+      setBulkAssigneeId("");
+      setBulkAssigneeReason("");
+      setSelectedCustomerIds([]);
+      utils.customers.list.invalidate();
+      refetch();
+    },
+    onError: (err) => toast.error(err.message || "담당자 일괄 지정에 실패했습니다."),
+  });
+
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
   const agentById = new Map((allUsers ?? []).map((u) => [u.id, u]));
   const canDeactivateCustomer = user?.role === "branch_admin";
   const canReclaimCustomer = user?.role === "branch_admin";
+  const canBulkChangeAssignee = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role));
   const canCreateCustomer = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(user.role));
   const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
   const deleteTargetCustomer = (customers ?? []).find((c) => c.id === deleteCustomerId);
@@ -174,11 +191,24 @@ export default function CustomerList() {
 
   const isCustomerReclaimable = (customer: any) =>
     canReclaimCustomer && customer.isActive !== false && (Boolean(customer.agentId) || customer.assignmentStatus !== "unassigned");
+  const isCustomerAssignable = (customer: any) => canBulkChangeAssignee && customer.isActive !== false;
   const reclaimableFilteredIds = filtered.filter(isCustomerReclaimable).map((customer) => customer.id);
+  const assignableFilteredIds = filtered.filter(isCustomerAssignable).map((customer) => customer.id);
+  const selectableFilteredIds = Array.from(new Set([...reclaimableFilteredIds, ...assignableFilteredIds]));
   const selectedReclaimableIds = selectedCustomerIds.filter((customerId) => reclaimableFilteredIds.includes(customerId));
-  const allVisibleReclaimableSelected = reclaimableFilteredIds.length > 0 && reclaimableFilteredIds.every((customerId) => selectedCustomerIds.includes(customerId));
+  const selectedAssignableIds = selectedCustomerIds.filter((customerId) => assignableFilteredIds.includes(customerId));
+  const allVisibleSelectableSelected = selectableFilteredIds.length > 0 && selectableFilteredIds.every((customerId) => selectedCustomerIds.includes(customerId));
   const reclaimDialogOpen = reclaimCustomerId !== null || bulkReclaimOpen;
   const isReclaiming = reclaimMutation.isPending || reclaimBulkMutation.isPending;
+  const isBulkChangingAssignee = bulkChangeAgentMutation.isPending;
+  const bulkAssignableUsers = agents.filter((agent) => {
+    if (!user) return false;
+    if (user.role === "branch_admin") return true;
+    if (user.role === "sub_branch_admin") return (agent.role === "team_leader" || agent.role === "member") && (agent as any).subBranchAdminId === user.id;
+    if (user.role === "team_leader") return agent.role === "member" && agent.teamId === user.teamId;
+    return false;
+  });
+  const selectedBulkAssignee = bulkAssignableUsers.find((agent) => String(agent.id) === bulkAssigneeId);
 
   const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
 
@@ -212,10 +242,10 @@ export default function CustomerList() {
     setSelectedCustomerIds((prev) => checked ? Array.from(new Set([...prev, id])) : prev.filter((customerId) => customerId !== id));
   };
 
-  const handleToggleAllVisibleReclaimable = (checked: boolean) => {
+  const handleToggleAllVisibleSelectable = (checked: boolean) => {
     setSelectedCustomerIds((prev) => {
-      if (!checked) return prev.filter((customerId) => !reclaimableFilteredIds.includes(customerId));
-      return Array.from(new Set([...prev, ...reclaimableFilteredIds]));
+      if (!checked) return prev.filter((customerId) => !selectableFilteredIds.includes(customerId));
+      return Array.from(new Set([...prev, ...selectableFilteredIds]));
     });
   };
 
@@ -236,6 +266,22 @@ export default function CustomerList() {
     reclaimBulkMutation.mutate({ customerIds: selectedReclaimableIds, reason });
   };
 
+  const handleSubmitBulkAssignee = () => {
+    if (!bulkAssigneeId) {
+      toast.error("담당자를 선택해주세요.");
+      return;
+    }
+    if (selectedAssignableIds.length === 0) {
+      toast.error("담당자를 지정할 고객을 선택해주세요.");
+      return;
+    }
+    bulkChangeAgentMutation.mutate({
+      customerIds: selectedAssignableIds,
+      newAgentId: Number(bulkAssigneeId),
+      reason: bulkAssigneeReason.trim() || undefined,
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-5">
@@ -252,6 +298,11 @@ export default function CustomerList() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
+                <Button variant="outline" size="sm" className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" onClick={() => { setBulkAssigneeOpen(true); setBulkAssigneeId(""); setBulkAssigneeReason(""); }}>
+                  <UserCog className="h-4 w-4 mr-1" /> 담당자 일괄 지정 {selectedAssignableIds.length}
+                </Button>
+              )}
               {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
                 <Button variant="outline" size="sm" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => { setReclaimCustomerId(null); setBulkReclaimOpen(true); setReclaimReason(""); }}>
                   <Undo2 className="h-4 w-4 mr-1" /> 선택 DB 회수 {selectedReclaimableIds.length}
@@ -403,13 +454,13 @@ export default function CustomerList() {
                 <Card key={c.id} className="cursor-pointer border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
-                      {canReclaimCustomer && (
+                      {(canReclaimCustomer || canBulkChangeAssignee) && (
                         <Checkbox
                           checked={selectedCustomerIds.includes(c.id)}
-                          disabled={!isCustomerReclaimable(c)}
+                          disabled={!selectableFilteredIds.includes(c.id)}
                           onClick={(e) => e.stopPropagation()}
                           onCheckedChange={(checked) => toggleCustomerSelection(c.id, checked === true)}
-                          aria-label={`${c.name} DB 회수 선택`}
+                          aria-label={`${c.name} 고객 선택`}
                           className="mt-1"
                         />
                       )}
@@ -529,13 +580,13 @@ export default function CustomerList() {
                 <Table>
                   <TableHeader className="bg-muted/40">
                     <TableRow className="hover:bg-transparent">
-                      {canReclaimCustomer && (
+                      {(canReclaimCustomer || canBulkChangeAssignee) && (
                         <TableHead className="w-10">
                           <Checkbox
-                            checked={allVisibleReclaimableSelected}
-                            disabled={reclaimableFilteredIds.length === 0}
-                            onCheckedChange={(checked) => handleToggleAllVisibleReclaimable(checked === true)}
-                            aria-label="화면에 보이는 회수 가능 DB 전체 선택"
+                            checked={allVisibleSelectableSelected}
+                            disabled={selectableFilteredIds.length === 0}
+                            onCheckedChange={(checked) => handleToggleAllVisibleSelectable(checked === true)}
+                            aria-label="화면에 보이는 고객 전체 선택"
                           />
                         </TableHead>
                       )}
@@ -554,7 +605,7 @@ export default function CustomerList() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={canReclaimCustomer ? 12 : 11} className="py-14 text-center align-middle">
+                        <TableCell colSpan={(canReclaimCustomer || canBulkChangeAssignee) ? 12 : 11} className="py-14 text-center align-middle">
                           <div className="mx-auto flex max-w-md flex-col items-center gap-3 text-sm text-muted-foreground">
                             <p>조건에 맞는 고객이 없습니다.</p>
                             <div className="flex flex-wrap justify-center gap-2">
@@ -582,13 +633,13 @@ export default function CustomerList() {
                           className="group cursor-pointer transition-colors hover:bg-muted/35"
                           onClick={() => setLocation(`/customers/${c.id}`)}
                         >
-                          {canReclaimCustomer && (
+                          {(canReclaimCustomer || canBulkChangeAssignee) && (
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <Checkbox
                                 checked={selectedCustomerIds.includes(c.id)}
-                                disabled={!isCustomerReclaimable(c)}
+                                disabled={!selectableFilteredIds.includes(c.id)}
                                 onCheckedChange={(checked) => toggleCustomerSelection(c.id, checked === true)}
-                                aria-label={`${c.name} DB 회수 선택`}
+                                aria-label={`${c.name} 고객 선택`}
                               />
                             </TableCell>
                           )}
@@ -750,6 +801,83 @@ export default function CustomerList() {
               onClick={() => deleteCustomerId && deactivateMutation.mutate({ id: deleteCustomerId })}
             >
               고객 삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkAssigneeOpen} onOpenChange={(open) => { setBulkAssigneeOpen(open); if (!open) { setBulkAssigneeId(""); setBulkAssigneeReason(""); } }}>
+        <DialogContent className="max-w-lg rounded-2xl border-emerald-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-800">
+              <UserCog className="h-5 w-5" /> 담당자 일괄 지정
+            </DialogTitle>
+            <DialogDescription>
+              선택한 고객의 담당자를 한 번에 변경합니다. 권한 범위 밖 고객은 서버에서 제외됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div className="rounded-xl border bg-slate-50 p-3">
+                <p className="text-xs text-muted-foreground">선택 고객</p>
+                <p className="mt-1 text-lg font-bold">{selectedCustomerIds.length}</p>
+              </div>
+              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-800">
+                <p className="text-xs">변경 가능</p>
+                <p className="mt-1 text-lg font-bold">{selectedAssignableIds.length}</p>
+              </div>
+              <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-800">
+                <p className="text-xs">제외 예상</p>
+                <p className="mt-1 text-lg font-bold">{Math.max(0, selectedCustomerIds.length - selectedAssignableIds.length)}</p>
+              </div>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              삭제/비활성 고객, 권한 범위 밖 고객, 이미 같은 담당자인 고객은 변경 대상에서 제외됩니다.
+            </div>
+            <div>
+              <Label className="text-xs">담당자 선택 *</Label>
+              <Select value={bulkAssigneeId} onValueChange={setBulkAssigneeId}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="새 담당자를 선택하세요" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bulkAssignableUsers.length === 0 ? (
+                    <SelectItem value="none" disabled>선택 가능한 담당자가 없습니다</SelectItem>
+                  ) : (
+                    bulkAssignableUsers.map((agent) => (
+                      <SelectItem key={agent.id} value={String(agent.id)}>{formatUserWithRole(agent)}</SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {selectedBulkAssignee && (
+                <p className="mt-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+                  총 {selectedCustomerIds.length}명의 고객 중 {selectedAssignableIds.length}명의 담당자를 {formatUserWithRole(selectedBulkAssignee)}(으)로 변경합니다.
+                </p>
+              )}
+            </div>
+            <div>
+              <Label className="text-xs">변경 사유</Label>
+              <Textarea
+                value={bulkAssigneeReason}
+                onChange={(e) => setBulkAssigneeReason(e.target.value)}
+                className="mt-1 min-h-[80px]"
+                maxLength={300}
+                placeholder="예: 담당자 업무 조정, 지점 운영 배분, 산하 조직 재정리"
+              />
+              <p className="mt-1 text-right text-[11px] text-muted-foreground">{bulkAssigneeReason.length}/300</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => { setBulkAssigneeOpen(false); setBulkAssigneeId(""); setBulkAssigneeReason(""); }} disabled={isBulkChangingAssignee}>
+              취소
+            </Button>
+            <Button
+              className="bg-emerald-700 text-white hover:bg-emerald-800"
+              disabled={!bulkAssigneeId || selectedAssignableIds.length === 0 || isBulkChangingAssignee}
+              onClick={handleSubmitBulkAssignee}
+            >
+              {isBulkChangingAssignee ? "변경 중..." : "변경 확정"}
             </Button>
           </DialogFooter>
         </DialogContent>

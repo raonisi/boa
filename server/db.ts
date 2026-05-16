@@ -675,8 +675,9 @@ export async function getCustomers(filter: {
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
     const agentIds = teamAgents.map((u) => u.id);
-    if (agentIds.length === 0) return [];
-    conditions.push(or(...agentIds.map((id) => eq(customers.agentId, id))) as any);
+    const teamConditions = [eq(customers.assignedTeamId, filter.teamId) as any];
+    if (agentIds.length > 0) teamConditions.push(...agentIds.map((id) => eq(customers.agentId, id) as any));
+    conditions.push(or(...teamConditions) as any);
   } else if (filter.subBranchAdminId !== undefined) {
     conditions.push(eq(customers.subBranchAdminId, filter.subBranchAdminId));
   }
@@ -1129,6 +1130,17 @@ export async function assignCustomer(customerId: number, agentId: number, teamId
     subBranchAdminId: subBranchAdminId ?? null,
     assignedAt: new Date(),
     assignmentStatus: "assigned_to_agent",
+  }).where(eq(customers.id, customerId));
+}
+
+export async function assignCustomerDbToTeam(customerId: number, teamId: number | null, subBranchAdminId?: number | null, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(customers).set({
+    assignedTeamId: teamId,
+    subBranchAdminId: subBranchAdminId ?? null,
+    assignedAt: new Date(),
+    assignmentStatus: "assigned_to_sub_branch",
   }).where(eq(customers.id, customerId));
 }
 

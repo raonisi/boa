@@ -63,6 +63,7 @@ function AssignToAgent() {
   const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true });
   const { data: allUsers } = trpc.users.list.useQuery();
   const agents = (allUsers ?? []).filter((u) => (u as any).accountStatus === "active" && (u.role === "team_leader" || u.role === "member" || (u.role === "branch_admin" && u.id === user?.id)));
+  const selectedAgentUser = agents.find((agent) => String(agent.id) === selectedAgent);
 
   const assignMutation = trpc.customers.assign.useMutation({
     onSuccess: () => { refetch(); utils.customers.list.invalidate(); },
@@ -93,6 +94,13 @@ function AssignToAgent() {
           <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>
             <UserPlus className="h-4 w-4 mr-1" />{selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배정` : "배정하기"}
           </Button>
+          {selectedAgentUser && (
+            <p className="basis-full text-xs text-muted-foreground">
+              {selectedAgentUser.role === "member"
+                ? "팀원에게 DB를 배정하면 해당 팀원이 고객 담당자로 자동 지정됩니다."
+                : "부지점장/팀장에게 DB를 배정하는 경우 담당자는 자동 변경되지 않습니다. 이후 산하 조직원에게 다시 배정하거나 담당자를 별도로 지정할 수 있습니다."}
+            </p>
+          )}
         </CardContent>
       </Card>
       <CustomerTable customers={unassigned ?? []} selected={selectedCustomers} onToggle={(id) => setSelectedCustomers((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])} onToggleAll={() => setSelectedCustomers(selectedCustomers.length === (unassigned?.length ?? 0) ? [] : (unassigned?.map((c) => c.id) ?? []))} title={`미배정 고객 목록 (${unassigned?.length ?? 0}명)`} />
@@ -165,6 +173,7 @@ function SubBranchAdminAssign() {
     (u.role === "team_leader" || u.role === "member") &&
     (u as any).subBranchAdminId === user?.id
   );
+  const selectedAgentUser = myTeamMembers.find((agent) => String(agent.id) === selectedAgent);
 
   const assignMutation = trpc.customers.assign.useMutation({
     onSuccess: () => { refetch(); utils.customers.list.invalidate(); },
@@ -201,6 +210,13 @@ function SubBranchAdminAssign() {
           <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>
             <UserPlus className="h-4 w-4 mr-1" />{selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배정` : "배정하기"}
           </Button>
+          {selectedAgentUser && (
+            <p className="basis-full text-xs text-muted-foreground">
+              {selectedAgentUser.role === "member"
+                ? "팀원에게 DB를 배정하면 해당 팀원이 고객 담당자로 자동 지정됩니다."
+                : "팀장에게 DB를 배정하는 경우 담당자는 자동 변경되지 않습니다. 이후 산하 팀원에게 다시 배정하거나 담당자를 별도로 지정할 수 있습니다."}
+            </p>
+          )}
         </CardContent>
       </Card>
       <CustomerTable customers={assignedToMe} selected={selectedCustomers} onToggle={(id) => setSelectedCustomers((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id])} onToggleAll={() => setSelectedCustomers(selectedCustomers.length === assignedToMe.length ? [] : assignedToMe.map((c) => c.id))} title={`배분받은 미배정 DB (${assignedToMe.length}명)`} />

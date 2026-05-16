@@ -15,6 +15,7 @@ import { publicProcedure, router } from "./_core/trpc";
 import { hashDeviceToken, maskDeviceToken } from "./deviceTokenUtil";
 import {
   assignCustomer,
+  assignCustomerDbToTeam,
   assignCustomerToSubBranch,
   reclaimCustomerAssignment,
   transferReclaimedCustomerWork,
@@ -202,6 +203,7 @@ async function verifyCustomerAccess(user: { id: number; role: string; teamId: nu
     return customer;
   }
   if (user.role === "team_leader") {
+    if (customer.assignedTeamId && customer.assignedTeamId === user.teamId) return customer;
     const agent = customer.agentId ? await getUserById(customer.agentId) : null;
     if (!agent || agent.teamId !== user.teamId)
       throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀 고객만 접근 가능합니다." });
@@ -446,7 +448,9 @@ const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 �
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
 
 const CUSTOMER_RECLAIM_BULK_LIMIT = 100;
+const CUSTOMER_BULK_ASSIGNEE_LIMIT = 100;
 const customerReclaimReasonSchema = z.string().trim().min(1, "DB 회수 사유를 입력해주세요.").max(300, "DB 회수 사유는 300자 이내로 입력해주세요.");
+const customerAssigneeChangeReasonSchema = z.string().trim().max(300, "담당자 지정 사유는 300자 이내로 입력해주세요.").optional();
 
 const CHECKLIST_PHASES = ["before", "during", "after"] as const;
 const CHECKLIST_CATEGORIES = ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"] as const;
@@ -753,6 +757,68 @@ async function reclaimCustomerDb(input: {
     customerId: input.customerId,
     previousAgentId: customer.agentId ?? null,
     transferredWork,
+  };
+}
+
+function shouldAutoSetAssigneeOnDbAssignment(targetUser: { role: string }) {
+  return targetUser.role === "member";
+}
+
+function assignmentTypeForActor(actorRole: string) {
+  return actorRole === "branch_admin" ? "branch_to_agent" : actorRole === "sub_branch_admin" ? "sub_branch_to_agent" : "reassignment";
+}
+
+function nextAssignmentScopeForUser(target: { role: string; teamId: number | null; subBranchAdminId: number | null }) {
+  return {
+    teamId: target.role === "team_leader" || target.role === "member" ? target.teamId ?? null : null,
+    subBranchAdminId:
+      target.role === "sub_branch_admin"
+        ? null
+        : target.role === "team_leader" || target.role === "member"
+          ? target.subBranchAdminId ?? null
+          : null,
+  };
+}
+
+async function assignCustomerDbWithOwnerPolicy(input: {
+  customer: NonNullable<Awaited<ReturnType<typeof getCustomerById>>>;
+  targetUser: NonNullable<Awaited<ReturnType<typeof getUserById>>>;
+  actor: { id: number; role: string };
+  tx: Parameters<typeof assignCustomer>[4];
+}) {
+  const { customer, targetUser, actor, tx } = input;
+  const previousAgentId = customer.agentId ?? null;
+  const nextScope = nextAssignmentScopeForUser(targetUser);
+  const autoSetAssignee = shouldAutoSetAssigneeOnDbAssignment(targetUser);
+  const isBranchAdminSelfAssignment = actor.role === "branch_admin" && targetUser.id === actor.id && targetUser.role === "branch_admin";
+  const nextAgentId = autoSetAssignee || isBranchAdminSelfAssignment ? targetUser.id : previousAgentId;
+
+  if (autoSetAssignee || isBranchAdminSelfAssignment) {
+    await assignCustomer(customer.id, targetUser.id, isBranchAdminSelfAssignment ? undefined : nextScope.teamId ?? undefined, isBranchAdminSelfAssignment ? undefined : nextScope.subBranchAdminId ?? undefined, tx);
+  } else {
+    await assignCustomerDbToTeam(customer.id, nextScope.teamId, nextScope.subBranchAdminId, tx);
+  }
+
+  await createAssignmentHistory({
+    customerId: customer.id,
+    previousSubBranchAdminId: customer.subBranchAdminId ?? undefined,
+    newSubBranchAdminId: autoSetAssignee || isBranchAdminSelfAssignment ? nextScope.subBranchAdminId ?? undefined : nextScope.subBranchAdminId ?? undefined,
+    previousTeamId: customer.assignedTeamId ?? undefined,
+    newTeamId: autoSetAssignee || isBranchAdminSelfAssignment ? nextScope.teamId ?? undefined : nextScope.teamId ?? undefined,
+    previousAgentId: previousAgentId ?? undefined,
+    newAgentId: nextAgentId ?? undefined,
+    assignedBy: actor.id,
+    assignmentType: assignmentTypeForActor(actor.role),
+    assignmentReason: autoSetAssignee ? "auto_member_assignment_on_db_assignment" : undefined,
+  }, tx);
+
+  return {
+    previousAgentId,
+    nextAgentId,
+    nextTeamId: nextScope.teamId,
+    nextSubBranchAdminId: nextScope.subBranchAdminId,
+    autoSetAssignee,
+    isBranchAdminSelfAssignment,
   };
 }
 
@@ -2627,6 +2693,8 @@ export const appRouter = router({
           return getCustomers({ ...baseFilter, agentId: scopedAgentId });
         }
         if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+          if (user.role === "team_leader" && user.teamId) return getCustomers({ ...baseFilter, teamId: user.teamId });
+          if (user.role === "sub_branch_admin") return getCustomers({ ...baseFilter, subBranchAdminId: user.id });
           const agentIds = await getHierarchyScopeUserIds(user);
           return getCustomers({ ...baseFilter, agentIds });
         }
@@ -2875,13 +2943,14 @@ export const appRouter = router({
           // ② 배정 대상이 본인 산하 팀장/팀원인지
         }
 
-        const prevAgentId = customer.agentId;
-        if (prevAgentId === input.agentId) {
+        const prevAgentId = customer.agentId ?? null;
+        if (agent.role === "member" && prevAgentId === input.agentId) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "현재 담당자와 동일한 사용자는 선택할 수 없습니다." });
         }
+        const autoSetAssignee = shouldAutoSetAssigneeOnDbAssignment(agent);
         const isBranchAdminSelfAssignment = user.role === "branch_admin" && agent.id === user.id && agent.role === "branch_admin";
-        const nextTeamId = isBranchAdminSelfAssignment ? null : agent?.teamId ?? null;
-        const nextSubBranchAdminId = isBranchAdminSelfAssignment ? null : agent?.subBranchAdminId ?? null;
+        const nextScope = nextAssignmentScopeForUser(agent);
+        const nextAgentId = autoSetAssignee || isBranchAdminSelfAssignment ? input.agentId : prevAgentId;
 
         // DB 배정 로그 분리 (역할 및 assignmentType 기반)
         const assignLogAction = isBranchAdminSelfAssignment
@@ -2901,37 +2970,48 @@ export const appRouter = router({
             previousTeamId: customer.assignedTeamId ?? null,
           },
           afterValue: {
-            newAgentId: input.agentId,
-            newSubBranchAdminId: nextSubBranchAdminId,
-            newTeamId: nextTeamId,
+            newAgentId: nextAgentId,
+            newSubBranchAdminId: nextScope.subBranchAdminId,
+            newTeamId: nextScope.teamId,
           },
           metadata: {
-            assignmentType: user.role === "branch_admin" ? "branch_to_agent" : user.role === "sub_branch_admin" ? "sub_branch_to_agent" : "team_to_agent",
+            assignmentType: assignmentTypeForActor(user.role),
             selfManagedByBranchAdmin: isBranchAdminSelfAssignment,
+            autoSetAssignee,
+            assignedDbToUserId: input.agentId,
+            targetUserRole: agent.role,
           },
         });
         await runDbTransaction(async (tx) => {
-          await assignCustomer(input.customerId, input.agentId, nextTeamId ?? undefined, nextSubBranchAdminId ?? undefined, tx);
-          await createAssignmentHistory({
-            customerId: input.customerId,
-            previousSubBranchAdminId: customer.subBranchAdminId ?? undefined,
-            newSubBranchAdminId: nextSubBranchAdminId ?? undefined,
-            previousTeamId: customer.assignedTeamId ?? undefined,
-            newTeamId: nextTeamId ?? undefined,
-            previousAgentId: prevAgentId ?? undefined,
-            newAgentId: input.agentId,
-            assignedBy: ctx.user.id,
-            assignmentType: user.role === "branch_admin" ? "branch_to_agent" : "sub_branch_to_agent",
-          }, tx);
+          const result = await assignCustomerDbWithOwnerPolicy({ customer, targetUser: agent, actor: ctx.user, tx });
           await log(ctx.user.id, assignLogAction, "customer", input.customerId, agentAssignmentDetails, tx);
           await log(ctx.user.id, "ASSIGNMENT_HISTORY_CREATED", "customer", input.customerId, undefined, tx);
           await log(ctx.user.id, "CUSTOMER_ASSIGNED", "customer", input.customerId, agentAssignmentDetails, tx);
+          if (result.autoSetAssignee && result.previousAgentId !== result.nextAgentId) {
+            await log(ctx.user.id, "CUSTOMER_ASSIGNEE_AUTO_SET_BY_DB_ASSIGNMENT", "customer", input.customerId, logDetails({
+              actor: ctx.user.id,
+              targetId: input.customerId,
+              targetType: "customer",
+              beforeValue: { previousAssigneeId: result.previousAgentId },
+              afterValue: { newAssigneeId: result.nextAgentId },
+              metadata: {
+                reason: "auto_member_assignment_on_db_assignment",
+                customerId: input.customerId,
+                assignedDbToUserId: input.agentId,
+                previousAssigneeId: result.previousAgentId,
+                newAssigneeId: result.nextAgentId,
+                targetUserRole: agent.role,
+              },
+            }), tx);
+          }
           await createNotification({ userId: input.agentId, type: "customer_assigned", title: "새 고객 배정", message: `${customer.name} 고객이 배정되었습니다.`, relatedType: "customer", relatedId: input.customerId, dueAt: new Date() }, tx);
         });
 
-        await createUncontactedReminder(input.customerId, input.agentId, new Date(), customer.name);
-        if (customer.birthDate) await createBirthdayReminder(input.customerId, input.agentId, new Date(customer.birthDate), customer.name);
-        await refreshLongUnmanagedReminder(input.customerId, input.agentId, new Date(), customer.name);
+        if (autoSetAssignee || isBranchAdminSelfAssignment) {
+          await createUncontactedReminder(input.customerId, input.agentId, new Date(), customer.name);
+          if (customer.birthDate) await createBirthdayReminder(input.customerId, input.agentId, new Date(customer.birthDate), customer.name);
+          await refreshLongUnmanagedReminder(input.customerId, input.agentId, new Date(), customer.name);
+        }
         return { success: true };
       }),
 
@@ -2986,6 +3066,83 @@ export const appRouter = router({
           }
         });
         return { success: true };
+      }),
+
+    bulkChangeAgent: teamLeaderOrAboveProcedure
+      .input(z.object({
+        customerIds: z.array(z.number()).min(1).max(CUSTOMER_BULK_ASSIGNEE_LIMIT),
+        newAgentId: z.number(),
+        reason: customerAssigneeChangeReasonSchema,
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const target = await verifyAgentTarget(ctx.user, input.newAgentId);
+        const isBranchAdminSelfAssignment = ctx.user.role === "branch_admin" && target.id === ctx.user.id && target.role === "branch_admin";
+        const nextTeamId = isBranchAdminSelfAssignment ? null : target.teamId ?? null;
+        const nextSubBranchAdminId = isBranchAdminSelfAssignment ? null : target.subBranchAdminId ?? null;
+        const uniqueCustomerIds = Array.from(new Set(input.customerIds));
+        const skipped: Array<{ customerId: number; reason: string }> = [];
+        let changedCount = 0;
+
+        await runDbTransaction(async (tx) => {
+          for (const customerId of uniqueCustomerIds) {
+            let existing: Awaited<ReturnType<typeof getCustomerById>>;
+            try {
+              existing = await verifyCustomerAccess(ctx.user, customerId);
+            } catch {
+              skipped.push({ customerId, reason: "OUT_OF_SCOPE" });
+              continue;
+            }
+            if (!existing || existing.isActive === false || (existing as any).deletedAt) {
+              skipped.push({ customerId, reason: "SOFT_DELETED_OR_INACTIVE" });
+              continue;
+            }
+            const prevAgentId = existing.agentId ?? null;
+            if (prevAgentId === input.newAgentId) {
+              skipped.push({ customerId, reason: "ALREADY_SAME_ASSIGNEE" });
+              continue;
+            }
+            await assignCustomer(customerId, input.newAgentId, isBranchAdminSelfAssignment ? undefined : nextTeamId ?? undefined, isBranchAdminSelfAssignment ? undefined : nextSubBranchAdminId ?? undefined, tx);
+            await createAssignmentHistory({
+              customerId,
+              previousSubBranchAdminId: existing.subBranchAdminId ?? undefined,
+              newSubBranchAdminId: isBranchAdminSelfAssignment ? undefined : nextSubBranchAdminId ?? undefined,
+              previousTeamId: existing.assignedTeamId ?? undefined,
+              newTeamId: isBranchAdminSelfAssignment ? undefined : nextTeamId ?? undefined,
+              previousAgentId: existing.agentId ?? undefined,
+              newAgentId: input.newAgentId,
+              assignedBy: ctx.user.id,
+              assignmentType: "reassignment",
+              assignmentReason: input.reason || "bulk_assignee_change",
+            }, tx);
+            await log(ctx.user.id, "CUSTOMER_ASSIGNEE_CHANGED_BY_BULK", "customer", customerId, logDetails({
+              actor: ctx.user.id,
+              targetId: customerId,
+              targetType: "customer",
+              beforeValue: { previousAssigneeId: prevAgentId },
+              afterValue: { newAssigneeId: input.newAgentId, newTeamId: nextTeamId, newSubBranchAdminId: nextSubBranchAdminId },
+              metadata: { reason: input.reason || "bulk_assignee_change" },
+            }), tx);
+            changedCount++;
+          }
+          await log(ctx.user.id, "CUSTOMER_ASSIGNEE_BULK_CHANGED", "customer", undefined, logDetails({
+            actor: ctx.user.id,
+            targetType: "customer",
+            metadata: {
+              requestedCount: uniqueCustomerIds.length,
+              changedCount,
+              skippedCount: skipped.length,
+              targetAssigneeId: input.newAgentId,
+              reason: input.reason || "bulk_assignee_change",
+            },
+          }), tx);
+        });
+
+        return {
+          requestedCount: uniqueCustomerIds.length,
+          changedCount,
+          skippedCount: skipped.length,
+          skipped,
+        };
       }),
 
     reclaim: branchAdminProcedure

@@ -1300,6 +1300,44 @@ describe("PR16 - branch_admin own scope and assignee handling", () => {
 
     await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.changeAgent({ customerId: 100, newAgentId: 1 })).rejects.toThrow();
   });
+
+  it("allows branch_admin to bulk change customer assignees and skips invalid rows", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 44, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2, name: "Target" } as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([]);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([]);
+    vi.spyOn(db, "getTeamById").mockResolvedValue({ id: 10, subBranchAdminId: 2 } as any);
+    vi.spyOn(db, "getCustomerById").mockImplementation(async (id: number) => ({
+      id,
+      name: `Customer ${id}`,
+      agentId: id === 101 ? 44 : 40,
+      assignedTeamId: 9,
+      subBranchAdminId: 2,
+      assignmentStatus: "assigned_to_agent",
+      isActive: id !== 102,
+      deletedAt: id === 102 ? new Date() : null,
+    }) as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
+    const historySpy = vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.bulkChangeAgent({
+      customerIds: [100, 101, 102],
+      newAgentId: 44,
+      reason: "운영 배분",
+    });
+
+    expect(result).toMatchObject({ requestedCount: 3, changedCount: 1, skippedCount: 2 });
+    expect(result.skipped.map((item) => item.reason)).toEqual(expect.arrayContaining(["ALREADY_SAME_ASSIGNEE", "SOFT_DELETED_OR_INACTIVE"]));
+    expect(assignSpy).toHaveBeenCalledWith(100, 44, 10, 2, tx);
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({ customerId: 100, previousAgentId: 40, newAgentId: 44, assignmentReason: "운영 배분" }), tx);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "CUSTOMER_ASSIGNEE_BULK_CHANGED" }), tx);
+  });
+
+  it("blocks member from bulk assignee assignment", async () => {
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.bulkChangeAgent({ customerIds: [100], newAgentId: 44 })).rejects.toThrow();
+  });
 });
 
 describe("RBAC - contract agent target validation", () => {
@@ -1407,6 +1445,7 @@ describe("customers assignment transaction flow", () => {
     } as any);
     vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
       if (id === 20) return { id, role: "sub_branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null } as any;
+      if (id === 23) return { id, role: "team_leader", accountStatus: "active", teamId: 5, subBranchAdminId: 20 } as any;
       if (id === 24) return { id, role: "member", accountStatus: "active", teamId: 5, subBranchAdminId: 20 } as any;
       if (id === 25) return { id, role: "member", accountStatus: "inactive", teamId: 5, subBranchAdminId: 20 } as any;
       if (id === 26) return { id, role: "member", accountStatus: "active", teamId: 6, subBranchAdminId: 21 } as any;
@@ -1435,6 +1474,30 @@ describe("customers assignment transaction flow", () => {
       assignmentType: "sub_branch_to_agent",
     }), tx);
     expect(db.createActivityLog).toHaveBeenCalledWith(expect.objectContaining({ action: "ASSIGNMENT_HISTORY_CREATED" }), tx);
+  });
+
+  it("does not auto-change assignee when DB is assigned to a team_leader", async () => {
+    mockAssignableCustomer();
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
+    const assignTeamSpy = vi.spyOn(db, "assignCustomerDbToTeam").mockResolvedValue(undefined);
+    const historySpy = vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createUncontactedReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createBirthdayReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "refreshLongUnmanagedReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 20 })).customers.assign({ customerId: 100, agentId: 23 });
+
+    expect(assignSpy).not.toHaveBeenCalled();
+    expect(assignTeamSpy).toHaveBeenCalledWith(100, 5, 20, tx);
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 100,
+      newAgentId: undefined,
+      newTeamId: 5,
+      newSubBranchAdminId: 20,
+    }), tx);
+    expect(reminderSpy).not.toHaveBeenCalled();
   });
 
   it("propagates assignment history failure from transaction", async () => {
