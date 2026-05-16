@@ -14,7 +14,7 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2, BellRing, CheckCircle2, AlertTriangle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 type ViewMode = "month" | "week" | "day";
@@ -43,20 +43,20 @@ const reminderOffsetLabels: Record<string, string> = {
   "1440": "1일 전",
 };
 
+function formatDateTimeLocal(value?: string | Date | null) {
+  return value ? format(new Date(value), "yyyy-MM-dd'T'HH:mm") : "";
+}
+
+function scheduleReminderOffset(schedule: any) {
+  return String(schedule?.reminderOffsetMinutes ?? 30);
+}
+
 function scheduleReminderText(schedule: any) {
-  const labels = [];
-  if (schedule.reminderOneHourBefore) labels.push("1시간 전");
-  if (schedule.reminderSameDay) labels.push("당일");
-  if (schedule.reminderDayBefore) labels.push("하루 전");
-  if (labels.length >= 3) return "알림 설정됨";
-  return labels.length ? labels.join(" · ") : "알림 없음";
+  return reminderOffsetLabels[scheduleReminderOffset(schedule)] ?? "30분 전";
 }
 
 function scheduleDefaultReminderOffset(schedule: any) {
-  if (schedule.reminderOneHourBefore) return "60";
-  if (schedule.reminderSameDay) return "0";
-  if (schedule.reminderDayBefore) return "1440";
-  return "-1";
+  return scheduleReminderOffset(schedule);
 }
 
 function ScheduleEmptyState({ title, description, onCreate }: { title: string; description: string; onCreate: () => void }) {
@@ -115,13 +115,13 @@ export default function Calendar() {
   const { data: users } = trpc.users.list.useQuery();
 
   const createMutation = trpc.schedules.create.useMutation({
-    onSuccess: () => { toast.success("일정이 저장되었습니다. 알림은 설정한 시간에 표시됩니다."); setShowModal(false); utils.schedules.list.invalidate(); },
+    onSuccess: () => { toast.success("일정이 저장되었습니다. 알림은 설정한 시간에 표시됩니다."); setShowModal(false); utils.schedules.list.invalidate(); utils.notifications.list.invalidate(); },
   });
   const deleteMutation = trpc.schedules.delete.useMutation({
-    onSuccess: () => { toast.success("일정이 삭제되었습니다."); setSelectedSchedule(null); utils.schedules.list.invalidate(); },
+    onSuccess: () => { toast.success("일정이 삭제되었습니다."); setSelectedSchedule(null); utils.schedules.list.invalidate(); utils.notifications.list.invalidate(); },
   });
   const updateMutation = trpc.schedules.update.useMutation({
-    onSuccess: () => { toast.success("일정이 수정되었습니다."); setSelectedSchedule(null); utils.schedules.list.invalidate(); },
+    onSuccess: () => { toast.success("일정이 수정되었습니다."); setSelectedSchedule(null); utils.schedules.list.invalidate(); utils.notifications.list.invalidate(); },
   });
 
   const getSchedulesForDay = (day: Date) =>
@@ -175,7 +175,7 @@ export default function Calendar() {
   }).sort((a,b)=>new Date(a.startTime).getTime()-new Date(b.startTime).getTime());
   const reminderSchedules = (schedules ?? []).filter((s) => {
     if (!["예정", "변경", "보류"].includes(s.status)) return false;
-    if (!(s.reminderDayBefore || s.reminderSameDay || s.reminderOneHourBefore)) return false;
+    if ((s.reminderOffsetMinutes ?? 30) < 0) return false;
     return new Date(s.startTime) >= today;
   });
   const selectedDay = selectedDate ?? currentDate;
@@ -544,6 +544,37 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
     startTime: defaultStart, endTime: "", memo: "", targetUserId: "self", reminderOffsetMinutes: "30",
   });
 
+  useEffect(() => {
+    if (!open) return;
+    setForm({
+      title: "",
+      type: "기타",
+      status: "예정",
+      startTime: defaultStart,
+      endTime: "",
+      memo: "",
+      targetUserId: "self",
+      reminderOffsetMinutes: "30",
+    });
+  }, [defaultStart, open]);
+
+  const handleSubmit = () => {
+    if (form.endTime && new Date(form.endTime).getTime() <= new Date(form.startTime).getTime()) {
+      toast.error("종료 시간은 시작 시간보다 늦어야 합니다.");
+      return;
+    }
+    onSubmit({
+      title: form.title,
+      type: form.type,
+      status: form.status,
+      startTime: form.startTime,
+      endTime: form.endTime || undefined,
+      memo: form.memo || undefined,
+      reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
+      targetUserId: form.targetUserId && form.targetUserId !== "self" ? Number(form.targetUserId) : undefined,
+    });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
@@ -599,13 +630,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading || !form.title} onClick={() => onSubmit({
-              title: form.title, type: form.type, status: form.status,
-              startTime: form.startTime, endTime: form.endTime || undefined,
-              memo: form.memo || undefined,
-              reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
-              targetUserId: form.targetUserId && form.targetUserId !== "self" ? Number(form.targetUserId) : undefined,
-            })}>
+            <Button size="sm" disabled={loading || !form.title || !form.startTime} onClick={handleSubmit}>
               {loading ? "저장 중..." : "저장"}
             </Button>
           </div>
@@ -621,7 +646,44 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({ category: "scheduleType" });
   const scheduleTypes = scheduleTypeOptions?.length ? scheduleTypeOptions.map((item) => item.value) : SCHEDULE_TYPES;
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState({ type: schedule.type, status: schedule.status, memo: schedule.memo ?? "", reminderOffsetMinutes: "" });
+  const [form, setForm] = useState({
+    title: schedule.title,
+    type: schedule.type,
+    status: schedule.status,
+    startTime: formatDateTimeLocal(schedule.startTime),
+    endTime: formatDateTimeLocal(schedule.endTime),
+    memo: schedule.memo ?? "",
+    reminderOffsetMinutes: scheduleDefaultReminderOffset(schedule),
+  });
+
+  useEffect(() => {
+    setEditing(false);
+    setForm({
+      title: schedule.title,
+      type: schedule.type,
+      status: schedule.status,
+      startTime: formatDateTimeLocal(schedule.startTime),
+      endTime: formatDateTimeLocal(schedule.endTime),
+      memo: schedule.memo ?? "",
+      reminderOffsetMinutes: scheduleDefaultReminderOffset(schedule),
+    });
+  }, [schedule]);
+
+  const handleUpdate = () => {
+    if (form.endTime && new Date(form.endTime).getTime() <= new Date(form.startTime).getTime()) {
+      toast.error("종료 시간은 시작 시간보다 늦어야 합니다.");
+      return;
+    }
+    onUpdate({
+      title: form.title,
+      type: form.type,
+      status: form.status,
+      startTime: form.startTime,
+      endTime: form.endTime || null,
+      memo: form.memo,
+      reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
+    });
+  };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
@@ -644,6 +706,10 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
           {editing ? (
             <>
               <div>
+                <Label className="text-xs">제목</Label>
+                <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" />
+              </div>
+              <div>
                 <Label className="text-xs">유형</Label>
                 <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
                   <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
@@ -657,9 +723,19 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
                   <SelectContent>{SCHEDULE_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">시작 시간</Label>
+                  <Input type="datetime-local" value={form.startTime} onChange={(e) => setForm({ ...form, startTime: e.target.value })} className="h-9 mt-1" />
+                </div>
+                <div>
+                  <Label className="text-xs">종료 시간</Label>
+                  <Input type="datetime-local" value={form.endTime} onChange={(e) => setForm({ ...form, endTime: e.target.value })} className="h-9 mt-1" />
+                </div>
+              </div>
               <div>
                 <Label className="text-xs">알림 시간</Label>
-                <Select value={form.reminderOffsetMinutes || scheduleDefaultReminderOffset(schedule)} onValueChange={(v) => setForm({ ...form, reminderOffsetMinutes: v })}>
+                <Select value={form.reminderOffsetMinutes} onValueChange={(v) => setForm({ ...form, reminderOffsetMinutes: v })}>
                   <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {Object.entries(reminderOffsetLabels).map(([value, label]) => (
@@ -672,12 +748,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
               <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
-                <Button size="sm" disabled={loading} onClick={() => onUpdate({
-                  type: form.type,
-                  status: form.status,
-                  memo: form.memo,
-                  ...(form.reminderOffsetMinutes ? { reminderOffsetMinutes: Number(form.reminderOffsetMinutes) } : {}),
-                })}>저장</Button>
+                <Button size="sm" disabled={loading || !form.title || !form.startTime} onClick={handleUpdate}>저장</Button>
               </div>
             </>
           ) : (

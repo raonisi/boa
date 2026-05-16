@@ -121,6 +121,125 @@ describe("RBAC - list null scope guards", () => {
   });
 });
 
+describe("Schedules - datetime and reminder persistence", () => {
+  const baseSchedule = (overrides: Partial<any> = {}) => ({
+    id: 77,
+    userId: 4,
+    teamId: null,
+    title: "보험 상담",
+    description: null,
+    type: "고객상담",
+    status: "예정",
+    startTime: new Date("2026-06-01T10:00:00.000Z"),
+    endTime: new Date("2026-06-01T11:00:00.000Z"),
+    completedAt: null,
+    memo: null,
+    reminderDayBefore: false,
+    reminderSameDay: false,
+    reminderOneHourBefore: true,
+    reminderOffsetMinutes: 60,
+    isActive: true,
+    deletedAt: null,
+    createdBy: 4,
+    createdAt: new Date("2026-05-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+    ...overrides,
+  });
+
+  it("persists reminderOffsetMinutes when creating schedules", async () => {
+    const startTime = new Date("2026-06-02T10:00:00.000Z");
+    vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule({ id: 88, title: "신규 일정", startTime, reminderOffsetMinutes: 120 })] as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const cancelTimingSpy = vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member")).schedules.create({
+      title: "신규 일정",
+      type: "고객상담",
+      startTime: startTime.toISOString(),
+      reminderOffsetMinutes: 120,
+    });
+
+    expect(db.createSchedule).toHaveBeenCalledWith(expect.objectContaining({
+      reminderOffsetMinutes: 120,
+      reminderDayBefore: false,
+      reminderSameDay: false,
+      reminderOneHourBefore: false,
+    }));
+    expect(cancelTimingSpy).toHaveBeenCalledWith(4, 88);
+    expect(reminderSpy).toHaveBeenCalledWith(88, 4, startTime, "신규 일정", 120);
+  });
+
+  it("updates start/end datetimes, persists reminderOffsetMinutes, and recalculates timing notifications", async () => {
+    const newStart = new Date("2026-06-03T09:30:00.000Z");
+    const newEnd = new Date("2026-06-03T10:30:00.000Z");
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const cancelTimingSpy = vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const cancelIncompleteSpy = vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    const incompleteSpy = vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member")).schedules.update({
+      id: 77,
+      startTime: newStart.toISOString(),
+      endTime: newEnd.toISOString(),
+      reminderOffsetMinutes: 30,
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith(77, expect.objectContaining({
+      startTime: newStart,
+      endTime: newEnd,
+      reminderOffsetMinutes: 30,
+      reminderDayBefore: false,
+      reminderSameDay: false,
+      reminderOneHourBefore: false,
+    }));
+    expect(cancelTimingSpy).toHaveBeenCalledWith(4, 77);
+    expect(reminderSpy).toHaveBeenCalledWith(77, 4, newStart, "보험 상담", 30);
+    expect(cancelIncompleteSpy).toHaveBeenCalledWith(4, 77);
+    expect(incompleteSpy).toHaveBeenCalledWith(77, 4, newEnd, "보험 상담");
+  });
+
+  it("rejects updates when endTime is not after startTime", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member")).schedules.update({
+      id: 77,
+      startTime: "2026-06-03T10:30:00.000Z",
+      endTime: "2026-06-03T10:00:00.000Z",
+    })).rejects.toThrow("종료 시간은 시작 시간보다 늦어야 합니다.");
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it("persists reminder disabled state and skips creating a new timing notification", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member")).schedules.update({
+      id: 77,
+      reminderOffsetMinutes: -1,
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith(77, expect.objectContaining({
+      reminderOffsetMinutes: -1,
+      reminderDayBefore: false,
+      reminderSameDay: false,
+      reminderOneHourBefore: false,
+    }));
+    expect(reminderSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("RBAC - settings", () => {
   it("blocks non-branch_admin from settings.list", async () => {
     await expect(appRouter.createCaller(createCtx("member")).settings.list({ category: "region" })).rejects.toThrow();

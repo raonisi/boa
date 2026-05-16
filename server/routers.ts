@@ -179,7 +179,6 @@ import {
   createReconsultReminder,
   createScheduleIncompleteReminder,
   createScheduleReminderByOffset,
-  createScheduleReminders,
   createUncontactedReminder,
   refreshLongUnmanagedReminder,
 } from "./notifications";
@@ -1010,6 +1009,28 @@ async function getAccessibleSchedules(user: { id: number; role: string; teamId: 
     return getSchedules({ userIds: await getHierarchyScopeUserIds(user) });
   }
   return getSchedules({ userId: user.id });
+}
+
+function parseScheduleDateTime(value: string, fieldName: string) {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: `${fieldName}이 올바르지 않습니다.` });
+  }
+  return parsed;
+}
+
+function assertScheduleEndAfterStart(startTime: Date, endTime?: Date | null) {
+  if (endTime && endTime.getTime() <= startTime.getTime()) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "종료 시간은 시작 시간보다 늦어야 합니다." });
+  }
+}
+
+function reminderFlagsFromOffset(reminderOffsetMinutes: number) {
+  return {
+    reminderDayBefore: reminderOffsetMinutes === 1440,
+    reminderSameDay: reminderOffsetMinutes === 0,
+    reminderOneHourBefore: reminderOffsetMinutes === 60,
+  };
 }
 
 async function getScopedDashboardData(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
@@ -4150,7 +4171,7 @@ export const appRouter = router({
         type: z.enum(["고객상담","재통화","계약예정","보장분석","해지방어","팀회의","교육","외근","휴무","기타"]),
         status: z.enum(["예정","완료","취소","변경","노쇼","보류"]).default("예정"),
         startTime: z.string(),
-        endTime: z.string().optional(),
+        endTime: z.string().nullable().optional(),
         memo: z.string().optional(),
         description: z.string().optional(),
         reminderDayBefore: z.boolean().default(true),
@@ -4166,10 +4187,24 @@ export const appRouter = router({
           await verifyTargetUserAccess(user, input.targetUserId);
           targetUserId = input.targetUserId;
         }
-        const startTimeDate = new Date(input.startTime);
-        const endTimeDate = input.endTime ? new Date(input.endTime) : undefined;
+        const startTimeDate = parseScheduleDateTime(input.startTime, "시작 시간");
+        const endTimeDate = input.endTime ? parseScheduleDateTime(input.endTime, "종료 시간") : undefined;
+        assertScheduleEndAfterStart(startTimeDate, endTimeDate);
+        const reminderFlags = reminderFlagsFromOffset(input.reminderOffsetMinutes);
 
-        await createSchedule({ userId: targetUserId, title: input.title, type: input.type, status: input.status, startTime: startTimeDate, endTime: endTimeDate, memo: input.memo, description: input.description, reminderDayBefore: input.reminderDayBefore, reminderSameDay: input.reminderSameDay, reminderOneHourBefore: input.reminderOneHourBefore, createdBy: ctx.user.id });
+        await createSchedule({
+          userId: targetUserId,
+          title: input.title,
+          type: input.type,
+          status: input.status,
+          startTime: startTimeDate,
+          endTime: endTimeDate,
+          memo: input.memo,
+          description: input.description,
+          reminderOffsetMinutes: input.reminderOffsetMinutes,
+          ...reminderFlags,
+          createdBy: ctx.user.id,
+        });
         await log(ctx.user.id, "SCHEDULE_CREATED", "schedule", undefined, `title=${input.title}`);
 
         const allSchedules = await getSchedules({ userId: targetUserId });
@@ -4178,8 +4213,6 @@ export const appRouter = router({
           await cancelScheduleTimingNotifications(targetUserId, newSchedule.id);
           if (input.reminderOffsetMinutes >= 0) {
             await createScheduleReminderByOffset(newSchedule.id, targetUserId, startTimeDate, input.title, input.reminderOffsetMinutes);
-          } else {
-            await createScheduleReminders(newSchedule.id, targetUserId, startTimeDate, input.title, input.reminderDayBefore, input.reminderSameDay, input.reminderOneHourBefore);
           }
           if (endTimeDate) await createScheduleIncompleteReminder(newSchedule.id, targetUserId, endTimeDate, input.title);
         }
@@ -4208,22 +4241,39 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "해당 일정에 접근 권한이 없습니다." });
 
         const actionLabel = status === "취소" ? "SCHEDULE_CANCELLED" : status === "완료" ? "SCHEDULE_COMPLETED" : "SCHEDULE_UPDATED";
+        const parsedStartTime = startTime !== undefined ? parseScheduleDateTime(startTime, "시작 시간") : undefined;
+        const parsedEndTime = endTime === undefined ? undefined : endTime === null || endTime === "" ? null : parseScheduleDateTime(endTime, "종료 시간");
+        const effectiveStartTime = parsedStartTime ?? existing.startTime;
+        const effectiveEndTime = parsedEndTime === undefined ? existing.endTime : parsedEndTime;
+        assertScheduleEndAfterStart(effectiveStartTime, effectiveEndTime);
+
+        const updateData: any = { ...rest };
+        if (status !== undefined) updateData.status = status;
+        if (parsedStartTime !== undefined) updateData.startTime = parsedStartTime;
+        if (parsedEndTime !== undefined) updateData.endTime = parsedEndTime;
+        if (reminderOffsetMinutes !== undefined) {
+          updateData.reminderOffsetMinutes = reminderOffsetMinutes;
+          Object.assign(updateData, reminderFlagsFromOffset(reminderOffsetMinutes));
+        }
 
         if (status === "완료") {
+          if (Object.keys(updateData).length) await updateSchedule(id, updateData);
           await completeSchedule(id);
           await cancelScheduleIncompleteNotification(existing.userId, id);
         } else if (status === "취소" || status === "노쇼") {
-          await updateSchedule(id, { status, startTime: startTime ? new Date(startTime) : undefined, endTime: endTime ? new Date(endTime) : undefined, ...rest });
+          await updateSchedule(id, updateData);
           await cancelScheduleIncompleteNotification(existing.userId, id);
         } else {
-          await updateSchedule(id, { status, startTime: startTime ? new Date(startTime) : undefined, endTime: endTime ? new Date(endTime) : undefined, ...rest });
+          await updateSchedule(id, updateData);
         }
         if (status !== "완료" && status !== "취소" && status !== "노쇼") {
           await cancelScheduleTimingNotifications(existing.userId, id);
-          const effectiveStartTime = startTime ? new Date(startTime) : existing.startTime;
-          if (reminderOffsetMinutes !== undefined && reminderOffsetMinutes >= 0) {
-            await createScheduleReminderByOffset(id, existing.userId, effectiveStartTime, rest.title ?? existing.title, reminderOffsetMinutes);
+          const effectiveReminderOffset = reminderOffsetMinutes ?? existing.reminderOffsetMinutes ?? 30;
+          if (effectiveReminderOffset >= 0) {
+            await createScheduleReminderByOffset(id, existing.userId, effectiveStartTime, rest.title ?? existing.title, effectiveReminderOffset);
           }
+          await cancelScheduleIncompleteNotification(existing.userId, id);
+          if (effectiveEndTime) await createScheduleIncompleteReminder(id, existing.userId, effectiveEndTime, rest.title ?? existing.title);
         }
         await log(ctx.user.id, actionLabel, "schedule", id);
         return { success: true };
