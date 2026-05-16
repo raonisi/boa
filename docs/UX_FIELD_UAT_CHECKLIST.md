@@ -3,6 +3,7 @@
 ## Scope
 - Web dashboard + notification center
 - Mobile home + mobile notification tab
+- Mobile three-touch task completion: see `docs/MOBILE_THREE_TOUCH_TASK_UX.md`
 - Customer detail quick actions
 - Priority rules: urgent -> today -> general
 - Unread-first sorting within each priority

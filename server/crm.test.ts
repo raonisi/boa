@@ -3205,6 +3205,128 @@ describe("followUps", () => {
   });
 });
 
+describe("PR4 mobile three-touch task completion APIs", () => {
+  const activeCustomer = {
+    id: 100,
+    name: "[TEST] Customer",
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    consultStatus: "미상담",
+    isActive: true,
+    deletedAt: null,
+  } as any;
+
+  it("lets a member complete own follow_up and blocks another member's follow_up", async () => {
+    const followUp = {
+      id: 900,
+      customerId: 100,
+      assignedAgentId: 4,
+      teamId: 10,
+      subBranchAdminId: 2,
+      status: "scheduled",
+      nextContactDate: new Date("2026-05-20T10:00:00.000Z"),
+      deletedAt: null,
+    } as any;
+    vi.spyOn(db, "getFollowUpById").mockResolvedValue(followUp);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    const updateSpy = vi.spyOn(db, "updateFollowUp").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.complete({ id: 900 })).resolves.toEqual({ success: true });
+    expect(updateSpy).toHaveBeenCalledWith(900, expect.objectContaining({ status: "completed", completedBy: 4 }));
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getFollowUpById").mockResolvedValue(followUp);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, agentId: 99 });
+    const blockedUpdateSpy = vi.spyOn(db, "updateFollowUp").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.complete({ id: 900 })).rejects.toThrow();
+    expect(blockedUpdateSpy).not.toHaveBeenCalled();
+  });
+
+  it("completes schedules through existing scoped update without recreating reminder notifications", async () => {
+    const schedule = {
+      id: 901,
+      userId: 4,
+      title: "[TEST] Mobile schedule",
+      type: "고객상담",
+      status: "예정",
+      startTime: new Date("2026-05-20T10:00:00.000Z"),
+      endTime: new Date("2026-05-20T11:00:00.000Z"),
+      isActive: true,
+      completedAt: null,
+      deletedAt: null,
+      reminderOffsetMinutes: 30,
+    } as any;
+    vi.spyOn(db, "getSchedules").mockResolvedValue([schedule]);
+    const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+    const completeSpy = vi.spyOn(db, "completeSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const cancelIncompleteSpy = vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+    const cancelTimingSpy = vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).schedules.update({ id: 901, status: "완료" })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalledWith(901, expect.objectContaining({ status: "완료" }));
+    expect(completeSpy).toHaveBeenCalledWith(901);
+    expect(cancelIncompleteSpy).toHaveBeenCalledWith(4, 901);
+    expect(cancelTimingSpy).not.toHaveBeenCalled();
+    expect(reminderSpy).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges notifications with existing read/status mutations and scoped access", async () => {
+    const notification = {
+      id: 902,
+      userId: 4,
+      type: "schedule_reminder",
+      title: "[TEST] Notification",
+      processStatus: "미확인",
+      isRead: false,
+    } as any;
+    vi.spyOn(db, "getNotificationById").mockResolvedValue(notification);
+    const statusSpy = vi.spyOn(db, "updateNotificationProcessStatus").mockResolvedValue(undefined);
+    const readSpy = vi.spyOn(db, "markNotificationRead").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).notifications.updateProcessStatus({ id: 902, processStatus: "확인" })).resolves.toEqual({ success: true });
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).notifications.markRead({ id: 902 })).resolves.toEqual({ success: true });
+
+    expect(statusSpy).toHaveBeenCalledWith(902, "확인");
+    expect(readSpy).toHaveBeenCalledWith(902);
+    expect(logSpy.mock.calls.map((call) => call[0].action)).toEqual(expect.arrayContaining(["NOTIFICATION_STATUS_CHANGED", "NOTIFICATION_READ"]));
+  });
+
+  it("updates consultation status through existing customer update with status history", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    const statusHistorySpy = vi.spyOn(db, "createStatusHistory").mockResolvedValue(undefined);
+    const updateSpy = vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.update({ id: 100, consultStatus: "통화완료" })).resolves.toEqual({ success: true });
+
+    expect(statusHistorySpy).toHaveBeenCalledWith(expect.objectContaining({ customerId: 100, previousStatus: "미상담", newStatus: "통화완료" }));
+    expect(updateSpy).toHaveBeenCalledWith(100, expect.objectContaining({ consultStatus: "통화완료" }));
+    expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "CUSTOMER_UPDATED", targetType: "customer", targetId: 100 }));
+    expect(logSpy.mock.calls[0]?.[0].details).not.toContain("010");
+  });
+
+  it("blocks inactive and resigned users from mobile quick-action mutations", async () => {
+    for (const accountStatus of ["inactive", "resigned"] as const) {
+      const caller = appRouter.createCaller(createCtx("member", { userId: 4, accountStatus }));
+
+      await expect(caller.followUps.complete({ id: 900 })).rejects.toThrow();
+      await expect(caller.followUps.postpone({ id: 900, nextContactDate: "2026-05-20T10:00:00.000Z" })).rejects.toThrow();
+      await expect(caller.followUps.cancel({ id: 900 })).rejects.toThrow();
+      await expect(caller.schedules.update({ id: 901, status: "완료" })).rejects.toThrow();
+      await expect(caller.notifications.markRead({ id: 902 })).rejects.toThrow();
+      await expect(caller.notifications.updateProcessStatus({ id: 902, processStatus: "확인" })).rejects.toThrow();
+      await expect(caller.customers.update({ id: 100, consultStatus: "통화완료" })).rejects.toThrow();
+    }
+  });
+});
+
 describe("delete request and deleted data lifecycle", () => {
   const activeContract = {
     id: 10,
