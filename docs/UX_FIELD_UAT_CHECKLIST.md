@@ -5,6 +5,7 @@
 - Mobile home + mobile notification tab
 - Mobile three-touch task completion: see `docs/MOBILE_THREE_TOUCH_TASK_UX.md`
 - Sales funnel and performance report: see `docs/SALES_FUNNEL_PERFORMANCE_REPORT.md`
+- New roadmap PR6 operation risk center: see `docs/OPERATION_RISK_CENTER.md`
 - Customer detail quick actions
 - Priority rules: urgent -> today -> general
 - Unread-first sorting within each priority
@@ -95,6 +96,53 @@
 3. team_leader: own team/member scope only; other team blocked.
 4. member: own report only; no team/all ranking.
 5. inactive/resigned: access blocked.
+
+## PR6 Operation Risk Center UAT Steps
+
+This PR6 means the new roadmap "Operation Risk Center", not the older mobile quick-work PR6. It is also separate from PR5 `/analytics` sales funnel reports and PR19-4 notification preference work.
+
+### Desktop
+1. Open `/operation-risk` as branch_admin.
+2. Verify the risk grade, risk score, data download, deletion/restore, account, handoff, push, and unresolved-work cards render.
+3. Change the period filter:
+   - today,
+   - last 7 days,
+   - last 30 days,
+   - this month,
+   - custom range.
+4. Click each card action and confirm it routes to the expected operational page:
+   - activity logs,
+   - deleted data,
+   - user management,
+   - user handoff,
+   - push operations,
+   - notifications.
+5. Confirm recent high-risk logs show operator-safe summaries, not raw JSON.
+6. Confirm token values, phone numbers, customer memo bodies, illness details, product names, and premium details are not displayed.
+
+### Mobile Web
+1. Open `/operation-risk` in a narrow viewport.
+2. Confirm risk cards stack vertically without horizontal scroll.
+3. Confirm long action names, team/user labels, and empty states do not break the layout.
+4. Confirm branch_admin can navigate from the mobile more menu to "운영 리스크".
+
+### Android APK
+1. Open the Android internal build and navigate to `/operation-risk`.
+2. Confirm WebView route access, card scrolling, and action buttons are stable.
+3. Confirm no APK/AAB/JKS/keystore/google-services.json/local.properties files are included in the PR.
+
+### Role Accounts
+1. branch_admin: `/operation-risk` loads.
+2. sub_branch_admin: direct URL/API access blocked.
+3. team_leader: direct URL/API access blocked.
+4. member: direct URL/API access blocked.
+5. inactive/resigned: access blocked.
+
+### Regression
+1. `/analytics` remains sales funnel/performance only.
+2. `/admin-audit`, `/logs`, `/deleted-data`, `/users/handoff`, and `/push-notifications` still load.
+3. No download/export feature is added by PR6.
+4. No automatic account status, role, assignee, handoff, deletion, or push sending policy change occurs.
 
 ## Role Boundary UAT (Safety)
 - branch_admin: full visibility in allowed pages.
