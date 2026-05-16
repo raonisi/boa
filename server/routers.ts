@@ -4226,7 +4226,7 @@ export const appRouter = router({
         type: z.enum(["고객상담","재통화","계약예정","보장분석","해지방어","팀회의","교육","외근","휴무","기타"]).optional(),
         status: z.enum(["예정","완료","취소","변경","노쇼","보류"]).optional(),
         startTime: z.string().optional(),
-        endTime: z.string().optional(),
+        endTime: z.string().nullable().optional(),
         memo: z.string().optional(),
         reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).optional(),
       }))

@@ -238,6 +238,34 @@ describe("Schedules - datetime and reminder persistence", () => {
     }));
     expect(reminderSpy).not.toHaveBeenCalled();
   });
+
+  it("allows clearing optional endTime while saving reminderOffsetMinutes", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    const incompleteSpy = vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member")).schedules.update({
+      id: 77,
+      title: "종료 시간 없는 일정",
+      endTime: null,
+      reminderOffsetMinutes: 180,
+    });
+
+    expect(updateSpy).toHaveBeenCalledWith(77, expect.objectContaining({
+      title: "종료 시간 없는 일정",
+      endTime: null,
+      reminderOffsetMinutes: 180,
+      reminderDayBefore: false,
+      reminderSameDay: false,
+      reminderOneHourBefore: false,
+    }));
+    expect(reminderSpy).toHaveBeenCalledWith(77, 4, baseSchedule().startTime, "종료 시간 없는 일정", 180);
+    expect(incompleteSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("RBAC - settings", () => {
