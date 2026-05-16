@@ -201,11 +201,12 @@ describe("seed-backed RBAC integration", () => {
     setupSeedDb();
     vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
     const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
+    const assignTeamSpy = vi.spyOn(db, "assignCustomerDbToTeam").mockResolvedValue(undefined);
     vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
     vi.spyOn(db, "createNotification").mockResolvedValue(undefined);
 
     await appRouter.createCaller(ctx(21)).customers.assign({ customerId: 1002, agentId: 31 });
-    expect(assignSpy).toHaveBeenCalledWith(1002, 31, 101, 21, {});
+    expect(assignTeamSpy).toHaveBeenCalledWith(1002, 101, 21, {});
 
     await appRouter.createCaller(ctx(21)).customers.assign({ customerId: 1002, agentId: 41 });
     expect(assignSpy).toHaveBeenCalledWith(1002, 41, 101, 21, {});
