@@ -2925,6 +2925,30 @@ describe("PR12 recommendations", () => {
     expect(JSON.stringify(result)).not.toMatch(/무조건|반드시 가입|지금 안 하면|큰일/);
   });
 
+  it("does not mark a newly assigned old customer as long unmanaged before the assignment grace period", async () => {
+    const newlyAssignedCustomer = {
+      ...recommendedCustomer,
+      consultStatus: "미상담",
+      priority: "unclassified",
+      customerTags: null,
+      nextAction: null,
+      createdAt: new Date("2025-01-01T00:00:00.000Z"),
+      assignedAt: new Date("2026-05-13T08:00:00.000Z"),
+    };
+    vi.spyOn(db, "getCustomers").mockResolvedValue([newlyAssignedCustomer] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([]);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([]);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({ items: [], totalCount: 0, hasMore: false } as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue([]);
+    vi.spyOn(db, "getConsultationsByCustomer").mockResolvedValue([]);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(newlyAssignedCustomer as any);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).recommendations.customerContactReasons({ customerId: 100 });
+
+    expect(result.warnings.map((warning) => warning.warningType)).not.toContain("long_unmanaged");
+    expect(result.reasons.map((reason) => reason.reasonType)).not.toContain("long_unmanaged");
+  });
+
   it("does not recommend soft deleted customers", async () => {
     mockRecommendationData([{ ...recommendedCustomer, isActive: false, deletedAt: new Date() }]);
     const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).recommendations.priorityContacts({ date: baseDate });

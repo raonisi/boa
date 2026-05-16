@@ -63,6 +63,13 @@ function formatDate(value?: string | Date | null) {
   return value ? new Date(value).toLocaleDateString("ko-KR") : "-";
 }
 
+function daysSince(value?: string | Date | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
+}
+
 function buildCustomerAction({
   customer,
   latestConsult,
@@ -415,7 +422,12 @@ export default function CustomerDetail({ id }: { id: number }) {
     .slice()
     .sort((a: any, b: any) => new Date(a.nextContactDate).getTime() - new Date(b.nextContactDate).getTime())[0];
   const latestConsultDate = latestConsult?.consultationDate ?? latestConsult?.createdAt ?? latestConsult?.updatedAt;
-  const isLongUnmanaged = !latestConsultDate || Date.now() - new Date(latestConsultDate).getTime() > 90 * 24 * 60 * 60 * 1000;
+  const managementStartDate = customer.assignedAt ?? customer.createdAt;
+  const daysFromManagementStart = daysSince(managementStartDate);
+  const daysFromLatestConsult = daysSince(latestConsultDate);
+  const isLongUnmanaged = latestConsultDate
+    ? (daysFromLatestConsult ?? 0) >= 90
+    : (daysFromManagementStart ?? 0) >= 90;
   const recommendedAction = buildCustomerAction({
     customer,
     latestConsult,
