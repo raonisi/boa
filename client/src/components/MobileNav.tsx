@@ -50,7 +50,7 @@ const primaryItems: MobileMenuItem[] = [
 ];
 
 const moreItems: MobileMenuItem[] = [
-  { icon: BarChart2, label: "영업 분석", path: "/analytics", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+  { icon: BarChart2, label: "영업 분석", path: "/analytics" },
   { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
   { icon: BellRing, label: "앱 알림 설정", path: "/notification-preferences" },
   { icon: FileText, label: "계약관리", path: "/contracts" },

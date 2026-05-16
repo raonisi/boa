@@ -78,7 +78,7 @@ const navGroups: NavGroup[] = [
     label: "핵심 업무",
     items: [
       { icon: Home, label: "대시보드", path: "/" },
-      { icon: BarChart2, label: "영업 분석", path: "/analytics", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+      { icon: BarChart2, label: "영업 분석", path: "/analytics" },
       { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
     ],
   },

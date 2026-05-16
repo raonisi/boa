@@ -121,9 +121,7 @@ function Router() {
       </Route>
       <Route path="/analytics">
         <AuthGuard>
-          <ManagerGuard>
-            <SalesFunnelAnalytics />
-          </ManagerGuard>
+          <SalesFunnelAnalytics />
         </AuthGuard>
       </Route>
       <Route path="/customers">
