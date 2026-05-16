@@ -1350,6 +1350,488 @@ function goalItemForScope(items: any[], scope: { targetUserId?: number; teamId?:
   return items.find((item) => item.goal.targetType === "branch") ?? items[0];
 }
 
+const salesReportInputSchema = z.object({
+  period: z.enum(["today", "last7", "month", "lastMonth", "custom"]).default("month"),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  organizationType: z.enum(["all", "sub_branch", "team", "user"]).default("all"),
+  subBranchAdminId: z.number().nullable().optional(),
+  teamId: z.number().nullable().optional(),
+  userId: z.number().nullable().optional(),
+  scope: z.enum(["all", "mine"]).default("all"),
+  performanceBasis: z.enum(["new_contract", "monthly_premium"]).default("monthly_premium"),
+});
+
+type SalesReportInput = z.infer<typeof salesReportInputSchema>;
+
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+function salesReportKstParts(date: Date) {
+  const shifted = new Date(date.getTime() + KST_OFFSET_MS);
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  };
+}
+
+function salesReportParseKstDateParts(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (match) {
+    return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return salesReportKstParts(parsed);
+}
+
+function salesReportKstDayStart(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month - 1, day, -9, 0, 0, 0));
+}
+
+function salesReportKstDayEnd(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month - 1, day + 1, -9, 0, 0, -1));
+}
+
+function getSalesReportDateRange(input: SalesReportInput) {
+  const now = new Date();
+  if (input.period === "custom") {
+    const dateFrom = input.dateFrom ? salesReportParseKstDateParts(input.dateFrom) : null;
+    const dateTo = input.dateTo ? salesReportParseKstDateParts(input.dateTo) : null;
+    if (!dateFrom || !dateTo) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "기간이 올바르지 않습니다." });
+    }
+    return {
+      dateFrom: salesReportKstDayStart(dateFrom.year, dateFrom.month, dateFrom.day),
+      dateTo: salesReportKstDayEnd(dateTo.year, dateTo.month, dateTo.day),
+      type: input.period,
+    };
+  }
+  const today = salesReportKstParts(now);
+  if (input.period === "today") {
+    return {
+      dateFrom: salesReportKstDayStart(today.year, today.month, today.day),
+      dateTo: salesReportKstDayEnd(today.year, today.month, today.day),
+      type: input.period,
+    };
+  }
+  if (input.period === "last7") {
+    return {
+      dateFrom: salesReportKstDayStart(today.year, today.month, today.day - 6),
+      dateTo: salesReportKstDayEnd(today.year, today.month, today.day),
+      type: input.period,
+    };
+  }
+  if (input.period === "lastMonth") {
+    return {
+      dateFrom: salesReportKstDayStart(today.year, today.month - 1, 1),
+      dateTo: salesReportKstDayEnd(today.year, today.month, 0),
+      type: input.period,
+    };
+  }
+  return {
+    dateFrom: salesReportKstDayStart(today.year, today.month, 1),
+    dateTo: salesReportKstDayEnd(today.year, today.month + 1, 0),
+    type: input.period,
+  };
+}
+
+function safeReportRate(numerator: number, denominator: number) {
+  if (!denominator || denominator <= 0) return 0;
+  const value = (numerator / denominator) * 100;
+  return Number(value.toFixed(1));
+}
+
+function isSalesReportContractTarget(contract: any) {
+  const contractStatus = String(contract.contractStatus ?? "");
+  const paymentStatus = String(contract.paymentStatus ?? "");
+  return (
+    contract.isActive !== false &&
+    !contract.deletedAt &&
+    !contractStatus.includes("철회") &&
+    !contractStatus.includes("해지") &&
+    !paymentStatus.includes("실효") &&
+    !paymentStatus.includes("해지")
+  );
+}
+
+function isSalesReportScheduleCompleted(schedule: any) {
+  const status = String(schedule.status ?? "");
+  return status === "completed" || status.includes("완료") || Boolean(schedule.completedAt);
+}
+
+function isUnconsultedCustomer(customer: any) {
+  const status = String(customer.consultStatus ?? "");
+  return !status || status.includes("미상담");
+}
+
+async function resolveSalesReportScope(
+  user: { id: number; role: string; teamId: number | null; subBranchAdminId?: number | null; accountStatus: string },
+  input: SalesReportInput
+) {
+  const [allUsersRaw, allTeamsRaw] = await Promise.all([getAllUsers(), getAllTeams()]);
+  const allUsers = allUsersRaw as any[];
+  const allTeams = allTeamsRaw as any[];
+  const activeUsers = allUsers.filter((item) => item.accountStatus === "active");
+  const activeUserIds = new Set(activeUsers.map((item) => item.id));
+  const hierarchyIds = user.role === "branch_admin"
+    ? activeUsers.map((item) => item.id)
+    : ((await getHierarchyScopeUserIds(user)) ?? [user.id]).filter((id) => activeUserIds.has(id));
+
+  if (user.role === "member") {
+    if (input.scope === "all" && input.organizationType === "user" && input.userId != null && input.userId !== user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "본인 리포트만 조회할 수 있습니다." });
+    }
+    if (input.organizationType !== "all" && !(input.organizationType === "user" && (input.userId == null || input.userId === user.id))) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "본인 리포트만 조회할 수 있습니다." });
+    }
+    return {
+      userIds: [user.id],
+      teamId: null as number | null,
+      subBranchAdminId: null as number | null,
+      targetUserId: user.id,
+      label: "내 리포트",
+      canViewRanking: false,
+      includeAllCustomers: false,
+      activeUsers,
+      activeTeams: allTeams.filter((team) => team.isActive !== false && !team.deletedAt),
+    };
+  }
+
+  if (input.scope === "mine") {
+    return {
+      userIds: [user.id],
+      teamId: null as number | null,
+      subBranchAdminId: null as number | null,
+      targetUserId: user.id,
+      label: "내 DB",
+      canViewRanking: false,
+      includeAllCustomers: false,
+      activeUsers,
+      activeTeams: allTeams.filter((team) => team.isActive !== false && !team.deletedAt),
+    };
+  }
+
+  if (input.organizationType === "user" && input.userId != null) {
+    const target = await verifyTargetUserAccess(user, input.userId);
+    if (!hierarchyIds.includes(target.id)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "조회 범위 밖 사용자입니다." });
+    }
+    return {
+      userIds: [target.id],
+      teamId: target.teamId ?? null,
+      subBranchAdminId: target.subBranchAdminId ?? null,
+      targetUserId: target.id,
+      label: target.name ?? `사용자 #${target.id}`,
+      canViewRanking: false,
+      includeAllCustomers: false,
+      activeUsers,
+      activeTeams: allTeams.filter((team) => team.isActive !== false && !team.deletedAt),
+    };
+  }
+
+  if (input.organizationType === "team" && input.teamId != null) {
+    const team = await verifyTeamFilterAccess(user, input.teamId);
+    const teamMembers = (await getUsersByTeamId(input.teamId)).filter((item: any) => item.accountStatus === "active");
+    const userIds = teamMembers.map((item: any) => item.id).filter((id: number) => hierarchyIds.includes(id));
+    if (user.role !== "branch_admin" && userIds.length === 0) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "조회 범위 밖 팀입니다." });
+    }
+    return {
+      userIds,
+      teamId: input.teamId,
+      subBranchAdminId: (team as any).subBranchAdminId ?? null,
+      targetUserId: null as number | null,
+      label: (team as any).name ?? `팀 #${input.teamId}`,
+      canViewRanking: userIds.length > 1,
+      includeAllCustomers: false,
+      activeUsers,
+      activeTeams: allTeams.filter((item) => item.isActive !== false && !item.deletedAt),
+    };
+  }
+
+  if (input.organizationType === "sub_branch") {
+    const subBranchAdminId = user.role === "sub_branch_admin" ? user.id : input.subBranchAdminId;
+    if (!subBranchAdminId) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "부지점 범위를 선택하세요." });
+    }
+    if (user.role !== "branch_admin" && subBranchAdminId !== user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "조회 범위 밖 부지점입니다." });
+    }
+    const target = await getUserById(subBranchAdminId);
+    if (!target || target.accountStatus !== "active" || target.role !== "sub_branch_admin") {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "조회할 수 없는 부지점입니다." });
+    }
+    const ids = descendantUserIdsFrom(subBranchAdminId, ensureOrgUsers(activeUsers as OrgUser[], user, target as OrgUser), allTeams as OrgTeam[], true)
+      .filter((id) => hierarchyIds.includes(id));
+    return {
+      userIds: ids,
+      teamId: null as number | null,
+      subBranchAdminId,
+      targetUserId: null as number | null,
+      label: target.name ?? `부지점 #${subBranchAdminId}`,
+      canViewRanking: ids.length > 1,
+      includeAllCustomers: false,
+      activeUsers,
+      activeTeams: allTeams.filter((team) => team.isActive !== false && !team.deletedAt),
+    };
+  }
+
+  const userIds = user.role === "branch_admin" ? activeUsers.map((item) => item.id) : hierarchyIds;
+  return {
+    userIds,
+    teamId: null as number | null,
+    subBranchAdminId: user.role === "sub_branch_admin" ? user.id : null,
+    targetUserId: null as number | null,
+    label: user.role === "branch_admin" ? "전체 조직" : "내 산하 조직",
+    canViewRanking: user.role !== "member" && userIds.length > 1,
+    includeAllCustomers: user.role === "branch_admin",
+    activeUsers,
+    activeTeams: allTeams.filter((team) => team.isActive !== false && !team.deletedAt),
+  };
+}
+
+function filterSalesReportRows<T extends Record<string, any>>(
+  rows: T[],
+  scope: { userIds: number[]; teamId: number | null; subBranchAdminId: number | null; includeAllCustomers: boolean },
+  ownerField: "agentId" | "assignedAgentId" | "userId",
+  includeStructuralScope = false
+) {
+  if (scope.includeAllCustomers) return rows;
+  const userIds = new Set(scope.userIds);
+  return rows.filter((row) => {
+    const ownerId = row[ownerField];
+    if (typeof ownerId === "number" && userIds.has(ownerId)) return true;
+    if (includeStructuralScope && scope.teamId != null && row.assignedTeamId === scope.teamId) return true;
+    if (includeStructuralScope && scope.teamId != null && row.teamId === scope.teamId) return true;
+    if (includeStructuralScope && scope.subBranchAdminId != null && row.subBranchAdminId === scope.subBranchAdminId) return true;
+    return false;
+  });
+}
+
+async function buildSalesReport(
+  user: { id: number; role: string; teamId: number | null; subBranchAdminId?: number | null; accountStatus: string },
+  rawInput?: Partial<SalesReportInput>
+) {
+  const input = salesReportInputSchema.parse(rawInput ?? {});
+  const range = getSalesReportDateRange(input);
+  const scope = await resolveSalesReportScope(user, input);
+  const scoped = await getScopedDashboardData(user);
+  const followUpScope = await getFollowUpScope(user);
+  const allFollowUps = await getFollowUps({ ...followUpScope, statuses: ["scheduled", "postponed", "completed", "cancelled"] });
+  const activeCustomers = filterSalesReportRows(
+    scoped.customerList.filter((customer: any) => customer.isActive !== false && !customer.deletedAt),
+    scope,
+    "agentId",
+    true
+  );
+  const activeContracts = filterSalesReportRows(
+    scoped.contractList.filter(isSalesReportContractTarget),
+    scope,
+    "agentId"
+  );
+  const followUps = filterSalesReportRows(
+    allFollowUps.filter((followUp: any) => !followUp.deletedAt),
+    scope,
+    "assignedAgentId",
+    true
+  );
+  const schedules = filterSalesReportRows(
+    scoped.scheduleList.filter((schedule: any) => schedule.isActive !== false && !schedule.deletedAt),
+    scope,
+    "userId",
+    true
+  );
+
+  const consultationEntries = await Promise.all(activeCustomers.map(async (customer: any) => ({
+    customer,
+    consultations: (await getConsultationsByCustomer(customer.id)).filter((consultation: any) => consultation.isActive !== false && !consultation.deletedAt),
+  })));
+  const allConsultations = consultationEntries.flatMap((entry) =>
+    entry.consultations.map((consultation: any) => ({ ...consultation, customerId: entry.customer.id, customerAgentId: entry.customer.agentId }))
+  );
+  const consultationsInPeriod = allConsultations.filter((consultation) => isDateInRange(consultation.createdAt, range.dateFrom, range.dateTo));
+  const consultedCustomerIds = new Set(allConsultations.map((consultation) => consultation.customerId));
+  const consultedCustomers = activeCustomers.filter((customer: any) => !isUnconsultedCustomer(customer) || consultedCustomerIds.has(customer.id));
+  const unconsultedCustomers = activeCustomers.filter((customer: any) => !consultedCustomers.some((item: any) => item.id === customer.id));
+  const followUpsCreated = followUps.filter((followUp: any) => isDateInRange(getFollowUpCreatedValue(followUp), range.dateFrom, range.dateTo));
+  const followUpsScheduled = followUps.filter((followUp: any) => isOpenFollowUpStatus(followUp.status) && isDateInRange(followUp.nextContactDate, range.dateFrom, range.dateTo));
+  const followUpsCompleted = followUps.filter((followUp: any) => followUp.status === "completed" && isDateInRange(getFollowUpCompletedValue(followUp), range.dateFrom, range.dateTo));
+  const pendingFollowUps = followUps.filter((followUp: any) => isOpenFollowUpStatus(followUp.status));
+  const schedulesCompleted = schedules.filter((schedule: any) => isSalesReportScheduleCompleted(schedule) && isDateInRange(schedule.completedAt ?? schedule.startTime, range.dateFrom, range.dateTo));
+  const contractsInPeriod = activeContracts.filter((contract: any) => isDateInRange(getContractDateValue(contract), range.dateFrom, range.dateTo));
+  const monthlyPremiumTotal = contractsInPeriod.reduce((sum: number, contract: any) => sum + Number(contract.monthlyPremium ?? 0), 0);
+  const longUnmanagedCustomerCount = activeCustomers.filter((customer: any) => {
+    const latestConsultationTime = allConsultations
+      .filter((consultation) => consultation.customerId === customer.id)
+      .map((consultation) => new Date(consultation.createdAt).getTime())
+      .filter((time) => !Number.isNaN(time))
+      .sort((a, b) => b - a)[0];
+    if (!latestConsultationTime) return daysBetween(customerManagementStartDate(customer), range.dateTo) >= 90;
+    return daysBetween(new Date(latestConsultationTime), range.dateTo) >= 90;
+  }).length;
+
+  const dbCount = activeCustomers.length;
+  const consultedCount = consultedCustomers.length;
+  const contractCustomerIds = new Set(contractsInPeriod.map((contract: any) => contract.customerId));
+  const contractedCustomerCount = contractCustomerIds.size;
+  const dbToConsultRate = safeReportRate(consultedCount, dbCount);
+  const consultToContractRate = safeReportRate(contractedCustomerCount, consultedCount);
+  const followUpCompletionRate = safeReportRate(followUpsCompleted.length, followUpsCreated.length || followUpsScheduled.length);
+  const followUpCompleteToContractRate = safeReportRate(contractedCustomerCount, followUpsCompleted.length);
+
+  const goalDashboard = await getPerformanceGoalDashboard(user as any, range.dateTo.getFullYear(), range.dateTo.getMonth() + 1);
+  const goalItem = goalItemForScope(goalDashboard.items ?? [], {
+    targetUserId: scope.targetUserId ?? undefined,
+    teamId: scope.teamId ?? undefined,
+    subBranchAdminId: scope.subBranchAdminId ?? undefined,
+  });
+  const goal = goalItem?.goal ?? null;
+  const monthlyPremiumGoal = Number(goal?.monthlyPremiumGoal ?? 0);
+  const contractCountGoal = Number(goal?.contractCountGoal ?? 0);
+  const goalAchievementRate = input.performanceBasis === "new_contract"
+    ? safeReportRate(contractsInPeriod.length, contractCountGoal)
+    : safeReportRate(monthlyPremiumTotal, monthlyPremiumGoal);
+
+  const ranking = scope.canViewRanking
+    ? scope.activeUsers
+        .filter((item: any) => item.accountStatus === "active" && item.role !== "branch_admin" && scope.userIds.includes(item.id))
+        .map((member: any) => {
+          const memberCustomers = activeCustomers.filter((customer: any) => customer.agentId === member.id);
+          const memberCustomerIds = new Set(memberCustomers.map((customer: any) => customer.id));
+          const memberConsultations = consultationsInPeriod.filter((consultation) => memberCustomerIds.has(consultation.customerId) || consultation.agentId === member.id);
+          const memberContracts = contractsInPeriod.filter((contract: any) => contract.agentId === member.id);
+          const memberFollowUpsCreated = followUpsCreated.filter((followUp: any) => followUp.assignedAgentId === member.id);
+          const memberFollowUpsCompleted = followUpsCompleted.filter((followUp: any) => followUp.assignedAgentId === member.id);
+          const memberPremium = memberContracts.reduce((sum: number, contract: any) => sum + Number(contract.monthlyPremium ?? 0), 0);
+          const memberConsultRate = safeReportRate(memberConsultations.length, memberCustomers.length);
+          const memberContractRate = safeReportRate(memberContracts.length, memberConsultations.length);
+          const memberFollowUpRate = safeReportRate(memberFollowUpsCompleted.length, memberFollowUpsCreated.length);
+          const improvementAreas = [
+            memberConsultRate < 40 && memberCustomers.length > 0 ? "DB는 많지만 상담 진행률이 낮음" : null,
+            memberContractRate < 20 && memberConsultations.length > 0 ? "상담 수 대비 계약 전환율이 낮음" : null,
+            memberFollowUpRate < 60 && memberFollowUpsCreated.length > 0 ? "후속관리 완료율 개선 필요" : null,
+            pendingFollowUps.filter((followUp: any) => followUp.assignedAgentId === member.id).length > 0 ? "미처리 후속관리 확인 필요" : null,
+          ].filter(Boolean) as string[];
+          return {
+            userId: member.id,
+            name: member.name ?? `사용자 #${member.id}`,
+            role: member.role,
+            teamId: member.teamId ?? null,
+            newContractCount: memberContracts.length,
+            monthlyPremiumTotal: memberPremium,
+            consultationCount: memberConsultations.length,
+            followUpCompletionRate: memberFollowUpRate,
+            consultToContractRate: memberContractRate,
+            pendingFollowUpCount: pendingFollowUps.filter((followUp: any) => followUp.assignedAgentId === member.id).length,
+            improvementAreas,
+          };
+        })
+        .sort((a, b) => input.performanceBasis === "new_contract"
+          ? b.newContractCount - a.newContractCount
+          : b.monthlyPremiumTotal - a.monthlyPremiumTotal)
+    : [];
+
+  const bottleneckCandidates = [
+    {
+      key: "db_to_consult",
+      rate: dbToConsultRate,
+      title: "상담 전환율이 낮습니다.",
+      priority: "DB는 충분하지만 상담으로 이어지는 비율을 먼저 확인하세요.",
+      action: "오늘 우선 연락할 고객과 미상담 고객을 확인하세요.",
+      customerSegment: "미상담 고객",
+    },
+    {
+      key: "follow_up_completion",
+      rate: followUpCompletionRate,
+      title: "후속관리 완료율이 낮습니다.",
+      priority: "후속관리 예정이 완료로 이어지는 흐름이 약합니다.",
+      action: "미처리 후속관리와 연기된 후속관리를 먼저 처리하세요.",
+      customerSegment: "미처리 후속관리 고객",
+    },
+    {
+      key: "consult_to_contract",
+      rate: consultToContractRate,
+      title: "상담 대비 계약 전환율이 낮습니다.",
+      priority: "상담은 진행되지만 계약으로 이어지는 구간이 병목입니다.",
+      action: "설계중/상담예정 고객의 다음 제안 일정을 확인하세요.",
+      customerSegment: "상담 진행 고객",
+    },
+    ...(goal ? [{
+      key: "goal_progress",
+      rate: goalAchievementRate,
+      title: "월납보험료 실적이 목표 대비 부족합니다.",
+      priority: "목표 대비 부족분을 기준으로 이번 달 행동량을 조정해야 합니다.",
+      action: "월납보험료 가능성이 높은 고객군과 계약 제안 대상을 확인하세요.",
+      customerSegment: "계약 제안 대상",
+    }] : []),
+    ...(longUnmanagedCustomerCount > 0 ? [{
+      key: "long_unmanaged",
+      rate: safeReportRate(dbCount - longUnmanagedCustomerCount, dbCount),
+      title: "장기 미관리 고객 확인이 필요합니다.",
+      priority: "관리 공백 고객이 쌓이면 상담 명분이 약해질 수 있습니다.",
+      action: "장기 미관리 고객에게 기존 보장 기준 점검 연락을 진행하세요.",
+      customerSegment: "장기 미관리 고객",
+    }] : []),
+  ];
+  const bottleneck = bottleneckCandidates.sort((a, b) => a.rate - b.rate)[0] ?? {
+    key: "stable",
+    rate: 100,
+    title: "현재 큰 병목은 보이지 않습니다.",
+    priority: "상담, 후속관리, 계약 흐름이 비교적 안정적입니다.",
+    action: "오늘 우선 연락할 고객을 확인하고 현재 리듬을 유지하세요.",
+    customerSegment: "오늘 우선 연락 고객",
+  };
+
+  return {
+    scope: {
+      role: user.role,
+      userId: user.id,
+      label: scope.label,
+      organizationType: input.organizationType,
+      targetUserId: scope.targetUserId,
+      teamId: scope.teamId,
+      subBranchAdminId: scope.subBranchAdminId,
+      canViewRanking: scope.canViewRanking,
+    },
+    period: { type: range.type, dateFrom: range.dateFrom.toISOString(), dateTo: range.dateTo.toISOString() },
+    funnel: {
+      stages: [
+        { key: "db", label: "DB 보유", count: dbCount, amount: null, conversionRate: null, helper: "현재 조회 범위의 활성 고객 DB" },
+        { key: "unconsulted", label: "상담 전 / 미상담", count: unconsultedCustomers.length, amount: null, conversionRate: safeReportRate(unconsultedCustomers.length, dbCount), helper: "아직 상담 진입 전인 고객" },
+        { key: "consulting", label: "상담 진행", count: consultedCount, amount: null, conversionRate: dbToConsultRate, helper: "상담 상태 또는 상담기록이 있는 고객" },
+        { key: "follow_scheduled", label: "후속관리 예정", count: followUpsScheduled.length, amount: null, conversionRate: safeReportRate(followUpsScheduled.length, consultedCount), helper: "기간 내 예정된 후속관리" },
+        { key: "follow_completed", label: "후속관리 완료", count: followUpsCompleted.length, amount: null, conversionRate: followUpCompletionRate, helper: "기간 내 완료된 후속관리" },
+        { key: "contract", label: "계약 등록", count: contractsInPeriod.length, amount: null, conversionRate: consultToContractRate, helper: "기간 내 신규 계약" },
+        { key: "premium", label: "월납보험료 실적 발생", count: contractsInPeriod.length, amount: monthlyPremiumTotal, conversionRate: safeReportRate(monthlyPremiumTotal, monthlyPremiumGoal), helper: "기간 내 신규 계약 월납보험료 합계" },
+      ],
+      dbToConsultRate,
+      consultToContractRate,
+      followUpCompletionRate,
+      followUpCompleteToContractRate,
+    },
+    performance: {
+      newContractCount: contractsInPeriod.length,
+      monthlyPremiumTotal,
+      consultationCount: consultationsInPeriod.length,
+      followUpCreatedCount: followUpsCreated.length,
+      followUpCompletedCount: followUpsCompleted.length,
+      followUpCompletionRate,
+      scheduleCompletedCount: schedulesCompleted.length,
+      pendingFollowUpCount: pendingFollowUps.length,
+      longUnmanagedCustomerCount,
+      dbToConsultRate,
+      consultToContractRate,
+      followUpCompleteToContractRate,
+      goalAchievementRate,
+      goal: goal ? { id: goal.id, targetType: goal.targetType, targetId: goal.targetId, contractCountGoal, monthlyPremiumGoal } : null,
+    },
+    ranking,
+    bottleneck: { ...bottleneck, allCandidates: bottleneckCandidates },
+    empty: dbCount === 0 && contractsInPeriod.length === 0 && consultationsInPeriod.length === 0,
+  };
+}
+
 async function buildRecommendationItems(user: { id: number; role: string; teamId: number | null; accountStatus: string }, baseDate: Date) {
   const { customerList, contractList, notifications, followUpList } = await getScopedDashboardData(user);
   const activeCustomers = customerList.filter((customer) => customer.isActive && !customer.deletedAt);
@@ -1927,6 +2409,92 @@ export const appRouter = router({
         subBranchAdminId: z.number().optional(),
       }).optional())
       .query(async ({ ctx, input }) => buildWorkRhythmReport(ctx.user, input ?? { period: "week" })),
+  }),
+
+  salesReports: router({
+    filterOptions: activeUserProcedure.query(async ({ ctx }) => {
+      const user = ctx.user;
+      const [allUsersRaw, allTeamsRaw] = await Promise.all([getAllUsers(), getAllTeams()]);
+      const allUsers = allUsersRaw as any[];
+      const allTeams = allTeamsRaw as any[];
+      const activeTeams = allTeams.filter((team) => team.isActive !== false && !team.deletedAt);
+      const activeUsers = allUsers.filter((item) => item.accountStatus === "active");
+
+      if (user.role === "member") {
+        return {
+          canViewRanking: false,
+          subBranches: [],
+          teams: [],
+          users: [{ id: user.id, name: user.name, role: user.role, teamId: user.teamId ?? null, subBranchAdminId: user.subBranchAdminId ?? null }],
+        };
+      }
+
+      const scopedUserIds = user.role === "branch_admin"
+        ? new Set(activeUsers.map((item) => item.id))
+        : new Set((await getHierarchyScopeUserIds(user)) ?? [user.id]);
+      const visibleUsers = activeUsers.filter((item) => scopedUserIds.has(item.id));
+      const visibleTeams = user.role === "branch_admin"
+        ? activeTeams
+        : activeTeams.filter((team) => {
+            if (user.role === "sub_branch_admin") return team.subBranchAdminId === user.id;
+            if (user.role === "team_leader") return team.id === user.teamId;
+            return false;
+          });
+
+      return {
+        canViewRanking: true,
+        subBranches: user.role === "branch_admin"
+          ? activeUsers
+              .filter((item) => item.role === "sub_branch_admin")
+              .map((item) => ({ id: item.id, name: item.name ?? `부지점 #${item.id}` }))
+          : [],
+        teams: visibleTeams
+          .map((team) => ({ id: team.id, name: team.name ?? `팀 #${team.id}`, subBranchAdminId: team.subBranchAdminId ?? null }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ko")),
+        users: visibleUsers
+          .filter((item) => item.role !== "branch_admin")
+          .map((item) => ({
+            id: item.id,
+            name: item.name ?? `사용자 #${item.id}`,
+            role: item.role,
+            teamId: item.teamId ?? null,
+            subBranchAdminId: item.subBranchAdminId ?? null,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name, "ko")),
+      };
+    }),
+
+    summary: activeUserProcedure
+      .input(salesReportInputSchema.optional())
+      .query(async ({ ctx, input }) => buildSalesReport(ctx.user, input ?? {})),
+
+    funnelSummary: activeUserProcedure
+      .input(salesReportInputSchema.optional())
+      .query(async ({ ctx, input }) => {
+        const report = await buildSalesReport(ctx.user, input ?? {});
+        return { scope: report.scope, period: report.period, funnel: report.funnel, empty: report.empty };
+      }),
+
+    performanceSummary: activeUserProcedure
+      .input(salesReportInputSchema.optional())
+      .query(async ({ ctx, input }) => {
+        const report = await buildSalesReport(ctx.user, input ?? {});
+        return { scope: report.scope, period: report.period, performance: report.performance, empty: report.empty };
+      }),
+
+    memberRanking: activeUserProcedure
+      .input(salesReportInputSchema.optional())
+      .query(async ({ ctx, input }) => {
+        const report = await buildSalesReport(ctx.user, input ?? {});
+        return { scope: report.scope, period: report.period, ranking: report.ranking };
+      }),
+
+    bottleneckSummary: activeUserProcedure
+      .input(salesReportInputSchema.optional())
+      .query(async ({ ctx, input }) => {
+        const report = await buildSalesReport(ctx.user, input ?? {});
+        return { scope: report.scope, period: report.period, bottleneck: report.bottleneck };
+      }),
   }),
 
   analytics: router({

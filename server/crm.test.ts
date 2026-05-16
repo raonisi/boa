@@ -3109,6 +3109,241 @@ describe("PR14 work rhythm report", () => {
   });
 });
 
+describe("PR5 sales funnel performance report", () => {
+  const dateFrom = "2026-05-01T00:00:00";
+  const dateTo = "2026-05-31T23:59:59";
+  const users = [
+    { id: 1, name: "[TEST] Branch", role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: null },
+    { id: 2, name: "[TEST] Sub", role: "sub_branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: 1 },
+    { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 2 },
+    { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+    { id: 5, name: "[TEST] Other", role: "member", accountStatus: "active", teamId: 20, subBranchAdminId: 99, parentUserId: 30 },
+  ] as any[];
+  const teams = [
+    { id: 10, name: "[TEST] Team", managerId: 3, subBranchAdminId: 2, isActive: true, deletedAt: null },
+    { id: 20, name: "[TEST] Other Team", managerId: 30, subBranchAdminId: 99, isActive: true, deletedAt: null },
+  ] as any[];
+  const customers = [
+    { id: 100, name: "[TEST] Customer A", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", isActive: true, deletedAt: null, createdAt: new Date("2026-04-01") },
+    { id: 101, name: "[TEST] Customer B", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "미상담", isActive: true, deletedAt: null, createdAt: new Date("2026-04-02") },
+    { id: 200, name: "[TEST] Other Customer", agentId: 5, assignedTeamId: 20, subBranchAdminId: 99, consultStatus: "계약", isActive: true, deletedAt: null, createdAt: new Date("2026-04-03") },
+  ] as any[];
+  const contracts = [
+    { id: 11, customerId: 100, agentId: 4, contractDate: new Date("2026-05-10"), monthlyPremium: 100000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+    { id: 12, customerId: 200, agentId: 5, contractDate: new Date("2026-05-11"), monthlyPremium: 200000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+  ] as any[];
+  const followUps = [
+    { id: 21, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "completed", nextContactDate: new Date("2026-05-10"), completedAt: new Date("2026-05-10"), createdAt: new Date("2026-05-09"), deletedAt: null },
+    { id: 22, customerId: 101, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "scheduled", nextContactDate: new Date("2026-05-20"), createdAt: new Date("2026-05-15"), deletedAt: null },
+    { id: 23, customerId: 200, assignedAgentId: 5, teamId: 20, subBranchAdminId: 99, status: "completed", nextContactDate: new Date("2026-05-11"), completedAt: new Date("2026-05-11"), createdAt: new Date("2026-05-10"), deletedAt: null },
+  ] as any[];
+  const schedules = [
+    { id: 31, userId: 4, teamId: 10, status: "완료", startTime: new Date("2026-05-13"), completedAt: new Date("2026-05-13"), isActive: true, deletedAt: null },
+    { id: 32, userId: 5, teamId: 20, status: "완료", startTime: new Date("2026-05-14"), completedAt: new Date("2026-05-14"), isActive: true, deletedAt: null },
+  ] as any[];
+
+  function mockSalesReportData(overrides: Partial<{
+    customers: any[];
+    contracts: any[];
+    followUps: any[];
+    schedules: any[];
+  }> = {}) {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(users as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue(teams as any);
+    vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => users.find((item) => item.id === id) as any);
+    vi.spyOn(db, "getTeamById").mockImplementation(async (id: number) => teams.find((item) => item.id === id) as any);
+    vi.spyOn(db, "getUsersByTeamId").mockImplementation(async (teamId: number) => users.filter((item) => item.teamId === teamId) as any);
+    vi.spyOn(db, "getUsersBySubBranchAdminId").mockImplementation(async (subBranchAdminId: number) => users.filter((item) => item.subBranchAdminId === subBranchAdminId || item.id === subBranchAdminId) as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue((overrides.customers ?? customers) as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue((overrides.contracts ?? contracts) as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue((overrides.schedules ?? schedules) as any);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 200 } as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue((overrides.followUps ?? followUps) as any);
+    vi.spyOn(db, "getConsultationsByCustomer").mockImplementation(async (customerId: number) => {
+      if (customerId === 100) return [{ id: 41, customerId, agentId: 4, createdAt: new Date("2026-05-10"), content: "010-1111-2222 sensitive memo" }] as any;
+      if (customerId === 200) return [{ id: 42, customerId, agentId: 5, createdAt: new Date("2026-05-11"), content: "other memo" }] as any;
+      return [] as any;
+    });
+    vi.spyOn(db, "getPerformanceGoalDashboard").mockResolvedValue({
+      items: [
+        {
+          goal: { id: 51, targetType: "user", targetId: 4, contractCountGoal: 2, monthlyPremiumGoal: 200000 },
+          achievementRate: { contractCount: 50, monthlyPremium: 50 },
+        },
+        {
+          goal: { id: 52, targetType: "branch", targetId: null, contractCountGoal: 5, monthlyPremiumGoal: 1000000 },
+          achievementRate: { contractCount: 40, monthlyPremium: 30 },
+        },
+      ],
+      summary: {},
+    } as any);
+  }
+
+  it("lets a member view only their own funnel report without exposing consultation body", async () => {
+    mockSalesReportData();
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+    });
+
+    expect(result.performance.newContractCount).toBe(1);
+    expect(result.performance.monthlyPremiumTotal).toBe(100000);
+    expect(result.performance.consultationCount).toBe(1);
+    expect(result.performance.followUpCompletionRate).toBe(50);
+    expect(result.ranking).toHaveLength(0);
+    expect(JSON.stringify(result)).not.toContain("010-1111-2222");
+    expect(JSON.stringify(result)).not.toContain("sensitive memo");
+  });
+
+  it("blocks member escalation to another user's report", async () => {
+    mockSalesReportData();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "user",
+      userId: 5,
+    })).rejects.toThrow();
+  });
+
+  it("lets branch_admin see organization ranking and combined performance", async () => {
+    mockSalesReportData();
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+    });
+
+    expect(result.performance.newContractCount).toBe(2);
+    expect(result.performance.monthlyPremiumTotal).toBe(300000);
+    expect(result.scope.canViewRanking).toBe(true);
+    expect(result.ranking.map((item) => item.userId)).toEqual(expect.arrayContaining([4, 5]));
+  });
+
+  it("lets branch_admin use my DB scope without exposing organization ranking", async () => {
+    mockSalesReportData();
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      scope: "mine",
+    });
+
+    expect(result.scope.targetUserId).toBe(1);
+    expect(result.scope.canViewRanking).toBe(false);
+    expect(result.ranking).toHaveLength(0);
+  });
+
+  it("allows sub_branch_admin own scope and blocks outside user or team", async () => {
+    mockSalesReportData();
+    const caller = appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 }));
+
+    await expect(caller.salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "sub_branch",
+      subBranchAdminId: 2,
+    })).resolves.toMatchObject({
+      performance: expect.objectContaining({ newContractCount: 1 }),
+      scope: expect.objectContaining({ subBranchAdminId: 2 }),
+    });
+    await expect(caller.salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "user",
+      userId: 5,
+    })).rejects.toThrow();
+    await expect(caller.salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "team",
+      teamId: 20,
+    })).rejects.toThrow();
+  });
+
+  it("allows team_leader own team scope and blocks member team ranking requests", async () => {
+    mockSalesReportData();
+
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "team",
+      teamId: 10,
+    })).resolves.toMatchObject({
+      performance: expect.objectContaining({ newContractCount: 1 }),
+      scope: expect.objectContaining({ teamId: 10 }),
+    });
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "team",
+      teamId: 10,
+    })).rejects.toThrow();
+  });
+
+  it("blocks team_leader from reading another team report", async () => {
+    mockSalesReportData();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      organizationType: "team",
+      teamId: 20,
+    })).rejects.toThrow();
+  });
+
+  it("blocks inactive users from salesReports APIs", async () => {
+    await expect(appRouter.createCaller(createInactiveCtx()).salesReports.summary({ period: "month" })).rejects.toThrow();
+  });
+
+  it("blocks resigned users from salesReports APIs", async () => {
+    await expect(appRouter.createCaller(createCtx("member", { accountStatus: "resigned" })).salesReports.summary({ period: "month" })).rejects.toThrow();
+  });
+
+  it("keeps conversion rates safe when there is no denominator", async () => {
+    mockSalesReportData({ customers: [], contracts: [], followUps: [], schedules: [] });
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+    });
+
+    expect(result.performance.dbToConsultRate).toBe(0);
+    expect(result.performance.consultToContractRate).toBe(0);
+    expect(result.performance.followUpCompletionRate).toBe(0);
+    expect(result.funnel.stages.every((stage) => stage.conversionRate === null || Number.isFinite(stage.conversionRate))).toBe(true);
+  });
+
+  it("uses Asia/Seoul inclusive date boundaries for custom ranges", async () => {
+    mockSalesReportData({
+      contracts: [
+        { id: 71, customerId: 100, agentId: 4, contractDate: new Date("2026-05-30T14:59:59.000Z"), monthlyPremium: 70000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+        { id: 72, customerId: 100, agentId: 4, contractDate: new Date("2026-05-30T15:00:00.000Z"), monthlyPremium: 80000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+        { id: 73, customerId: 100, agentId: 4, contractDate: new Date("2026-05-31T14:59:59.000Z"), monthlyPremium: 90000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+        { id: 74, customerId: 100, agentId: 4, contractDate: new Date("2026-05-31T15:00:00.000Z"), monthlyPremium: 100000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+      ],
+    });
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom: "2026-05-31",
+      dateTo: "2026-05-31",
+    });
+
+    expect(result.period.dateFrom).toBe("2026-05-30T15:00:00.000Z");
+    expect(result.period.dateTo).toBe("2026-05-31T14:59:59.999Z");
+    expect(result.performance.newContractCount).toBe(2);
+    expect(result.performance.monthlyPremiumTotal).toBe(170000);
+  });
+});
+
 describe("followUps", () => {
   const activeCustomer = {
     id: 100,

@@ -4,6 +4,7 @@
 - Web dashboard + notification center
 - Mobile home + mobile notification tab
 - Mobile three-touch task completion: see `docs/MOBILE_THREE_TOUCH_TASK_UX.md`
+- Sales funnel and performance report: see `docs/SALES_FUNNEL_PERFORMANCE_REPORT.md`
 - Customer detail quick actions
 - Priority rules: urgent -> today -> general
 - Unread-first sorting within each priority
@@ -57,6 +58,43 @@
    - add contract,
    - open message template tools.
 3. Scroll long page and verify sticky behavior remains usable.
+
+## Sales Funnel / Performance Report UAT Steps
+
+### Desktop
+1. Open `/analytics` as branch_admin and verify the sales funnel, KPI cards, conversion rates, member ranking, and bottleneck diagnosis render.
+2. Change the period filter:
+   - today,
+   - last 7 days,
+   - this month,
+   - last month,
+   - custom range.
+3. Change organization filters:
+   - all,
+   - sub branch,
+   - team,
+   - individual,
+   - my DB.
+4. Confirm member role can open `/analytics` but only sees their own report and no other member ranking.
+5. Confirm empty ranges show a helpful empty state instead of broken charts or NaN/Infinity rates.
+6. Confirm PR6 operation-risk content, download risk, or audit monitoring is not mixed into this report.
+
+### Mobile Web
+1. Open `/analytics` in a narrow viewport and confirm the funnel switches into vertical cards without horizontal scroll.
+2. Verify KPI cards, bottleneck diagnosis, and ranking table remain readable.
+3. Verify long team/user names and large monthly premium numbers do not break the card layout.
+
+### Android APK
+1. Open the Android internal build and navigate to `/analytics`.
+2. Confirm WebView route access, vertical funnel cards, and page scroll are stable.
+3. Confirm no APK/AAB/JKS/keystore/google-services.json/local.properties files are included in the PR.
+
+### Role Accounts
+1. branch_admin: all, sub branch, team, individual, and my DB scopes.
+2. sub_branch_admin: subordinate scope only; outside team/user blocked.
+3. team_leader: own team/member scope only; other team blocked.
+4. member: own report only; no team/all ranking.
+5. inactive/resigned: access blocked.
 
 ## Role Boundary UAT (Safety)
 - branch_admin: full visibility in allowed pages.

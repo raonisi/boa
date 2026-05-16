@@ -1,11 +1,30 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
-import { BarChart2, Info } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  Filter,
+  LineChart,
+  RefreshCcw,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Users,
+  WalletCards,
+} from "lucide-react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -18,199 +37,546 @@ import {
   YAxis,
 } from "recharts";
 
-const STAGE_COLORS = ["#0f172a", "#b45309", "#0369a1", "#047857", "#a16207"];
+type Period = "today" | "last7" | "month" | "lastMonth" | "custom";
+type OrganizationType = "all" | "sub_branch" | "team" | "user";
+type PerformanceBasis = "new_contract" | "monthly_premium";
 
-function pct(prev: number, next: number): string | null {
-  if (prev <= 0) return null;
-  const v = (next / prev) * 100;
-  if (!Number.isFinite(v)) return null;
-  return `${v.toFixed(1)}%`;
+const periodLabels: Record<Period, string> = {
+  today: "오늘",
+  last7: "최근 7일",
+  month: "이번 달",
+  lastMonth: "지난달",
+  custom: "직접 선택",
+};
+
+const organizationLabels: Record<OrganizationType, string> = {
+  all: "전체",
+  sub_branch: "부지점",
+  team: "팀",
+  user: "개인",
+};
+
+const funnelColors = ["#0f172a", "#64748b", "#0f766e", "#b45309", "#047857", "#1d4ed8", "#0f3f32"];
+
+function formatNumber(value: number | null | undefined) {
+  return Number(value ?? 0).toLocaleString("ko-KR");
+}
+
+function formatWon(value: number | null | undefined) {
+  return `${formatNumber(value)}원`;
+}
+
+function formatRate(value: number | null | undefined) {
+  return `${Number(value ?? 0).toFixed(1)}%`;
+}
+
+function formatDateLabel(value?: string | null) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("ko-KR", { month: "2-digit", day: "2-digit" }).format(new Date(value));
+}
+
+function StatCard({
+  title,
+  value,
+  helper,
+  icon: Icon,
+  tone = "navy",
+}: {
+  title: string;
+  value: string;
+  helper: string;
+  icon: typeof BarChart3;
+  tone?: "navy" | "green" | "amber" | "red";
+}) {
+  const toneClass = {
+    navy: "bg-slate-950 text-white",
+    green: "bg-[#0f3f32] text-white",
+    amber: "bg-amber-100 text-amber-800",
+    red: "bg-red-50 text-red-700",
+  }[tone];
+
+  return (
+    <Card className="border-slate-200/80 bg-white shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-slate-500">{title}</p>
+            <p className="mt-1 truncate text-2xl font-bold tabular-nums text-slate-950">{value}</p>
+          </div>
+          <span className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", toneClass)}>
+            <Icon className="h-4 w-4" />
+          </span>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-slate-500">{helper}</p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function FunnelStageCard({ stage, index }: { stage: any; index: number }) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-slate-900">{stage.label}</p>
+          <p className="mt-1 text-xs text-slate-500">{stage.helper}</p>
+        </div>
+        <Badge className="border-transparent bg-white text-slate-700 shadow-sm">
+          {stage.conversionRate == null ? "기준" : formatRate(stage.conversionRate)}
+        </Badge>
+      </div>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <p className="text-2xl font-bold tabular-nums text-slate-950">
+          {stage.amount != null ? formatWon(stage.amount) : `${formatNumber(stage.count)}건`}
+        </p>
+        <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200">
+          <div
+            className="h-full rounded-full"
+            style={{
+              width: `${Math.max(8, Math.min(100, Number(stage.conversionRate ?? 100)))}%`,
+              backgroundColor: funnelColors[index % funnelColors.length],
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function SalesFunnelAnalytics() {
-  const [teamId, setTeamId] = useState<string>("all");
-  const [agentId, setAgentId] = useState<string>("all");
+  const { user } = useAuth();
+  const [period, setPeriod] = useState<Period>("month");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [organizationType, setOrganizationType] = useState<OrganizationType>("all");
+  const [subBranchAdminId, setSubBranchAdminId] = useState("all");
+  const [teamId, setTeamId] = useState("all");
+  const [targetUserId, setTargetUserId] = useState("all");
+  const [scope, setScope] = useState<"all" | "mine">("all");
+  const [performanceBasis, setPerformanceBasis] = useState<PerformanceBasis>("monthly_premium");
 
-  const { data: filterOptions, isLoading: filterLoading } = trpc.analytics.funnelFilterOptions.useQuery();
+  const { data: filterOptions, isLoading: filterLoading } = trpc.salesReports.filterOptions.useQuery();
+  const isMember = user?.role === "member";
 
-  const teamIdNum = teamId === "all" ? undefined : Number(teamId);
-  const agentIdNum = agentId === "all" ? undefined : Number(agentId);
+  const reportInput = useMemo(() => ({
+    period,
+    dateFrom: period === "custom" && dateFrom ? dateFrom : undefined,
+    dateTo: period === "custom" && dateTo ? dateTo : undefined,
+    organizationType: isMember ? "all" as const : organizationType,
+    subBranchAdminId: !isMember && organizationType === "sub_branch" && subBranchAdminId !== "all" ? Number(subBranchAdminId) : undefined,
+    teamId: !isMember && organizationType === "team" && teamId !== "all" ? Number(teamId) : undefined,
+    userId: !isMember && organizationType === "user" && targetUserId !== "all" ? Number(targetUserId) : undefined,
+    scope: isMember ? "mine" as const : scope,
+    performanceBasis,
+  }), [dateFrom, dateTo, isMember, organizationType, performanceBasis, period, scope, subBranchAdminId, targetUserId, teamId]);
 
-  const { data, isLoading, isFetching } = trpc.analytics.salesFunnel.useQuery(
-    {
-      teamId: teamIdNum ?? null,
-      agentId: agentIdNum ?? null,
-    },
-    { placeholderData: (prev) => prev }
-  );
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = trpc.salesReports.summary.useQuery(reportInput, { placeholderData: (prev) => prev });
 
-  const agentsForTeam = useMemo(() => {
-    const agents = filterOptions?.agents ?? [];
-    if (teamId === "all") return agents;
-    const tid = Number(teamId);
-    return agents.filter((a) => a.teamId === tid);
-  }, [filterOptions?.agents, teamId]);
+  const stages = data?.funnel.stages ?? [];
+  const ranking = data?.ranking ?? [];
+  const performance = data?.performance;
+  const hasData = Boolean(data && !data.empty);
 
-  useEffect(() => {
-    if (agentId === "all") return;
-    const allowed = new Set(agentsForTeam.map((a) => String(a.id)));
-    if (!allowed.has(agentId)) setAgentId("all");
-  }, [agentsForTeam, agentId]);
-
-  const chartRows = useMemo(() => {
-    if (!data) return [];
-    const { totalAssigned, taCumulative, apCumulative, pcCumulative, contracted } = data;
-    return [
-      { key: "total", label: "총 배정 DB", shortLabel: "배정", count: totalAssigned, fill: STAGE_COLORS[0] },
-      { key: "ta", label: "TA (전화연결) 이상", shortLabel: "TA+", count: taCumulative, fill: STAGE_COLORS[1] },
-      { key: "ap", label: "AP (대면상담) 이상", shortLabel: "AP+", count: apCumulative, fill: STAGE_COLORS[2] },
-      { key: "pc", label: "PC (가입설계) 이상", shortLabel: "PC+", count: pcCumulative, fill: STAGE_COLORS[3] },
-      { key: "done", label: "청약완료", shortLabel: "청약", count: contracted, fill: STAGE_COLORS[4] },
-    ];
-  }, [data]);
-
-  const conversionRows = useMemo(() => {
-    if (!data) return [];
-    const d = data;
-    return [
-      { label: "총 배정 → TA 이상", value: pct(d.totalAssigned, d.taCumulative) },
-      { label: "TA 이상 → AP 이상", value: pct(d.taCumulative, d.apCumulative) },
-      { label: "AP 이상 → PC 이상", value: pct(d.apCumulative, d.pcCumulative) },
-      { label: "PC 이상 → 청약완료", value: pct(d.pcCumulative, d.contracted) },
-    ];
-  }, [data]);
+  const conversionRows = [
+    { label: "DB 대비 상담 전환율", value: performance?.dbToConsultRate ?? 0, helper: "보유 DB 중 상담으로 진입한 비율" },
+    { label: "상담 대비 계약 전환율", value: performance?.consultToContractRate ?? 0, helper: "상담 진행 고객 중 계약이 발생한 비율" },
+    { label: "후속관리 완료율", value: performance?.followUpCompletionRate ?? 0, helper: "기간 내 생성/예정 후속관리 대비 완료율" },
+    { label: "후속관리 완료 대비 계약", value: performance?.followUpCompleteToContractRate ?? 0, helper: "후속 완료 흐름이 계약으로 이어진 비율" },
+  ];
 
   return (
     <DashboardLayout>
-      <div className="mx-auto max-w-6xl space-y-6">
-        <div className="flex flex-col gap-4 rounded-3xl border border-slate-200/80 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6 text-white shadow-[0_24px_60px_rgba(15,23,42,0.2)] sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-amber-200">
-              <BarChart2 className="h-3.5 w-3.5" />
-              Sales funnel monitor
-            </div>
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">영업 분석</h1>
-            <p className="max-w-2xl text-sm leading-relaxed text-slate-300">
-              담당자가 배정된 활성 고객만 대상으로, DB의 <span className="font-semibold text-white">상담 상태(consultStatus)</span>를
-              누적 단계별로 집계합니다. 서버에서 역할·조직 범위를 검증합니다.
-            </p>
-          </div>
-          <div className="flex max-w-md items-start gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-slate-300">
-            <Info className="mt-0.5 h-4 w-4 shrink-0 text-amber-200/90" />
-            <span>필터를 바꾸면 집계 범위만 좁혀지며, 목록 전체를 불러오지 않아 부하를 줄입니다.</span>
-          </div>
-        </div>
-
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-          <CardHeader className="pb-4">
-            <CardTitle className="text-base">범위 선택</CardTitle>
-            <CardDescription>산하 팀·담당자 기준으로 퍼널 데이터를 좁혀 볼 수 있습니다.</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground">팀</Label>
-              <Select value={teamId} onValueChange={(v) => { setTeamId(v); setAgentId("all"); }} disabled={filterLoading}>
-                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50">
-                  <SelectValue placeholder="팀 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 팀</SelectItem>
-                  {(filterOptions?.teams ?? []).map((t) => (
-                    <SelectItem key={t.id} value={String(t.id)}>
-                      {t.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs font-semibold text-muted-foreground">담당 팀원</Label>
-              <Select value={agentId} onValueChange={setAgentId} disabled={filterLoading}>
-                <SelectTrigger className="h-11 rounded-xl border-slate-200 bg-slate-50">
-                  <SelectValue placeholder="담당자 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">전체 담당자</SelectItem>
-                  {agentsForTeam.map((a) => (
-                    <SelectItem key={a.id} value={String(a.id)}>
-                      {(a.name ?? `사용자 ${a.id}`) + (a.teamId != null ? ` · 팀 #${a.teamId}` : "")}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <div className="mx-auto max-w-7xl space-y-5 pb-8">
+        <Card className="overflow-hidden border-slate-200/80 bg-slate-950 text-white shadow-sm">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div className="space-y-2">
+                <Badge className="border-amber-300/30 bg-amber-300/10 text-amber-100">신규 로드맵 PR5</Badge>
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">영업 퍼널·성과 리포트</h1>
+                  <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
+                    DB 보유부터 상담, 후속관리, 계약, 월납보험료 실적까지 한 흐름으로 보고
+                    현재 병목과 이번 달 개선 지점을 확인합니다.
+                  </p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4 lg:min-w-[420px]">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-slate-400">기간</p>
+                  <p className="mt-1 font-semibold text-white">{periodLabels[period]}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-slate-400">범위</p>
+                  <p className="mt-1 font-semibold text-white">{data?.scope.label ?? "조회 중"}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-slate-400">기준</p>
+                  <p className="mt-1 font-semibold text-white">{performanceBasis === "monthly_premium" ? "월납보험료" : "신규 계약"}</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <p className="text-slate-400">권한</p>
+                  <p className="mt-1 font-semibold text-white">{user?.role ?? "-"}</p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base">단계별 인원 (누적)</CardTitle>
-              <CardDescription>Recharts 막대 차트 — 단계가 깊어질수록 포함 범위가 좁아집니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="h-[min(420px,70vh)] min-h-[280px] w-full pt-2">
-              {isLoading && !data ? (
-                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">불러오는 중…</div>
-              ) : (
-                <div className={cn("relative h-full w-full", isFetching && "opacity-70 transition-opacity")}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartRows} layout="vertical" margin={{ top: 8, right: 28, left: 8, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal className="stroke-slate-200" />
-                      <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
-                      <YAxis
-                        type="category"
-                        dataKey="shortLabel"
-                        width={56}
-                        tick={{ fontSize: 11 }}
-                        tickLine={false}
-                        axisLine={false}
-                      />
-                      <RechartsTooltip
-                        cursor={{ fill: "rgba(15,23,42,0.04)" }}
-                        contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0" }}
-                        formatter={(value: unknown) => {
-                          const n = typeof value === "number" ? value : Number(value);
-                          return [`${Number.isFinite(n) ? n.toLocaleString() : "0"}명`, "인원"];
-                        }}
-                      />
-                      <Bar dataKey="count" radius={[0, 10, 10, 0]} barSize={28}>
-                        {chartRows.map((entry) => (
-                          <Cell key={entry.key} fill={entry.fill} />
-                        ))}
-                        <LabelList
-                          dataKey="count"
-                          position="right"
-                          formatter={(v: unknown) => `${Number(v).toLocaleString()}명`}
-                          style={{ fill: "#475569", fontSize: 11, fontWeight: 600 }}
-                        />
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        <Card className="border-slate-200/80 bg-white shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Filter className="h-4 w-4 text-[#0f3f32]" />
+              리포트 필터
+            </CardTitle>
+            <CardDescription>서버에서 권한 범위를 다시 검증한 뒤 리포트를 계산합니다.</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3 lg:grid-cols-[1.2fr_1.1fr_1fr_1fr]">
+            <div className="space-y-2">
+              <Label className="text-xs text-slate-500">기간</Label>
+              <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
+                <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(periodLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-base">단계 간 전환율</CardTitle>
-              <CardDescription>이전 단계 대비 다음 단계(누적) 비율입니다.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {conversionRows.map((row) => (
-                <div
-                  key={row.label}
-                  className="flex items-center justify-between gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-4 py-3"
-                >
-                  <span className="text-xs font-medium text-slate-600 sm:text-sm">{row.label}</span>
-                  <span className="shrink-0 rounded-full bg-slate-900 px-3 py-1 text-sm font-bold tabular-nums text-amber-200">
-                    {row.value ?? "—"}
-                  </span>
+            {!isMember && (
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-500">조직</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Select value={organizationType} onValueChange={(value) => {
+                    setOrganizationType(value as OrganizationType);
+                    setSubBranchAdminId("all");
+                    setTeamId("all");
+                    setTargetUserId("all");
+                  }}>
+                    <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(organizationLabels).map(([value, label]) => (
+                        <SelectItem key={value} value={value}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {organizationType === "sub_branch" && (
+                    <Select value={subBranchAdminId} onValueChange={setSubBranchAdminId} disabled={filterLoading}>
+                      <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                        <SelectValue placeholder="부지점" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">부지점 선택</SelectItem>
+                        {(filterOptions?.subBranches ?? []).map((item) => (
+                          <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {organizationType === "team" && (
+                    <Select value={teamId} onValueChange={setTeamId} disabled={filterLoading}>
+                      <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                        <SelectValue placeholder="팀" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">팀 선택</SelectItem>
+                        {(filterOptions?.teams ?? []).map((item) => (
+                          <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {organizationType === "user" && (
+                    <Select value={targetUserId} onValueChange={setTargetUserId} disabled={filterLoading}>
+                      <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                        <SelectValue placeholder="개인" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">개인 선택</SelectItem>
+                        {(filterOptions?.users ?? []).map((item) => (
+                          <SelectItem key={item.id} value={String(item.id)}>
+                            {item.name} · {item.role}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {organizationType === "all" && (
+                    <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                      전체 범위
+                    </div>
+                  )}
                 </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-xs text-slate-500">scope / 기준</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <Select value={isMember ? "mine" : scope} onValueChange={(value) => setScope(value as "all" | "mine")} disabled={isMember}>
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    <SelectItem value="mine">내 DB</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={performanceBasis} onValueChange={(value) => setPerformanceBasis(value as PerformanceBasis)}>
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly_premium">월납보험료</SelectItem>
+                    <SelectItem value="new_contract">신규 계약</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <Button variant="outline" className="h-11 flex-1 rounded-xl" onClick={() => refetch()} disabled={isFetching}>
+                <RefreshCcw className={cn("h-4 w-4", isFetching && "animate-spin")} />
+                새로고침
+              </Button>
+            </div>
+
+            {period === "custom" && (
+              <div className="grid gap-3 lg:col-span-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-500">시작일</Label>
+                  <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} className="h-11 rounded-xl bg-slate-50" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-500">종료일</Label>
+                  <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} className="h-11 rounded-xl bg-slate-50" />
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {isError && (
+          <EmptyState
+            icon={AlertTriangle}
+            title="리포트를 불러오지 못했습니다."
+            description={error?.message ?? "필터 범위 또는 권한을 확인한 뒤 다시 시도해 주세요."}
+            action={<Button onClick={() => refetch()}>다시 시도</Button>}
+          />
+        )}
+
+        {!isError && isLoading && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
+            ))}
+          </div>
+        )}
+
+        {!isError && data && (
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <StatCard title="신규 계약" value={`${formatNumber(performance?.newContractCount)}건`} helper="기간 내 신규 계약 등록" icon={ClipboardList} tone="navy" />
+              <StatCard title="월납보험료 실적" value={formatWon(performance?.monthlyPremiumTotal)} helper="기간 내 신규 계약 월납 합계" icon={WalletCards} tone="green" />
+              <StatCard title="상담기록 수" value={`${formatNumber(performance?.consultationCount)}건`} helper="기간 내 상담기록 등록" icon={Users} tone="amber" />
+              <StatCard title="목표 대비 달성률" value={formatRate(performance?.goalAchievementRate)} helper="선택한 성과 기준 기준" icon={Target} tone={(performance?.goalAchievementRate ?? 0) < 50 ? "red" : "green"} />
+              <StatCard title="후속관리 생성" value={`${formatNumber(performance?.followUpCreatedCount)}건`} helper="기간 내 새 후속관리" icon={CalendarDays} tone="navy" />
+              <StatCard title="후속관리 완료" value={`${formatNumber(performance?.followUpCompletedCount)}건`} helper={`완료율 ${formatRate(performance?.followUpCompletionRate)}`} icon={CheckCircle2} tone="green" />
+              <StatCard title="미처리 후속관리" value={`${formatNumber(performance?.pendingFollowUpCount)}건`} helper="오늘 처리 흐름에서 확인 필요" icon={AlertTriangle} tone={(performance?.pendingFollowUpCount ?? 0) > 0 ? "red" : "green"} />
+              <StatCard title="장기 미관리 고객" value={`${formatNumber(performance?.longUnmanagedCustomerCount)}명`} helper="기존 기준 점검 연락 대상" icon={TrendingDown} tone={(performance?.longUnmanagedCustomerCount ?? 0) > 0 ? "amber" : "green"} />
+            </div>
+
+            {!hasData && (
+              <EmptyState
+                icon={LineChart}
+                title="표시할 영업 흐름 데이터가 없습니다."
+                description="선택한 기간 또는 조직 범위에 상담, 후속관리, 계약 데이터가 아직 없습니다. 기간을 넓히거나 필터를 초기화해 보세요."
+              />
+            )}
+
+            <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
+              <Card className="border-slate-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <BarChart3 className="h-4 w-4 text-[#0f3f32]" />
+                    영업 퍼널
+                  </CardTitle>
+                  <CardDescription>
+                    {formatDateLabel(data.period.dateFrom)} ~ {formatDateLabel(data.period.dateTo)} 기준 단계별 건수와 전환 흐름입니다.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="hidden h-[360px] lg:block">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={stages} layout="vertical" margin={{ top: 8, right: 46, left: 28, bottom: 8 }}>
+                        <CartesianGrid strokeDasharray="3 3" horizontal className="stroke-slate-200" />
+                        <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                        <YAxis dataKey="label" type="category" width={112} tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+                        <RechartsTooltip
+                          cursor={{ fill: "rgba(15,23,42,0.05)" }}
+                          contentStyle={{ borderRadius: 12, borderColor: "#e2e8f0" }}
+                          formatter={(value, _name, props) => {
+                            const row = props.payload as any;
+                            return [row.amount != null ? formatWon(row.amount) : `${formatNumber(Number(value))}건`, row.label];
+                          }}
+                        />
+                        <Bar dataKey="count" radius={[0, 10, 10, 0]} barSize={28}>
+                          {stages.map((entry, index) => (
+                            <Cell key={entry.key} fill={funnelColors[index % funnelColors.length]} />
+                          ))}
+                          <LabelList
+                            dataKey="count"
+                            position="right"
+                            formatter={(value: unknown) => `${formatNumber(Number(value))}건`}
+                            style={{ fill: "#334155", fontSize: 12, fontWeight: 700 }}
+                          />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="grid gap-3 lg:hidden">
+                    {stages.map((stage, index) => (
+                      <FunnelStageCard key={stage.key} stage={stage} index={index} />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <TrendingUp className="h-4 w-4 text-[#0f3f32]" />
+                    전환율 분석
+                  </CardTitle>
+                  <CardDescription>0분모 구간은 0%로 안전하게 표시합니다.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {conversionRows.map((row) => (
+                    <div key={row.label} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-slate-900">{row.label}</p>
+                        <Badge className={cn(
+                          "border-transparent",
+                          row.value < 40 ? "bg-red-50 text-red-700" : row.value < 70 ? "bg-amber-100 text-amber-800" : "bg-emerald-50 text-emerald-700"
+                        )}>
+                          {formatRate(row.value)}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-slate-500">{row.helper}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[0.9fr_1.1fr]">
+              <Card className="border-slate-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    병목 진단
+                  </CardTitle>
+                  <CardDescription>가장 낮은 전환 구간을 기준으로 우선 개선 지점을 제안합니다.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-amber-950">{data.bottleneck.title}</p>
+                        <p className="mt-2 text-sm leading-relaxed text-amber-900">{data.bottleneck.priority}</p>
+                      </div>
+                      <Badge className="bg-white text-amber-800">{formatRate(data.bottleneck.rate)}</Badge>
+                    </div>
+                    <div className="mt-4 rounded-xl bg-white/75 p-3 text-sm text-amber-950">
+                      <p className="font-semibold">추천 행동</p>
+                      <p className="mt-1 text-amber-900">{data.bottleneck.action}</p>
+                    </div>
+                    <p className="mt-3 text-xs text-amber-800">확인할 고객군: {data.bottleneck.customerSegment}</p>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {(data.bottleneck.allCandidates ?? []).map((item: any) => (
+                      <div key={item.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-xs font-semibold text-slate-500">{item.title}</p>
+                        <p className="mt-1 text-lg font-bold text-slate-950">{formatRate(item.rate)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border-slate-200/80 bg-white shadow-sm">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Users className="h-4 w-4 text-[#0f3f32]" />
+                    팀원 성과 비교
+                  </CardTitle>
+                  <CardDescription>
+                    {data.scope.canViewRanking ? "권한 범위 내 구성원별 개선 필요 항목을 함께 표시합니다." : "개인 권한에서는 타인의 랭킹을 표시하지 않습니다."}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {!data.scope.canViewRanking ? (
+                    <EmptyState title="개인 리포트 범위입니다." description="member 또는 내 DB scope에서는 타인의 성과 비교를 표시하지 않습니다." />
+                  ) : ranking.length === 0 ? (
+                    <EmptyState title="비교할 구성원이 없습니다." description="조직 필터를 넓히거나 기간을 변경해 주세요." />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full text-left text-sm">
+                        <thead className="text-xs text-slate-500">
+                          <tr className="border-b border-slate-200">
+                            <th className="px-3 py-2 font-semibold">구성원</th>
+                            <th className="px-3 py-2 font-semibold">신규 계약</th>
+                            <th className="px-3 py-2 font-semibold">월납 실적</th>
+                            <th className="px-3 py-2 font-semibold">상담</th>
+                            <th className="px-3 py-2 font-semibold">후속 완료율</th>
+                            <th className="px-3 py-2 font-semibold">개선 필요</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ranking.slice(0, 10).map((row: any, index: number) => (
+                            <tr key={row.userId} className="border-b border-slate-100 last:border-0">
+                              <td className="px-3 py-3">
+                                <div className="flex items-center gap-2">
+                                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">{index + 1}</span>
+                                  <div>
+                                    <p className="font-semibold text-slate-950">{row.name}</p>
+                                    <p className="text-xs text-slate-500">{row.role}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-3 py-3 font-semibold tabular-nums">{formatNumber(row.newContractCount)}건</td>
+                              <td className="px-3 py-3 font-semibold tabular-nums">{formatWon(row.monthlyPremiumTotal)}</td>
+                              <td className="px-3 py-3 tabular-nums">{formatNumber(row.consultationCount)}건</td>
+                              <td className="px-3 py-3 tabular-nums">{formatRate(row.followUpCompletionRate)}</td>
+                              <td className="px-3 py-3">
+                                <div className="flex flex-wrap gap-1">
+                                  {(row.improvementAreas?.length ? row.improvementAreas : ["현재 특이 병목 없음"]).slice(0, 2).map((item: string) => (
+                                    <Badge key={item} variant="outline" className="bg-white text-slate-600">{item}</Badge>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
