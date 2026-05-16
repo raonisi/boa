@@ -22,6 +22,7 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
+import { buildCustomerExecutionScore, type CustomerExecutionRecommendation } from "@shared/customerExecution";
 import { useIsMobile } from "@/hooks/useMobile";
 import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2, UserCog } from "lucide-react";
 import { useState } from "react";
@@ -61,6 +62,19 @@ function executionBadges(customer: any, recommendation?: any) {
 function nextExecutionAction(customer: any, recommendation?: any) {
   const firstReason = recommendation?.reasons?.[0]?.title ?? recommendation?.warnings?.[0]?.message;
   return customer.nextAction ?? firstReason ?? (customer.consultStatus === "미상담" ? "첫 상담 연결" : "다음 행동 설정");
+}
+
+function buildListExecution(customer: any, recommendation?: CustomerExecutionRecommendation | null) {
+  const hasKnownConsultation = Boolean((recommendation as any)?.lastConsultationDate) || customer.consultStatus !== "미상담";
+  const hasRecommendationContext = Boolean(recommendation);
+  return buildCustomerExecutionScore({
+    customer,
+    recommendation,
+    latestConsult: hasKnownConsultation ? {} : null,
+    nextFollowUp: (recommendation as any)?.nextContactDate ? {} : hasRecommendationContext ? null : undefined,
+    hasOpenFollowUp: Number((recommendation as any)?.openFollowUpCount ?? 0) > 0,
+    isLongUnmanaged: recommendation?.warnings?.some((warning) => String(warning.warningType).includes("long") || String(warning.message).includes("장기")),
+  });
 }
 
 function maskPhone(phone?: string | null) {
@@ -450,6 +464,7 @@ export default function CustomerList() {
               filtered.map((c) => {
                 const recommendation = recommendationByCustomerId.get(c.id);
                 const badges = executionBadges(c, recommendation);
+                const execution = buildListExecution(c, recommendation);
                 return (
                 <Card key={c.id} className="cursor-pointer border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-4">
@@ -470,6 +485,7 @@ export default function CustomerList() {
                           <StatusBadge status={c.consultStatus} />
                         </div>
                         <div className="mt-1 flex flex-wrap gap-1">
+                          <span className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${execution.gradeClassName}`}>관리점수 {execution.score}</span>
                           {badges.map((badge) => (
                             <span key={badge.label} className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}>{badge.label}</span>
                           ))}
@@ -495,7 +511,12 @@ export default function CustomerList() {
                           <p className="text-xs text-muted-foreground">담당자 {formatUserWithRole(agentById.get(c.agentId ?? 0))}</p>
                           <p className="text-sm font-bold tabular-nums text-slate-950">{c.expectedPremium != null ? formatExpectedPremiumManwon(c.expectedPremium) : "보험료 -"}</p>
                         </div>
-                        <p className="mt-2 rounded-lg bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">다음 액션: {nextExecutionAction(c, recommendation)}</p>
+                        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                          <p className="text-xs font-semibold text-slate-800">추천 행동: {execution.actionTitle}</p>
+                          <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
+                            {execution.reasons.length > 0 ? execution.reasons.map((reason) => `${reason.label} +${reason.points}`).join(" · ") : "정기 관리 흐름 유지"}
+                          </p>
+                        </div>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -627,6 +648,7 @@ export default function CustomerList() {
                       filtered.map((c) => {
                         const recommendation = recommendationByCustomerId.get(c.id);
                         const badges = executionBadges(c, recommendation);
+                        const execution = buildListExecution(c, recommendation);
                         return (
                         <TableRow
                           key={c.id}
@@ -654,17 +676,15 @@ export default function CustomerList() {
                             </div>
                           </TableCell>
                           <TableCell className="text-xs">
-                            {recommendation ? (
-                              <div className="flex flex-col gap-1">
-                                <span className="font-semibold text-slate-900">점수 {recommendation.totalScore}</span>
-                                {recommendation?.warnings?.[0] && <span className="text-red-600">{recommendation.warnings[0].message}</span>}
-                              </div>
-                            ) : (
-                              <span className="text-muted-foreground">일반</span>
-                            )}
+                            <div className="flex flex-col gap-1">
+                              <span className={`w-fit rounded-full border px-2 py-0.5 font-semibold ${execution.gradeClassName}`}>관리점수 {execution.score}</span>
+                              <span className="text-[11px] text-muted-foreground">{execution.grade}</span>
+                              {recommendation?.warnings?.[0] && <span className="text-red-600">{recommendation.warnings[0].message}</span>}
+                            </div>
                           </TableCell>
                           <TableCell className="max-w-[180px]">
-                            <span className="line-clamp-2 text-sm font-medium text-slate-800">{nextExecutionAction(c, recommendation)}</span>
+                            <span className="line-clamp-2 text-sm font-medium text-slate-800">{execution.actionTitle || nextExecutionAction(c, recommendation)}</span>
+                            {execution.reasons[0] && <p className="mt-1 text-[11px] text-muted-foreground">{execution.reasons[0].label} +{execution.reasons[0].points}</p>}
                           </TableCell>
                           <TableCell><StatusBadge status={c.consultStatus} /></TableCell>
                           <TableCell><span className="text-xs rounded-full border px-2 py-0.5 bg-muted">{priorityLabel((c as any).priority)}</span></TableCell>

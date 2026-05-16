@@ -23,6 +23,7 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
+import { buildCustomerExecutionScore } from "@shared/customerExecution";
 import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
@@ -68,68 +69,6 @@ function daysSince(value?: string | Date | null) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
-}
-
-function buildCustomerAction({
-  customer,
-  latestConsult,
-  nextFollowUp,
-  customerTags,
-  isLongUnmanaged,
-}: {
-  customer: any;
-  latestConsult?: any;
-  nextFollowUp?: any;
-  customerTags: string[];
-  isLongUnmanaged: boolean;
-}) {
-  if (isLongUnmanaged) {
-    return {
-      title: "기존 기준 점검 연락 필요",
-      description: "장기 미관리 고객입니다. 최근 상황 변화 여부와 기존 보장 기준을 점검할 명분이 있습니다.",
-      next: "기존 기준 점검",
-    };
-  }
-  if (!latestConsult) {
-    return {
-      title: "첫 상담 연결 필요",
-      description: "아직 상담기록이 없습니다. 유입 경로와 관심 보장 기준을 바탕으로 첫 상담을 시작하세요.",
-      next: "첫 상담 연결",
-    };
-  }
-  if (!nextFollowUp) {
-    return {
-      title: "다음 연락일 설정 필요",
-      description: "상담 흐름이 끊기지 않도록 다음 연락일을 먼저 설정하세요.",
-      next: "다음 연락일 설정",
-    };
-  }
-  if ((customer.expectedPremium ?? 0) >= 100000) {
-    return {
-      title: "보장 설계 우선 검토",
-      description: "예상보험료가 높은 고객입니다. 보장 니즈와 납입 여력을 함께 확인하세요.",
-      next: "보장 설계 검토",
-    };
-  }
-  if (customerTags.some((tag) => tag.includes("해지위험") || tag.includes("해지"))) {
-    return {
-      title: "유지 관리 우선 필요",
-      description: "해지위험 태그가 있는 고객입니다. 불만 요인과 보장 만족도를 먼저 확인하세요.",
-      next: "유지 관리 상담",
-    };
-  }
-  if (!customer.priority || customer.priority === "unclassified") {
-    return {
-      title: "우선순위 설정 필요",
-      description: "고객 관리 기준을 명확히 하기 위해 우선순위를 설정하세요.",
-      next: "우선순위 설정",
-    };
-  }
-  return {
-    title: "상담 흐름 유지",
-    description: "최근 상담 흐름을 확인하고 다음 행동을 이어가세요.",
-    next: customer.nextAction ?? "후속 상담",
-  };
 }
 
 export default function CustomerDetail({ id }: { id: number }) {
@@ -428,13 +367,24 @@ export default function CustomerDetail({ id }: { id: number }) {
   const isLongUnmanaged = latestConsultDate
     ? (daysFromLatestConsult ?? 0) >= 90
     : (daysFromManagementStart ?? 0) >= 90;
-  const recommendedAction = buildCustomerAction({
+  const execution = buildCustomerExecutionScore({
     customer,
+    recommendation: {
+      recommendedAction: contactReasons?.recommendedAction,
+      contactReason: contactReasons?.reasons?.[0],
+      reasons: contactReasons?.reasons,
+      warnings: contactReasons?.warnings,
+    },
     latestConsult,
-    nextFollowUp,
-    customerTags,
+    nextFollowUp: nextFollowUp ?? null,
+    hasOpenFollowUp: openFollowUps.length > 0,
     isLongUnmanaged,
   });
+  const recommendedAction = {
+    title: execution.actionTitle,
+    description: execution.actionDescription,
+    next: execution.actionNext,
+  };
 
   return (
     <DashboardLayout>
@@ -452,6 +402,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <h1 className="text-2xl font-bold text-slate-950">{customer.name}</h1>
                     <StatusBadge status={customer.consultStatus} />
+                    <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}>
+                      관리점수 {execution.score}
+                    </span>
                     {isLongUnmanaged && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">장기 미관리</span>}
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${customer.priority && customer.priority !== "unclassified" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                       우선순위 {priorityLabel((customer as any).priority)}
@@ -520,9 +473,19 @@ export default function CustomerDetail({ id }: { id: number }) {
             <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">추천 행동</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Next Best Action</p>
+                    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${execution.gradeClassName}`}>{execution.grade}</span>
+                  </div>
                   <h2 className="mt-1 text-base font-bold text-slate-950">{recommendedAction.title}</h2>
                   <p className="mt-1 text-sm text-slate-700">{recommendedAction.description}</p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {(execution.reasons.length > 0 ? execution.reasons : [{ label: "정기 관리 흐름 유지", points: 0 }]).slice(0, 5).map((reason) => (
+                      <span key={reason.label} className="rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-700">
+                        {reason.points > 0 ? `${reason.label} +${reason.points}` : reason.label}
+                      </span>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Button variant="outline" size="sm" className="bg-white" onClick={() => setActiveTab("tools")}>
