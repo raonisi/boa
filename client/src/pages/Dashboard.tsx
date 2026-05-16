@@ -24,7 +24,7 @@ import {
   Users,
   WalletCards,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -127,7 +127,7 @@ function SectionCard({
   );
 }
 
-function TodayWorkSection() {
+function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; roleTitle: string }) {
   const [, setLocation] = useLocation();
   const [queuePriorityFilter, setQueuePriorityFilter] = useState<"all" | "urgent" | "today" | "general">("all");
   const utils = trpc.useUtils();
@@ -153,7 +153,7 @@ function TodayWorkSection() {
   const topContacts = recommendationSummary?.topContacts ?? [];
   const fieldQueue = [
     {
-      title: "우선 연락",
+      title: "미처리 후속",
       count: cards?.overdueFollowUpCount ?? 0,
       hint: "기한이 지난 재연락 업무",
       actionLabel: "후속관리 열기",
@@ -162,8 +162,8 @@ function TodayWorkSection() {
     },
     {
       title: "오늘 일정",
-      count: cards?.incompleteScheduleCount ?? 0,
-      hint: "완료/보류 처리 필요한 일정",
+      count: cards?.todayScheduleCount ?? 0,
+      hint: "오늘 진행할 상담·계약 일정",
       actionLabel: "일정 캘린더",
       onClick: () => setLocation("/calendar"),
       tone: "border-amber-200 bg-amber-50/55 dark:border-amber-900/40 dark:bg-amber-950/20",
@@ -176,6 +176,14 @@ function TodayWorkSection() {
       onClick: () => setLocation("/notifications"),
       tone: "border-blue-200 bg-blue-50/55 dark:border-blue-900/40 dark:bg-blue-950/20",
     },
+    {
+      title: "추천 고객",
+      count: recommendationSummary?.priorityContactCount ?? 0,
+      hint: "오늘 먼저 볼 우선순위 고객",
+      actionLabel: "고객 DB",
+      onClick: () => setLocation("/customers"),
+      tone: "border-emerald-200 bg-emerald-50/55 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+    },
   ];
   const pendingNotifications = data?.pendingNotifications ?? [];
   const priorityCounts = {
@@ -187,10 +195,69 @@ function TodayWorkSection() {
     queuePriorityFilter === "all" ? true : classifyNotificationPriority(notification) === queuePriorityFilter
   );
   const sortedPendingNotifications = sortNotificationsForQueue(filteredPendingNotifications);
+  const commandItems = [
+    { label: "미확인 알림", value: cards?.pendingNotificationCount ?? 0, path: "/notifications", tone: "text-red-700" },
+    { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar", tone: "text-amber-700" },
+    { label: "추천 고객", value: recommendationSummary?.priorityContactCount ?? 0, path: "/customers", tone: "text-emerald-700" },
+    { label: "미처리 후속", value: cards?.overdueFollowUpCount ?? 0, path: "/customers", tone: "text-red-700" },
+  ];
+  const hasImmediateWork = commandItems.some((item) => item.value > 0);
+  const primaryCommandPath =
+    (cards?.pendingNotificationCount ?? 0) > 0 ? "/notifications" :
+    (cards?.todayScheduleCount ?? 0) > 0 ? "/calendar" :
+    (recommendationSummary?.priorityContactCount ?? 0) > 0 || (cards?.overdueFollowUpCount ?? 0) > 0 ? "/customers" :
+    "/calendar";
+  const primaryCommandLabel =
+    (cards?.pendingNotificationCount ?? 0) > 0 ? "알림 처리하기" :
+    (cards?.todayScheduleCount ?? 0) > 0 ? "오늘 일정 보기" :
+    (recommendationSummary?.priorityContactCount ?? 0) > 0 || (cards?.overdueFollowUpCount ?? 0) > 0 ? "고객 처리하기" :
+    "일정 등록하기";
 
   return (
     <section className="space-y-5">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+      <Card className="overflow-hidden border-primary/15 shadow-sm">
+        <div className="crm-masthead-rule" />
+        <CardContent className="p-4 sm:p-6">
+          <div className="grid gap-4 xl:grid-cols-[1.15fr_1.6fr_auto] xl:items-center">
+            <div>
+              <Badge variant="outline" className="border-sidebar-primary/45 bg-sidebar-primary/10 font-semibold text-foreground">
+                오늘의 지휘센터 · {roleTitle}
+              </Badge>
+              <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                {userName ?? "담당자"}님, 지금 처리할 업무부터 보세요.
+              </h1>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                미확인 알림, 오늘 일정, 우선 연락 고객, 미처리 후속관리 순서로 현장 업무를 정리했습니다.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {commandItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setLocation(item.path)}
+                  className="rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/45"
+                >
+                  <p className="text-[11px] font-medium text-muted-foreground">{item.label}</p>
+                  <p className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${item.tone}`}>{isLoading ? "-" : item.value}</p>
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row xl:flex-col">
+              <Button type="button" onClick={() => setLocation(primaryCommandPath)} className="min-h-10 gap-2 rounded-lg">
+                <BellDot className="h-4 w-4" />
+                {hasImmediateWork ? primaryCommandLabel : "일정 등록하기"}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setLocation("/sales-pipeline")} className="min-h-10 gap-2 rounded-lg">
+                <LayoutGrid className="h-4 w-4" />
+                파이프라인
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="hidden gap-3 md:grid md:grid-cols-4 xl:grid-cols-7">
         <PremiumStatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} tone="blue" helper="오늘 진행할 일정" />
         <PremiumStatCard title="오늘 연락 대상" value={isLoading ? "-" : cards?.todayFollowUpCount} icon={Phone} tone="gold" helper="후속 연락 예정" />
         <PremiumStatCard title="미완료 일정" value={isLoading ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} tone="orange" helper="처리 필요 일정" />
@@ -212,7 +279,7 @@ function TodayWorkSection() {
             {[
               { label: "미확인", value: cards?.pendingNotificationCount ?? 0, path: "/notifications" },
               { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar" },
-              { label: "우선 연락", value: cards?.todayFollowUpCount ?? 0, path: "/customers" },
+              { label: "추천 고객", value: recommendationSummary?.priorityContactCount ?? 0, path: "/customers" },
               { label: "미처리 후속", value: cards?.overdueFollowUpCount ?? 0, path: "/customers" },
             ].map((item) => (
               <button
@@ -242,7 +309,7 @@ function TodayWorkSection() {
           </button>
         </CardHeader>
         <CardContent className="space-y-3 px-5 pb-5">
-          <div className="grid gap-2 md:grid-cols-3">
+          <div className="grid gap-2 md:grid-cols-4">
             {fieldQueue.map((item) => (
               <div key={item.title} className={`rounded-lg border p-3 shadow-sm ${item.tone}`}>
                 <p className="text-xs text-muted-foreground">{item.title}</p>
@@ -312,7 +379,7 @@ function TodayWorkSection() {
                 </Button>
               }
             >
-              {queuePriorityFilter === "all" ? "즉시 처리할 미확인 알림이 없습니다." : "선택한 우선순위 알림이 없습니다."}
+              {queuePriorityFilter === "all" ? "즉시 처리할 미확인 알림이 없습니다. 오늘 일정과 후속관리만 확인하면 됩니다." : "선택한 우선순위 알림이 없습니다. 다른 우선순위 큐를 확인해보세요."}
             </EmptyState>
           ) : (
             sortedPendingNotifications.slice(0, 3).map((notification) => {
@@ -398,7 +465,7 @@ function TodayWorkSection() {
                 </Button>
               }
             >
-              오늘 우선 연락 추천 고객이 없습니다.
+              오늘 우선 연락 추천 고객이 없습니다. 고객 DB에서 미상담 또는 장기 미관리 고객을 확인하세요.
             </EmptyState>
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
@@ -428,7 +495,7 @@ function TodayWorkSection() {
                 </Button>
               }
             >
-              오늘 예정된 일정이 없습니다.
+              오늘 예정된 일정이 없습니다. 상담 예약이나 후속관리 일정을 등록해보세요.
             </EmptyState>
           ) : data?.todaySchedules.slice(0, 5).map((schedule) => (
             <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
@@ -452,7 +519,7 @@ function TodayWorkSection() {
                 </Button>
               }
             >
-              미확인 알림이 없습니다.
+              미확인 알림이 없습니다. 일정 알림은 설정한 시각에 표시됩니다.
             </EmptyState>
           ) : data?.pendingNotifications.slice(0, 5).map((notification) => (
             <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
@@ -639,6 +706,7 @@ function WorkRhythmSummaryCard() {
 export default function Dashboard() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
+  const [showBackToTop, setShowBackToTop] = useState(false);
   const utils = trpc.useUtils();
   const { data: stats } = trpc.performance.stats.useQuery();
   const { data: myBranchAdminStats } = trpc.performance.stats.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
@@ -669,55 +737,17 @@ export default function Dashboard() {
     user?.role === "sub_branch_admin" ? "부지점장" :
     user?.role === "team_leader" ? "팀장" : "팀원";
 
+  useEffect(() => {
+    const handleScroll = () => setShowBackToTop(window.scrollY > 520);
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <section className="relative overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          <div className="crm-masthead-rule" />
-          <div className="grid gap-6 px-5 py-6 sm:px-7 lg:grid-cols-[1.35fr_1fr] lg:items-center">
-            <div>
-              <Badge variant="outline" className="border-sidebar-primary/45 bg-sidebar-primary/10 font-semibold text-foreground">
-                BOA Premium CRM
-              </Badge>
-              <h1 className="mt-4 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                {user?.name}님, 오늘의 지휘센터입니다.
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
-                미확인 알림 · 오늘 일정 · 우선 연락 · 미처리 후속을 먼저 보고 바로 처리하세요.
-              </p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-lg border border-border bg-muted/35 p-4 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">오늘 날짜</p>
-                <p className="mt-2 text-lg font-bold tabular-nums tracking-tight text-foreground">
-                  {today.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}
-                </p>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/35 p-4 shadow-sm">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">로그인 역할</p>
-                <p className="mt-2 text-lg font-bold text-foreground">{roleTitle}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="default"
-            onClick={() => setLocation("/sales-pipeline")}
-            className="min-h-11 gap-2 rounded-lg shadow-sm"
-          >
-            <LayoutGrid className="h-4 w-4 text-sidebar-primary" />
-            세일즈 파이프라인
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => setLocation("/notifications")} className="min-h-11 gap-2 rounded-lg">
-            <Bell className="h-4 w-4" />
-            미확인 알림 확인
-          </Button>
-        </div>
-
-        <TodayWorkSection />
+        <TodayWorkSection userName={user?.name} roleTitle={roleTitle} />
 
         {user?.role === "branch_admin" ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -749,9 +779,9 @@ export default function Dashboard() {
                     고객 DB 열기
                   </Button>
                 }
-              >
-                표시할 고객이 없습니다.
-              </EmptyState>
+            >
+              표시할 고객이 없습니다. 신규 고객 등록 또는 DB 배정을 먼저 확인하세요.
+            </EmptyState>
             ) : recentCustomers.map((customer) => (
               <button
                 key={customer.id}
@@ -776,8 +806,8 @@ export default function Dashboard() {
                     캘린더로 이동
                   </Button>
                 }
-              >
-                오늘 일정이 없습니다.
+            >
+                오늘 일정이 없습니다. 상담 예약이나 후속관리 일정을 등록해보세요.
               </EmptyState>
             ) : todaySchedules.slice(0, 5).map((schedule) => (
               <div key={schedule.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
@@ -800,8 +830,8 @@ export default function Dashboard() {
                     알림센터 열기
                   </Button>
                 }
-              >
-                새 알림이 없습니다.
+            >
+                새 알림이 없습니다. 알림센터에서 처리 완료 상태를 확인할 수 있습니다.
               </EmptyState>
             ) : unreadNotifs.slice(0, 5).map((notification) => (
               <div key={notification.id} className="rounded-lg border border-border border-l-[3px] border-l-sidebar-primary bg-muted/25 p-3 shadow-sm">
@@ -872,6 +902,7 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
+        {showBackToTop ? (
         <div className="fixed bottom-24 right-4 z-40 md:hidden">
           <Button
             type="button"
@@ -884,6 +915,7 @@ export default function Dashboard() {
             <ArrowUp className="h-4 w-4" />
           </Button>
         </div>
+        ) : null}
       </div>
     </DashboardLayout>
   );
