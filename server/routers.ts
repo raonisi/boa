@@ -1194,6 +1194,10 @@ function daysBetween(from: Date, to: Date) {
   return Math.floor((toDayStart(to).getTime() - toDayStart(from).getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function customerManagementStartDate(customer: { assignedAt?: Date | string | null; createdAt?: Date | string | null }) {
+  return new Date(customer.assignedAt ?? customer.createdAt ?? Date.now());
+}
+
 function recommendationUrgency(score: number): "high" | "medium" | "low" {
   if (score >= 55) return "high";
   if (score >= 25) return "medium";
@@ -1372,26 +1376,27 @@ async function buildRecommendationItems(user: { id: number; role: string; teamId
       if (customer.nextAction.includes("설계안")) contactReasonTypes.add("proposal_follow_up");
     }
 
-    const registeredDays = daysBetween(new Date(customer.createdAt), baseDate);
-    if (registeredDays >= 7 && customerConsultations.length === 0) {
+    const managementStartDate = customerManagementStartDate(customer);
+    const managementDays = daysBetween(managementStartDate, baseDate);
+    if (managementDays >= 7 && customerConsultations.length === 0) {
       totalScore += 15;
-      warnings.push({ warningType: "no_consultation", severity: "medium", message: "등록 후 상담기록이 없습니다.", source: "consultations" });
+      warnings.push({ warningType: "no_consultation", severity: "medium", message: "배정 후 상담기록이 없습니다.", source: "consultations" });
       contactReasonTypes.add("no_consultation");
     }
 
     const lastConsultationDate = latestConsultation ? new Date(latestConsultation.createdAt) : null;
     const daysSinceConsult = lastConsultationDate ? daysBetween(lastConsultationDate, baseDate) : null;
-    if (isDesignOrContractReviewState(customer) && (daysSinceConsult === null || daysSinceConsult >= 14)) {
+    if (isDesignOrContractReviewState(customer) && ((daysSinceConsult === null && managementDays >= 14) || (daysSinceConsult !== null && daysSinceConsult >= 14))) {
       totalScore += 20;
       reasons.push("설계/계약 검토 장기화");
       warnings.push({ warningType: "proposal_stalled", severity: "medium", message: "설계 진행 상태가 장기화되고 있습니다.", source: "customers" });
       contactReasonTypes.add("proposal_follow_up");
     }
-    if (customer.priority === "A" && (daysSinceConsult === null || daysSinceConsult >= 7) && todayFollowUps.length === 0) {
+    if (customer.priority === "A" && ((daysSinceConsult === null && managementDays >= 7) || (daysSinceConsult !== null && daysSinceConsult >= 7)) && todayFollowUps.length === 0) {
       warnings.push({ warningType: "priority_a_unmanaged", severity: "high", message: "A등급 고객 관리가 지연되고 있습니다.", source: "customers" });
       contactReasonTypes.add("priority_a_unmanaged");
     }
-    if (daysSinceConsult === null || daysSinceConsult >= 90) {
+    if ((daysSinceConsult === null && managementDays >= 90) || (daysSinceConsult !== null && daysSinceConsult >= 90)) {
       totalScore += 20;
       reasons.push("장기 미관리 가능성");
       warnings.push({ warningType: "long_unmanaged", severity: "medium", message: "장기 미관리 고객입니다.", source: "consultations" });
