@@ -512,6 +512,12 @@ const HIGH_RISK_ACTIONS = new Set([
 const MEDIUM_RISK_ACTIONS = new Set([
   "DELETE_REQUEST_APPROVED",
   "CONTRACT_DEACTIVATED_BY_REQUEST",
+  "CUSTOMER_DEACTIVATED",
+  "CONTRACT_DEACTIVATED",
+  "TEAM_DEACTIVATED",
+  "CUSTOMER_ASSIGNEE_BULK_CHANGED",
+  "CUSTOMER_ASSIGNEE_CHANGED_BY_BULK",
+  "CUSTOMER_MERGE_BLOCKED",
   "IMPORT_BATCH_CANCELLED",
   "IMPORT_BATCH_CANCEL_BLOCKED",
   "USER_FORCE_LOGOUT",
@@ -520,6 +526,7 @@ const MEDIUM_RISK_ACTIONS = new Set([
 const LOW_RISK_ACTIONS = new Set([
   "DELETE_REQUEST_CREATED",
   "DELETE_REQUEST_REJECTED",
+  "DELETE_REQUEST_CANCELLED",
   "TEAM_RESTORED",
   "CUSTOMER_RESTORED",
   "CONTRACT_RESTORED",
@@ -531,7 +538,12 @@ const DELETE_AUDIT_ACTIONS = new Set([
   "DELETE_REQUEST_CREATED",
   "DELETE_REQUEST_APPROVED",
   "DELETE_REQUEST_REJECTED",
+  "DELETE_REQUEST_CANCELLED",
   "CONTRACT_DEACTIVATED_BY_REQUEST",
+  "CUSTOMER_DEACTIVATED",
+  "CONTRACT_DEACTIVATED",
+  "TEAM_DEACTIVATED",
+  "CUSTOMER_DEACTIVATED_BY_BATCH_CANCELLED",
   "TEAM_RESTORED",
   "CUSTOMER_RESTORED",
   "CONTRACT_RESTORED",
@@ -550,6 +562,8 @@ const SECURITY_AUDIT_ACTIONS = new Set([
   "USER_OAUTH_RESET",
   "USER_FORCE_LOGOUT",
   "ALL_USERS_FORCE_LOGOUT",
+  "USER_ROLE_CHANGED",
+  "USER_STATUS_CHANGED",
 ]);
 const RISK_ACTIONS = new Set([
   "DATA_DOWNLOAD",
@@ -566,11 +580,22 @@ const RISK_ACTIONS = new Set([
   "USER_ROLE_CHANGED",
   "DELETE_REQUEST_CREATED",
   "DELETE_REQUEST_REJECTED",
+  "DELETE_REQUEST_CANCELLED",
+  "CUSTOMER_DEACTIVATED",
+  "CONTRACT_DEACTIVATED",
+  "TEAM_DEACTIVATED",
+  "CUSTOMER_DEACTIVATED_BY_BATCH_CANCELLED",
   "TEAM_RESTORED",
   "CUSTOMER_RESTORED",
   "CONTRACT_RESTORED",
   "PERMANENT_DELETE_BLOCKED",
   "LOGIN_BLOCKED",
+  "CUSTOMER_ASSIGNEE_BULK_CHANGED",
+  "CUSTOMER_ASSIGNEE_CHANGED_BY_BULK",
+  "AGENT_CHANGED",
+  "CUSTOMER_ASSIGNEE_AUTO_SET_BY_DB_ASSIGNMENT",
+  "CUSTOMER_MERGE_BLOCKED",
+  "CUSTOMER_MERGE_PREVIEWED",
 ]);
 
 function getRiskLevel(action: string): "high" | "medium" | "low" | "normal" {
@@ -584,6 +609,7 @@ function safeAuditText(value: unknown, maxLength = 160) {
   if (value === null || value === undefined) return "";
   return String(value)
     .replace(/(secret|token|password|DATABASE_URL|JWT_SECRET|GOOGLE_CLIENT_SECRET|api[_-]?key)\s*[:=]\s*[^,\s"}]+/gi, "$1=[redacted]")
+    .replace(/01[016789][-\s]?\d{3,4}[-\s]?\d{4}/g, "[phone-redacted]")
     .slice(0, maxLength);
 }
 
@@ -607,6 +633,297 @@ function summarizeLogDetails(details?: string | null) {
   } catch {
     return { reason: null, summary: safeAuditText(details, 120) || null };
   }
+}
+
+type OperationRiskLevel = "normal" | "caution" | "warning" | "danger";
+
+type OperationRiskCategory =
+  | "download"
+  | "deletion"
+  | "account"
+  | "handoff"
+  | "push"
+  | "unresolved";
+
+const operationRiskPeriodInput = z.object({
+  period: z.enum(["today", "7d", "30d", "month", "custom"]).default("7d"),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+}).optional();
+
+function resolveOperationRiskRange(input?: z.infer<typeof operationRiskPeriodInput>) {
+  const now = new Date();
+  if (input?.period === "today") {
+    return { dateFrom: toDayStart(now), dateTo: toDayEnd(now), label: "오늘" };
+  }
+  if (input?.period === "30d") {
+    return { dateFrom: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), dateTo: now, label: "최근 30일" };
+  }
+  if (input?.period === "month") {
+    return { dateFrom: new Date(now.getFullYear(), now.getMonth(), 1), dateTo: toDayEnd(now), label: "이번 달" };
+  }
+  if (input?.period === "custom" && input.dateFrom && input.dateTo) {
+    return { dateFrom: toDayStart(new Date(input.dateFrom)), dateTo: toDayEnd(new Date(input.dateTo)), label: "직접 선택" };
+  }
+  return { dateFrom: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000), dateTo: now, label: "최근 7일" };
+}
+
+function operationRiskLevel(score: number): OperationRiskLevel {
+  if (score >= 70) return "danger";
+  if (score >= 45) return "warning";
+  if (score >= 15) return "caution";
+  return "normal";
+}
+
+function operationRiskMessage(level: OperationRiskLevel) {
+  if (level === "danger") return "즉시 확인이 필요한 운영 리스크가 있습니다.";
+  if (level === "warning") return "반복되거나 민감한 운영 이벤트를 확인하세요.";
+  if (level === "caution") return "확인 필요한 운영 이벤트가 있습니다.";
+  return "최근 고위험 운영 이벤트가 안정적입니다.";
+}
+
+function compactRiskItem(params: {
+  category: OperationRiskCategory;
+  title: string;
+  count: number;
+  score: number;
+  description: string;
+  actionLabel: string;
+  href: string;
+}) {
+  const level = operationRiskLevel(params.score);
+  return { ...params, score: Math.min(100, Math.max(0, params.score)), level };
+}
+
+function countBy<T>(items: T[], getKey: (item: T) => string | number | null | undefined) {
+  return items.reduce<Record<string, number>>((acc, item) => {
+    const key = getKey(item);
+    if (key === null || key === undefined || key === "") return acc;
+    acc[String(key)] = (acc[String(key)] ?? 0) + 1;
+    return acc;
+  }, {});
+}
+
+function getSafeMetadataReason(details?: string | null) {
+  return summarizeLogDetails(details).reason;
+}
+
+async function buildOperationRiskReport(input?: z.infer<typeof operationRiskPeriodInput>) {
+  const range = resolveOperationRiskRange(input);
+  const [
+    users,
+    customers,
+    contracts,
+    followUps,
+    schedules,
+    notificationsResult,
+    deleteRequests,
+    handoffHistories,
+    activityLogs,
+    pushSummary,
+    pushLogs,
+  ] = await Promise.all([
+    getAllUsers(),
+    getCustomers({}),
+    getAllContracts({}),
+    getFollowUps({ statuses: ["scheduled", "postponed", "completed", "cancelled"] }),
+    getSchedules({}),
+    getNotificationsFiltered({ limit: 1000 }),
+    getDeleteRequests({}),
+    getHandoffHistories({ limit: 100 }),
+    getActivityLogs(2000),
+    getPushNotificationOperationSummary(range.dateFrom, range.dateTo),
+    listPushNotificationLogs({ dateFrom: range.dateFrom, dateTo: range.dateTo, limit: 100 }),
+  ]);
+
+  const logsInRange = activityLogs.filter((entry) => isWithinDateRange(new Date(entry.createdAt), range.dateFrom, range.dateTo));
+  const userById = new Map(users.map((user) => [user.id, user]));
+  const inactiveUserIds = new Set(users.filter((user) => user.accountStatus === "inactive" || user.accountStatus === "resigned").map((user) => user.id));
+  const now = new Date();
+  const staleDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+  const downloadLogs = logsInRange.filter((entry) => DOWNLOAD_ACTIONS.has(entry.action));
+  const downloadsByUser = countBy(downloadLogs, (entry) => entry.userId);
+  const repeatedDownloadUsers = Object.values(downloadsByUser).filter((count) => count >= 3).length;
+  const shortDownloadReasons = downloadLogs.filter((entry) => {
+    const reason = getSafeMetadataReason(entry.details);
+    return !reason || reason.trim().length < 5;
+  }).length;
+
+  const deletionLogs = logsInRange.filter((entry) => DELETE_AUDIT_ACTIONS.has(entry.action));
+  const permanentDeleteLogs = deletionLogs.filter((entry) => entry.action.includes("PERMANENTLY_DELETED"));
+  const pendingDeleteRequests = deleteRequests.filter((request) => request.status === "pending");
+
+  const accountLogs = logsInRange.filter((entry) => SECURITY_AUDIT_ACTIONS.has(entry.action) || entry.action === "USER_ROLE_CHANGED" || entry.action === "USER_STATUS_CHANGED");
+  const criticalAccountLogs = accountLogs.filter((entry) => ["USER_OAUTH_RESET", "USER_FORCE_LOGOUT", "ALL_USERS_FORCE_LOGOUT", "LOGIN_BLOCKED"].includes(entry.action));
+
+  const inactiveCustomers = customers.filter((customer: any) => inactiveUserIds.has(Number(customer.agentId)));
+  const inactiveContracts = contracts.filter((contract: any) => inactiveUserIds.has(Number(contract.agentId)));
+  const inactiveFollowUps = followUps.filter((followUp: any) => inactiveUserIds.has(Number(followUp.assignedAgentId)) && ["scheduled", "postponed"].includes(String(followUp.status)));
+  const inactiveSchedules = schedules.filter((schedule: any) => inactiveUserIds.has(Number(schedule.userId)) && !["완료", "취소", "completed", "cancelled"].includes(String(schedule.status)));
+  const inactiveNotifications = notificationsResult.items.filter((notification: any) => inactiveUserIds.has(Number(notification.userId)) && (!notification.isRead || notification.processStatus === "미확인"));
+  const unresolvedHandoffCount = inactiveCustomers.length + inactiveContracts.length + inactiveFollowUps.length + inactiveSchedules.length + inactiveNotifications.length;
+
+  const failedPushLogs = pushLogs.filter((entry) => entry.status === "failed" || entry.status === "invalid_token_deactivated");
+  const skippedPushLogs = pushLogs.filter((entry) => String(entry.status).startsWith("skipped") || entry.status === "duplicate_skipped");
+
+  const overdueFollowUps = followUps.filter((followUp: any) => ["scheduled", "postponed"].includes(String(followUp.status)) && followUp.nextContactDate && new Date(followUp.nextContactDate).getTime() < now.getTime());
+  const staleSchedules = schedules.filter((schedule: any) => !["완료", "취소", "completed", "cancelled"].includes(String(schedule.status)) && schedule.startTime && new Date(schedule.startTime).getTime() < staleDate.getTime());
+  const unreadNotifications = notificationsResult.items.filter((notification: any) => !notification.isRead || notification.processStatus === "미확인");
+  const unresolvedWorkCount = overdueFollowUps.length + staleSchedules.length + unreadNotifications.length + pendingDeleteRequests.length;
+
+  const riskCards = [
+    compactRiskItem({
+      category: "download",
+      title: "데이터 다운로드 리스크",
+      count: downloadLogs.length,
+      score: downloadLogs.length * 4 + repeatedDownloadUsers * 14 + shortDownloadReasons * 8,
+      description: repeatedDownloadUsers > 0 ? "짧은 기간 반복 다운로드 사용자를 확인하세요." : "다운로드 사유와 대상 데이터를 점검하세요.",
+      actionLabel: "다운로드 로그 확인",
+      href: "/logs",
+    }),
+    compactRiskItem({
+      category: "deletion",
+      title: "삭제·복구 리스크",
+      count: deletionLogs.length + pendingDeleteRequests.length,
+      score: deletionLogs.length * 5 + permanentDeleteLogs.length * 25 + pendingDeleteRequests.length * 6,
+      description: permanentDeleteLogs.length > 0 ? "완전삭제 이력이 있어 즉시 확인이 필요합니다." : "삭제 요청과 복구 흐름을 확인하세요.",
+      actionLabel: "삭제 데이터 확인",
+      href: "/deleted-data",
+    }),
+    compactRiskItem({
+      category: "account",
+      title: "권한·계정 리스크",
+      count: accountLogs.length,
+      score: accountLogs.length * 5 + criticalAccountLogs.length * 12,
+      description: criticalAccountLogs.length > 0 ? "강제 로그아웃 또는 OAuth 초기화 이력을 확인하세요." : "계정 상태와 권한 변경 이력을 점검하세요.",
+      actionLabel: "사용자 관리",
+      href: "/users",
+    }),
+    compactRiskItem({
+      category: "handoff",
+      title: "인수인계 리스크",
+      count: unresolvedHandoffCount,
+      score: Math.min(100, unresolvedHandoffCount * 6 + handoffHistories.length),
+      description: unresolvedHandoffCount > 0 ? "퇴사자/비활성 계정에 남은 업무가 있습니다." : "퇴사자 미처리 업무가 안정적입니다.",
+      actionLabel: "인수인계 관리",
+      href: "/users/handoff",
+    }),
+    compactRiskItem({
+      category: "push",
+      title: "푸시 알림 리스크",
+      count: pushSummary.failed + pushSummary.skipped + pushSummary.inactiveTokens,
+      score: pushSummary.failed * 10 + pushSummary.skipped * 3 + pushSummary.inactiveTokens * 4,
+      description: pushSummary.failed > 0 ? "푸시 실패와 비활성 토큰을 확인하세요." : "푸시 실패 로그가 낮은 수준입니다.",
+      actionLabel: "푸시 운영 확인",
+      href: "/push-notifications",
+    }),
+    compactRiskItem({
+      category: "unresolved",
+      title: "미처리 업무 리스크",
+      count: unresolvedWorkCount,
+      score: Math.min(100, overdueFollowUps.length * 3 + staleSchedules.length * 6 + unreadNotifications.length + pendingDeleteRequests.length * 5),
+      description: overdueFollowUps.length > 0 ? "미처리 후속관리와 오래된 일정을 우선 확인하세요." : "미처리 운영 업무가 안정적입니다.",
+      actionLabel: "업무 확인",
+      href: "/notifications",
+    }),
+  ];
+
+  const overallScore = Math.min(100, Math.round(riskCards.reduce((sum, card) => sum + card.score, 0) / 2));
+  const overallLevel = operationRiskLevel(overallScore);
+
+  const recentRiskEvents = logsInRange
+    .filter((entry) => RISK_ACTIONS.has(entry.action) || SECURITY_AUDIT_ACTIONS.has(entry.action))
+    .slice(0, 20)
+    .map((entry) => {
+      const actor = userById.get(entry.userId);
+      const details = summarizeLogDetails(entry.details);
+      return {
+        id: entry.id,
+        createdAt: entry.createdAt,
+        actor: actor ? { id: actor.id, name: actor.name, role: actor.role, email: actor.email ? maskEmail(actor.email) : null } : null,
+        action: entry.action,
+        targetType: entry.targetType,
+        targetId: entry.targetId,
+        riskLevel: getRiskLevel(entry.action),
+        reason: details.reason,
+        summary: details.summary,
+      };
+    });
+
+  return {
+    period: {
+      preset: input?.period ?? "7d",
+      label: range.label,
+      dateFrom: range.dateFrom.toISOString(),
+      dateTo: range.dateTo.toISOString(),
+    },
+    overall: {
+      score: overallScore,
+      level: overallLevel,
+      message: operationRiskMessage(overallLevel),
+    },
+    riskCards,
+    downloadRisk: {
+      total: downloadLogs.length,
+      repeatedUserCount: repeatedDownloadUsers,
+      shortReasonCount: shortDownloadReasons,
+      byUser: downloadsByUser,
+    },
+    deletionRisk: {
+      total: deletionLogs.length,
+      permanentDeleteCount: permanentDeleteLogs.length,
+      pendingDeleteRequestCount: pendingDeleteRequests.length,
+    },
+    accountRisk: {
+      total: accountLogs.length,
+      criticalCount: criticalAccountLogs.length,
+      inactiveUsers: users.filter((user) => user.accountStatus === "inactive").length,
+      resignedUsers: users.filter((user) => user.accountStatus === "resigned").length,
+    },
+    handoffRisk: {
+      unresolvedCount: unresolvedHandoffCount,
+      inactiveCustomerCount: inactiveCustomers.length,
+      inactiveContractCount: inactiveContracts.length,
+      inactiveFollowUpCount: inactiveFollowUps.length,
+      inactiveScheduleCount: inactiveSchedules.length,
+      inactiveNotificationCount: inactiveNotifications.length,
+      recentHandoffCount: handoffHistories.length,
+    },
+    pushRisk: {
+      total: pushSummary.total,
+      sent: pushSummary.sent,
+      failed: pushSummary.failed,
+      skipped: pushSummary.skipped,
+      inactiveTokens: pushSummary.inactiveTokens,
+      recentFailures: failedPushLogs.slice(0, 10).map((entry) => ({
+        id: entry.id,
+        type: entry.type,
+        userId: entry.userId,
+        userName: entry.userName,
+        userRole: entry.userRole,
+        sourceType: entry.sourceType,
+        status: entry.status,
+        errorCode: entry.errorCode ? safeAuditText(String(entry.errorCode).replace(/\s+\S{8,}/g, " [redacted]"), 80) : null,
+        createdAt: entry.createdAt,
+      })),
+      skippedCount: skippedPushLogs.length,
+    },
+    unresolvedWorkRisk: {
+      total: unresolvedWorkCount,
+      overdueFollowUpCount: overdueFollowUps.length,
+      staleScheduleCount: staleSchedules.length,
+      unreadNotificationCount: unreadNotifications.length,
+      pendingDeleteRequestCount: pendingDeleteRequests.length,
+    },
+    recentRiskEvents,
+    guides: [
+      { title: "반복 다운로드 확인", description: "다운로드 사유와 대상 데이터를 활동 로그에서 확인하세요.", href: "/logs" },
+      { title: "퇴사자 미처리 업무 확인", description: "비활성/퇴사 계정에 남은 고객, 후속관리, 일정은 인수인계 관리에서 정리하세요.", href: "/users/handoff" },
+      { title: "푸시 실패 점검", description: "invalid token과 skipped 로그를 확인해 현장 알림 누락을 줄이세요.", href: "/push-notifications" },
+      { title: "삭제 요청 검토", description: "보류 중인 삭제 요청과 완전삭제 이력은 삭제 데이터 관리에서 확인하세요.", href: "/deleted-data" },
+    ],
+  };
 }
 
 function isWithinDateRange(date: Date, from?: Date, to?: Date) {
@@ -3223,6 +3540,33 @@ export const appRouter = router({
   }),
 
   // ── Customers ─────────────────────────────────────────────────────────────
+  operationRisk: router({
+    summary: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => buildOperationRiskReport(input)),
+    riskEvents: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).recentRiskEvents),
+    downloadRisk: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).downloadRisk),
+    accountRisk: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).accountRisk),
+    deletionRisk: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).deletionRisk),
+    handoffRisk: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).handoffRisk),
+    pushRisk: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).pushRisk),
+    unresolvedWorkRisk: branchAdminProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ input }) => (await buildOperationRiskReport(input)).unresolvedWorkRisk),
+  }),
+
   customers: router({
     list: activeUserProcedure
       .input(z.object({

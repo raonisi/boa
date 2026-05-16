@@ -36,6 +36,7 @@ import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
 import SalesPipeline from "./pages/SalesPipeline";
 import SalesFunnelAnalytics from "./pages/SalesFunnelAnalytics";
+import OperationRiskCenter from "./pages/OperationRiskCenter";
 
 function LoginConfigurationNotice({ message }: { message: string }) {
   return (
@@ -238,6 +239,13 @@ function Router() {
         <AuthGuard>
           <AdminGuard>
             <AdminAuditDashboard />
+          </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/operation-risk">
+        <AuthGuard>
+          <AdminGuard>
+            <OperationRiskCenter />
           </AdminGuard>
         </AuthGuard>
       </Route>

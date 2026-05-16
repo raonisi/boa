@@ -1779,6 +1779,115 @@ describe("admin audit and download reason controls", () => {
   });
 });
 
+describe("PR6 operation risk center", () => {
+  function mockOperationRiskSources(overrides: Partial<{
+    users: any[];
+    customers: any[];
+    contracts: any[];
+    followUps: any[];
+    schedules: any[];
+    notifications: any[];
+    deleteRequests: any[];
+    handoffHistories: any[];
+    activityLogs: any[];
+    pushSummary: any;
+    pushLogs: any[];
+  }> = {}) {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(overrides.users ?? [
+      { id: 1, name: "[TEST] Admin", email: "admin@test.local", role: "branch_admin", accountStatus: "active" },
+    ] as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue(overrides.customers ?? [] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue(overrides.contracts ?? [] as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue(overrides.followUps ?? [] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue(overrides.schedules ?? [] as any);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
+      items: overrides.notifications ?? [],
+      totalCount: overrides.notifications?.length ?? 0,
+      hasMore: false,
+    } as any);
+    vi.spyOn(db, "getDeleteRequests").mockResolvedValue(overrides.deleteRequests ?? [] as any);
+    vi.spyOn(db, "getHandoffHistories").mockResolvedValue(overrides.handoffHistories ?? [] as any);
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue(overrides.activityLogs ?? [] as any);
+    vi.spyOn(db, "getPushNotificationOperationSummary").mockResolvedValue(overrides.pushSummary ?? {
+      total: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      inactiveTokens: 0,
+    } as any);
+    vi.spyOn(db, "listPushNotificationLogs").mockResolvedValue(overrides.pushLogs ?? [] as any);
+  }
+
+  it("allows branch_admin to view operation risk summary and risk events", async () => {
+    const now = new Date();
+    mockOperationRiskSources({
+      users: [
+        { id: 1, name: "[TEST] Admin", email: "admin@test.local", role: "branch_admin", accountStatus: "active" },
+        { id: 4, name: "[TEST] Former", email: "former@test.local", role: "member", accountStatus: "resigned" },
+      ],
+      customers: [{ id: 100, agentId: 4, phone: "010-1234-5678" }],
+      followUps: [{ id: 10, assignedAgentId: 4, status: "scheduled", nextContactDate: new Date("2026-01-01T00:00:00.000Z") }],
+      schedules: [{ id: 20, userId: 4, status: "scheduled", startTime: new Date("2026-01-01T00:00:00.000Z") }],
+      notifications: [{ id: 30, userId: 4, isRead: false, processStatus: "미확인" }],
+      deleteRequests: [{ id: 7, status: "pending" }],
+      activityLogs: [
+        { id: 1, userId: 1, action: "DATA_DOWNLOAD", targetType: "customers", targetId: null, details: JSON.stringify({ metadata: { reason: "a", rowCount: 20, token: "raw-token", phone: "010-1111-2222" } }), createdAt: now },
+        { id: 2, userId: 1, action: "DATA_DOWNLOAD", targetType: "contracts", targetId: null, details: JSON.stringify({ metadata: { reason: "[TEST] repeated", rowCount: 3 } }), createdAt: now },
+        { id: 3, userId: 1, action: "DATA_DOWNLOAD", targetType: "performance", targetId: null, details: JSON.stringify({ metadata: { reason: "[TEST] repeated", rowCount: 1 } }), createdAt: now },
+        { id: 4, userId: 1, action: "CONTRACT_PERMANENTLY_DELETED", targetType: "contract", targetId: 9, details: "{}", createdAt: now },
+        { id: 5, userId: 1, action: "USER_OAUTH_RESET", targetType: "user", targetId: 4, details: JSON.stringify({ metadata: { reason: "[TEST] reset" } }), createdAt: now },
+      ],
+      pushSummary: { total: 3, sent: 1, failed: 1, skipped: 1, inactiveTokens: 2 },
+      pushLogs: [
+        { id: 99, type: "follow_up_today", userId: 4, userName: "[TEST] Former", userRole: "member", sourceType: "follow_up", status: "failed", errorCode: "UNREGISTERED raw-token", createdAt: now, dedupeKey: "secret-dedupe" },
+      ],
+    });
+    const createLogSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+    const result = await caller.operationRisk.summary({ period: "7d" });
+    const events = await caller.operationRisk.riskEvents({ period: "7d" });
+
+    expect(result.overall.score).toBeGreaterThan(0);
+    expect(result.downloadRisk.total).toBe(3);
+    expect(result.downloadRisk.repeatedUserCount).toBe(1);
+    expect(result.downloadRisk.shortReasonCount).toBe(1);
+    expect(result.deletionRisk.permanentDeleteCount).toBe(1);
+    expect(result.accountRisk.criticalCount).toBe(1);
+    expect(result.handoffRisk.unresolvedCount).toBeGreaterThan(0);
+    expect(result.pushRisk.failed).toBe(1);
+    expect(events[0].action).toBe("DATA_DOWNLOAD");
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain("010-1111-2222");
+    expect(serialized).not.toContain("010-1234-5678");
+    expect(serialized).not.toContain("raw-token");
+    expect(serialized).not.toContain("secret-dedupe");
+    expect(createLogSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks non-branch_admin and inactive or resigned users from operation risk APIs", async () => {
+    for (const role of ["sub_branch_admin", "team_leader", "member"] as Role[]) {
+      await expect(appRouter.createCaller(createCtx(role)).operationRisk.summary({ period: "7d" })).rejects.toThrow();
+      await expect(appRouter.createCaller(createCtx(role)).operationRisk.riskEvents({ period: "7d" })).rejects.toThrow();
+    }
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).operationRisk.summary({ period: "7d" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).operationRisk.summary({ period: "7d" })).rejects.toThrow();
+  });
+
+  it("returns stable normal output for empty operation risk data", async () => {
+    mockOperationRiskSources();
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).operationRisk.summary({ period: "custom", dateFrom: "2026-05-01", dateTo: "2026-05-31" });
+
+    expect(result.overall.level).toBe("normal");
+    expect(result.overall.score).toBe(0);
+    expect(result.riskCards.every((card) => Number.isFinite(card.score))).toBe(true);
+    expect(result.riskCards.every((card) => card.count === 0)).toBe(true);
+    expect(result.recentRiskEvents).toHaveLength(0);
+    expect(result.pushRisk.recentFailures).toHaveLength(0);
+  });
+});
+
 describe("PR9 full role permission QA", () => {
   it("allows branch_admin to access high-risk admin-only surfaces with required audit inputs", async () => {
     vi.spyOn(db, "getDeletedCustomers").mockResolvedValue([]);
