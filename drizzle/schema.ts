@@ -341,6 +341,7 @@ export const schedules = mysqlTable("schedules", {
   reminderDayBefore: boolean("reminderDayBefore").default(true),
   reminderSameDay: boolean("reminderSameDay").default(true),
   reminderOneHourBefore: boolean("reminderOneHourBefore").default(true),
+  reminderOffsetMinutes: int("reminderOffsetMinutes").default(30).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
   createdBy: int("createdBy"),

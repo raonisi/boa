@@ -148,6 +148,13 @@
       "when": 1778929200000,
       "tag": "0020_push_notification_preferences",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1779015600000,
+      "tag": "0021_schedule_reminder_offset",
+      "breakpoints": true
     }
   ]
 }

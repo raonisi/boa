@@ -73,6 +73,7 @@ const scheduleCreateBody = z.object({
   reminderDayBefore: z.boolean().optional(),
   reminderSameDay: z.boolean().optional(),
   reminderOneHourBefore: z.boolean().optional(),
+  reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).optional(),
 });
 
 const pushPrefsPatchBody = z.object({
@@ -751,6 +752,7 @@ export function registerMobileRoutes(app: Express) {
         reminderDayBefore: d.reminderDayBefore ?? true,
         reminderSameDay: d.reminderSameDay ?? true,
         reminderOneHourBefore: d.reminderOneHourBefore ?? true,
+        reminderOffsetMinutes: d.reminderOffsetMinutes ?? 30,
       });
       res.json({ success: true });
     } catch (e: unknown) {
