@@ -1045,6 +1045,80 @@ export async function assignCustomerToSubBranch(customerId: number, subBranchAdm
   }).where(eq(customers.id, customerId));
 }
 
+export async function reclaimCustomerAssignment(customerId: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db) return;
+  await db.update(customers).set({
+    agentId: null,
+    assignedTeamId: null,
+    subBranchAdminId: null,
+    assignedAt: null,
+    assignmentStatus: "unassigned",
+  }).where(eq(customers.id, customerId));
+}
+
+export async function transferReclaimedCustomerWork(customerId: number, previousAgentId: number | null | undefined, targetUserId: number, client?: DbExecutor) {
+  const db = client ?? await getDb();
+  if (!db || !previousAgentId) return { followUps: 0, notifications: 0, reminders: 0, schedules: 0 };
+
+  const pendingFollowUps = await db.select({ id: followUps.id }).from(followUps)
+    .where(and(
+      eq(followUps.customerId, customerId),
+      eq(followUps.assignedAgentId, previousAgentId),
+      or(eq(followUps.status, "scheduled"), eq(followUps.status, "postponed")),
+      isNull(followUps.deletedAt),
+    ));
+  if (pendingFollowUps.length > 0) {
+    await db.update(followUps).set({
+      assignedAgentId: targetUserId,
+      teamId: null,
+      subBranchAdminId: null,
+    }).where(inArray(followUps.id, pendingFollowUps.map((item: { id: number }) => item.id)));
+  }
+  const pendingFollowUpIds = pendingFollowUps.map((item: { id: number }) => item.id);
+  const notificationRelationCondition = pendingFollowUpIds.length > 0
+    ? or(
+      and(eq(notifications.relatedType, "customer"), eq(notifications.relatedId, customerId)),
+      and(eq(notifications.relatedType, "follow_up"), inArray(notifications.relatedId, pendingFollowUpIds)),
+    )
+    : and(eq(notifications.relatedType, "customer"), eq(notifications.relatedId, customerId));
+  const reminderRelationCondition = pendingFollowUpIds.length > 0
+    ? or(
+      and(eq(reminders.relatedType, "customer"), eq(reminders.relatedId, customerId)),
+      and(eq(reminders.relatedType, "follow_up"), inArray(reminders.relatedId, pendingFollowUpIds)),
+    )
+    : and(eq(reminders.relatedType, "customer"), eq(reminders.relatedId, customerId));
+
+  const pendingNotifications = await db.select({ id: notifications.id }).from(notifications)
+    .where(and(
+      eq(notifications.userId, previousAgentId),
+      notificationRelationCondition,
+      eq(notifications.isRead, false),
+    ));
+  if (pendingNotifications.length > 0) {
+    await db.update(notifications).set({ userId: targetUserId })
+      .where(inArray(notifications.id, pendingNotifications.map((item: { id: number }) => item.id)));
+  }
+
+  const pendingReminders = await db.select({ id: reminders.id }).from(reminders)
+    .where(and(
+      eq(reminders.userId, previousAgentId),
+      reminderRelationCondition,
+      eq(reminders.isRead, false),
+    ));
+  if (pendingReminders.length > 0) {
+    await db.update(reminders).set({ userId: targetUserId })
+      .where(inArray(reminders.id, pendingReminders.map((item: { id: number }) => item.id)));
+  }
+
+  return {
+    followUps: pendingFollowUps.length,
+    notifications: pendingNotifications.length,
+    reminders: pendingReminders.length,
+    schedules: 0,
+  };
+}
+
 /** 최종 팀원 배정 */
 export async function assignCustomer(customerId: number, agentId: number, teamId?: number, subBranchAdminId?: number, client?: DbExecutor) {
   const db = client ?? await getDb();

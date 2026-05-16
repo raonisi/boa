@@ -1000,6 +1000,135 @@ describe("RBAC - customers.assignToSubBranch (branch_admin only)", () => {
 });
 
 // ─── RBAC - logs.list (team_leader or above) ─────────────────────────────────
+describe("Branch admin DB reclaim", () => {
+  const assignedCustomer = (overrides: Partial<any> = {}) => ({
+    id: 100,
+    name: "[TEST] Customer",
+    agentId: 44,
+    assignedTeamId: 10,
+    subBranchAdminId: 20,
+    assignmentStatus: "assigned_to_agent",
+    isActive: true,
+    deletedAt: null,
+    ...overrides,
+  });
+
+  it("allows branch_admin to reclaim one assigned customer and records history and activity log", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(assignedCustomer() as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const reclaimSpy = vi.spyOn(db, "reclaimCustomerAssignment").mockResolvedValue(undefined);
+    const transferSpy = vi.spyOn(db, "transferReclaimedCustomerWork").mockResolvedValue({ followUps: 1, notifications: 1, reminders: 1, schedules: 0 });
+    const historySpy = vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.reclaim({
+      customerId: 100,
+      reason: "담당자 재배정 검토",
+    });
+
+    expect(result.success).toBe(true);
+    expect(reclaimSpy).toHaveBeenCalledWith(100, tx);
+    expect(transferSpy).toHaveBeenCalledWith(100, 44, 1, tx);
+    expect(result.reclaimed.transferredWork).toEqual({ followUps: 1, notifications: 1, reminders: 1, schedules: 0 });
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 100,
+      previousSubBranchAdminId: 20,
+      previousTeamId: 10,
+      previousAgentId: 44,
+      newAgentId: undefined,
+      assignedBy: 1,
+      assignmentType: "reassignment",
+      assignmentReason: "담당자 재배정 검토",
+    }), tx);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CUSTOMER_DB_RECLAIMED",
+      targetType: "customer",
+      targetId: 100,
+      details: expect.stringContaining("previousAgentId"),
+    }), tx);
+  });
+
+  it("allows branch_admin to bulk reclaim assigned customers", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getCustomerById").mockImplementation(async (id: number) => assignedCustomer({ id, agentId: id + 100 }) as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const reclaimSpy = vi.spyOn(db, "reclaimCustomerAssignment").mockResolvedValue(undefined);
+    const transferSpy = vi.spyOn(db, "transferReclaimedCustomerWork").mockResolvedValue({ followUps: 0, notifications: 0, reminders: 0, schedules: 0 });
+    const historySpy = vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.reclaimBulk({
+      customerIds: [100, 101, 100],
+      reason: "일괄 회수 테스트",
+    });
+
+    expect(result).toMatchObject({ success: true, count: 2 });
+    expect(reclaimSpy).toHaveBeenCalledTimes(2);
+    expect(reclaimSpy).toHaveBeenNthCalledWith(1, 100, tx);
+    expect(reclaimSpy).toHaveBeenNthCalledWith(2, 101, tx);
+    expect(transferSpy).toHaveBeenNthCalledWith(1, 100, 200, 1, tx);
+    expect(transferSpy).toHaveBeenNthCalledWith(2, 101, 201, 1, tx);
+    expect(historySpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("blocks non-branch admins and inactive or resigned branch admins", async () => {
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin")).customers.reclaim({ customerId: 100, reason: "권한 없음" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader")).customers.reclaim({ customerId: 100, reason: "권한 없음" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member")).customers.reclaim({ customerId: 100, reason: "권한 없음" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).customers.reclaim({ customerId: 100, reason: "비활성" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).customers.reclaim({ customerId: 100, reason: "퇴사" })).rejects.toThrow();
+  });
+
+  it("requires a reclaim reason", async () => {
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customers.reclaim({ customerId: 100, reason: "" })).rejects.toThrow();
+  });
+
+  it("blocks soft-deleted and already unassigned customers", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const reclaimSpy = vi.spyOn(db, "reclaimCustomerAssignment").mockResolvedValue(undefined);
+    vi.spyOn(db, "getCustomerById").mockResolvedValueOnce(assignedCustomer({ isActive: false, deletedAt: new Date() }) as any);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customers.reclaim({ customerId: 100, reason: "삭제 고객" })).rejects.toThrow();
+
+    vi.spyOn(db, "getCustomerById").mockResolvedValueOnce(assignedCustomer({ agentId: null, assignedTeamId: null, subBranchAdminId: null, assignmentStatus: "unassigned" }) as any);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customers.reclaim({ customerId: 100, reason: "미배정 고객" })).rejects.toThrow();
+    expect(reclaimSpy).not.toHaveBeenCalled();
+  });
+
+  it("keeps former agent own DB scoped to agentId and exposes unassigned filter for branch_admin", async () => {
+    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+
+    await appRouter.createCaller(createCtx("member", { userId: 44 })).customers.list({});
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.list({
+      scope: "all",
+      unassigned: true,
+      assignmentStatus: "unassigned",
+    });
+
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(1, expect.objectContaining({ agentId: 44 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      unassigned: true,
+      assignmentStatus: "unassigned",
+    }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(2, expect.not.objectContaining({ agentId: 44 }));
+  });
+
+  it("blocks former member from direct customer detail after reclaim while branch_admin can access it", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(assignedCustomer({
+      agentId: null,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      assignmentStatus: "unassigned",
+    }) as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 44 })).customers.get({ id: 100 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.get({ id: 100 })).resolves.toMatchObject({ id: 100 });
+  });
+});
+
 describe("RBAC - logs.list (team_leader+)", () => {
   it("blocks member from logs.list", async () => {
     await expect(appRouter.createCaller(createCtx("member")).logs.list()).rejects.toThrow();
