@@ -59,5 +59,5 @@ activity log에는 기존 라우터 정책대로 고객 연락처, 민감 메모
 - `pnpm.cmd test`: 통과
 - `pnpm.cmd build`: 통과
 - `pnpm.cmd exec cap sync android`: 통과. 생성된 Android 산출물 변경은 커밋하지 않는다.
-- `android/gradlew.bat assembleDebug`: JAVA_HOME 미설정 및 java PATH 없음으로 미검증. 코드 실패가 아니라 로컬 JDK 환경 문제다.
+- `android/gradlew.bat assembleDebug`: JDK 21과 Android SDK 경로를 세션 환경변수로 설정한 뒤 통과.
 - 실제 모바일 브라우저 클릭 QA와 Android APK 실기기 클릭 QA는 아직 미수행이다. 파일럿 운영 전 운영 도메인 또는 Preview에서 별도 확인이 필요하다.
