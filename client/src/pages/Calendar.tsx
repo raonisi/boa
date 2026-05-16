@@ -122,6 +122,7 @@ export default function Calendar() {
   });
   const updateMutation = trpc.schedules.update.useMutation({
     onSuccess: () => { toast.success("일정이 수정되었습니다."); setSelectedSchedule(null); utils.schedules.list.invalidate(); utils.notifications.list.invalidate(); },
+    onError: (error) => toast.error(error.message || "일정 수정에 실패했습니다."),
   });
 
   const getSchedulesForDay = (day: Date) =>
