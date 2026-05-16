@@ -16,6 +16,8 @@ import { hashDeviceToken, maskDeviceToken } from "./deviceTokenUtil";
 import {
   assignCustomer,
   assignCustomerToSubBranch,
+  reclaimCustomerAssignment,
+  transferReclaimedCustomerWork,
   checkPhoneDuplicate,
   createActivityLog,
   createAssignmentHistory,
@@ -443,6 +445,9 @@ const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "�
 const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
 
+const CUSTOMER_RECLAIM_BULK_LIMIT = 100;
+const customerReclaimReasonSchema = z.string().trim().min(1, "DB 회수 사유를 입력해주세요.").max(300, "DB 회수 사유는 300자 이내로 입력해주세요.");
+
 const CHECKLIST_PHASES = ["before", "during", "after"] as const;
 const CHECKLIST_CATEGORIES = ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"] as const;
 const TEMPLATE_SITUATIONS = ["missed_call", "proposal_follow_up", "pre_contract_check", "post_contract_care", "long_unmanaged", "birthday", "follow_up_schedule", "document_request", "after_consultation", "general_check"] as const;
@@ -692,6 +697,63 @@ async function verifySubBranchAdminTarget(userId: number) {
     throw new TRPCError({ code: "FORBIDDEN", message: "활성 부지점장에게만 배분할 수 있습니다." });
   }
   return target;
+}
+
+function assertCustomerReclaimable(customer: Awaited<ReturnType<typeof getCustomerById>>) {
+  if (!customer) throw new TRPCError({ code: "NOT_FOUND", message: "고객을 찾을 수 없습니다." });
+  if ((customer as any).isActive === false || (customer as any).deletedAt) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "삭제 또는 비활성 처리된 고객 DB는 회수할 수 없습니다." });
+  }
+  if (!customer.agentId && customer.assignmentStatus === "unassigned") {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "이미 미배정 상태인 고객 DB입니다." });
+  }
+  return customer;
+}
+
+async function reclaimCustomerDb(input: {
+  customerId: number;
+  reason: string;
+  reclaimedBy: number;
+  reclaimedAt: string;
+  tx: Parameters<typeof reclaimCustomerAssignment>[1];
+}) {
+  const customer = assertCustomerReclaimable(await getCustomerById(input.customerId));
+  await reclaimCustomerAssignment(input.customerId, input.tx);
+  const transferredWork = await transferReclaimedCustomerWork(
+    input.customerId,
+    customer.agentId ?? null,
+    input.reclaimedBy,
+    input.tx,
+  );
+  await createAssignmentHistory({
+    customerId: input.customerId,
+    previousSubBranchAdminId: customer.subBranchAdminId ?? undefined,
+    newSubBranchAdminId: undefined,
+    previousTeamId: customer.assignedTeamId ?? undefined,
+    newTeamId: undefined,
+    previousAgentId: customer.agentId ?? undefined,
+    newAgentId: undefined,
+    assignedBy: input.reclaimedBy,
+    assignmentType: "reassignment",
+    assignmentReason: input.reason,
+  }, input.tx);
+  await log(input.reclaimedBy, "CUSTOMER_DB_RECLAIMED", "customer", input.customerId, logDetails({
+    actor: input.reclaimedBy,
+    targetId: input.customerId,
+    targetType: "customer",
+    metadata: {
+      customerId: input.customerId,
+      previousAgentId: customer.agentId ?? null,
+      reclaimedBy: input.reclaimedBy,
+      reason: input.reason,
+      reclaimedAt: input.reclaimedAt,
+    },
+  }), input.tx);
+  return {
+    customerId: input.customerId,
+    previousAgentId: customer.agentId ?? null,
+    transferredWork,
+  };
 }
 
 const BULK_IMPORT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -2919,6 +2981,47 @@ export const appRouter = router({
           }
         });
         return { success: true };
+      }),
+
+    reclaim: branchAdminProcedure
+      .input(z.object({
+        customerId: z.number(),
+        reason: customerReclaimReasonSchema,
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const reclaimedAt = new Date().toISOString();
+        const result = await runDbTransaction(async (tx) => reclaimCustomerDb({
+          customerId: input.customerId,
+          reason: input.reason,
+          reclaimedBy: ctx.user.id,
+          reclaimedAt,
+          tx,
+        }));
+        return { success: true, reclaimed: result };
+      }),
+
+    reclaimBulk: branchAdminProcedure
+      .input(z.object({
+        customerIds: z.array(z.number()).min(1).max(CUSTOMER_RECLAIM_BULK_LIMIT),
+        reason: customerReclaimReasonSchema,
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const uniqueCustomerIds = Array.from(new Set(input.customerIds));
+        const reclaimedAt = new Date().toISOString();
+        const reclaimed = await runDbTransaction(async (tx) => {
+          const results = [];
+          for (const customerId of uniqueCustomerIds) {
+            results.push(await reclaimCustomerDb({
+              customerId,
+              reason: input.reason,
+              reclaimedBy: ctx.user.id,
+              reclaimedAt,
+              tx,
+            }));
+          }
+          return results;
+        });
+        return { success: true, count: reclaimed?.length ?? uniqueCustomerIds.length, reclaimed: reclaimed ?? [] };
       }),
 
     assignmentHistory: activeUserProcedure

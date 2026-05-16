@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -14,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -21,7 +23,7 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { useIsMobile } from "@/hooks/useMobile";
-import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus } from "lucide-react";
+import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -46,6 +48,7 @@ function priorityLabel(priority?: string | null) {
 
 function executionBadges(customer: any, recommendation?: any) {
   const badges: { label: string; className: string }[] = [];
+  if (customer.assignmentStatus === "unassigned" || (!customer.agentId && !customer.subBranchAdminId)) badges.push({ label: "미배정", className: "bg-slate-200 text-slate-700" });
   if (customer.consultStatus === "미상담") badges.push({ label: "미상담", className: "bg-slate-100 text-slate-700" });
   if (recommendation?.warnings?.some((warning: any) => String(warning.message).includes("장기") || String(warning.warningType).includes("long"))) {
     badges.push({ label: "장기 미관리", className: "bg-amber-100 text-amber-800" });
@@ -85,6 +88,10 @@ export default function CustomerList() {
   const [assignedDateTo, setAssignedDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [deleteCustomerId, setDeleteCustomerId] = useState<number | null>(null);
+  const [reclaimCustomerId, setReclaimCustomerId] = useState<number | null>(null);
+  const [bulkReclaimOpen, setBulkReclaimOpen] = useState(false);
+  const [reclaimReason, setReclaimReason] = useState("");
+  const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
@@ -114,12 +121,42 @@ export default function CustomerList() {
     onError: (err) => toast.error(err.message || "고객 삭제에 실패했습니다."),
   });
 
+  const closeReclaimDialog = () => {
+    setReclaimCustomerId(null);
+    setBulkReclaimOpen(false);
+    setReclaimReason("");
+  };
+
+  const reclaimMutation = trpc.customers.reclaim.useMutation({
+    onSuccess: () => {
+      toast.success("고객 DB를 미배정 상태로 회수했습니다.");
+      closeReclaimDialog();
+      setSelectedCustomerIds([]);
+      utils.customers.list.invalidate();
+      refetch();
+    },
+    onError: (err) => toast.error(err.message || "DB 회수에 실패했습니다."),
+  });
+
+  const reclaimBulkMutation = trpc.customers.reclaimBulk.useMutation({
+    onSuccess: (result) => {
+      toast.success(`${result.count}건의 고객 DB를 미배정 상태로 회수했습니다.`);
+      closeReclaimDialog();
+      setSelectedCustomerIds([]);
+      utils.customers.list.invalidate();
+      refetch();
+    },
+    onError: (err) => toast.error(err.message || "선택 DB 회수에 실패했습니다."),
+  });
+
   const agents = (allUsers ?? []).filter((u) => ((u as any).accountStatus === "active"));
   const agentById = new Map((allUsers ?? []).map((u) => [u.id, u]));
   const canDeactivateCustomer = user?.role === "branch_admin";
+  const canReclaimCustomer = user?.role === "branch_admin";
   const canCreateCustomer = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(user.role));
   const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
   const deleteTargetCustomer = (customers ?? []).find((c) => c.id === deleteCustomerId);
+  const reclaimTargetCustomer = (customers ?? []).find((c) => c.id === reclaimCustomerId);
 
   const filtered = (customers ?? []).filter((c) => {
     const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
@@ -134,6 +171,14 @@ export default function CustomerList() {
       (recommendationFilter === "high" && recommendation?.urgency === "high");
     return matchSearch && matchRegion && matchSource && matchAgent && matchRecommendation;
   });
+
+  const isCustomerReclaimable = (customer: any) =>
+    canReclaimCustomer && customer.isActive !== false && (Boolean(customer.agentId) || customer.assignmentStatus !== "unassigned");
+  const reclaimableFilteredIds = filtered.filter(isCustomerReclaimable).map((customer) => customer.id);
+  const selectedReclaimableIds = selectedCustomerIds.filter((customerId) => reclaimableFilteredIds.includes(customerId));
+  const allVisibleReclaimableSelected = reclaimableFilteredIds.length > 0 && reclaimableFilteredIds.every((customerId) => selectedCustomerIds.includes(customerId));
+  const reclaimDialogOpen = reclaimCustomerId !== null || bulkReclaimOpen;
+  const isReclaiming = reclaimMutation.isPending || reclaimBulkMutation.isPending;
 
   const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
 
@@ -156,6 +201,41 @@ export default function CustomerList() {
     setDeleteCustomerId(id);
   };
 
+  const handleOpenReclaimCustomer = (id: number, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setBulkReclaimOpen(false);
+    setReclaimCustomerId(id);
+    setReclaimReason("");
+  };
+
+  const toggleCustomerSelection = (id: number, checked: boolean) => {
+    setSelectedCustomerIds((prev) => checked ? Array.from(new Set([...prev, id])) : prev.filter((customerId) => customerId !== id));
+  };
+
+  const handleToggleAllVisibleReclaimable = (checked: boolean) => {
+    setSelectedCustomerIds((prev) => {
+      if (!checked) return prev.filter((customerId) => !reclaimableFilteredIds.includes(customerId));
+      return Array.from(new Set([...prev, ...reclaimableFilteredIds]));
+    });
+  };
+
+  const handleSubmitReclaim = () => {
+    const reason = reclaimReason.trim();
+    if (!reason) {
+      toast.error("DB 회수 사유를 입력해주세요.");
+      return;
+    }
+    if (reclaimCustomerId !== null) {
+      reclaimMutation.mutate({ customerId: reclaimCustomerId, reason });
+      return;
+    }
+    if (selectedReclaimableIds.length === 0) {
+      toast.error("회수할 고객 DB를 선택해주세요.");
+      return;
+    }
+    reclaimBulkMutation.mutate({ customerIds: selectedReclaimableIds, reason });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-5">
@@ -172,6 +252,11 @@ export default function CustomerList() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
+                <Button variant="outline" size="sm" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => { setReclaimCustomerId(null); setBulkReclaimOpen(true); setReclaimReason(""); }}>
+                  <Undo2 className="h-4 w-4 mr-1" /> 선택 DB 회수 {selectedReclaimableIds.length}
+                </Button>
+              )}
               <Button variant="outline" size="sm" onClick={() => setLocation("/sales-pipeline")}>
                 <LayoutGrid className="h-4 w-4 mr-1" /> 파이프라인
               </Button>
@@ -318,6 +403,16 @@ export default function CustomerList() {
                 <Card key={c.id} className="cursor-pointer border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
+                      {canReclaimCustomer && (
+                        <Checkbox
+                          checked={selectedCustomerIds.includes(c.id)}
+                          disabled={!isCustomerReclaimable(c)}
+                          onClick={(e) => e.stopPropagation()}
+                          onCheckedChange={(checked) => toggleCustomerSelection(c.id, checked === true)}
+                          aria-label={`${c.name} DB 회수 선택`}
+                          className="mt-1"
+                        />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold text-foreground">{c.name}</span>
@@ -376,6 +471,11 @@ export default function CustomerList() {
                             </DropdownMenuItem>
                           ) : null}
                           <DropdownMenuItem onClick={() => setLocation(`/customers/${c.id}?action=consult`)}>상담기록 / 메모</DropdownMenuItem>
+                          {isCustomerReclaimable(c) && (
+                            <DropdownMenuItem onClick={(e) => handleOpenReclaimCustomer(c.id, e as any)}>
+                              <Undo2 className="mr-2 h-4 w-4" /> DB 회수
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -429,6 +529,16 @@ export default function CustomerList() {
                 <Table>
                   <TableHeader className="bg-muted/40">
                     <TableRow className="hover:bg-transparent">
+                      {canReclaimCustomer && (
+                        <TableHead className="w-10">
+                          <Checkbox
+                            checked={allVisibleReclaimableSelected}
+                            disabled={reclaimableFilteredIds.length === 0}
+                            onCheckedChange={(checked) => handleToggleAllVisibleReclaimable(checked === true)}
+                            aria-label="화면에 보이는 회수 가능 DB 전체 선택"
+                          />
+                        </TableHead>
+                      )}
                       <TableHead>고객 / 상태</TableHead>
                       <TableHead>우선 연락</TableHead>
                       <TableHead>다음 액션</TableHead>
@@ -444,7 +554,7 @@ export default function CustomerList() {
                   <TableBody>
                     {filtered.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={11} className="py-14 text-center align-middle">
+                        <TableCell colSpan={canReclaimCustomer ? 12 : 11} className="py-14 text-center align-middle">
                           <div className="mx-auto flex max-w-md flex-col items-center gap-3 text-sm text-muted-foreground">
                             <p>조건에 맞는 고객이 없습니다.</p>
                             <div className="flex flex-wrap justify-center gap-2">
@@ -472,6 +582,16 @@ export default function CustomerList() {
                           className="group cursor-pointer transition-colors hover:bg-muted/35"
                           onClick={() => setLocation(`/customers/${c.id}`)}
                         >
+                          {canReclaimCustomer && (
+                            <TableCell onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedCustomerIds.includes(c.id)}
+                                disabled={!isCustomerReclaimable(c)}
+                                onCheckedChange={(checked) => toggleCustomerSelection(c.id, checked === true)}
+                                aria-label={`${c.name} DB 회수 선택`}
+                              />
+                            </TableCell>
+                          )}
                           <TableCell className="font-medium text-foreground">
                             <div className="flex flex-col gap-1">
                               <span>{c.name}</span>
@@ -572,6 +692,11 @@ export default function CustomerList() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    {isCustomerReclaimable(c) && (
+                                      <DropdownMenuItem onClick={(e) => handleOpenReclaimCustomer(c.id, e as any)}>
+                                        <Undo2 className="h-4 w-4" /> DB 회수
+                                      </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuItem variant="destructive" onClick={(e) => handleDeactivateCustomer(c.id, e as any)}>
                                       <Trash2 className="h-4 w-4" /> 고객 삭제
                                     </DropdownMenuItem>
@@ -625,6 +750,49 @@ export default function CustomerList() {
               onClick={() => deleteCustomerId && deactivateMutation.mutate({ id: deleteCustomerId })}
             >
               고객 삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reclaimDialogOpen} onOpenChange={(open) => { if (!open) closeReclaimDialog(); }}>
+        <DialogContent className="max-w-md rounded-2xl border-amber-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-800">
+              <Undo2 className="h-5 w-5" /> DB 회수 확인
+            </DialogTitle>
+            <DialogDescription>
+              {reclaimCustomerId !== null
+                ? `${reclaimTargetCustomer?.name ?? "선택 고객"} DB를 담당자에서 미배정 상태로 회수합니다.`
+                : `선택한 ${selectedReclaimableIds.length}건의 고객 DB를 미배정 상태로 회수합니다.`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              고객, 상담기록, 계약, 후속관리, 일정은 삭제하지 않습니다. 담당자 배정만 해제되며 회수 기록은 배정이력과 활동 로그에 남습니다.
+            </div>
+            <div>
+              <Label className="text-xs">회수 사유 *</Label>
+              <Textarea
+                value={reclaimReason}
+                onChange={(e) => setReclaimReason(e.target.value)}
+                className="mt-1 min-h-[96px]"
+                maxLength={300}
+                placeholder="예: 담당자 퇴사/휴직, 지점장 재분배 검토, 미배정 풀 재정리"
+              />
+              <p className="mt-1 text-right text-[11px] text-muted-foreground">{reclaimReason.length}/300</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={closeReclaimDialog} disabled={isReclaiming}>
+              취소
+            </Button>
+            <Button
+              className="bg-amber-700 text-white hover:bg-amber-800"
+              disabled={!reclaimReason.trim() || isReclaiming || (reclaimCustomerId === null && selectedReclaimableIds.length === 0)}
+              onClick={handleSubmitReclaim}
+            >
+              {isReclaiming ? "회수 중..." : "DB 회수"}
             </Button>
           </DialogFooter>
         </DialogContent>

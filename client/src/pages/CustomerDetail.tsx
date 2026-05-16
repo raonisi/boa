@@ -23,7 +23,7 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
-import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal, Undo2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -152,6 +152,8 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [handoffNoteBody, setHandoffNoteBody] = useState("");
   const [showHandoffNoteModal, setShowHandoffNoteModal] = useState(false);
   const [showCustomerDeleteDialog, setShowCustomerDeleteDialog] = useState(false);
+  const [showReclaimDialog, setShowReclaimDialog] = useState(false);
+  const [reclaimReason, setReclaimReason] = useState("");
   const [selectedScriptId, setSelectedScriptId] = useState<string>("");
 
   useEffect(() => {
@@ -248,6 +250,19 @@ export default function CustomerDetail({ id }: { id: number }) {
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
     onSuccess: () => { toast.success("담당자가 변경되었습니다."); setSelectedNewAgentId(""); setShowChangeAgentModal(false); refetchCustomer(); },
     onError: (err) => toast.error(err.message || "담당자 변경에 실패했습니다."),
+  });
+
+  const reclaimMutation = trpc.customers.reclaim.useMutation({
+    onSuccess: () => {
+      toast.success("고객 DB를 미배정 상태로 회수했습니다.");
+      setShowReclaimDialog(false);
+      setReclaimReason("");
+      refetchCustomer();
+      utils.customers.list.invalidate();
+      utils.customers.assignmentHistory.invalidate({ customerId: id });
+      utils.customers.timeline.invalidate({ customerId: id });
+    },
+    onError: (err) => toast.error(err.message || "DB 회수에 실패했습니다."),
   });
 
   const deactivateMutation = trpc.customers.deactivate.useMutation({
@@ -387,6 +402,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const genderLabel = customer.gender === "male" ? "남성" : customer.gender === "female" ? "여성" : customer.gender ? "기타" : "-";
   const canChangeAgent = user?.role === "branch_admin" || user?.role === "team_leader";
   const canDeactivateCustomer = user?.role === "branch_admin";
+  const canReclaimCustomer = user?.role === "branch_admin" && customer.isActive !== false && (Boolean(customer.agentId) || customer.assignmentStatus !== "unassigned");
   const canDeactivateContract = user?.role === "branch_admin";
   const canRequestContractDelete = user?.role === "sub_branch_admin" || user?.role === "team_leader" || user?.role === "member";
   const editingConsult = consultations?.find((c) => c.id === editingConsultId);
@@ -428,6 +444,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                     <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${customer.priority && customer.priority !== "unclassified" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                       우선순위 {priorityLabel((customer as any).priority)}
                     </span>
+                    {(customer.assignmentStatus === "unassigned" || (!customer.agentId && !customer.subBranchAdminId)) && (
+                      <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">미배정</span>
+                    )}
                     {!customer.isActive && (
                       <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">비활성</span>
                     )}
@@ -451,6 +470,11 @@ export default function CustomerDetail({ id }: { id: number }) {
                   {canChangeAgent && (
                     <DropdownMenuItem onClick={() => { setSelectedNewAgentId(""); setShowChangeAgentModal(true); }}>
                       <UserCog className="h-4 w-4" /> 담당자 변경
+                    </DropdownMenuItem>
+                  )}
+                  {canReclaimCustomer && (
+                    <DropdownMenuItem onClick={() => { setReclaimReason(""); setShowReclaimDialog(true); }}>
+                      <Undo2 className="h-4 w-4" /> DB 회수
                     </DropdownMenuItem>
                   )}
                   {canDeactivateCustomer && customer.isActive && (
@@ -1241,6 +1265,51 @@ export default function CustomerDetail({ id }: { id: number }) {
             </Button>
             <Button variant="destructive" disabled={deactivateMutation.isPending} onClick={() => deactivateMutation.mutate({ id })}>
               고객 삭제
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showReclaimDialog} onOpenChange={(open) => { setShowReclaimDialog(open); if (!open) setReclaimReason(""); }}>
+        <DialogContent className="max-w-md rounded-2xl border-amber-100">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-800">
+              <Undo2 className="h-5 w-5" /> DB 회수 확인
+            </DialogTitle>
+            <DialogDescription>
+              {customer.name} DB를 담당자에서 미배정 상태로 회수합니다.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              고객 데이터와 상담기록, 계약, 후속관리, 일정은 삭제하지 않습니다. 회수 기록은 배정이력과 활동 로그에 남습니다.
+            </div>
+            <div>
+              <Label className="text-xs">현재 담당자</Label>
+              <p className="mt-1 rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-700">{agentName}</p>
+            </div>
+            <div>
+              <Label className="text-xs">회수 사유 *</Label>
+              <Textarea
+                className="mt-1 min-h-[96px]"
+                value={reclaimReason}
+                onChange={(event) => setReclaimReason(event.target.value)}
+                maxLength={300}
+                placeholder="예: 담당자 퇴사/휴직, 지점장 재분배 검토, 미배정 풀 재정리"
+              />
+              <p className="mt-1 text-right text-[11px] text-muted-foreground">{reclaimReason.length}/300</p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button variant="outline" onClick={() => { setShowReclaimDialog(false); setReclaimReason(""); }} disabled={reclaimMutation.isPending}>
+              취소
+            </Button>
+            <Button
+              className="bg-amber-700 text-white hover:bg-amber-800"
+              disabled={!reclaimReason.trim() || reclaimMutation.isPending}
+              onClick={() => reclaimMutation.mutate({ customerId: id, reason: reclaimReason.trim() })}
+            >
+              {reclaimMutation.isPending ? "회수 중..." : "DB 회수"}
             </Button>
           </DialogFooter>
         </DialogContent>
