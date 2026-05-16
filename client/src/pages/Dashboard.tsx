@@ -4,6 +4,9 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import {
@@ -23,8 +26,9 @@ import {
   TrendingUp,
   Users,
   WalletCards,
+  XCircle,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -130,25 +134,41 @@ function SectionCard({
 function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; roleTitle: string }) {
   const [, setLocation] = useLocation();
   const [queuePriorityFilter, setQueuePriorityFilter] = useState<"all" | "urgent" | "today" | "general">("all");
+  const [selectedTask, setSelectedTask] = useState<any | null>(null);
+  const [postponeMode, setPostponeMode] = useState<"quick" | "custom">("quick");
+  const [customPostponeDate, setCustomPostponeDate] = useState("");
+  const [busyTaskKey, setBusyTaskKey] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"cancelFollowUp" | null>(null);
+  const busyTaskKeyRef = useRef<string | null>(null);
   const utils = trpc.useUtils();
   const { data, isLoading } = trpc.dashboard.todayWork.useQuery({});
   const { data: recommendationSummary } = trpc.recommendations.dashboardSummary.useQuery({});
+  const refreshTodayWork = () => {
+    utils.dashboard.todayWork.invalidate();
+    utils.notifications.list.invalidate();
+    utils.notifications.unreadCount.invalidate();
+    utils.followUps.listToday.invalidate();
+    utils.followUps.listOverdue.invalidate();
+    utils.schedules.list.invalidate();
+    utils.customers.list.invalidate();
+  };
   const markReadMutation = trpc.notifications.markRead.useMutation({
     onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
-      utils.dashboard.todayWork.invalidate();
+      refreshTodayWork();
     },
     onError: () => toast.error("알림 읽음 처리에 실패했습니다."),
   });
   const completeMutation = trpc.notifications.updateProcessStatus.useMutation({
     onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
-      utils.dashboard.todayWork.invalidate();
+      refreshTodayWork();
     },
     onError: () => toast.error("알림 상태 변경에 실패했습니다."),
   });
+  const followUpCompleteMutation = trpc.followUps.complete.useMutation({ onSuccess: refreshTodayWork });
+  const followUpPostponeMutation = trpc.followUps.postpone.useMutation({ onSuccess: refreshTodayWork });
+  const followUpCancelMutation = trpc.followUps.cancel.useMutation({ onSuccess: refreshTodayWork });
+  const scheduleUpdateMutation = trpc.schedules.update.useMutation({ onSuccess: refreshTodayWork });
+  const customerUpdateMutation = trpc.customers.update.useMutation({ onSuccess: refreshTodayWork });
   const cards = data?.cards;
   const topContacts = recommendationSummary?.topContacts ?? [];
   const fieldQueue = [
@@ -212,6 +232,90 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
     (cards?.todayScheduleCount ?? 0) > 0 ? "오늘 일정 보기" :
     (recommendationSummary?.priorityContactCount ?? 0) > 0 || (cards?.overdueFollowUpCount ?? 0) > 0 ? "고객 처리하기" :
     "일정 등록하기";
+  const mobileFollowUpTasks = [
+    ...(data?.overdueFollowUps ?? []).map((item) => ({ ...item, taskType: "followUp", priorityLabel: "기한 경과" })),
+    ...(data?.todayFollowUps ?? []).map((item) => ({ ...item, taskType: "followUp", priorityLabel: "오늘 연락" })),
+  ].filter((item, index, rows) => rows.findIndex((row) => row.id === item.id) === index).slice(0, 4);
+  const mobileScheduleTasks = [
+    ...(data?.incompleteSchedules ?? []).map((item) => ({ ...item, taskType: "schedule", priorityLabel: "미완료" })),
+    ...(data?.todaySchedules ?? []).map((item) => ({ ...item, taskType: "schedule", priorityLabel: "오늘 일정" })),
+  ].filter((item, index, rows) => rows.findIndex((row) => row.id === item.id) === index).slice(0, 4);
+  const mobileNotificationTasks = (data?.pendingNotifications ?? []).slice(0, 4).map((item) => ({ ...item, taskType: "notification", priorityLabel: "미확인" }));
+  const mobileLongUnmanagedTasks = (data?.longUnmanagedCustomers ?? []).filter(Boolean).slice(0, 3).map((item) => ({ ...item, taskType: "customer", priorityLabel: "장기 미관리" }));
+  const hasMobileTasks = mobileFollowUpTasks.length + mobileScheduleTasks.length + mobileNotificationTasks.length + mobileLongUnmanagedTasks.length > 0;
+  const isTaskBusy = Boolean(busyTaskKey) || followUpCompleteMutation.isPending || followUpPostponeMutation.isPending || followUpCancelMutation.isPending || scheduleUpdateMutation.isPending || markReadMutation.isPending || completeMutation.isPending || customerUpdateMutation.isPending;
+  const closeTaskSheet = () => {
+    setSelectedTask(null);
+    setPostponeMode("quick");
+    setCustomPostponeDate("");
+    setBusyTaskKey(null);
+    busyTaskKeyRef.current = null;
+    setConfirmAction(null);
+  };
+  const postponedDate = (days: number) => {
+    const next = new Date();
+    next.setDate(next.getDate() + days);
+    if (days === 0) {
+      next.setHours(next.getHours() + 2, 0, 0, 0);
+    } else {
+      next.setHours(10, 0, 0, 0);
+    }
+    return next.toISOString();
+  };
+  const runTask = async (taskKey: string, work: () => Promise<unknown>, message: string) => {
+    if (busyTaskKeyRef.current) return;
+    busyTaskKeyRef.current = taskKey;
+    setBusyTaskKey(taskKey);
+    try {
+      await work();
+      toast.success(message);
+      closeTaskSheet();
+    } catch (error: any) {
+      toast.error(error?.message || "다시 시도해 주세요.");
+      setBusyTaskKey(null);
+      busyTaskKeyRef.current = null;
+    }
+  };
+  const taskTitle = selectedTask
+    ? selectedTask.taskType === "followUp"
+      ? selectedTask.customerName ?? `고객 #${selectedTask.customerId}`
+      : selectedTask.taskType === "schedule"
+        ? selectedTask.title
+        : selectedTask.taskType === "notification"
+          ? selectedTask.title
+          : selectedTask.name
+    : "";
+
+  const renderMobileTaskButton = (task: any) => {
+    const title = task.taskType === "followUp"
+      ? task.customerName ?? `고객 #${task.customerId}`
+      : task.taskType === "schedule"
+        ? task.title
+        : task.taskType === "notification"
+          ? task.title
+          : task.name;
+    const description = task.taskType === "followUp"
+      ? `${task.nextAction ?? "연락"} · ${task.reason ?? "후속관리"}`
+      : task.taskType === "schedule"
+        ? `${new Date(task.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${task.type}`
+        : task.taskType === "notification"
+          ? `${task.type}${task.customerName ? ` · ${task.customerName}` : ""}`
+          : `${task.consultStatus ?? "고객"} · 기존 기준 점검`;
+    return (
+      <button
+        key={`${task.taskType}-${task.id}`}
+        type="button"
+        onClick={() => setSelectedTask(task)}
+        className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/50"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-foreground">{title}</span>
+          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{task.priorityLabel}</span>
+        </div>
+        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{description}</p>
+      </button>
+    );
+  };
 
   return (
     <section className="space-y-5">
@@ -295,6 +399,225 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
           </div>
         </CardContent>
       </Card>
+
+      <Card className="md:hidden shadow-sm">
+        <CardHeader className="border-b border-border/60 pb-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+            3터치 빠른 처리
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 px-4 pb-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-lg bg-muted" />)}
+            </div>
+          ) : !hasMobileTasks ? (
+            <EmptyState action={<Button type="button" size="sm" variant="outline" onClick={() => setLocation("/calendar")}>일정 등록</Button>}>
+              처리할 업무가 없습니다.
+            </EmptyState>
+          ) : (
+            <>
+              {mobileFollowUpTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">미처리 후속관리</p>
+                  {mobileFollowUpTasks.map(renderMobileTaskButton)}
+                </div>
+              )}
+              {mobileScheduleTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">오늘 일정</p>
+                  {mobileScheduleTasks.map(renderMobileTaskButton)}
+                </div>
+              )}
+              {mobileNotificationTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">미확인 알림</p>
+                  {mobileNotificationTasks.map(renderMobileTaskButton)}
+                </div>
+              )}
+              {mobileLongUnmanagedTasks.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground">장기 미관리 고객</p>
+                  {mobileLongUnmanagedTasks.map(renderMobileTaskButton)}
+                </div>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Sheet open={Boolean(selectedTask)} onOpenChange={(open) => { if (!open) closeTaskSheet(); }}>
+        <SheetContent side="bottom" className="max-h-[88vh] rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden">
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-base">{taskTitle}</SheetTitle>
+            <SheetDescription>
+              카드 선택 → 빠른 처리 → 저장 흐름으로 고객 상세 이동 없이 업무를 마칩니다.
+            </SheetDescription>
+          </SheetHeader>
+          {selectedTask && (
+            <div className="mt-4 space-y-3">
+              {selectedTask.taskType === "followUp" && (
+                <>
+                  {confirmAction === "cancelFollowUp" && (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                      <p className="font-semibold">후속관리를 취소할까요?</p>
+                      <p className="mt-1 text-xs">취소된 후속관리는 오늘 할 일에서 제외됩니다.</p>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" className="bg-white" onClick={() => setConfirmAction(null)} disabled={isTaskBusy}>
+                          돌아가기
+                        </Button>
+                        <Button
+                          type="button"
+                          className="bg-red-700 text-white hover:bg-red-800"
+                          disabled={isTaskBusy}
+                          onClick={() => runTask(`followup-cancel-${selectedTask.id}`, () => followUpCancelMutation.mutateAsync({ id: selectedTask.id }), "처리했습니다.")}
+                        >
+                          취소 확정
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      className="min-h-12"
+                      disabled={isTaskBusy}
+                      onClick={() => runTask(`followup-complete-${selectedTask.id}`, () => followUpCompleteMutation.mutateAsync({ id: selectedTask.id }), "처리했습니다.")}
+                    >
+                      <CheckCircle2 className="mr-1 h-4 w-4" /> 완료
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-12"
+                      disabled={isTaskBusy}
+                      onClick={() => setLocation(`/customers/${selectedTask.customerId}?action=consult`)}
+                    >
+                      상담기록
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-12"
+                      disabled={isTaskBusy}
+                      onClick={() => setLocation(`/customers/${selectedTask.customerId}`)}
+                    >
+                      고객상세
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-12 text-red-700"
+                      disabled={isTaskBusy}
+                      onClick={() => setConfirmAction("cancelFollowUp")}
+                    >
+                      <XCircle className="mr-1 h-4 w-4" /> 취소
+                    </Button>
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/25 p-3">
+                    <p className="text-xs font-semibold text-muted-foreground">연기</p>
+                    <div className="mt-2 grid grid-cols-4 gap-1.5">
+                      {[{ label: "오늘", days: 0 }, { label: "내일", days: 1 }, { label: "3일 후", days: 3 }, { label: "1주 후", days: 7 }].map((item) => (
+                        <Button
+                          key={item.label}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={isTaskBusy}
+                          onClick={() => runTask(`followup-postpone-${selectedTask.id}`, () => followUpPostponeMutation.mutateAsync({ id: selectedTask.id, nextContactDate: postponedDate(item.days), reason: selectedTask.reason }), "연기했습니다.")}
+                        >
+                          {item.label}
+                        </Button>
+                      ))}
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      <Label className="text-xs">직접 선택</Label>
+                      <div className="flex gap-2">
+                        <Input type="datetime-local" value={customPostponeDate} onChange={(event) => { setPostponeMode("custom"); setCustomPostponeDate(event.target.value); }} />
+                        <Button
+                          type="button"
+                          disabled={isTaskBusy || postponeMode !== "custom" || !customPostponeDate}
+                          onClick={() => runTask(`followup-custom-${selectedTask.id}`, () => followUpPostponeMutation.mutateAsync({ id: selectedTask.id, nextContactDate: customPostponeDate, reason: selectedTask.reason }), "연기했습니다.")}
+                        >
+                          저장
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+              {selectedTask.taskType === "schedule" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => runTask(`schedule-complete-${selectedTask.id}`, () => scheduleUpdateMutation.mutateAsync({ id: selectedTask.id, status: "완료" }), "처리했습니다.")}
+                  >
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> 완료
+                  </Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={() => setLocation("/calendar")}>일정 보기</Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={() => setLocation("/customers")}>상담기록</Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={closeTaskSheet}>닫기</Button>
+                </div>
+              )}
+              {selectedTask.taskType === "notification" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => runTask(`notification-read-${selectedTask.id}`, async () => {
+                      await completeMutation.mutateAsync({ id: selectedTask.id, processStatus: "확인" });
+                      await markReadMutation.mutateAsync({ id: selectedTask.id });
+                    }, "처리했습니다.")}
+                  >
+                    확인
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => runTask(`notification-complete-${selectedTask.id}`, async () => {
+                      await completeMutation.mutateAsync({ id: selectedTask.id, processStatus: "처리완료" });
+                      await markReadMutation.mutateAsync({ id: selectedTask.id });
+                    }, "처리했습니다.")}
+                  >
+                    처리완료
+                  </Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={() => setLocation("/notifications")}>알림센터</Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={closeTaskSheet}>닫기</Button>
+                </div>
+              )}
+              {selectedTask.taskType === "customer" && (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => runTask(`customer-status-${selectedTask.id}`, () => customerUpdateMutation.mutateAsync({ id: selectedTask.id, consultStatus: "통화완료" }), "처리했습니다.")}
+                  >
+                    연락완료
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => runTask(`customer-absent-${selectedTask.id}`, () => customerUpdateMutation.mutateAsync({ id: selectedTask.id, consultStatus: "부재" }), "처리했습니다.")}
+                  >
+                    부재
+                  </Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={() => setLocation(`/customers/${selectedTask.id}?action=consult`)}>상담기록</Button>
+                  <Button type="button" variant="outline" className="min-h-12" onClick={() => setLocation(`/customers/${selectedTask.id}`)}>고객상세</Button>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <Card className="shadow-sm">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
