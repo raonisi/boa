@@ -2661,6 +2661,95 @@ describe("PR13 customer handoff notes and consultation scripts", () => {
     await expect(appRouter.createCaller(createCtx("member")).consultationScripts.seedDefaults()).rejects.toThrow();
   });
 
+  it("allows branch_admin to update and soft-delete consultation scripts without logging full script body", async () => {
+    const existingScript = {
+      id: 701,
+      title: "General check",
+      category: "general_check",
+      scriptBody: "Original safe script body.",
+      complianceNote: null,
+      tags: null,
+      isActive: true,
+      deletedAt: null,
+    } as any;
+    vi.spyOn(db, "getConsultationScriptById").mockResolvedValue(existingScript);
+    const updateSpy = vi.spyOn(db, "updateConsultationScript").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationScripts.update({
+      id: 701,
+      title: "Updated general check",
+      category: "general_check",
+      scriptBody: "Updated safe script body that should not be logged.",
+      complianceNote: "Keep guidance balanced.",
+      tags: "follow-up",
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalledWith(701, expect.objectContaining({
+      title: "Updated general check",
+      scriptBody: "Updated safe script body that should not be logged.",
+      updatedBy: 1,
+    }));
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CONSULTATION_SCRIPT_UPDATED",
+      details: expect.not.stringContaining("Updated safe script body"),
+    }), undefined);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      details: expect.stringContaining("[redacted]"),
+    }), undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationScripts.update({
+      id: 701,
+      isActive: false,
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenLastCalledWith(701, expect.objectContaining({
+      isActive: false,
+      deletedAt: expect.any(Date),
+      updatedBy: 1,
+    }));
+    expect(logSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "CONSULTATION_SCRIPT_DEACTIVATED",
+      details: expect.not.stringContaining("Original safe script body"),
+    }), undefined);
+  });
+
+  it("keeps consultation script update and soft-delete branch_admin only", async () => {
+    const updateInput = { id: 701, title: "Blocked" };
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin")).consultationScripts.update(updateInput)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader")).consultationScripts.update(updateInput)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member")).consultationScripts.update(updateInput)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).consultationScripts.update(updateInput)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).consultationScripts.update(updateInput)).rejects.toThrow();
+  });
+
+  it("hides inactive consultation scripts from regular script lists and renders only active scripts", async () => {
+    const listSpy = vi.spyOn(db, "getConsultationScripts").mockResolvedValue([]);
+    await appRouter.createCaller(createCtx("branch_admin")).consultationScripts.list();
+    expect(listSpy).toHaveBeenLastCalledWith(false);
+
+    await appRouter.createCaller(createCtx("branch_admin")).consultationScripts.list({ includeInactive: true });
+    expect(listSpy).toHaveBeenLastCalledWith(true);
+
+    await appRouter.createCaller(createCtx("member")).consultationScripts.list({ includeInactive: true });
+    expect(listSpy).toHaveBeenLastCalledWith(false);
+
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getConsultationScriptById").mockResolvedValue({
+      id: 702,
+      title: "Deleted script",
+      category: "general_check",
+      scriptBody: "Deleted script body.",
+      isActive: false,
+      deletedAt: new Date(),
+    } as any);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultationScripts.render({
+      scriptId: 702,
+      customerId: 100,
+    })).rejects.toThrow();
+  });
+
   it("renders and logs consultation script copy only inside customer access scope", async () => {
     vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
     vi.spyOn(db, "getConsultationScriptById").mockResolvedValue({
