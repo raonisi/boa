@@ -42,9 +42,24 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-boa-navy: var(--boa-navy);
+  --color-boa-green: var(--boa-green);
+  --color-boa-amber: var(--boa-amber);
+  --color-boa-red: var(--boa-red);
+  --color-boa-gray: var(--boa-gray);
 }
 
 :root {
+  /* BOA premium finance tokens: navy, white, soft gray, deep green, amber, restrained red. */
+  --boa-navy: oklch(0.28 0.12 274);
+  --boa-navy-soft: oklch(0.36 0.07 270);
+  --boa-white: oklch(1 0 0);
+  --boa-gray: oklch(0.955 0.006 95);
+  --boa-green: oklch(0.45 0.1 165);
+  --boa-amber: oklch(0.72 0.09 78);
+  --boa-red: oklch(0.52 0.18 25);
+  --boa-shadow-card: 0 8px 24px -18px oklch(0.2 0.04 270 / 0.45);
+  --boa-shadow-card-hover: 0 14px 32px -20px oklch(0.2 0.05 270 / 0.52);
   /* Editorial financial: navy #1A237E family, ivory #F9F9F7, restrained gold + deep green charts */
   --primary: oklch(0.28 0.12 274);
   --primary-foreground: oklch(0.99 0.004 95);
@@ -82,6 +97,15 @@
 }
 
 .dark {
+  --boa-navy: oklch(0.72 0.09 78);
+  --boa-navy-soft: oklch(0.55 0.12 265);
+  --boa-white: oklch(0.93 0.012 95);
+  --boa-gray: oklch(0.24 0.025 272);
+  --boa-green: oklch(0.5 0.1 165);
+  --boa-amber: oklch(0.72 0.09 78);
+  --boa-red: oklch(0.58 0.16 25);
+  --boa-shadow-card: 0 10px 28px -20px oklch(0 0 0 / 0.72);
+  --boa-shadow-card-hover: 0 16px 36px -22px oklch(0 0 0 / 0.78);
   --primary: oklch(0.72 0.09 78);
   --primary-foreground: oklch(0.2 0.05 274);
   --sidebar-primary: oklch(0.72 0.09 78);
@@ -184,6 +208,29 @@
   .dark .status-해지관리 { @apply bg-rose-900/45 text-rose-300; }
   .dark .status-재상담필요 { @apply bg-teal-900/45 text-teal-300; }
 
+  /* Canonical Korean status aliases using the BOA premium finance palette. */
+  .status-미상담 { @apply bg-muted text-muted-foreground; }
+  .status-부재 { @apply bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25; }
+  .status-통화완료 { @apply bg-primary/10 text-primary ring-1 ring-primary/15; }
+  .status-상담예정 { @apply bg-primary/10 text-primary ring-1 ring-primary/15; }
+  .status-설계중 { @apply bg-primary/10 text-primary ring-1 ring-primary/15; }
+  .status-계약 { @apply bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20; }
+  .status-보류 { @apply bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25; }
+  .status-거절 { @apply bg-destructive/10 text-destructive ring-1 ring-destructive/20; }
+  .status-해지관리 { @apply bg-destructive/10 text-destructive ring-1 ring-destructive/20; }
+  .status-재상담필요 { @apply bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20; }
+
+  .dark .status-미상담 { @apply bg-gray-800/60 text-gray-300; }
+  .dark .status-부재 { @apply bg-boa-amber/18 text-amber-200 ring-1 ring-boa-amber/25; }
+  .dark .status-통화완료 { @apply bg-primary/12 text-primary ring-1 ring-primary/20; }
+  .dark .status-상담예정 { @apply bg-primary/12 text-primary ring-1 ring-primary/20; }
+  .dark .status-설계중 { @apply bg-primary/12 text-primary ring-1 ring-primary/20; }
+  .dark .status-계약 { @apply bg-boa-green/16 text-boa-green ring-1 ring-boa-green/25; }
+  .dark .status-보류 { @apply bg-boa-amber/18 text-amber-200 ring-1 ring-boa-amber/25; }
+  .dark .status-거절 { @apply bg-destructive/14 text-destructive ring-1 ring-destructive/25; }
+  .dark .status-해지관리 { @apply bg-destructive/14 text-destructive ring-1 ring-destructive/25; }
+  .dark .status-재상담필요 { @apply bg-boa-green/16 text-boa-green ring-1 ring-boa-green/25; }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -233,7 +280,8 @@
   }
 
   .boa-card {
-    @apply rounded-lg border border-border/90 bg-card shadow-sm;
+    @apply rounded-lg border border-border/90 bg-card;
+    box-shadow: var(--boa-shadow-card);
   }
 
   .dark .boa-card {
@@ -256,11 +304,11 @@
 
   .crm-elevated-card {
     @apply rounded-xl border border-border/80 bg-card shadow-sm transition-all;
-    box-shadow: 0 8px 24px -18px oklch(0.2 0.04 270 / 0.45);
+    box-shadow: var(--boa-shadow-card);
   }
 
   .crm-elevated-card:hover {
-    box-shadow: 0 14px 32px -20px oklch(0.2 0.05 270 / 0.52);
+    box-shadow: var(--boa-shadow-card-hover);
     transform: translateY(-1px);
   }
 
