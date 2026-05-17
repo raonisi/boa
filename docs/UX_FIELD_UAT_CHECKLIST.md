@@ -323,6 +323,16 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 8. inactive/resigned users remain blocked from authenticated screens and protected APIs.
 9. Mobile viewport shows empty/error/permission states without horizontal scroll and with 44px+ CTA targets.
 
+## P2-3 Playwright Smoke + Visual QA
+1. Run `pnpm.cmd test:e2e:install` once per machine or CI cache miss, then run `pnpm.cmd test:e2e`.
+2. The Playwright suite must use mocked tRPC fixtures only; do not use Google OAuth accounts, production DBs, or real customer data.
+3. Smoke coverage must include Dashboard, CustomerList, CustomerDetail, Analytics, OperationRisk branch_admin access, and OperationRisk member forbidden access.
+4. Mobile smoke must include Dashboard and MobileNav navigation to CustomerList with no horizontal overflow.
+5. Visual QA is intentionally limited to Dashboard desktop, CustomerList desktop, and Dashboard mobile screenshots.
+6. Screenshots must contain only `[E2E]` fake data or masked values.
+7. If visual snapshots change, review the diff before updating baselines.
+8. Server RBAC remains covered by unit/integration tests; Playwright role switching is a fixture-level UI smoke, not a replacement for server authorization tests.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.
