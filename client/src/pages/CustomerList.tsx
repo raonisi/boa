@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -116,7 +116,7 @@ export default function CustomerList() {
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
-  const { data: customers, refetch } = trpc.customers.list.useQuery({
+  const { data: customers, refetch, isLoading: isCustomersLoading, isError: isCustomersError } = trpc.customers.list.useQuery({
     status: statusFilter === "all" ? undefined : statusFilter,
     priority: priorityFilter === "all" ? undefined : priorityFilter as any,
     tag: tagFilter === "all" ? undefined : tagFilter as any,
@@ -335,7 +335,7 @@ export default function CustomerList() {
               {user?.role === "sub_branch_admin" ? "부지점장 산하 고객 관리" :
                user?.role === "team_leader" ? "본인 팀 고객 관리" :
                user?.role === "member" ? "내 고객 관리" : "전체 고객 관리"}
-              {" · "}표시 고객 {filtered.length}명
+              {" · "}표시 고객 {isCustomersLoading || isCustomersError ? "-" : filtered.length}명
               </p>
             </div>
           </CardContent>
@@ -361,11 +361,11 @@ export default function CustomerList() {
             </div>
             <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
               {[
-                { key: "all" as const, label: "전체", value: filtered.length, tone: "border-slate-200 bg-white" },
-                { key: "priority" as const, label: "우선 연락", value: workspaceStats.priority, tone: "border-emerald-200 bg-emerald-50" },
-                { key: "warning" as const, label: "주의 필요", value: workspaceStats.warning, tone: "border-red-200 bg-red-50" },
-                { key: "no_next_action" as const, label: "다음 액션 없음", value: workspaceStats.noNextAction, tone: "border-amber-200 bg-amber-50" },
-                { key: "uncontacted" as const, label: "미상담", value: workspaceStats.uncontacted, tone: "border-slate-200 bg-slate-50" },
+                { key: "all" as const, label: "전체", value: isCustomersLoading || isCustomersError ? "-" : filtered.length, tone: "border-slate-200 bg-white" },
+                { key: "priority" as const, label: "우선 연락", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.priority, tone: "border-emerald-200 bg-emerald-50" },
+                { key: "warning" as const, label: "주의 필요", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.warning, tone: "border-red-200 bg-red-50" },
+                { key: "no_next_action" as const, label: "다음 액션 없음", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.noNextAction, tone: "border-amber-200 bg-amber-50" },
+                { key: "uncontacted" as const, label: "미상담", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.uncontacted, tone: "border-slate-200 bg-slate-50" },
               ].map((item) => (
                 <button
                   key={item.key}
@@ -511,7 +511,30 @@ export default function CustomerList() {
         {/* 모바일 카드 뷰 */}
         {isMobile ? (
           <div className="space-y-3">
-            {workspaceCustomers.length === 0 ? (
+            {isCustomersLoading ? (
+              <Card className="border-dashed border-border bg-muted/20 shadow-sm">
+                <CardContent className="py-4">
+                  <EmptyState
+                    variant="loading"
+                    title="고객 목록을 불러오는 중입니다."
+                    description="권한 범위 안의 고객 데이터를 확인하고 있습니다."
+                    className="border-0 bg-transparent py-8"
+                  />
+                </CardContent>
+              </Card>
+            ) : isCustomersError ? (
+              <Card className="border-dashed border-border bg-muted/20 shadow-sm">
+                <CardContent className="py-4">
+                  <ErrorState
+                    title="고객 목록을 불러오지 못했습니다."
+                    description="고객이 없는 상태와 구분해 표시하고 있습니다. 잠시 후 다시 시도해 주세요."
+                    retryLabel="다시 시도"
+                    onRetry={() => void refetch()}
+                    className="border-0 bg-transparent py-8"
+                  />
+                </CardContent>
+              </Card>
+            ) : workspaceCustomers.length === 0 ? (
               <Card className="border-dashed border-border bg-muted/20 shadow-sm">
                 <CardContent className="py-4">
                   <EmptyState
@@ -700,7 +723,30 @@ export default function CustomerList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {workspaceCustomers.length === 0 ? (
+                    {isCustomersLoading ? (
+                      <TableRow>
+                        <TableCell colSpan={(canReclaimCustomer || canBulkChangeAssignee) ? 12 : 11} className="py-14 text-center align-middle">
+                          <EmptyState
+                            variant="loading"
+                            title="고객 목록을 불러오는 중입니다."
+                            description="권한 범위 안의 고객 데이터를 확인하고 있습니다."
+                            className="mx-auto max-w-md border-0 bg-transparent py-0"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ) : isCustomersError ? (
+                      <TableRow>
+                        <TableCell colSpan={(canReclaimCustomer || canBulkChangeAssignee) ? 12 : 11} className="py-14 text-center align-middle">
+                          <ErrorState
+                            title="고객 목록을 불러오지 못했습니다."
+                            description="고객이 없는 상태와 구분해 표시하고 있습니다. 잠시 후 다시 시도해 주세요."
+                            retryLabel="다시 시도"
+                            onRetry={() => void refetch()}
+                            className="mx-auto max-w-md border-0 bg-transparent py-0"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    ) : workspaceCustomers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={(canReclaimCustomer || canBulkChangeAssignee) ? 12 : 11} className="py-14 text-center align-middle">
                           <EmptyState
