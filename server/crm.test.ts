@@ -266,6 +266,52 @@ describe("Schedules - datetime and reminder persistence", () => {
     expect(reminderSpy).not.toHaveBeenCalled();
   });
 
+  it("cancels timing and incomplete reminders when a schedule is cancelled", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const cancelTimingSpy = vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const cancelIncompleteSpy = vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    const incompleteSpy = vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member")).schedules.update({
+      id: 77,
+      status: "취소",
+    });
+
+    expect(cancelTimingSpy).toHaveBeenCalledWith(4, 77);
+    expect(cancelIncompleteSpy).toHaveBeenCalledWith(4, 77);
+    expect(reminderSpy).not.toHaveBeenCalled();
+    expect(incompleteSpy).not.toHaveBeenCalled();
+  });
+
+  it("cancels timing and incomplete reminders when a schedule is deleted", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    vi.spyOn(db, "softDeleteSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const cancelTimingSpy = vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const cancelIncompleteSpy = vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member")).schedules.delete({ id: 77 });
+
+    expect(db.softDeleteSchedule).toHaveBeenCalledWith(77);
+    expect(cancelTimingSpy).toHaveBeenCalledWith(4, 77);
+    expect(cancelIncompleteSpy).toHaveBeenCalledWith(4, 77);
+  });
+
+  it("marks cancelled schedule reminders as read so unread count drops", async () => {
+    const execute = vi.fn().mockResolvedValue([]);
+    vi.spyOn(db, "getDb").mockResolvedValue({ session: { client: { execute } } } as any);
+
+    await notifications.cancelScheduleTimingNotifications(4, 77);
+    await notifications.cancelScheduleIncompleteNotification(4, 77);
+
+    expect(execute).toHaveBeenCalledTimes(2);
+    expect(execute.mock.calls[0][0]).toContain("isRead = true");
+    expect(execute.mock.calls[1][0]).toContain("isRead = true");
+  });
+
   it("allows clearing optional endTime while saving reminderOffsetMinutes", async () => {
     vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
     const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);

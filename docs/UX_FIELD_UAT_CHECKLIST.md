@@ -358,6 +358,13 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 5. Search result zero state uses EmptyState and API failure uses ErrorState.
 6. Authorized customer phone and birth-date display policy remains unchanged in mobile customer cards and details.
 
+## Schedule Reminder Cancellation UAT
+1. Create a schedule with a future reminder, then delete it; pending timing and incomplete schedule notifications should be marked processed/read.
+2. Cancel a schedule from Calendar; related timing and incomplete notifications should no longer appear as pending work.
+3. Notifications center and unread count should not include deleted or cancelled schedule reminders.
+4. Push reminder targets should exclude deleted or cancelled schedules.
+5. member cannot delete another user's schedule or clear another user's schedule reminders.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.
