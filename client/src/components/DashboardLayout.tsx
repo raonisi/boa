@@ -52,8 +52,6 @@ import {
   Users,
   UserSquare2,
 } from "lucide-react";
-import { BranchMark } from "./BranchMark";
-import { BrandLogo } from "./BrandLogo";
 import { BrandedLogin } from "./BrandedLogin";
 import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -251,15 +249,18 @@ function DashboardLayoutContent({
       <div className="relative" ref={sidebarRef}>
         <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
           <SidebarHeader className="h-16 justify-center border-b border-sidebar-border/80">
-            <div className="flex items-center gap-2.5 px-2">
-              <BranchMark />
-              {!isCollapsed && (
-                <div className="min-w-0">
-                  <BrandLogo className="h-9 w-28 justify-start rounded-xl bg-white px-2 py-1 shadow-sm ring-1 ring-sidebar-border/70" />
-                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
-                </div>
-              )}
-            </div>
+            {!isCollapsed ? (
+              <div className="min-w-0 px-2">
+                <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">
+                  BOA (Best of All) 지점
+                </p>
+                <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
+              </div>
+            ) : (
+              <p className="truncate px-2 text-[11px] font-bold tracking-tight text-sidebar-foreground">
+                BOA (Best of All) 지점
+              </p>
+            )}
           </SidebarHeader>
 
           <SidebarContent className="gap-0 py-2">
