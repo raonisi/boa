@@ -2,6 +2,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { BrandedLogin } from "./components/BrandedLogin";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrlResult } from "./const";
@@ -73,8 +74,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return <LoginConfigurationNotice message={loginUrl.message} />;
     }
 
-    window.location.href = loginUrl.url;
-    return null;
+    return <BrandedLogin onLogin={() => { window.location.href = loginUrl.url; }} />;
   }
 
   if (user.accountStatus !== "active") {

@@ -1,4 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
+import { BrandLogo } from "@/components/BrandLogo";
 import {
   Sheet,
   SheetClose,
@@ -145,7 +146,10 @@ export function MobileNav() {
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
         <SheetContent side="bottom" className="max-h-[82vh] rounded-t-2xl border-border bg-card pb-5 pt-3 md:hidden">
           <SheetHeader className="text-left">
-            <SheetTitle className="text-base font-semibold">더보기</SheetTitle>
+            <SheetTitle className="flex items-center gap-3 text-base font-semibold">
+              <BrandLogo className="h-9 w-24 justify-start" />
+              <span>더보기</span>
+            </SheetTitle>
           </SheetHeader>
           <div className="mt-4 grid grid-cols-2 gap-2 overflow-y-auto pb-4">
             {visibleMoreItems.map((item) => {

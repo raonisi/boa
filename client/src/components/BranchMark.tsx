@@ -1,9 +1,10 @@
 import { cn } from "@/lib/utils";
+import boaLogoMark from "@/assets/brand/boa-logo-mark.png";
+import boaLogo from "@/assets/brand/boa-logo.png";
 import { Building2 } from "lucide-react";
 import { useState } from "react";
 
-/** 원본은 `client/public/brand/boa.ai` (일러스트). 웹 표시용으로 `boa-logo.svg` 또는 `boa-logo.png`를 같은 폴더에 두면 자동 적용됩니다. */
-const LOGO_WEB = ["/brand/boa-logo.png", "/brand/boa-logo.svg"] as const;
+const LOGO_WEB = [boaLogoMark, boaLogo, "/brand/boa-logo.svg"] as const;
 
 type BranchMarkProps = {
   className?: string;
