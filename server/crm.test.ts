@@ -2245,6 +2245,71 @@ describe("Customer History Timeline", () => {
   });
 });
 
+describe("P0-3 phone duplicate checks", () => {
+  it("scopes duplicate checks by role without exposing out-of-scope customer fields", async () => {
+    const duplicate = { id: 99, name: "[TEST] Hidden Customer", phone: "01012345678", isActive: true } as any;
+    const checkSpy = vi.spyOn(db, "checkPhoneDuplicate")
+      .mockResolvedValueOnce(duplicate)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.checkDuplicate({ phone: "010-1234-5678" }))
+      .resolves.toMatchObject({ isDuplicate: true, duplicate: true, visibleDuplicateCount: 1 });
+    const subResult = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.checkDuplicate({ phone: "010-1234-5678" });
+    const teamResult = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customers.checkDuplicate({ phone: "010-1234-5678" });
+    const memberResult = await appRouter.createCaller(createCtx("member", { userId: 4 })).customers.checkDuplicate({ phone: "010-1234-5678" });
+
+    expect(subResult).toEqual(expect.objectContaining({ isDuplicate: false, duplicate: false, visibleDuplicateCount: 0 }));
+    expect(teamResult).toEqual(expect.objectContaining({ isDuplicate: false, duplicate: false, visibleDuplicateCount: 0 }));
+    expect(memberResult).toEqual(expect.objectContaining({ isDuplicate: false, duplicate: false, visibleDuplicateCount: 0 }));
+    expect(JSON.stringify([subResult, teamResult, memberResult])).not.toContain("Hidden Customer");
+    expect(checkSpy).toHaveBeenNthCalledWith(1, "010-1234-5678", undefined, {});
+    expect(checkSpy).toHaveBeenNthCalledWith(2, "010-1234-5678", undefined, { subBranchAdminId: 2 });
+    expect(checkSpy).toHaveBeenNthCalledWith(3, "010-1234-5678", undefined, { teamId: 10 });
+    expect(checkSpy).toHaveBeenNthCalledWith(4, "010-1234-5678", undefined, { agentId: 4 });
+  });
+
+  it("blocks inactive and resigned users from duplicate checks", async () => {
+    await expect(appRouter.createCaller(createInactiveCtx("member")).customers.checkDuplicate({ phone: "010-1234-5678" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { accountStatus: "resigned" })).customers.checkDuplicate({ phone: "010-1234-5678" })).rejects.toThrow();
+  });
+
+  it("uses scoped duplicate checks for create and does not include duplicate customer names in conflicts", async () => {
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue({ id: 99, name: "[TEST] Hidden Customer", phone: "01012345678", isActive: true } as any);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.create({
+      name: "[TEST] New Customer",
+      phone: "010-1234-5678",
+      birthDate: "1990-01-01",
+      privacyConsent: true,
+    })).rejects.toThrow("확인 가능한 범위");
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.create({
+      name: "[TEST] New Customer",
+      phone: "010-1234-5678",
+      birthDate: "1990-01-01",
+      privacyConsent: true,
+    })).rejects.not.toThrow("[TEST] Hidden Customer");
+  });
+
+  it("uses scoped existing phone sets for bulk import preview and import", async () => {
+    const phoneSpy = vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined as any);
+    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const row = { name: "[TEST] Bulk", birthDate: "1990-01-01", phone: "010-1234-5678" };
+    const caller = appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 }));
+
+    await caller.customers.previewImport({ rows: [row], fileName: "test.csv", fileSize: 100, mimeType: "text/csv" });
+    await caller.customers.bulkImport({ rows: [row], fileName: "test.csv", fileSize: 100, mimeType: "text/csv" });
+
+    expect(phoneSpy).toHaveBeenNthCalledWith(1, { teamId: 10 });
+    expect(phoneSpy).toHaveBeenNthCalledWith(2, { teamId: 10 });
+  });
+});
+
 describe("PR10-2 customer merge workflow", () => {
   const mergePreview = {
     targetCustomer: { id: 100, name: "[TEST] Target", maskedPhone: "010-****-5678", isActive: true },

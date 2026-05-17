@@ -272,6 +272,14 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 8. Run `pnpm.cmd activity-logs:redact` without `--write` in a safe environment and confirm it reports only counts, not log details.
 9. Controlled write mode requires both `CONFIRM_REDACT_ACTIVITY_LOGS=1` and `--write`; without both safeguards the command must refuse to update rows.
 
+## Phone Duplicate Scope UAT
+1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
+2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.
+3. team_leader 중복 확인은 본인 팀/산하 고객 범위 안에서만 `duplicate=true`가 된다.
+4. member 중복 확인은 본인 담당 고객 범위 안에서만 `duplicate=true`가 된다.
+5. 권한 밖 고객과만 전화번호가 중복될 때 고객명, 담당자, 팀명, customerId 또는 권한 밖 존재 여부가 표시되지 않는다.
+6. CustomerList, CustomerDetail, 후속관리, 일정, 모바일 고객 카드의 권한 있는 연락처 표시는 유지된다.
+
 ## Regression Checks
 - Existing notification mutations still work:
   - markRead

@@ -1019,13 +1019,19 @@ export async function mergeCustomers(params: {
   };
 }
 
-export async function checkPhoneDuplicate(phone: string, excludeId?: number) {
+type CustomerPhoneScopeFilter = {
+  agentId?: number;
+  agentIds?: number[];
+  teamId?: number;
+  subBranchAdminId?: number;
+};
+
+export async function checkPhoneDuplicate(phone: string, excludeId?: number, filter: CustomerPhoneScopeFilter = {}) {
   const db = await getDb();
   if (!db) return null;
   const normalized = normalizePhone(phone);
   if (!normalized) return null;
-  const result = await db.select().from(customers)
-    .where(eq(customers.isActive, true));
+  const result = await getCustomers(filter);
   const found = result.find((customer) => {
     if (!customer.phone) return false;
     if (excludeId && customer.id === excludeId) return false;
@@ -3165,14 +3171,8 @@ export async function validateBulkImportRow(
 }
 
 /** 기존 DB의 모든 활성 고객 연락처 조회 */
-export async function getAllActiveCustomerPhones(): Promise<Set<string>> {
-  const db = await getDb();
-  if (!db) return new Set();
-
-  const results = await db
-    .select({ phone: customers.phone })
-    .from(customers)
-    .where(eq(customers.isActive, true));
+export async function getAllActiveCustomerPhones(filter: CustomerPhoneScopeFilter = {}): Promise<Set<string>> {
+  const results = await getCustomers(filter);
 
   const phoneSet = new Set<string>();
   results.forEach((r) => {

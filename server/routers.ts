@@ -1513,6 +1513,22 @@ async function buildPerformanceScope(
   return { agentId: user.id };
 }
 
+async function buildPhoneDuplicateScope(user: {
+  id: number;
+  role: string;
+  teamId: number | null;
+  subBranchAdminId?: number | null;
+  accountStatus: string;
+}) {
+  if (user.role === "branch_admin") return {};
+  if (user.role === "sub_branch_admin") return { subBranchAdminId: user.id };
+  if (user.role === "team_leader") {
+    if (user.teamId) return { teamId: user.teamId };
+    return { agentIds: await getHierarchyScopeUserIds(user) };
+  }
+  return { agentId: user.id };
+}
+
 async function getAccessibleSchedules(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
   if (user.role === "branch_admin") return getSchedules({});
   if (user.role === "sub_branch_admin" || user.role === "team_leader") {
@@ -3736,9 +3752,16 @@ export const appRouter = router({
 
     checkDuplicate: activeUserProcedure
       .input(z.object({ phone: z.string(), excludeId: z.number().optional() }))
-      .query(async ({ input }) => {
-        const dup = await checkPhoneDuplicate(input.phone, input.excludeId);
-        return { isDuplicate: !!dup };
+      .query(async ({ ctx, input }) => {
+        const dup = await checkPhoneDuplicate(input.phone, input.excludeId, await buildPhoneDuplicateScope(ctx.user));
+        return {
+          isDuplicate: !!dup,
+          duplicate: !!dup,
+          visibleDuplicateCount: dup ? 1 : 0,
+          message: dup
+            ? "확인 가능한 범위 내에 같은 연락처의 고객이 있습니다."
+            : "확인 가능한 범위 내 중복 고객이 없습니다.",
+        };
       }),
 
     create: activeUserProcedure
@@ -3762,8 +3785,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         if (input.phone) {
-          const dup = await checkPhoneDuplicate(input.phone);
-          if (dup) throw new TRPCError({ code: "CONFLICT", message: `이미 동일한 연락처가 등록되어 있습니다. (${dup.name})` });
+          const dup = await checkPhoneDuplicate(input.phone, undefined, await buildPhoneDuplicateScope(ctx.user));
+          if (dup) throw new TRPCError({ code: "CONFLICT", message: "확인 가능한 범위 내에 같은 연락처의 고객이 있습니다." });
         }
         const assignee = await resolveCustomerCreateAssignee(ctx.user, input.agentId);
         const { customerTags, agentId, ...customerInput } = input;
@@ -4301,7 +4324,7 @@ export const appRouter = router({
           });
         }
 
-        const existingPhones = await getAllActiveCustomerPhones();
+        const existingPhones = await getAllActiveCustomerPhones(await buildPhoneDuplicateScope(ctx.user));
         const filePhones = new Set<string>();
         const forcedAssignee =
           ctx.user.role === "branch_admin"
@@ -4361,7 +4384,7 @@ export const appRouter = router({
           });
         }
 
-        const existingPhones = await getAllActiveCustomerPhones();
+        const existingPhones = await getAllActiveCustomerPhones(await buildPhoneDuplicateScope(ctx.user));
         const filePhones = new Set<string>();
         const forcedAssignee =
           ctx.user.role === "branch_admin"
