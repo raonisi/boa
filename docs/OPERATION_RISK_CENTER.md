@@ -80,3 +80,13 @@ branch_admin이 데이터 다운로드, 삭제·복구, 계정·권한, 인수�
 - Customer/contract permanent delete is retained as a controlled branch_admin-only operation.
 - Blocked permanent-delete attempts must remain visible as auditable risk events through `PERMANENT_DELETE_BLOCKED`.
 - QA should verify that permanent-delete logs show safe metadata only and do not expose full phone numbers, tokens, secrets, consultation body text, disease names, product names, or premium detail text.
+
+## Activity Log Redaction Policy
+
+- Operation-risk, admin-audit, and activity-log responses must never expose raw `activity_logs.details` when it contains token, secret, password, API key, `DATABASE_URL`, authorization, cookie, session, device token, or FCM token values.
+- Full phone numbers, birth dates, resident-number-like patterns, and emails are masked in audit/log surfaces only.
+- Consultation body, customer memo, message/template/script body, illness/product names, and premium detail text are summarized in audit/log surfaces.
+- DATA_DOWNLOAD reasons remain visible for audit context, but sensitive patterns inside the reason are redacted.
+- Customer DB, Customer Detail, follow-up, schedule, mobile customer card, and assigned-member customer views continue to show authorized customer contact and birth-date information for normal work.
+- Legacy logs are protected at response/display time even if older stored `activity_logs.details` contain unsafe metadata.
+- Historical DB rows can be remediated with `pnpm.cmd activity-logs:redact` for dry-run and `CONFIRM_REDACT_ACTIVITY_LOGS=1 pnpm.cmd activity-logs:redact -- --write` for controlled write mode. The command reports counts only and never prints log details.

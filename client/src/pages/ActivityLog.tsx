@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { redactAuditDisplayText } from "@/lib/auditRedaction";
 import { trpc } from "@/lib/trpc";
 import { getTargetTypeLabel, localizeKnownEnumText } from "@/lib/userRole";
 import { Activity, Search, ShieldAlert } from "lucide-react";
@@ -89,7 +90,8 @@ export default function ActivityLog() {
     const reason = extractReason(log.details);
     const createdAt = new Date(log.createdAt);
     const withinPeriod = periodFilter === "all" || createdAt >= new Date(Date.now() - Number(periodFilter) * 24 * 60 * 60 * 1000);
-    const matchSearch = !search || label.includes(search) || log.action.includes(search) || userName.includes(search) || (log.details ?? "").includes(search) || reason.includes(search);
+    const safeDetails = redactAuditDisplayText(log.details);
+    const matchSearch = !search || label.includes(search) || log.action.includes(search) || userName.includes(search) || safeDetails.includes(search) || reason.includes(search);
     const matchUser = userFilter === "all" || String(log.userId) === userFilter;
     const matchCategory = categoryFilter === "all" || actionCategory(log.action) === categoryFilter;
     const matchRisk = riskFilter === "all" || (riskFilter === "risk" ? isRiskAction(log.action) : !isRiskAction(log.action));
@@ -204,7 +206,7 @@ export default function ActivityLog() {
                             {log.targetType ? `${getTargetTypeLabel(log.targetType)}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
                           </TableCell>
                           <TableCell className="max-w-64 text-xs text-muted-foreground">
-                            <span className="line-clamp-2">{reason ? `사유: ${reason}` : localizeKnownEnumText(log.details)}</span>
+                            <span className="line-clamp-2">{reason ? `사유: ${redactAuditDisplayText(reason, 120)}` : redactAuditDisplayText(localizeKnownEnumText(log.details))}</span>
                           </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>상세보기</Button>
@@ -232,7 +234,7 @@ export default function ActivityLog() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">상세</p>
-                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">{localizeKnownEnumText(selectedLog.details)}</pre>
+                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">{redactAuditDisplayText(localizeKnownEnumText(selectedLog.details), 2000)}</pre>
                 </div>
               </div>
             )}

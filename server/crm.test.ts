@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
 import * as db from "./db";
 import * as notifications from "./notifications";
 import * as pushNotifications from "./pushNotifications";
@@ -37,6 +38,27 @@ function createInactiveCtx(role: Role = "member"): TrpcContext {
 afterEach(() => {
   pushNotifications.setPushSenderForTests(null);
   vi.restoreAllMocks();
+});
+
+describe("activity log redaction utility", () => {
+  it("can sanitize legacy persisted activity log details for controlled backfill", () => {
+    const details = JSON.stringify({
+      reason: "download 010-1234-5678 token=legacy-token",
+      birthDate: "1992-01-01",
+      consultationBody: "상담본문 전문",
+      premium: 120000,
+    });
+
+    const sanitized = String(sanitizeActivityLogDetailsForStorage(details));
+
+    expect(sanitized).toContain("010-****-5678");
+    expect(sanitized).toContain("1992-**-**");
+    expect(sanitized).toContain("[REDACTED]");
+    expect(sanitized).toContain("업무 상세 변경");
+    expect(sanitized).toContain("금액 정보 변경");
+    expect(sanitized).not.toContain("legacy-token");
+    expect(sanitized).not.toContain("상담본문 전문");
+  });
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
@@ -1142,6 +1164,49 @@ describe("RBAC - logs.list (team_leader+)", () => {
   it("allows branch_admin to access logs.list", async () => {
     await expect(appRouter.createCaller(createCtx("branch_admin")).logs.list()).resolves.toBeDefined();
   });
+  it("redacts sensitive legacy activity log details without changing business customer APIs", async () => {
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        action: "DATA_DOWNLOAD",
+        targetType: "customers",
+        targetId: null,
+        details: JSON.stringify({
+          metadata: {
+            reason: "[TEST] audit 010-1111-2222 token=raw-token DATABASE_URL=mysql://secret",
+            rowCount: 7,
+            consultationBody: "[TEST] detailed consultation body",
+            birthDate: "1992-01-01",
+            productName: "[TEST] product name",
+            monthlyPremium: "123456",
+            email: "customer@example.test",
+          },
+        }),
+        ipAddress: "127.0.0.1",
+        userAgent: "token=browser-secret",
+        createdAt: new Date(),
+      },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).logs.list();
+    const serialized = JSON.stringify(result);
+
+    expect(serialized).not.toContain("010-1111-2222");
+    expect(serialized).not.toContain("raw-token");
+    expect(serialized).not.toContain("mysql://secret");
+    expect(serialized).not.toContain("detailed consultation body");
+    expect(serialized).not.toContain("[TEST] product name");
+    expect(serialized).not.toContain("123456");
+    expect(serialized).not.toContain("customer@example.test");
+    expect(serialized).toContain("010-****-2222");
+    expect(serialized).toContain("[REDACTED]");
+    expect(serialized).toContain("1992-**-**");
+    expect(serialized).toContain("업무 상세 변경");
+    expect(serialized).toContain("금액 정보 변경");
+    expect(serialized).toContain("@example.test");
+    expect(JSON.parse(String(result[0].details)).metadata.rowCount).toBe(7);
+  });
 });
 
 // ─── RBAC - performance.agentStats (team_leader+) ────────────────────────────
@@ -1800,6 +1865,32 @@ describe("admin audit and download reason controls", () => {
     expect(result.items[0].action).toBe("DATA_DOWNLOAD");
     expect(result.items[0].riskLevel).toBe("high");
     expect(result.items[0].actor?.email).toContain("***");
+  });
+
+  it("searches audit logs only through sanitized reason and summary fields", async () => {
+    vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      {
+        id: 1,
+        userId: 1,
+        action: "DATA_DOWNLOAD",
+        targetType: "customers",
+        targetId: null,
+        details: JSON.stringify({ metadata: { reason: "[TEST] export 010-1111-2222 token=raw-token", rowCount: 2 } }),
+        createdAt: new Date(),
+      },
+    ] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 1, name: "[TEST] Admin", email: "admin@test.local", role: "branch_admin" },
+    ] as any);
+
+    const byToken = await appRouter.createCaller(createCtx("branch_admin")).adminAudit.logSearch({ search: "raw-token" });
+    const byMaskedPhone = await appRouter.createCaller(createCtx("branch_admin")).adminAudit.logSearch({ search: "010-****-2222" });
+    const serialized = JSON.stringify(byMaskedPhone);
+
+    expect(byToken.total).toBe(0);
+    expect(byMaskedPhone.total).toBe(1);
+    expect(serialized).not.toContain("010-1111-2222");
+    expect(serialized).not.toContain("raw-token");
   });
 
   it("blocks inactive or resigned branch admins from audit log search", async () => {

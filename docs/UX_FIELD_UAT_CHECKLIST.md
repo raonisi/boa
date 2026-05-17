@@ -261,6 +261,17 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 5. 활동 로그와 운영 리스크 센터의 대상 유형이 사용자/고객/계약/팀처럼 표시되고, raw target type이 주요 화면에 노출되지 않는지 확인한다.
 6. 직접 API payload, DB enum, 권한 조건, activity log action code가 한글 값으로 바뀌지 않았는지 회귀 테스트로 확인한다.
 
+## Activity Log Redaction UAT
+1. `/logs`, `/admin-audit`, and `/operation-risk?tab=logs` show action, actor, target, reason, row count, and safe summaries without raw `details` JSON.
+2. Activity log details do not expose raw token, device token, password, secret, API key, `DATABASE_URL`, authorization header, cookie, or session value.
+3. Activity log details partially mask phone numbers, birth dates, resident-number-like patterns, and emails.
+4. DATA_DOWNLOAD reason remains visible for audit context, but phone/token/secret patterns inside the reason are redacted.
+5. Consultation body, customer memo, message template body, consultation script body, illness/product names, and premium detail text are summarized rather than shown in full.
+6. Searching activity logs cannot reveal raw token/secret/phone strings that are hidden from display.
+7. Customer DB, Customer Detail, follow-up, schedule, mobile customer card, and assigned-member customer views still show authorized customer phone/birth-date information for real work.
+8. Run `pnpm.cmd activity-logs:redact` without `--write` in a safe environment and confirm it reports only counts, not log details.
+9. Controlled write mode requires both `CONFIRM_REDACT_ACTIVITY_LOGS=1` and `--write`; without both safeguards the command must refuse to update rows.
+
 ## Regression Checks
 - Existing notification mutations still work:
   - markRead
