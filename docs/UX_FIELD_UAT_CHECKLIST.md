@@ -43,6 +43,16 @@
 - Login, sidebar, and mobile branding show the BOA logo without checkerboard background or stretched proportions.
 - Permanent delete is retained but hardened: records with linked operational history are not removed, blocked attempts are auditable, and only branch_admin can execute the final action.
 
+## Error / Forbidden / Empty State UAT Steps
+1. In a production build, trigger a client error path and confirm the user screen does not show stack traces, internal file paths, tokens, or raw technical details.
+2. Confirm the error screen shows "문제가 발생했습니다.", "다시 시도", and "홈으로 이동" actions with mobile-friendly touch targets.
+3. In development mode, confirm error details are available only inside a collapsed developer disclosure.
+4. Directly open a route outside the current role scope and confirm the screen explains that access is unavailable for the current permission instead of silently redirecting.
+5. Confirm branch_admin, sub_branch_admin, team_leader, member, inactive, and resigned authorization outcomes remain unchanged on protected routes and APIs.
+6. Confirm empty list/report states explain that there is no data and provide a next action or filter-change hint when the page supports one.
+7. Confirm error, forbidden, and empty states stay within the mobile viewport without horizontal scroll or bottom navigation overlap.
+8. Confirm customer contact information and birth date display policies are unchanged in authorized customer work screens.
+
 ## Web UAT Steps
 1. Open dashboard and verify "field immediate queue" appears.
 2. Toggle filter chips (all/urgent/today/general) and verify list updates.
