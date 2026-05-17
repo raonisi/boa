@@ -31,6 +31,7 @@
 - No role can access out-of-scope operational data.
 - Consultation script edit/delete actions are branch_admin-only and refresh the list after mutation.
 - Login, sidebar, and mobile branding show the BOA logo without checkerboard background or stretched proportions.
+- Permanent delete is retained but hardened: records with linked operational history are not removed, blocked attempts are auditable, and only branch_admin can execute the final action.
 
 ## Web UAT Steps
 1. Open dashboard and verify "field immediate queue" appears.
@@ -74,6 +75,21 @@
    - add contract,
    - open message template tools.
 3. Scroll long page and verify sticky behavior remains usable.
+
+## Deleted Data Permanent Delete Safeguard UAT
+
+Customer/contract permanent delete is retained as a controlled branch_admin-only operation. It is not an archive-only replacement.
+
+1. Log in as branch_admin and open `/deleted-data`.
+2. Confirm only soft-deleted customers/contracts are listed as permanent-delete candidates.
+3. Open a customer permanent-delete dialog and verify the target type, target ID, target name, irreversible warning, linked data count, reason field, and exact `완전삭제` confirmation field are shown.
+4. Confirm the final delete button stays disabled until a reason is entered and `완전삭제` is typed exactly.
+5. Confirm pending state prevents duplicate clicks.
+6. Try a record with linked operational history and confirm the server blocks permanent delete while keeping the record inactive.
+7. Confirm blocked attempts create an auditable `PERMANENT_DELETE_BLOCKED` activity log without storing full phone numbers, tokens, secrets, consultation body text, disease names, product names, or premium detail text.
+8. Confirm eligible soft-deleted customer/contract records can still be permanently deleted by branch_admin after reason and confirmation.
+9. Confirm sub_branch_admin, team_leader, member, inactive, and resigned users do not see usable permanent-delete controls and direct API calls are blocked.
+10. Confirm customer list, contract list, analytics, performance, operation-risk, and activity log screens remain safe after permanent delete.
 
 ## Consultation Tools Management UAT Steps
 

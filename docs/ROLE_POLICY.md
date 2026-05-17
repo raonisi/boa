@@ -78,3 +78,14 @@
 ## 모바일 메뉴
 
 모바일 하단 메뉴와 더보기 메뉴는 데스크톱과 동일한 역할 조건을 사용합니다. 관리자 전용 메뉴가 표시되더라도 서버 라우터 권한 검증이 최종 방어선입니다.
+## Permanent Delete Safeguard Policy
+
+Customer and contract permanent delete is retained as a branch_admin-only high-risk operation. It is not removed, and the system is not forced into archive-only mode.
+
+- Permanent delete is only available after soft delete/inactive state.
+- Active customers/contracts must not be directly permanently deleted.
+- Customer/contract permanent delete requires an operator reason and exact `완전삭제` confirmation text.
+- Linked operational history blocks permanent delete. Customers with contracts, consultations, consent/status/assignment history, delete requests, notifications, or reminders remain inactive for audit retention. Contracts with contract history, delete requests, notifications, or reminders remain inactive for audit retention.
+- Blocked attempts are logged as `PERMANENT_DELETE_BLOCKED`.
+- Successful permanent delete logs only safe metadata: actor, target type/id, sanitized reason, linked summary, and minimal state. Full phone numbers, tokens, secrets, consultation body text, disease names, product names, and premium detail text must not be stored in activity log details.
+- CRM-controlled permanent delete is different from operating directly on the production DB. Manual production DB hard delete/reset/drop/truncate remains forbidden.

@@ -1993,7 +1993,7 @@ describe("PR9 full role permission QA", () => {
       const caller = appRouter.createCaller(createCtx(role));
       await expect(caller.deletedData.listCustomers()).rejects.toThrow();
       await expect(caller.deletedData.restoreCustomer({ id: 100 })).rejects.toThrow();
-      await expect(caller.deletedData.permanentDeleteCustomer({ id: 100, confirmText: "완전삭제" })).rejects.toThrow();
+      await expect(caller.deletedData.permanentDeleteCustomer({ id: 100, confirmText: "완전삭제", reason: "[TEST] reason" })).rejects.toThrow();
       await expect(caller.imports.listBatches({})).rejects.toThrow();
       await expect(caller.imports.cancelBatch({ importBatchId: "batch_test", confirmText: "BATCH취소" })).rejects.toThrow();
       await expect(caller.adminAudit.summary()).rejects.toThrow();
@@ -4313,11 +4313,78 @@ describe("delete request and deleted data lifecycle", () => {
 
   it("blocks permanent delete for active data and requires confirmation text", async () => {
     vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
-    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({ id: 10, confirmText: "완전삭제" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({ id: 10, confirmText: "완전삭제", reason: "[TEST] reason" })).rejects.toThrow();
 
     vi.restoreAllMocks();
     vi.spyOn(db, "getContractById").mockResolvedValue({ ...activeContract, isActive: false, deletedAt: new Date() });
-    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({ id: 10, confirmText: "삭제" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({ id: 10, confirmText: "삭제", reason: "[TEST] reason" })).rejects.toThrow();
+  });
+
+  it("requires a reason for customer and contract permanent delete", async () => {
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteCustomer({
+      id: 100,
+      confirmText: "\uC644\uC804\uC0AD\uC81C",
+      reason: "",
+    })).rejects.toThrow();
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({
+      id: 10,
+      confirmText: "\uC644\uC804\uC0AD\uC81C",
+    } as any)).rejects.toThrow();
+  });
+
+  it("logs sanitized reason and linked summary when branch_admin permanently deletes eligible customer and contract", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ ...activeCustomer, isActive: false, deletedAt: new Date() });
+    vi.spyOn(db, "getCustomerPermanentDeleteBlockers").mockResolvedValue({
+      contracts: 0,
+      consultations: 0,
+      statusHistory: 0,
+      consentLogs: 0,
+      assignmentHistory: 0,
+      deleteRequests: 0,
+      notifications: 0,
+      reminders: 0,
+    });
+    vi.spyOn(db, "permanentlyDeleteCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteCustomer({
+      id: 100,
+      confirmText: "\uC644\uC804\uC0AD\uC81C",
+      reason: "[TEST] stale duplicate 010-1111-2222 token=abc",
+    })).resolves.toEqual({ success: true });
+
+    const customerLog = logSpy.mock.calls[0]?.[0] as any;
+    expect(customerLog).toEqual(expect.objectContaining({ action: "CUSTOMER_PERMANENTLY_DELETED" }));
+    expect(customerLog.details).toContain("[redacted-phone]");
+    expect(customerLog.details).toContain("[redacted-secret]");
+    expect(customerLog.details).not.toContain("010-1111-2222");
+    expect(customerLog.details).not.toContain("token=abc");
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    vi.spyOn(db, "getContractById").mockResolvedValue({ ...activeContract, isActive: false, deletedAt: new Date() });
+    vi.spyOn(db, "getContractPermanentDeleteBlockers").mockResolvedValue({
+      contractHistory: 0,
+      deleteRequests: 0,
+      notifications: 0,
+      reminders: 0,
+    });
+    vi.spyOn(db, "permanentlyDeleteContract").mockResolvedValue(undefined);
+    const contractLogSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({
+      id: 10,
+      confirmText: "\uC644\uC804\uC0AD\uC81C",
+      reason: "[TEST] no linked records",
+    })).resolves.toEqual({ success: true });
+
+    const contractLog = contractLogSpy.mock.calls[0]?.[0] as any;
+    expect(contractLog).toEqual(expect.objectContaining({ action: "CONTRACT_PERMANENTLY_DELETED" }));
+    expect(contractLog.details).toContain("linkedSummary");
+    expect(contractLog.details).not.toContain("[TEST] product");
   });
 
   it("blocks customer permanent delete when operational history exists", async () => {
@@ -4335,7 +4402,7 @@ describe("delete request and deleted data lifecycle", () => {
     const permanentSpy = vi.spyOn(db, "permanentlyDeleteCustomer").mockResolvedValue(undefined);
     const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
-    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteCustomer({ id: 100, confirmText: "\uC644\uC804\uC0AD\uC81C" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteCustomer({ id: 100, confirmText: "\uC644\uC804\uC0AD\uC81C", reason: "[TEST] reason" })).rejects.toThrow();
 
     expect(permanentSpy).not.toHaveBeenCalled();
     expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "PERMANENT_DELETE_BLOCKED" }));
@@ -4352,7 +4419,7 @@ describe("delete request and deleted data lifecycle", () => {
     const permanentSpy = vi.spyOn(db, "permanentlyDeleteContract").mockResolvedValue(undefined);
     const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
-    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({ id: 10, confirmText: "\uC644\uC804\uC0AD\uC81C" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).deletedData.permanentDeleteContract({ id: 10, confirmText: "\uC644\uC804\uC0AD\uC81C", reason: "[TEST] reason" })).rejects.toThrow();
 
     expect(permanentSpy).not.toHaveBeenCalled();
     expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "PERMANENT_DELETE_BLOCKED" }));
@@ -4381,7 +4448,7 @@ describe("delete request and deleted data lifecycle", () => {
     const subBranchCaller = appRouter.createCaller(createCtx("sub_branch_admin"));
     const inactiveCaller = appRouter.createCaller(createInactiveCtx("branch_admin"));
 
-    await expect(memberCaller.deletedData.permanentDeleteContract({ id: 10, confirmText: "\uC644\uC804\uC0AD\uC81C" })).rejects.toThrow();
+    await expect(memberCaller.deletedData.permanentDeleteContract({ id: 10, confirmText: "\uC644\uC804\uC0AD\uC81C", reason: "[TEST] reason" })).rejects.toThrow();
     await expect(teamLeaderCaller.deletedData.restoreCustomer({ id: 100 })).rejects.toThrow();
     await expect(subBranchCaller.deletedData.permanentDeleteTeam({ id: 10, confirmText: "\uC644\uC804\uC0AD\uC81C" })).rejects.toThrow();
     await expect(inactiveCaller.deletedData.restoreContract({ id: 10 })).rejects.toThrow();
