@@ -89,3 +89,4 @@ branch_admin이 데이터 다운로드, 삭제·복구, 계정·권한, 인수�
 - DATA_DOWNLOAD reasons remain visible for audit context, but sensitive patterns inside the reason are redacted.
 - Customer DB, Customer Detail, follow-up, schedule, mobile customer card, and assigned-member customer views continue to show authorized customer contact and birth-date information for normal work.
 - Legacy logs are protected at response/display time even if older stored `activity_logs.details` contain unsafe metadata.
+- Historical DB rows can be remediated with `pnpm.cmd activity-logs:redact` for dry-run and `CONFIRM_REDACT_ACTIVITY_LOGS=1 pnpm.cmd activity-logs:redact -- --write` for controlled write mode. The command reports counts only and never prints log details.

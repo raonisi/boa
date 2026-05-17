@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
+import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
 import * as db from "./db";
 import * as notifications from "./notifications";
 import * as pushNotifications from "./pushNotifications";
@@ -37,6 +38,27 @@ function createInactiveCtx(role: Role = "member"): TrpcContext {
 afterEach(() => {
   pushNotifications.setPushSenderForTests(null);
   vi.restoreAllMocks();
+});
+
+describe("activity log redaction utility", () => {
+  it("can sanitize legacy persisted activity log details for controlled backfill", () => {
+    const details = JSON.stringify({
+      reason: "download 010-1234-5678 token=legacy-token",
+      birthDate: "1992-01-01",
+      consultationBody: "상담본문 전문",
+      premium: 120000,
+    });
+
+    const sanitized = String(sanitizeActivityLogDetailsForStorage(details));
+
+    expect(sanitized).toContain("010-****-5678");
+    expect(sanitized).toContain("1992-**-**");
+    expect(sanitized).toContain("[REDACTED]");
+    expect(sanitized).toContain("업무 상세 변경");
+    expect(sanitized).toContain("금액 정보 변경");
+    expect(sanitized).not.toContain("legacy-token");
+    expect(sanitized).not.toContain("상담본문 전문");
+  });
 });
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

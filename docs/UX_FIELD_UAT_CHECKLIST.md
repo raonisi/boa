@@ -269,6 +269,8 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 5. Consultation body, customer memo, message template body, consultation script body, illness/product names, and premium detail text are summarized rather than shown in full.
 6. Searching activity logs cannot reveal raw token/secret/phone strings that are hidden from display.
 7. Customer DB, Customer Detail, follow-up, schedule, mobile customer card, and assigned-member customer views still show authorized customer phone/birth-date information for real work.
+8. Run `pnpm.cmd activity-logs:redact` without `--write` in a safe environment and confirm it reports only counts, not log details.
+9. Controlled write mode requires both `CONFIRM_REDACT_ACTIVITY_LOGS=1` and `--write`; without both safeguards the command must refuse to update rows.
 
 ## Regression Checks
 - Existing notification mutations still work:
