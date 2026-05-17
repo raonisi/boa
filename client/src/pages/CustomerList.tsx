@@ -29,6 +29,8 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+type WorkspaceFilter = "all" | "priority" | "warning" | "no_next_action" | "uncontacted";
+
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
 const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
@@ -98,6 +100,7 @@ export default function CustomerList() {
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [scopeFilter, setScopeFilter] = useState<"all" | "mine">("all");
   const [recommendationFilter, setRecommendationFilter] = useState<string>("all");
+  const [workspaceFilter, setWorkspaceFilter] = useState<WorkspaceFilter>("all");
   const [assignedDateFrom, setAssignedDateFrom] = useState("");
   const [assignedDateTo, setAssignedDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -203,11 +206,33 @@ export default function CustomerList() {
     return matchSearch && matchRegion && matchSource && matchAgent && matchRecommendation;
   });
 
+  const workspaceStats = {
+    priority: filtered.filter((c) => recommendationByCustomerId.has(c.id)).length,
+    warning: filtered.filter((c) => Boolean(recommendationByCustomerId.get(c.id)?.warnings?.length)).length,
+    noNextAction: filtered.filter((c) => !(c as any).nextAction).length,
+    uncontacted: filtered.filter((c) => c.consultStatus === "미상담").length,
+  };
+  const workspaceCustomers = filtered
+    .filter((c) => {
+      const recommendation = recommendationByCustomerId.get(c.id);
+      if (workspaceFilter === "priority") return Boolean(recommendation);
+      if (workspaceFilter === "warning") return Boolean(recommendation?.warnings?.length);
+      if (workspaceFilter === "no_next_action") return !(c as any).nextAction;
+      if (workspaceFilter === "uncontacted") return c.consultStatus === "미상담";
+      return true;
+    })
+    .slice()
+    .sort((a, b) => {
+      const aExecution = buildListExecution(a, recommendationByCustomerId.get(a.id));
+      const bExecution = buildListExecution(b, recommendationByCustomerId.get(b.id));
+      return bExecution.score - aExecution.score;
+    });
+
   const isCustomerReclaimable = (customer: any) =>
     canReclaimCustomer && customer.isActive !== false && (Boolean(customer.agentId) || customer.assignmentStatus !== "unassigned");
   const isCustomerAssignable = (customer: any) => canBulkChangeAssignee && customer.isActive !== false;
-  const reclaimableFilteredIds = filtered.filter(isCustomerReclaimable).map((customer) => customer.id);
-  const assignableFilteredIds = filtered.filter(isCustomerAssignable).map((customer) => customer.id);
+  const reclaimableFilteredIds = workspaceCustomers.filter(isCustomerReclaimable).map((customer) => customer.id);
+  const assignableFilteredIds = workspaceCustomers.filter(isCustomerAssignable).map((customer) => customer.id);
   const selectableFilteredIds = Array.from(new Set([...reclaimableFilteredIds, ...assignableFilteredIds]));
   const selectedReclaimableIds = selectedCustomerIds.filter((customerId) => reclaimableFilteredIds.includes(customerId));
   const selectedAssignableIds = selectedCustomerIds.filter((customerId) => assignableFilteredIds.includes(customerId));
@@ -224,7 +249,7 @@ export default function CustomerList() {
   });
   const selectedBulkAssignee = bulkAssignableUsers.find((agent) => String(agent.id) === bulkAssigneeId);
 
-  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
+  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || workspaceFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
 
   const clearFilters = () => {
     setStatusFilter("all");
@@ -236,6 +261,7 @@ export default function CustomerList() {
     setAgentFilter("all");
     setScopeFilter("all");
     setRecommendationFilter("all");
+    setWorkspaceFilter("all");
     setAssignedDateFrom("");
     setAssignedDateTo("");
   };
@@ -311,40 +337,82 @@ export default function CustomerList() {
               {" · "}표시 고객 {filtered.length}명
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
-                <Button variant="outline" size="sm" className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" onClick={() => { setBulkAssigneeOpen(true); setBulkAssigneeId(""); setBulkAssigneeReason(""); }}>
-                  <UserCog className="h-4 w-4 mr-1" /> 담당자 일괄 지정 {selectedAssignableIds.length}
-                </Button>
-              )}
-              {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
-                <Button variant="outline" size="sm" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => { setReclaimCustomerId(null); setBulkReclaimOpen(true); setReclaimReason(""); }}>
-                  <Undo2 className="h-4 w-4 mr-1" /> 선택 DB 회수 {selectedReclaimableIds.length}
-                </Button>
-              )}
+          </CardContent>
+        </Card>
+
+        {/* 검색 및 필터 */}
+        <Card className="border-border bg-white/95 shadow-sm">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a6d2f]">Sales Workspace</p>
+                <h2 className="text-lg font-bold text-slate-950">오늘 볼 고객</h2>
+                <p className="text-xs text-muted-foreground">권한 범위 안의 고객만 실행 점수순으로 정렬됩니다.</p>
+              </div>
               <Button variant="outline" size="sm" onClick={() => setLocation("/sales-pipeline")}>
                 <LayoutGrid className="h-4 w-4 mr-1" /> 파이프라인
               </Button>
-            {canCreateCustomer && (
-              <>
+              {canCreateCustomer && (
+                <Button size="sm" onClick={() => setShowCreate(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> 신규 고객 등록
+                </Button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+              {[
+                { key: "all" as const, label: "전체", value: filtered.length, tone: "border-slate-200 bg-white" },
+                { key: "priority" as const, label: "우선 연락", value: workspaceStats.priority, tone: "border-emerald-200 bg-emerald-50" },
+                { key: "warning" as const, label: "주의 필요", value: workspaceStats.warning, tone: "border-red-200 bg-red-50" },
+                { key: "no_next_action" as const, label: "다음 액션 없음", value: workspaceStats.noNextAction, tone: "border-amber-200 bg-amber-50" },
+                { key: "uncontacted" as const, label: "미상담", value: workspaceStats.uncontacted, tone: "border-slate-200 bg-slate-50" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => setWorkspaceFilter(item.key)}
+                  className={`rounded-lg border p-3 text-left transition hover:shadow-sm ${workspaceFilter === item.key ? "ring-2 ring-primary/30" : ""} ${item.tone}`}
+                >
+                  <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
+                  <span className="mt-1 block text-2xl font-bold tabular-nums text-slate-950">{item.value}</span>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {(canBulkChangeAssignee || canReclaimCustomer || canCreateCustomer) && (
+          <Card className="border-slate-200 bg-slate-50/70 shadow-sm">
+            <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">DB 관리 작업</p>
+                <p className="text-xs text-muted-foreground">영업 실행 버튼과 배정/회수/일괄 등록 작업을 분리했습니다.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
+                  <Button variant="outline" size="sm" className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" onClick={() => { setBulkAssigneeOpen(true); setBulkAssigneeId(""); setBulkAssigneeReason(""); }}>
+                    <UserCog className="h-4 w-4 mr-1" /> 담당자 일괄 지정 {selectedAssignableIds.length}
+                  </Button>
+                )}
+                {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
+                  <Button variant="outline" size="sm" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => { setReclaimCustomerId(null); setBulkReclaimOpen(true); setReclaimReason(""); }}>
+                    <Undo2 className="h-4 w-4 mr-1" /> 선택 DB 회수 {selectedReclaimableIds.length}
+                  </Button>
+                )}
                 {user?.role === "branch_admin" && (
                   <Button variant="outline" size="sm" onClick={() => setLocation("/customers/assign")}>
                     <UserPlus className="h-4 w-4 mr-1" /> DB 배정
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
-                  <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
-                </Button>
-                <Button size="sm" onClick={() => setShowCreate(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> 신규 고객 등록
-                </Button>
-              </>
-            )}
-            </div>
-          </CardContent>
-        </Card>
+                {canCreateCustomer && (
+                  <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
+                    <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* 검색 및 필터 */}
         <Card className="border-border shadow-sm">
           <CardContent className="space-y-3 p-4">
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -442,7 +510,7 @@ export default function CustomerList() {
         {/* 모바일 카드 뷰 */}
         {isMobile ? (
           <div className="space-y-3">
-            {filtered.length === 0 ? (
+            {workspaceCustomers.length === 0 ? (
               <Card className="border-dashed border-border bg-muted/20 shadow-sm">
                 <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
                   <p className="text-sm text-muted-foreground">조건에 맞는 고객이 없습니다. 검색어나 필터를 조정해 보세요.</p>
@@ -461,7 +529,7 @@ export default function CustomerList() {
                 </CardContent>
               </Card>
             ) : (
-              filtered.map((c) => {
+              workspaceCustomers.map((c) => {
                 const recommendation = recommendationByCustomerId.get(c.id);
                 const badges = executionBadges(c, recommendation);
                 const execution = buildListExecution(c, recommendation);
@@ -624,7 +692,7 @@ export default function CustomerList() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.length === 0 ? (
+                    {workspaceCustomers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={(canReclaimCustomer || canBulkChangeAssignee) ? 12 : 11} className="py-14 text-center align-middle">
                           <div className="mx-auto flex max-w-md flex-col items-center gap-3 text-sm text-muted-foreground">
@@ -645,7 +713,7 @@ export default function CustomerList() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      filtered.map((c) => {
+                      workspaceCustomers.map((c) => {
                         const recommendation = recommendationByCustomerId.get(c.id);
                         const badges = executionBadges(c, recommendation);
                         const execution = buildListExecution(c, recommendation);
