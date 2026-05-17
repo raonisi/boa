@@ -151,6 +151,14 @@ This hotfix completes the consultation-tools CRUD pattern for checklist definiti
 4. member: own report only; no team/all ranking.
 5. inactive/resigned: access blocked.
 
+### My Customer Pipeline Scope
+1. Log in as branch_admin and open `/analytics`.
+2. Compare `산하 전체` with `내 담당 고객`; the managed view may include subordinate customers, while the mine view must include only customers where the branch admin is the direct assignee.
+3. Repeat as sub_branch_admin and team_leader; subordinate team/customer data must disappear in `내 담당 고객`.
+4. Log in as member and confirm the scope is fixed to `내 담당 고객` with no team ranking.
+5. Confirm empty mine-scope data shows the dedicated empty state and no NaN/Infinity values.
+6. Confirm mobile filter controls do not overflow.
+
 ## PR6 Operation Risk Center UAT Steps
 
 This PR6 means the new roadmap "Operation Risk Center", not the older mobile quick-work PR6. It is also separate from PR5 `/analytics` sales funnel reports and PR19-4 notification preference work.

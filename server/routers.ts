@@ -1676,6 +1676,7 @@ const salesReportInputSchema = z.object({
   teamId: z.number().nullable().optional(),
   userId: z.number().nullable().optional(),
   scope: z.enum(["all", "mine"]).default("all"),
+  ownershipScope: z.enum(["managed", "mine"]).optional(),
   performanceBasis: z.enum(["new_contract", "monthly_premium"]).default("monthly_premium"),
 });
 
@@ -1786,6 +1787,7 @@ async function resolveSalesReportScope(
   user: { id: number; role: string; teamId: number | null; subBranchAdminId?: number | null; accountStatus: string },
   input: SalesReportInput
 ) {
+  const ownershipScope = input.ownershipScope ?? (input.scope === "mine" ? "mine" : "managed");
   const [allUsersRaw, allTeamsRaw] = await Promise.all([getAllUsers(), getAllTeams()]);
   const allUsers = allUsersRaw as any[];
   const allTeams = allTeamsRaw as any[];
@@ -1796,7 +1798,7 @@ async function resolveSalesReportScope(
     : ((await getHierarchyScopeUserIds(user)) ?? [user.id]).filter((id) => activeUserIds.has(id));
 
   if (user.role === "member") {
-    if (input.scope === "all" && input.organizationType === "user" && input.userId != null && input.userId !== user.id) {
+    if (input.organizationType === "user" && input.userId != null && input.userId !== user.id) {
       throw new TRPCError({ code: "FORBIDDEN", message: "본인 리포트만 조회할 수 있습니다." });
     }
     if (input.organizationType !== "all" && !(input.organizationType === "user" && (input.userId == null || input.userId === user.id))) {
@@ -1808,6 +1810,7 @@ async function resolveSalesReportScope(
       subBranchAdminId: null as number | null,
       targetUserId: user.id,
       label: "내 리포트",
+      ownershipScope: "mine" as const,
       canViewRanking: false,
       includeAllCustomers: false,
       activeUsers,
@@ -1815,13 +1818,14 @@ async function resolveSalesReportScope(
     };
   }
 
-  if (input.scope === "mine") {
+  if (ownershipScope === "mine") {
     return {
       userIds: [user.id],
       teamId: null as number | null,
       subBranchAdminId: null as number | null,
       targetUserId: user.id,
-      label: "내 DB",
+      label: "내 담당 고객",
+      ownershipScope,
       canViewRanking: false,
       includeAllCustomers: false,
       activeUsers,
@@ -1840,6 +1844,7 @@ async function resolveSalesReportScope(
       subBranchAdminId: target.subBranchAdminId ?? null,
       targetUserId: target.id,
       label: target.name ?? `사용자 #${target.id}`,
+      ownershipScope,
       canViewRanking: false,
       includeAllCustomers: false,
       activeUsers,
@@ -1860,6 +1865,7 @@ async function resolveSalesReportScope(
       subBranchAdminId: (team as any).subBranchAdminId ?? null,
       targetUserId: null as number | null,
       label: (team as any).name ?? `팀 #${input.teamId}`,
+      ownershipScope,
       canViewRanking: userIds.length > 1,
       includeAllCustomers: false,
       activeUsers,
@@ -1887,6 +1893,7 @@ async function resolveSalesReportScope(
       subBranchAdminId,
       targetUserId: null as number | null,
       label: target.name ?? `부지점 #${subBranchAdminId}`,
+      ownershipScope,
       canViewRanking: ids.length > 1,
       includeAllCustomers: false,
       activeUsers,
@@ -1901,6 +1908,7 @@ async function resolveSalesReportScope(
     subBranchAdminId: user.role === "sub_branch_admin" ? user.id : null,
     targetUserId: null as number | null,
     label: user.role === "branch_admin" ? "전체 조직" : "내 산하 조직",
+    ownershipScope,
     canViewRanking: user.role !== "member" && userIds.length > 1,
     includeAllCustomers: user.role === "branch_admin",
     activeUsers,
@@ -1940,24 +1948,25 @@ async function buildSalesReport(
     scoped.customerList.filter((customer: any) => customer.isActive !== false && !customer.deletedAt),
     scope,
     "agentId",
-    true
+    scope.targetUserId == null
   );
+  const activeCustomerIds = new Set(activeCustomers.map((customer: any) => customer.id));
   const activeContracts = filterSalesReportRows(
     scoped.contractList.filter(isSalesReportContractTarget),
     scope,
     "agentId"
-  );
+  ).filter((contract: any) => activeCustomerIds.has(contract.customerId));
   const followUps = filterSalesReportRows(
     allFollowUps.filter((followUp: any) => !followUp.deletedAt),
     scope,
     "assignedAgentId",
-    true
-  );
+    scope.targetUserId == null
+  ).filter((followUp: any) => activeCustomerIds.has(followUp.customerId));
   const schedules = filterSalesReportRows(
     scoped.scheduleList.filter((schedule: any) => schedule.isActive !== false && !schedule.deletedAt),
     scope,
     "userId",
-    true
+    scope.targetUserId == null
   );
 
   const consultationEntries = await Promise.all(activeCustomers.map(async (customer: any) => ({
@@ -2105,6 +2114,7 @@ async function buildSalesReport(
       role: user.role,
       userId: user.id,
       label: scope.label,
+      ownershipScope: scope.ownershipScope,
       organizationType: input.organizationType,
       targetUserId: scope.targetUserId,
       teamId: scope.teamId,

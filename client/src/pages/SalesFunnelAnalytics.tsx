@@ -39,6 +39,7 @@ import {
 
 type Period = "today" | "last7" | "month" | "lastMonth" | "custom";
 type OrganizationType = "all" | "sub_branch" | "team" | "user";
+type OwnershipScope = "managed" | "mine";
 type PerformanceBasis = "new_contract" | "monthly_premium";
 
 const periodLabels: Record<Period, string> = {
@@ -152,11 +153,15 @@ export default function SalesFunnelAnalytics() {
   const [subBranchAdminId, setSubBranchAdminId] = useState("all");
   const [teamId, setTeamId] = useState("all");
   const [targetUserId, setTargetUserId] = useState("all");
-  const [scope, setScope] = useState<"all" | "mine">("all");
+  const [ownershipScope, setOwnershipScope] = useState<OwnershipScope>("managed");
   const [performanceBasis, setPerformanceBasis] = useState<PerformanceBasis>("monthly_premium");
 
   const { data: filterOptions, isLoading: filterLoading } = trpc.salesReports.filterOptions.useQuery();
   const isMember = user?.role === "member";
+  const effectiveOwnershipScope = isMember ? "mine" : ownershipScope;
+  const ownershipScopeHelper = effectiveOwnershipScope === "mine"
+    ? "내가 담당자인 고객만 기준으로 집계합니다."
+    : "권한 범위 내 산하 고객까지 포함한 파이프라인입니다.";
 
   const reportInput = useMemo(() => ({
     period,
@@ -166,9 +171,9 @@ export default function SalesFunnelAnalytics() {
     subBranchAdminId: !isMember && organizationType === "sub_branch" && subBranchAdminId !== "all" ? Number(subBranchAdminId) : undefined,
     teamId: !isMember && organizationType === "team" && teamId !== "all" ? Number(teamId) : undefined,
     userId: !isMember && organizationType === "user" && targetUserId !== "all" ? Number(targetUserId) : undefined,
-    scope: isMember ? "mine" as const : scope,
+    ownershipScope: effectiveOwnershipScope,
     performanceBasis,
-  }), [dateFrom, dateTo, isMember, organizationType, performanceBasis, period, scope, subBranchAdminId, targetUserId, teamId]);
+  }), [dateFrom, dateTo, effectiveOwnershipScope, isMember, organizationType, performanceBasis, period, subBranchAdminId, targetUserId, teamId]);
 
   const {
     data,
@@ -237,7 +242,7 @@ export default function SalesFunnelAnalytics() {
             </CardTitle>
             <CardDescription>서버에서 권한 범위를 다시 검증한 뒤 리포트를 계산합니다.</CardDescription>
           </CardHeader>
-          <CardContent className="grid gap-3 lg:grid-cols-[1.2fr_1.1fr_1fr_1fr]">
+          <CardContent className="grid gap-3 lg:grid-cols-[1.1fr_1.2fr_1.1fr_1fr_auto]">
             <div className="space-y-2">
               <Label className="text-xs text-slate-500">기간</Label>
               <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
@@ -322,17 +327,39 @@ export default function SalesFunnelAnalytics() {
             )}
 
             <div className="space-y-2">
-              <Label className="text-xs text-slate-500">scope / 기준</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Select value={isMember ? "mine" : scope} onValueChange={(value) => setScope(value as "all" | "mine")} disabled={isMember}>
-                  <SelectTrigger className="h-11 rounded-xl bg-slate-50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체</SelectItem>
-                    <SelectItem value="mine">내 DB</SelectItem>
-                  </SelectContent>
-                </Select>
+              <Label className="text-xs text-slate-500">파이프라인 범위</Label>
+              {isMember ? (
+                <div className="flex h-11 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-sm font-semibold text-emerald-800">
+                  내 담당 고객 고정
+                </div>
+              ) : (
+                <div className="grid h-11 grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                  {([
+                    ["managed", "산하 전체"],
+                    ["mine", "내 담당 고객"],
+                  ] as const).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={cn(
+                        "rounded-lg px-2 text-sm font-semibold transition",
+                        effectiveOwnershipScope === value
+                          ? "bg-slate-950 text-white shadow-sm"
+                          : "text-slate-600 hover:bg-white"
+                      )}
+                      onClick={() => setOwnershipScope(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs leading-relaxed text-slate-500">{ownershipScopeHelper}</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-xs text-slate-500">성과 기준</Label>
+              <div className="grid grid-cols-1 gap-2">
                 <Select value={performanceBasis} onValueChange={(value) => setPerformanceBasis(value as PerformanceBasis)}>
                   <SelectTrigger className="h-11 rounded-xl bg-slate-50">
                     <SelectValue />
@@ -400,8 +427,10 @@ export default function SalesFunnelAnalytics() {
             {!hasData && (
               <EmptyState
                 icon={LineChart}
-                title="표시할 영업 흐름 데이터가 없습니다."
-                description="선택한 기간 또는 조직 범위에 상담, 후속관리, 계약 데이터가 아직 없습니다. 기간을 넓히거나 필터를 초기화해 보세요."
+                title={effectiveOwnershipScope === "mine" ? "내 담당 고객 파이프라인 데이터가 없습니다." : "표시할 영업 흐름 데이터가 없습니다."}
+                description={effectiveOwnershipScope === "mine"
+                  ? "내가 담당자인 고객 중 선택한 기간에 상담, 후속관리, 계약 데이터가 아직 없습니다. 고객을 배정받거나 직접 등록하면 이곳에 표시됩니다."
+                  : "선택한 기간 또는 조직 범위에 상담, 후속관리, 계약 데이터가 아직 없습니다. 기간을 넓히거나 필터를 초기화해 보세요."}
               />
             )}
 
@@ -522,12 +551,12 @@ export default function SalesFunnelAnalytics() {
                     팀원 성과 비교
                   </CardTitle>
                   <CardDescription>
-                    {data.scope.canViewRanking ? "권한 범위 내 구성원별 개선 필요 항목을 함께 표시합니다." : "개인 권한에서는 타인의 랭킹을 표시하지 않습니다."}
+                    {data.scope.canViewRanking ? "권한 범위 내 구성원별 개선 필요 항목을 함께 표시합니다." : "내 담당 고객 보기에서는 구성원 비교를 표시하지 않습니다."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {!data.scope.canViewRanking ? (
-                    <EmptyState title="개인 리포트 범위입니다." description="member 또는 내 DB scope에서는 타인의 성과 비교를 표시하지 않습니다." />
+                    <EmptyState title="내 담당 고객 기준입니다." description="내 담당 고객 보기에서는 팀원 비교 대신 본인 파이프라인 지표만 표시합니다." />
                   ) : ranking.length === 0 ? (
                     <EmptyState title="비교할 구성원이 없습니다." description="조직 필터를 넓히거나 기간을 변경해 주세요." />
                   ) : (
