@@ -6165,11 +6165,17 @@ export const appRouter = router({
   logs: router({
     list: teamLeaderOrAboveProcedure.query(async ({ ctx }) => {
       const user = ctx.user;
-      const entries = user.role === "branch_admin"
-        ? await getActivityLogs(500)
-        : user.role === "sub_branch_admin"
-          ? await getActivityLogs(500, user.id)
-          : await getActivityLogs(500, undefined, user.teamId ?? undefined);
+      let entries;
+      if (user.role === "branch_admin") {
+        entries = await getActivityLogs(500);
+      } else if (user.role === "sub_branch_admin") {
+        entries = await getActivityLogs(500, user.id);
+      } else {
+        if (user.teamId == null) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "팀 범위가 없는 팀장은 활동 로그에 접근할 수 없습니다." });
+        }
+        entries = await getActivityLogs(500, undefined, user.teamId);
+      }
       return entries.map(sanitizeActivityLogRow);
     }),
   }),
