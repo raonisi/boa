@@ -279,6 +279,7 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 4. member 중복 확인은 본인 담당 고객 범위 안에서만 `duplicate=true`가 된다.
 5. 권한 밖 고객과만 전화번호가 중복될 때 고객명, 담당자, 팀명, customerId 또는 권한 밖 존재 여부가 표시되지 않는다.
 6. CustomerList, CustomerDetail, 후속관리, 일정, 모바일 고객 카드의 권한 있는 연락처 표시는 유지된다.
+7. 전역 중복 정리는 branch_admin 전용 `중복 고객 관리` 화면에서 수행하고, sub_branch_admin/team_leader/member는 해당 화면/API에 접근할 수 없는지 확인한다.
 
 ## Regression Checks
 - Existing notification mutations still work:

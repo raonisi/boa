@@ -2308,6 +2308,18 @@ describe("P0-3 phone duplicate checks", () => {
     expect(phoneSpy).toHaveBeenNthCalledWith(1, { teamId: 10 });
     expect(phoneSpy).toHaveBeenNthCalledWith(2, { teamId: 10 });
   });
+
+  it("keeps global duplicate reconciliation available only through branch_admin merge management", async () => {
+    const groups = [{ normalizedPhone: "01012345678", maskedPhone: "010-****-5678", candidates: [] }];
+    const finder = vi.spyOn(db, "findDuplicateCustomerGroups").mockResolvedValue(groups as any);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).customerMerge.findDuplicates({ phone: "010-1234-5678" })).resolves.toEqual(groups);
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customerMerge.findDuplicates({ phone: "010-1234-5678" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customerMerge.findDuplicates({ phone: "010-1234-5678" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerMerge.findDuplicates({ phone: "010-1234-5678" })).rejects.toThrow();
+
+    expect(finder).toHaveBeenCalledWith({ phone: "010-1234-5678", onlyActive: true });
+  });
 });
 
 describe("PR10-2 customer merge workflow", () => {
