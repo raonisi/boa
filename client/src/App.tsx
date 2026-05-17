@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrlResult } from "./const";
 import { Loader2 } from "lucide-react";
+import { ForbiddenState } from "./components/ForbiddenState";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
@@ -85,19 +86,31 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || user.role !== "branch_admin") return <Redirect to="/" />;
+  if (!user || user.role !== "branch_admin") {
+    return (
+      <ForbiddenState description="이 화면은 지점 관리자 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
+    );
+  }
   return <>{children}</>;
 }
 
 function ManagerGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin" && user.role !== "team_leader")) return <Redirect to="/" />;
+  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin" && user.role !== "team_leader")) {
+    return (
+      <ForbiddenState description="이 화면은 관리자 또는 팀 리더 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
+    );
+  }
   return <>{children}</>;
 }
 
 function SubBranchAdminOrAboveGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin")) return <Redirect to="/" />;
+  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin")) {
+    return (
+      <ForbiddenState description="이 화면은 지점 관리자 또는 부지점장 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
+    );
+  }
   return <>{children}</>;
 }
 

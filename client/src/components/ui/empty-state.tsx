@@ -6,6 +6,8 @@ interface EmptyStateProps {
   title: string;
   description?: string;
   action?: React.ReactNode;
+  actionLabel?: string;
+  onAction?: () => void;
   className?: string;
 }
 
@@ -14,8 +16,20 @@ export function EmptyState({
   title,
   description,
   action,
+  actionLabel,
+  onAction,
   className,
 }: EmptyStateProps) {
+  const defaultAction = actionLabel && onAction ? (
+    <button
+      type="button"
+      onClick={onAction}
+      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+    >
+      {actionLabel}
+    </button>
+  ) : null;
+
   return (
     <div
       className={cn(
@@ -34,7 +48,11 @@ export function EmptyState({
           <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
         )}
       </div>
-      {action && <div className="mt-2 flex min-h-11 items-center">{action}</div>}
+      {(action || defaultAction) && (
+        <div className="mt-2 flex min-h-11 flex-wrap items-center justify-center gap-2">
+          {action ?? defaultAction}
+        </div>
+      )}
     </div>
   );
 }
