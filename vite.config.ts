@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
-import { defineConfig, type Plugin, type ViteDevServer } from "vite";
+import { defineConfig, loadEnv, type Plugin, type ViteDevServer } from "vite";
 import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 
 // =============================================================================
@@ -150,19 +150,42 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
+function vitePluginOptionalAnalytics(endpoint?: string, websiteId?: string): Plugin {
+  return {
+    name: "optional-analytics-script",
+    transformIndexHtml() {
+      if (!endpoint || !websiteId) return [];
+      return [
+        {
+          tag: "script",
+          attrs: {
+            defer: true,
+            src: `${endpoint.replace(/\/$/, "")}/umami`,
+            "data-website-id": websiteId,
+          },
+          injectTo: "body",
+        },
+      ];
+    },
+  };
+}
+
 const enableManusDebugCollector =
   process.env.NODE_ENV !== "production" && process.env.VITE_MANUS_DEBUG_COLLECTOR !== "0";
 
-const plugins = [
-  react(),
-  tailwindcss(),
-  jsxLocPlugin(),
-  vitePluginManusRuntime(),
-  ...(enableManusDebugCollector ? [vitePluginManusDebugCollector()] : []),
-];
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, PROJECT_ROOT, "VITE_");
+  const plugins = [
+    react(),
+    tailwindcss(),
+    jsxLocPlugin(),
+    vitePluginManusRuntime(),
+    vitePluginOptionalAnalytics(env.VITE_ANALYTICS_ENDPOINT, env.VITE_ANALYTICS_WEBSITE_ID),
+    ...(enableManusDebugCollector ? [vitePluginManusDebugCollector()] : []),
+  ];
 
-export default defineConfig({
-  plugins,
+  return {
+    plugins,
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
@@ -176,6 +199,19 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("react") || id.includes("react-dom")) return "vendor-react";
+          if (id.includes("@radix-ui") || id.includes("vaul") || id.includes("cmdk")) return "vendor-ui";
+          if (id.includes("recharts") || id.includes("framer-motion")) return "vendor-visualization";
+          if (id.includes("@tanstack") || id.includes("@trpc") || id.includes("superjson")) return "vendor-data";
+          return "vendor";
+        },
+      },
+    },
   },
   server: {
     host: true,
@@ -193,4 +229,5 @@ export default defineConfig({
       deny: ["**/.*"],
     },
   },
+  };
 });

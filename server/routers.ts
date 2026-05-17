@@ -5619,6 +5619,7 @@ export const appRouter = router({
           await cancelScheduleIncompleteNotification(existing.userId, id);
         } else if (status === "취소" || status === "노쇼") {
           await updateSchedule(id, updateData);
+          await cancelScheduleTimingNotifications(existing.userId, id);
           await cancelScheduleIncompleteNotification(existing.userId, id);
         } else {
           await updateSchedule(id, updateData);
@@ -5646,6 +5647,7 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "해당 일정에 접근 권한이 없습니다." });
 
         await softDeleteSchedule(input.id);
+        await cancelScheduleTimingNotifications(existing.userId, input.id);
         await cancelScheduleIncompleteNotification(existing.userId, input.id);
         await log(ctx.user.id, "SCHEDULE_CANCELLED", "schedule", input.id);
         return { success: true };

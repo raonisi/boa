@@ -101,7 +101,7 @@ export async function cancelScheduleIncompleteNotification(
     const conn = (db as any).session?.client ?? (db as any)._client;
     if (conn) {
       await conn.execute(
-        `UPDATE notifications SET processStatus = '처리완료'
+        `UPDATE notifications SET processStatus = '처리완료', isRead = true
          WHERE userId = ? AND type = 'schedule_incomplete' AND relatedId = ? AND processStatus IN ('미확인', '확인')`,
         [userId, scheduleId]
       );
@@ -121,7 +121,7 @@ export async function cancelScheduleTimingNotifications(
     const conn = (db as any).session?.client ?? (db as any)._client;
     if (conn) {
       await conn.execute(
-        `UPDATE notifications SET processStatus = '처리완료'
+        `UPDATE notifications SET processStatus = '처리완료', isRead = true
          WHERE userId = ? AND relatedType = 'schedule' AND relatedId = ?
          AND type IN ('schedule_1day','schedule_today','schedule_1hour','general')
          AND processStatus IN ('미확인', '확인')`,
