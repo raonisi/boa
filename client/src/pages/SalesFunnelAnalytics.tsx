@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -189,7 +189,6 @@ export default function SalesFunnelAnalytics() {
     isLoading,
     isFetching,
     isError,
-    error,
     refetch,
   } = trpc.salesReports.summary.useQuery(reportInput, { enabled: !needsMemberSelection, placeholderData: (prev) => prev });
 
@@ -479,11 +478,10 @@ export default function SalesFunnelAnalytics() {
         </Card>
 
         {isError && (
-          <EmptyState
-            icon={AlertTriangle}
+          <ErrorState
             title="리포트를 불러오지 못했습니다."
-            description={error?.message ?? "필터 범위 또는 권한을 확인한 뒤 다시 시도해 주세요."}
-            action={<Button onClick={() => refetch()}>다시 시도</Button>}
+            description="필터 범위 또는 권한을 확인한 뒤 다시 시도해 주세요."
+            onRetry={() => refetch()}
           />
         )}
 

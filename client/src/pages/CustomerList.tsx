@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState } from "@/components/ui/empty-state";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -512,20 +513,27 @@ export default function CustomerList() {
           <div className="space-y-3">
             {workspaceCustomers.length === 0 ? (
               <Card className="border-dashed border-border bg-muted/20 shadow-sm">
-                <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
-                  <p className="text-sm text-muted-foreground">조건에 맞는 고객이 없습니다. 검색어나 필터를 조정해 보세요.</p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {hasActiveFilters ? (
-                      <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
-                        필터 초기화
-                      </Button>
-                    ) : null}
-                    {canCreateCustomer ? (
-                      <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
-                        신규 고객 등록
-                      </Button>
-                    ) : null}
-                  </div>
+                <CardContent className="py-4">
+                  <EmptyState
+                    icon={hasActiveFilters ? Search : UserPlus}
+                    title={hasActiveFilters ? "조건에 맞는 고객이 없습니다." : "등록된 고객이 없습니다."}
+                    description={hasActiveFilters ? "검색어나 필터를 조정하거나 초기화해 보세요." : "권한 범위 안의 고객을 등록하면 상담과 후속관리를 시작할 수 있습니다."}
+                    className="border-0 bg-transparent py-8"
+                    action={
+                      <div className="flex flex-wrap justify-center gap-2">
+                        {hasActiveFilters ? (
+                          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                            필터 초기화
+                          </Button>
+                        ) : null}
+                        {canCreateCustomer ? (
+                          <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
+                            신규 고객 등록
+                          </Button>
+                        ) : null}
+                      </div>
+                    }
+                  />
                 </CardContent>
               </Card>
             ) : (
@@ -695,21 +703,26 @@ export default function CustomerList() {
                     {workspaceCustomers.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={(canReclaimCustomer || canBulkChangeAssignee) ? 12 : 11} className="py-14 text-center align-middle">
-                          <div className="mx-auto flex max-w-md flex-col items-center gap-3 text-sm text-muted-foreground">
-                            <p>조건에 맞는 고객이 없습니다.</p>
-                            <div className="flex flex-wrap justify-center gap-2">
-                              {hasActiveFilters ? (
-                                <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
-                                  필터 초기화
-                                </Button>
-                              ) : null}
-                              {canCreateCustomer ? (
-                                <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
-                                  신규 고객 등록
-                                </Button>
-                              ) : null}
-                            </div>
-                          </div>
+                          <EmptyState
+                            icon={hasActiveFilters ? Search : UserPlus}
+                            title={hasActiveFilters ? "조건에 맞는 고객이 없습니다." : "등록된 고객이 없습니다."}
+                            description={hasActiveFilters ? "검색어나 필터를 조정하거나 초기화해 보세요." : "권한 범위 안의 고객을 등록하면 상담과 후속관리를 시작할 수 있습니다."}
+                            className="mx-auto max-w-md border-0 bg-transparent py-0"
+                            action={
+                              <div className="flex flex-wrap justify-center gap-2">
+                                {hasActiveFilters ? (
+                                  <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                                    필터 초기화
+                                  </Button>
+                                ) : null}
+                                {canCreateCustomer ? (
+                                  <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
+                                    신규 고객 등록
+                                  </Button>
+                                ) : null}
+                              </div>
+                            }
+                          />
                         </TableCell>
                       </TableRow>
                     ) : (

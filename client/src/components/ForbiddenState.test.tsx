@@ -16,5 +16,7 @@ describe("ForbiddenState", () => {
     expect(html).not.toContain("Redirect");
     expect(html).not.toContain("token");
     expect(html).not.toContain("stack");
+    expect(html).not.toContain("전화번호");
+    expect(html).not.toContain("생년월일");
   });
 });

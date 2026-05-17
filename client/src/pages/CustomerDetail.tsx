@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -121,7 +122,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   }, [location]);
 
   const utils = trpc.useUtils();
-  const { data: customer, refetch: refetchCustomer } = trpc.customers.get.useQuery({ id });
+  const { data: customer, refetch: refetchCustomer, isLoading: isCustomerLoading, isError: isCustomerError } = trpc.customers.get.useQuery({ id });
   const { data: consultations, refetch: refetchConsult } = trpc.consultations.list.useQuery({ customerId: id });
   const { data: contracts, refetch: refetchContracts } = trpc.contracts.listByCustomer.useQuery({ customerId: id });
   const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery({ customerId: id });
@@ -312,9 +313,36 @@ export default function CustomerDetail({ id }: { id: number }) {
     next_action: "다음 액션",
   } as const;
 
-  if (!customer) return (
+  if (isCustomerLoading) return (
     <DashboardLayout>
-      <div className="flex items-center justify-center h-64 text-muted-foreground">로딩 중...</div>
+      <EmptyState
+        variant="loading"
+        title="고객 정보를 불러오는 중입니다."
+        description="상담 이력과 후속관리 정보를 확인하고 있습니다."
+        className="min-h-64 border-0 bg-transparent"
+      />
+    </DashboardLayout>
+  );
+
+  if (isCustomerError || !customer) return (
+    <DashboardLayout>
+      <ForbiddenInlineState
+        title="고객 정보를 표시할 수 없습니다."
+        description="데이터가 없거나 현재 권한으로 접근할 수 없습니다. 고객 정보 존재 여부는 표시하지 않습니다."
+        className="min-h-64"
+        action={
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button type="button" variant="outline" onClick={() => setLocation("/customers")}>
+              고객 DB로 이동
+            </Button>
+            {isCustomerError ? (
+              <Button type="button" onClick={() => refetchCustomer()}>
+                다시 시도
+              </Button>
+            ) : null}
+          </div>
+        }
+      />
 
 
       <Dialog open={requestContractId !== null} onOpenChange={(open) => { if (!open) setRequestContractId(null); }}>
@@ -811,7 +839,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </div>
                 <div className="grid gap-2">
                   {(handoffNotes ?? []).length === 0 ? (
-                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">등록된 인수인계 메모가 없습니다.</div>
+                    <EmptyState
+                      title="등록된 인수인계 메모가 없습니다."
+                      description="담당자 변경이나 장기 관리가 필요한 고객은 내부 메모를 남겨 주세요."
+                      action={<Button type="button" size="sm" variant="outline" onClick={() => setShowHandoffNoteModal(true)}>메모 추가</Button>}
+                      className="py-6"
+                    />
                   ) : (
                     (handoffNotes ?? []).map((note: any) => (
                       <div key={note.id} className="rounded-md border p-3">
@@ -848,7 +881,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </Button>
               </div>
               {(consultations ?? []).length === 0 ? (
-                <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">상담기록이 없습니다.</CardContent></Card>
+                <EmptyState
+                  icon={MessageSquare}
+                  title="상담기록이 없습니다."
+                  description="통화, 메시지, 방문 상담 내용을 기록하면 다음 행동을 더 정확히 판단할 수 있습니다."
+                  action={<Button type="button" size="sm" onClick={() => setShowConsultModal(true)}>상담기록 추가</Button>}
+                />
               ) : (
                 (consultations ?? []).map((c) => (
                   <Card key={c.id}>
@@ -889,7 +927,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </Button>
               </div>
               {(contracts ?? []).length === 0 ? (
-                <Card><CardContent className="py-8 text-center text-muted-foreground text-sm">계약 정보가 없습니다.</CardContent></Card>
+                <EmptyState
+                  icon={FilePlus2}
+                  title="계약 정보가 없습니다."
+                  description="상담이 계약으로 이어졌다면 계약 정보를 등록해 실적과 후속관리를 연결하세요."
+                  action={<Button type="button" size="sm" onClick={() => setShowContractModal(true)}>계약 등록</Button>}
+                />
               ) : (
                 (contracts ?? []).map((c) => (
                   <Card key={c.id}>
@@ -1540,7 +1583,11 @@ function CustomerTimelinePanel({
       </Card>
 
       {items.length === 0 ? (
-        <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">아직 표시할 히스토리가 없습니다.</CardContent></Card>
+        <EmptyState
+          icon={History}
+          title="아직 표시할 히스토리가 없습니다."
+          description="상담, 계약, 후속관리, 배정 변경이 발생하면 이곳에 시간순으로 표시됩니다."
+        />
       ) : (
         <div className="space-y-3">
           {items.map((event) => (
@@ -1595,7 +1642,13 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
           <Button size="sm" className="rounded-xl" onClick={onCreate}>다음 연락일 설정</Button>
         </div>
         {openItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-200 py-6 text-center text-sm text-slate-500">등록된 다음 연락일이 없습니다.</div>
+          <EmptyState
+            icon={CalendarPlus}
+            title="등록된 다음 연락일이 없습니다."
+            description="다음 연락일을 정하면 모바일 대시보드와 알림 흐름에서 바로 확인할 수 있습니다."
+            action={<Button type="button" size="sm" onClick={onCreate}>후속관리 등록</Button>}
+            className="py-6"
+          />
         ) : (
           <div className="space-y-2">
             {openItems.slice(0, 5).map((item) => (

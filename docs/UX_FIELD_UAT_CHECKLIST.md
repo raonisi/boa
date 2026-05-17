@@ -312,6 +312,17 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 8. Run `pnpm.cmd activity-logs:redact` without `--write` in a safe environment and confirm it reports only counts, not log details.
 9. Controlled write mode requires both `CONFIRM_REDACT_ACTIVITY_LOGS=1` and `--write`; without both safeguards the command must refuse to update rows.
 
+## P2-2 Empty / Error / Forbidden State UAT
+1. CustomerList with no data shows an empty state that explains whether filters are active and offers filter reset or customer registration when allowed.
+2. CustomerDetail loading state does not show stale or partial customer data.
+3. CustomerDetail forbidden/not-found state does not expose customer name, phone, birth date, or whether the protected customer exists.
+4. CustomerDetail empty sections for consultations, contracts, handoff notes, history, and follow-ups show a next action when one is appropriate.
+5. Analytics and OperationRisk error states show recovery guidance and do not render raw server error messages, stack traces, token values, or internal paths.
+6. App route guards still show a permission state instead of redirect-only behavior.
+7. member direct navigation to another customer's detail remains blocked by server RBAC and the UI does not reveal customer information.
+8. inactive/resigned users remain blocked from authenticated screens and protected APIs.
+9. Mobile viewport shows empty/error/permission states without horizontal scroll and with 44px+ CTA targets.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.
