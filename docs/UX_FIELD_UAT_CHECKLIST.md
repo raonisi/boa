@@ -281,6 +281,17 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 6. CustomerList, CustomerDetail, 후속관리, 일정, 모바일 고객 카드의 권한 있는 연락처 표시는 유지된다.
 7. 전역 중복 정리는 branch_admin 전용 `중복 고객 관리` 화면에서 수행하고, sub_branch_admin/team_leader/member는 해당 화면/API에 접근할 수 없는지 확인한다.
 
+## Team Leader DB Assignment UAT
+1. team_leader로 `/customers/assign`에 접속했을 때 DB 배정 화면이 비어 있지 않고 표시되는지 확인한다.
+2. 고객 선택 목록에는 team_leader 본인 팀 권한 범위의 고객만 표시되는지 확인한다.
+3. 배정 대상 선택에는 active 상태의 본인 산하 팀원만 표시되고, 산하 밖 사용자/inactive/resigned 사용자는 표시되지 않는지 확인한다.
+4. 본인 팀 고객을 산하 팀원에게 배정하면 고객 담당자가 해당 팀원으로 변경되는지 확인한다.
+5. 배정 후 고객 목록 또는 고객 상세에서 새 담당자와 연락처가 정상 표시되는지 확인한다.
+6. 산하 밖 고객 또는 산하 밖 사용자를 직접 API로 지정하면 서버에서 차단되는지 확인한다.
+7. member는 `/customers/assign` 배정 UI와 배정 API를 사용할 수 없는지 확인한다.
+8. branch_admin/sub_branch_admin의 기존 DB 배정 흐름이 동일하게 유지되는지 확인한다.
+9. assignment_history와 activity_logs가 기존 정책대로 기록되는지 확인한다.
+
 ## Regression Checks
 - Existing notification mutations still work:
   - markRead
