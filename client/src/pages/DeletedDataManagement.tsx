@@ -35,10 +35,32 @@ const deleteRequestStatusLabels: Record<string, string> = {
   cancelled: "취소",
 };
 
+const permanentTargetTypeLabels: Record<NonNullable<PermanentTarget>["type"], string> = {
+  team: "팀",
+  customer: "고객",
+  contract: "계약",
+};
+
+const permanentBlockerLabels: Record<string, string> = {
+  users: "사용자",
+  customers: "고객",
+  contracts: "계약",
+  consultations: "상담기록",
+  statusHistory: "상태 이력",
+  consentLogs: "동의 이력",
+  assignmentHistory: "배정 이력",
+  deleteRequests: "삭제 요청",
+  notifications: "알림",
+  reminders: "리마인더",
+  contractHistory: "계약 이력",
+  schedules: "일정",
+};
+
 export default function DeletedDataManagement() {
   const utils = trpc.useUtils();
   const [permanentTarget, setPermanentTarget] = useState<PermanentTarget>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [permanentReason, setPermanentReason] = useState("");
   const [reviewTarget, setReviewTarget] = useState<ReviewTarget>(null);
   const [reviewComment, setReviewComment] = useState("");
 
@@ -46,6 +68,10 @@ export default function DeletedDataManagement() {
   const { data: customers } = trpc.deletedData.listCustomers.useQuery();
   const { data: contracts } = trpc.deletedData.listContracts.useQuery();
   const { data: requests } = trpc.deleteRequests.listAllRequestsForAdmin.useQuery({ status: "pending" });
+  const { data: permanentPreview, isLoading: permanentPreviewLoading } = trpc.deletedData.permanentDeletePreview.useQuery(
+    { type: permanentTarget?.type as "customer" | "contract", id: permanentTarget?.id ?? 0 },
+    { enabled: permanentTarget?.type === "customer" || permanentTarget?.type === "contract" },
+  );
 
   const invalidateAll = () => {
     utils.deletedData.listTeams.invalidate();
@@ -68,6 +94,7 @@ export default function DeletedDataManagement() {
   const closePermanent = () => {
     setPermanentTarget(null);
     setConfirmText("");
+    setPermanentReason("");
   };
 
   const closeReview = () => {
@@ -77,11 +104,19 @@ export default function DeletedDataManagement() {
 
   const runPermanentDelete = () => {
     if (!permanentTarget) return;
-    const payload = { id: permanentTarget.id, confirmText };
+    const payload = { id: permanentTarget.id, confirmText, reason: permanentReason.trim() };
     if (permanentTarget.type === "team") permanentTeam.mutate(payload);
     if (permanentTarget.type === "customer") permanentCustomer.mutate(payload);
     if (permanentTarget.type === "contract") permanentContract.mutate(payload);
   };
+
+  const permanentPending = permanentTeam.isPending || permanentCustomer.isPending || permanentContract.isPending;
+  const permanentRequiresReason = permanentTarget?.type === "customer" || permanentTarget?.type === "contract";
+  const permanentCanSubmit = confirmText === "완전삭제"
+    && (!permanentRequiresReason || permanentReason.trim().length > 0)
+    && !permanentPending
+    && !permanentPreviewLoading
+    && (permanentTarget?.type === "team" || permanentPreview?.canDelete !== false);
 
   const runReview = () => {
     if (!reviewTarget) return;
@@ -190,22 +225,74 @@ export default function DeletedDataManagement() {
         </Tabs>
       </div>
 
-      <Dialog open={!!permanentTarget} onOpenChange={(open) => { if (!open) closePermanent(); }}>
-          <DialogContent className="rounded-2xl">
-          <DialogHeader><DialogTitle>완전삭제 확인</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              이 작업은 복구할 수 없습니다. 활동 로그는 감사 목적으로 보존됩니다.
-              연결된 데이터가 남아 있으면 완전삭제가 차단됩니다.
-            </p>
-            <p className="text-sm font-medium">{permanentTarget?.name}</p>
-            <div>
-              <Label>정말 완전삭제하시려면 "완전삭제"를 입력하세요.</Label>
-              <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className="mt-1" />
+      <Dialog open={!!permanentTarget} onOpenChange={(open) => { if (!open && !permanentPending) closePermanent(); }}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
+          <DialogHeader><DialogTitle>완전삭제 최종 확인</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+              <p className="font-semibold">이 작업은 되돌릴 수 없습니다.</p>
+              <p className="mt-1">완전삭제 후에는 복구할 수 없습니다. 활동 로그는 감사 목적으로 보존됩니다.</p>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={closePermanent}>취소</Button>
-              <Button variant="destructive" disabled={confirmText !== "완전삭제"} onClick={runPermanentDelete}>완전삭제</Button>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">삭제 대상</p>
+              <p className="mt-1 text-slate-700">
+                {permanentTarget ? permanentTargetTypeLabels[permanentTarget.type] : "-"} #{permanentTarget?.id}
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-950">{permanentTarget?.name}</p>
+            </div>
+            {(permanentTarget?.type === "customer" || permanentTarget?.type === "contract") && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                <p className="font-semibold">연결 데이터 확인</p>
+                {permanentPreviewLoading ? (
+                  <p className="mt-1">연결 데이터를 확인하는 중입니다.</p>
+                ) : permanentPreview ? (
+                  <>
+                    <p className="mt-1">연결 데이터 {permanentPreview.linkedCount}건</p>
+                    {Object.entries(permanentPreview.blockers ?? {}).filter(([, count]) => Number(count) > 0).length > 0 ? (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {Object.entries(permanentPreview.blockers ?? {})
+                          .filter(([, count]) => Number(count) > 0)
+                          .map(([key, count]) => (
+                            <span key={key} className="rounded-full bg-white px-2 py-0.5 text-xs font-medium text-amber-900 ring-1 ring-amber-200">
+                              {permanentBlockerLabels[key] ?? key} {Number(count)}건
+                            </span>
+                          ))}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs">서버 blocker 기준으로 연결 운영 이력이 없습니다.</p>
+                    )}
+                    {!permanentPreview.canDelete && (
+                      <p className="mt-2 text-xs font-semibold text-red-700">
+                        연결 운영 이력이 있어 완전삭제가 차단됩니다. 비활성 상태로 보존하세요.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p className="mt-1">연결 데이터 확인 정보를 불러오지 못했습니다.</p>
+                )}
+              </div>
+            )}
+            {permanentRequiresReason && (
+              <div>
+                <Label>완전삭제 사유 *</Label>
+                <Textarea
+                  value={permanentReason}
+                  onChange={(e) => setPermanentReason(e.target.value)}
+                  className="mt-1"
+                  placeholder="운영 기준에 따라 완전삭제 사유를 입력하세요."
+                  disabled={permanentPending}
+                />
+              </div>
+            )}
+            <div>
+              <Label>진행하려면 아래에 "완전삭제"를 입력하세요.</Label>
+              <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className="mt-1" disabled={permanentPending} />
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" onClick={closePermanent} disabled={permanentPending}>취소</Button>
+              <Button variant="destructive" disabled={!permanentCanSubmit} onClick={runPermanentDelete}>
+                {permanentPending ? "완전삭제 중..." : "완전삭제"}
+              </Button>
             </div>
           </div>
         </DialogContent>

@@ -296,6 +296,7 @@ function isSoftDeleted(row: { isActive?: boolean | null; deletedAt?: Date | null
 
 const PERMANENT_DELETE_CONFIRM_TEXT = "\uC644\uC804\uC0AD\uC81C";
 const PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE = "\uD655\uC778 \uBB38\uAD6C\uAC00 \uC77C\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.";
+const PERMANENT_DELETE_REASON_REQUIRED_MESSAGE = "\uC644\uC804\uC0AD\uC81C \uC0AC\uC720\uB97C \uC785\uB825\uD574\uC8FC\uC138\uC694.";
 const TEAM_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uC5F0\uACB0\uB41C \uC0AC\uC6A9\uC790, \uACE0\uAC1D, \uC77C\uC815 \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC788\uC5B4 \uD300\uC744 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601 \uC774\uB825 \uBCF4\uC874\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
 const CUSTOMER_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uC5F0\uACB0\uB41C \uACC4\uC57D, \uC77C\uC815, \uC0C1\uB2F4\uAE30\uB85D, \uC54C\uB9BC \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC788\uC5B4 \uACE0\uAC1D\uC744 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uC6B4\uC601 \uC774\uB825 \uBCF4\uC874\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
 const CONTRACT_PERMANENT_DELETE_BLOCKED_MESSAGE = "\uACC4\uC57D \uC774\uB825 \uB610\uB294 \uC54C\uB9BC \uC774\uB825\uC774 \uB0A8\uC544 \uC788\uC5B4 \uC644\uC804\uC0AD\uC81C\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uAC10\uC0AC \uCD94\uC801\uC744 \uC704\uD574 \uBE44\uD65C\uC131 \uC0C1\uD0DC\uB85C \uC720\uC9C0\uD574\uC8FC\uC138\uC694.";
@@ -329,6 +330,17 @@ async function requireSoftDeletedContract(contractId: number) {
     throw new TRPCError({ code: "BAD_REQUEST", message: "활성 계약은 복구/완전삭제 대상이 아닙니다." });
   }
   return contract;
+}
+
+const permanentDeleteReasonSchema = z.string()
+  .trim()
+  .min(1, PERMANENT_DELETE_REASON_REQUIRED_MESSAGE)
+  .max(500, "\uC644\uC804\uC0AD\uC81C \uC0AC\uC720\uB294 500\uC790 \uC774\uD558\uB85C \uC785\uB825\uD574\uC8FC\uC138\uC694.");
+
+function sanitizePermanentDeleteReason(reason: string) {
+  return reason
+    .replace(/\b\d{2,3}[-\s.]?\d{3,4}[-\s.]?\d{4}\b/g, "[redacted-phone]")
+    .replace(/\b(?:token|secret|password|api[_-]?key|database_url)\s*[:=]\s*\S+/gi, "[redacted-secret]");
 }
 
 async function buildDeleteRequestView(request: Awaited<ReturnType<typeof getDeleteRequests>>[number]) {
@@ -5159,37 +5171,69 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    permanentDeletePreview: branchAdminProcedure
+      .input(z.object({ type: z.enum(["customer", "contract"]), id: z.number() }))
+      .query(async ({ input }) => {
+        if (input.type === "customer") {
+          const existing = await requireSoftDeletedCustomer(input.id);
+          const blockers = await getCustomerPermanentDeleteBlockers(input.id);
+          const linkedCount = Object.values(blockers).reduce((sum, count) => sum + Number(count ?? 0), 0);
+          return {
+            type: input.type,
+            id: input.id,
+            targetName: existing.name,
+            canDelete: linkedCount === 0,
+            linkedCount,
+            blockers,
+          };
+        }
+        const existing = await requireSoftDeletedContract(input.id);
+        const blockers = await getContractPermanentDeleteBlockers(input.id);
+        const linkedCount = Object.values(blockers).reduce((sum, count) => sum + Number(count ?? 0), 0);
+        return {
+          type: input.type,
+          id: input.id,
+          targetName: existing.productName ?? `contract #${existing.id}`,
+          customerId: existing.customerId,
+          canDelete: linkedCount === 0,
+          linkedCount,
+          blockers,
+        };
+      }),
+
     permanentDeleteCustomer: branchAdminProcedure
-      .input(z.object({ id: z.number(), confirmText: z.string() }))
+      .input(z.object({ id: z.number(), confirmText: z.string(), reason: permanentDeleteReasonSchema }))
       .mutation(async ({ ctx, input }) => {
         if (input.confirmText !== PERMANENT_DELETE_CONFIRM_TEXT) throw new TRPCError({ code: "BAD_REQUEST", message: PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE });
+        const safeReason = sanitizePermanentDeleteReason(input.reason);
         const existing = await requireSoftDeletedCustomer(input.id);
         const blockers = await getCustomerPermanentDeleteBlockers(input.id);
         const hasBlockers = Object.values(blockers).some((count) => count > 0);
         if (hasBlockers) {
-          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "customer", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "customer", metadata: { reason: "linked_operational_history_exists", blockers } }));
+          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "customer", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "customer", metadata: { reason: safeReason, blockedReason: "linked_operational_history_exists", linkedSummary: blockers } }));
           throw new TRPCError({ code: "BAD_REQUEST", message: CUSTOMER_PERMANENT_DELETE_BLOCKED_MESSAGE });
         }
         await runDbTransaction(async (tx) => {
-          await log(ctx.user.id, "CUSTOMER_PERMANENTLY_DELETED", "customer", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "customer", beforeValue: { id: existing.id, isActive: existing.isActive } }), tx);
+          await log(ctx.user.id, "CUSTOMER_PERMANENTLY_DELETED", "customer", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "customer", beforeValue: { id: existing.id, isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null }, metadata: { reason: safeReason, linkedSummary: blockers } }), tx);
           await permanentlyDeleteCustomer(input.id, tx);
         });
         return { success: true };
       }),
 
     permanentDeleteContract: branchAdminProcedure
-      .input(z.object({ id: z.number(), confirmText: z.string() }))
+      .input(z.object({ id: z.number(), confirmText: z.string(), reason: permanentDeleteReasonSchema }))
       .mutation(async ({ ctx, input }) => {
         if (input.confirmText !== PERMANENT_DELETE_CONFIRM_TEXT) throw new TRPCError({ code: "BAD_REQUEST", message: PERMANENT_DELETE_CONFIRM_MISMATCH_MESSAGE });
+        const safeReason = sanitizePermanentDeleteReason(input.reason);
         const existing = await requireSoftDeletedContract(input.id);
         const blockers = await getContractPermanentDeleteBlockers(input.id);
         const hasBlockers = Object.values(blockers).some((count) => count > 0);
         if (hasBlockers) {
-          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "contract", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "contract", metadata: { reason: "linked_operational_history_exists", blockers } }));
+          await log(ctx.user.id, "PERMANENT_DELETE_BLOCKED", "contract", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "contract", metadata: { reason: safeReason, blockedReason: "linked_operational_history_exists", linkedSummary: blockers } }));
           throw new TRPCError({ code: "BAD_REQUEST", message: CONTRACT_PERMANENT_DELETE_BLOCKED_MESSAGE });
         }
         await runDbTransaction(async (tx) => {
-          await log(ctx.user.id, "CONTRACT_PERMANENTLY_DELETED", "contract", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "contract", beforeValue: { id: existing.id, isActive: existing.isActive } }), tx);
+          await log(ctx.user.id, "CONTRACT_PERMANENTLY_DELETED", "contract", input.id, logDetails({ actor: ctx.user.id, targetId: input.id, targetType: "contract", beforeValue: { id: existing.id, customerId: existing.customerId, isActive: existing.isActive, deletedAt: (existing as any).deletedAt ?? null }, metadata: { reason: safeReason, linkedSummary: blockers } }), tx);
           await permanentlyDeleteContract(input.id, tx);
         });
         return { success: true };

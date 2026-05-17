@@ -75,3 +75,8 @@ branch_admin이 데이터 다운로드, 삭제·복구, 계정·권한, 인수�
 - 새 DB migration은 없다.
 - `activity_logs` 구조와 DATA_DOWNLOAD 정책은 변경하지 않는다.
 - token 원문, secret, password, DATABASE_URL, 전화번호 전체, 상담 본문 전문, 질병명, 보험상품명, 보험료 상세 전문은 운영 로그 탭에 노출하지 않는다.
+## Permanent Delete Audit Linkage
+
+- Customer/contract permanent delete is retained as a controlled branch_admin-only operation.
+- Blocked permanent-delete attempts must remain visible as auditable risk events through `PERMANENT_DELETE_BLOCKED`.
+- QA should verify that permanent-delete logs show safe metadata only and do not expose full phone numbers, tokens, secrets, consultation body text, disease names, product names, or premium detail text.
