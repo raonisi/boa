@@ -488,7 +488,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
                 key={item.label}
                 type="button"
                 onClick={() => setLocation(item.path)}
-                className="min-h-11 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
+                className="min-h-12 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
               >
                 <p className="text-[11px] text-muted-foreground">{item.label}</p>
                 <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">{item.value}</p>
@@ -546,7 +546,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
       </Card>
 
       <Sheet open={Boolean(selectedTask)} onOpenChange={(open) => { if (!open) closeTaskSheet(); }}>
-        <SheetContent side="bottom" className="max-h-[88vh] rounded-t-2xl pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden">
+        <SheetContent side="bottom" className="max-h-[min(90vh,42rem)] overflow-y-auto overscroll-contain rounded-t-2xl pb-[max(1.25rem,env(safe-area-inset-bottom))] md:hidden">
           <SheetHeader className="text-left">
             <SheetTitle className="text-base">{taskTitle}</SheetTitle>
             <SheetDescription>
@@ -631,10 +631,11 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
                     </div>
                     <div className="mt-3 space-y-2">
                       <Label className="text-xs">직접 선택</Label>
-                      <div className="flex gap-2">
-                        <Input type="datetime-local" value={customPostponeDate} onChange={(event) => { setPostponeMode("custom"); setCustomPostponeDate(event.target.value); }} />
+                      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                        <Input className="min-h-11" type="datetime-local" value={customPostponeDate} onChange={(event) => { setPostponeMode("custom"); setCustomPostponeDate(event.target.value); }} />
                         <Button
                           type="button"
+                          className="min-h-11"
                           disabled={isTaskBusy || postponeMode !== "custom" || !customPostponeDate}
                           onClick={() => runTask(`followup-custom-${selectedTask.id}`, () => followUpPostponeMutation.mutateAsync({ id: selectedTask.id, nextContactDate: customPostponeDate, reason: selectedTask.reason }), "연기했습니다.")}
                         >

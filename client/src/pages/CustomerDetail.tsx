@@ -395,7 +395,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5 pb-20 md:pb-0">
+      <div className="space-y-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] md:pb-0">
         {/* Customer execution summary */}
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="space-y-5 p-4 sm:p-5">
@@ -575,22 +575,22 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <div className="fixed inset-x-0 bottom-[4.25rem] z-40 border-t border-slate-200 bg-white/95 p-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-40 border-t border-slate-200 bg-white/95 px-2 pb-2 pt-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-1.5">
             {customer.phone ? (
-              <Button variant="outline" size="sm" className="h-11 flex-col gap-0.5 px-1 text-[11px]" asChild>
+              <Button variant="outline" size="sm" className="h-12 flex-col gap-0.5 px-1 text-[11px]" asChild>
                 <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
               </Button>
             ) : (
-              <Button variant="outline" size="sm" className="h-11 flex-col gap-0.5 px-1 text-[11px]" disabled><Phone className="h-4 w-4" /> 전화</Button>
+              <Button variant="outline" size="sm" className="h-12 flex-col gap-0.5 px-1 text-[11px]" disabled><Phone className="h-4 w-4" /> 전화</Button>
             )}
-            <Button size="sm" className="h-11 flex-col gap-0.5 px-1 text-[11px]" onClick={() => setShowConsultModal(true)}>
+            <Button size="sm" className="h-12 flex-col gap-0.5 px-1 text-[11px]" onClick={() => setShowConsultModal(true)}>
               <MessageSquare className="h-4 w-4" /> 상담
             </Button>
-            <Button variant="secondary" size="sm" className="h-11 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
+            <Button variant="secondary" size="sm" className="h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
               <CalendarPlus className="h-4 w-4" /> 후속
             </Button>
-            <Button variant="secondary" size="sm" className="h-11 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
+            <Button variant="secondary" size="sm" className="h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
               <FilePlus2 className="h-4 w-4" /> 계약
             </Button>
           </div>
@@ -1607,10 +1607,10 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
                   </div>
                   <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{followUpStatusLabels[item.status] ?? "기타 상태"}</span>
                 </div>
-                <div className="mt-2 flex flex-wrap justify-end gap-2">
-                  <Button size="sm" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>
-                  <Button size="sm" variant="outline" disabled={loading} onClick={() => onPostpone(item.id)}>연락일 연기</Button>
-                  <Button size="sm" variant="outline" disabled={loading} onClick={() => onCancel(item.id)}>후속관리 취소</Button>
+                <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                  <Button size="sm" className="min-h-10" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>
+                  <Button size="sm" className="min-h-10" variant="outline" disabled={loading} onClick={() => onPostpone(item.id)}>연락일 연기</Button>
+                  <Button size="sm" className="min-h-10" variant="outline" disabled={loading} onClick={() => onCancel(item.id)}>후속관리 취소</Button>
                 </div>
               </div>
             ))}
@@ -1637,7 +1637,7 @@ function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
   const reasons = ["설계안 전달 후 재상담", "보험료 조정 상담", "보장분석 후속 연락", "계약 전 확인", "계약 후 사후관리", "생일/기념일 관리", "장기 미관리 고객 재접촉", "기타"];
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
         <DialogHeader><DialogTitle>{mode === "postpone" ? "연락일 연기" : "다음 연락일 설정"}</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">고객과 다시 연락할 날짜와 후속 사유를 기록합니다. 주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.</p>
@@ -1663,9 +1663,9 @@ function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
             <Label>메모</Label>
             <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} className="mt-1" placeholder="민감정보 입력 금지" />
           </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={onClose}>취소</Button>
-            <Button disabled={!nextContactDate || !reason || loading} onClick={() => onSubmit({ nextContactDate, reason, nextAction, memo: memo || undefined })}>
+          <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-background pt-2">
+            <Button className="min-h-11" variant="outline" onClick={onClose}>취소</Button>
+            <Button className="min-h-11" disabled={!nextContactDate || !reason || loading} onClick={() => onSubmit({ nextContactDate, reason, nextAction, memo: memo || undefined })}>
               {mode === "postpone" ? "연기" : "저장"}
             </Button>
           </div>

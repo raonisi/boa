@@ -135,9 +135,9 @@ export default function Notifications() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className="space-y-5 pb-[max(5rem,env(safe-area-inset-bottom))]">
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ring">Notifications</p>
               <h1 className="mt-1 text-2xl font-bold text-foreground">{titleMap[user?.role ?? ""] ?? "알림센터"}</h1>
@@ -151,7 +151,7 @@ export default function Notifications() {
             </div>
             <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <Button variant="outline" size="sm" onClick={handleMarkAllRead} disabled={markAllReadMutation.isPending}>
+              <Button className="min-h-10 w-full sm:w-auto" variant="outline" size="sm" onClick={handleMarkAllRead} disabled={markAllReadMutation.isPending}>
                 <CheckCheck className="h-4 w-4 mr-1" /> 내 알림 모두 읽음
               </Button>
             )}
@@ -328,12 +328,12 @@ export default function Notifications() {
                           </p>
                         )}
                       </div>
-                      <div className="flex shrink-0 gap-2 sm:flex-col sm:gap-1">
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-1">
                         <Select
                           value={processStatus}
                           onValueChange={(v) => updateStatusMutation.mutate({ id: n.id, processStatus: v as ProcessStatus })}
                         >
-                          <SelectTrigger className="h-9 w-28 text-xs sm:h-7 sm:w-24"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="h-10 w-full text-xs sm:h-7 sm:w-24"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="미확인">미확인</SelectItem>
                             <SelectItem value="확인">확인</SelectItem>
@@ -342,12 +342,12 @@ export default function Notifications() {
                           </SelectContent>
                         </Select>
                         {!n.isRead && (
-                          <Button variant="ghost" size="sm" className="h-9 text-xs sm:h-7" onClick={() => markReadMutation.mutate({ id: n.id })}>
+                          <Button variant="ghost" size="sm" className="h-10 text-xs sm:h-7" onClick={() => markReadMutation.mutate({ id: n.id })}>
                             읽음
                           </Button>
                         )}
                         {processStatus !== "처리완료" && (
-                          <Button variant="outline" size="sm" className="h-9 text-xs sm:h-7" onClick={() => updateStatusMutation.mutate({ id: n.id, processStatus: "처리완료" })}>
+                          <Button variant="outline" size="sm" className="h-10 text-xs sm:h-7" onClick={() => updateStatusMutation.mutate({ id: n.id, processStatus: "처리완료" })}>
                             처리완료
                           </Button>
                         )}
@@ -389,7 +389,7 @@ export default function Notifications() {
       </div>
 
       <Dialog open={showMarkAllReadDialog} onOpenChange={setShowMarkAllReadDialog}>
-        <DialogContent className="max-w-md rounded-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCheck className="h-5 w-5 text-emerald-700" /> 알림 읽음 처리
@@ -403,11 +403,11 @@ export default function Notifications() {
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
             읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 dueAt 알림 노출 정책은 변경하지 않습니다.
           </div>
-          <DialogFooter className="gap-2 sm:justify-end">
-            <Button variant="outline" onClick={() => setShowMarkAllReadDialog(false)}>
+          <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+            <Button className="min-h-11" variant="outline" onClick={() => setShowMarkAllReadDialog(false)}>
               취소
             </Button>
-            <Button disabled={markAllReadMutation.isPending} onClick={() => markAllReadMutation.mutate()}>
+            <Button className="min-h-11" disabled={markAllReadMutation.isPending} onClick={() => markAllReadMutation.mutate()}>
               모두 읽음 처리
             </Button>
           </DialogFooter>
