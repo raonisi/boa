@@ -86,6 +86,14 @@
    - open message template tools.
 3. Scroll long page and verify sticky behavior remains usable.
 
+## Customer Sales Workspace UAT Steps
+1. Open `/customers` and confirm the first visible section answers which customers to contact today.
+2. Confirm priority, warning, no-next-action, and uncontacted filters keep role scope unchanged.
+3. Confirm sales actions are visually separated from DB assignment, bulk reassignment, reclaim, and import actions.
+4. Open customer detail and confirm Next Best Action appears before history-heavy sections.
+5. Complete the flow from consultation preparation to consultation record, follow-up, and contract entry without leaving the workspace.
+6. In mobile width, confirm the bottom customer CTA does not overlap MobileNav and all dialogs stay within the viewport.
+
 ## Deleted Data Permanent Delete Safeguard UAT
 
 Customer/contract permanent delete is retained as a controlled branch_admin-only operation. It is not an archive-only replacement.
