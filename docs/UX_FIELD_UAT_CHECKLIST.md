@@ -175,10 +175,11 @@ This hotfix completes the consultation-tools CRUD pattern for checklist definiti
 1. Log in as branch_admin and open `/sales-pipeline`.
 2. Switch between the managed-scope option and my-customer option; the actual drag-and-drop pipeline columns and customer counts must refetch and change.
 3. Confirm my-customer scope includes only customers whose direct assignee is the current user and excludes subordinate users' customers.
-4. Repeat as sub_branch_admin and team_leader; managed scope may include subordinate customers, while my-customer scope must not.
-5. Log in as member and confirm the pipeline is fixed to my-customer scope with no managed-scope toggle.
-6. Confirm the my-customer empty state appears and no stale managed cards remain after switching.
-7. Drag a card after switching scope and confirm the saved status remains server-authorized and the scoped list invalidates.
+4. Select the member-specific scope option, choose an active organization member, and confirm the actual drag-and-drop pipeline columns show only that selected user's assigned customers.
+5. Repeat as sub_branch_admin and team_leader; managed scope may include subordinate customers, while my-customer and member-specific scopes must not include outside-scope users.
+6. Log in as member and confirm the pipeline is fixed to my-customer scope with no managed/member-specific toggle.
+7. Confirm the my-customer and member-specific empty states appear and no stale managed cards remain after switching.
+8. Drag a card after switching scope and confirm the saved status remains server-authorized and the scoped list invalidates.
 
 ## PR6 Operation Risk Center UAT Steps
 
