@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { redactAuditDisplayText } from "@/lib/auditRedaction";
@@ -71,6 +72,12 @@ function extractReason(details?: string | null) {
   }
 }
 
+export function safeLogSummary(log: any) {
+  const reason = extractReason(log.details);
+  if (reason) return `사유: ${redactAuditDisplayText(reason, 160)}`;
+  return redactAuditDisplayText(localizeKnownEnumText(log.details), 180);
+}
+
 export default function ActivityLog() {
   const [search, setSearch] = useState("");
   const [userFilter, setUserFilter] = useState("all");
@@ -111,6 +118,13 @@ export default function ActivityLog() {
 
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="space-y-3 p-4">
+            <div className="grid gap-2 text-xs text-slate-500 md:grid-cols-5">
+              <Label className="md:col-span-2">검색어</Label>
+              <Label>사용자</Label>
+              <Label>작업 유형</Label>
+              <Label>위험도</Label>
+              <Label>기간</Label>
+            </div>
             <div className="grid gap-2 md:grid-cols-5">
               <div className="relative md:col-span-2">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -158,6 +172,24 @@ export default function ActivityLog() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+              <span>표시 {filtered.length}건 / 전체 {(logs ?? []).length}건</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 justify-start px-0 text-xs sm:px-2"
+                onClick={() => {
+                  setSearch("");
+                  setUserFilter("all");
+                  setCategoryFilter("all");
+                  setRiskFilter("all");
+                  setPeriodFilter("30");
+                }}
+              >
+                필터 초기화
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -188,7 +220,6 @@ export default function ActivityLog() {
                     </TableRow>
                   ) : (
                     filtered.map((log) => {
-                      const reason = extractReason(log.details);
                       const risky = isRiskAction(log.action);
                       return (
                         <TableRow key={log.id} className={risky ? "bg-red-50/30" : ""}>
@@ -205,8 +236,8 @@ export default function ActivityLog() {
                           <TableCell className="text-xs text-muted-foreground">
                             {log.targetType ? `${getTargetTypeLabel(log.targetType)}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
                           </TableCell>
-                          <TableCell className="max-w-64 text-xs text-muted-foreground">
-                            <span className="line-clamp-2">{reason ? `사유: ${redactAuditDisplayText(reason, 120)}` : redactAuditDisplayText(localizeKnownEnumText(log.details))}</span>
+                          <TableCell className="max-w-[18rem] text-xs text-muted-foreground">
+                            <span className="line-clamp-2 break-words">{safeLogSummary(log)}</span>
                           </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>상세보기</Button>
@@ -233,7 +264,11 @@ export default function ActivityLog() {
                   <div><p className="text-xs text-muted-foreground">대상</p><p>{selectedLog.targetType ? `${getTargetTypeLabel(selectedLog.targetType)}${selectedLog.targetId ? ` #${selectedLog.targetId}` : ""}` : "-"}</p></div>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">상세</p>
+                  <p className="text-xs text-muted-foreground">안전 요약</p>
+                  <p className="mt-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">{safeLogSummary(selectedLog)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">원문 세부정보(민감정보 제거 후)</p>
                   <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">{redactAuditDisplayText(localizeKnownEnumText(selectedLog.details), 2000)}</pre>
                 </div>
               </div>

@@ -259,6 +259,18 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 2. Confirm WebView route access, card scrolling, and action buttons are stable.
 3. Confirm no APK/AAB/JKS/keystore/google-services.json/local.properties files are included in the PR.
 
+## P2-1 Analytics / Operation UX Polish UAT Steps
+1. Open `/analytics` and confirm the current scope card clearly shows managed, mine, or member-specific scope.
+2. Select member-specific scope and confirm the selected member name is visible and member ranking is hidden.
+3. Confirm bottleneck diagnosis includes a concrete action sequence, not only a rate.
+4. Open `/operation-risk` as branch_admin and confirm each risk card shows owner, deadline, next action, and a clear action CTA.
+5. Confirm `/operation-risk` remains unavailable to sub_branch_admin, team_leader, member, inactive, and resigned users by direct URL and API.
+6. In operation-risk logs, test period, category, target, action, search, riskOnly, and reset controls.
+7. Open `/logs` and confirm period, user, category, risk, search, and reset controls are usable on mobile without horizontal page overflow.
+8. Confirm DATA_DOWNLOAD entries show safe reason/summary text and do not expose raw tokens, full phone numbers, customer memo bodies, illness details, product names, or premium details.
+9. Confirm `/logs` role scope is unchanged: branch_admin all, sub_branch_admin subordinate scope, team_leader team scope, member denied.
+10. Confirm customer contact and birth date display policies are unchanged in customer work screens.
+
 ### Role Accounts
 1. branch_admin: `/operation-risk` loads.
 2. sub_branch_admin: direct URL/API access blocked.

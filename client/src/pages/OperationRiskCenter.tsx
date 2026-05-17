@@ -77,6 +77,55 @@ const categoryIcons = {
   unresolved: ClipboardList,
 } as const;
 
+const riskActionMeta: Record<string, { owner: string; deadline: string; nextAction: string }> = {
+  download: {
+    owner: "지점장",
+    deadline: "오늘 중",
+    nextAction: "반복 다운로드 사용자와 사유가 짧은 로그를 먼저 확인",
+  },
+  deletion: {
+    owner: "지점장",
+    deadline: "승인 전",
+    nextAction: "삭제·복구 이력과 보류 중인 요청을 삭제 데이터 관리에서 대조",
+  },
+  account: {
+    owner: "관리자",
+    deadline: "즉시",
+    nextAction: "차단 로그인, OAuth 초기화, 강제 로그아웃 이력을 사용자 관리와 함께 점검",
+  },
+  handoff: {
+    owner: "조직 관리자",
+    deadline: "영업일 1일",
+    nextAction: "퇴사·비활성 계정에 남은 고객, 후속관리, 일정을 인수인계",
+  },
+  push: {
+    owner: "운영 담당",
+    deadline: "오늘 중",
+    nextAction: "실패·skip·비활성 토큰을 확인해 현장 알림 누락을 줄임",
+  },
+  unresolved: {
+    owner: "팀 리더",
+    deadline: "오늘 중",
+    nextAction: "미확인 알림과 미처리 후속관리를 담당자별로 정리",
+  },
+};
+
+export function getRiskActionMeta(category: string) {
+  return riskActionMeta[category] ?? {
+    owner: "운영 담당",
+    deadline: "오늘 중",
+    nextAction: "상세 로그에서 원인과 담당자를 확인",
+  };
+}
+
+export function getGuideMeta(title: string) {
+  if (title.includes("다운로드")) return riskActionMeta.download;
+  if (title.includes("퇴사자") || title.includes("미처리")) return riskActionMeta.handoff;
+  if (title.includes("푸시")) return riskActionMeta.push;
+  if (title.includes("삭제")) return riskActionMeta.deletion;
+  return getRiskActionMeta("default");
+}
+
 const actionLabels: Record<string, string> = {
   DATA_DOWNLOAD: "데이터 다운로드",
   DATA_DOWNLOAD_FAILED: "다운로드 실패",
@@ -327,6 +376,7 @@ function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
           {(data?.riskCards ?? []).map((card: any) => {
             const Icon = categoryIcons[card.category as keyof typeof categoryIcons] ?? AlertTriangle;
             const level = card.level as RiskLevel;
+            const actionMeta = getRiskActionMeta(card.category);
             return (
               <Card key={card.category} className="border-slate-200/80 bg-white shadow-sm">
                 <CardContent className="flex h-full flex-col p-4">
@@ -342,8 +392,21 @@ function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
                     <p className="text-xs font-semibold text-slate-500">점수 {formatNumber(card.score)}</p>
                   </div>
                   <p className="mt-2 min-h-10 text-xs leading-relaxed text-slate-500">{card.description}</p>
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="font-semibold text-slate-500">Owner</p>
+                        <p className="mt-0.5 font-bold text-slate-900">{actionMeta.owner}</p>
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-500">Deadline</p>
+                        <p className="mt-0.5 font-bold text-slate-900">{actionMeta.deadline}</p>
+                      </div>
+                    </div>
+                    <p className="mt-2 leading-relaxed">{actionMeta.nextAction}</p>
+                  </div>
                   <Button type="button" variant="outline" size="sm" className="mt-auto" onClick={() => setLocation(card.href)}>
-                    {card.actionLabel}
+                    조치하기: {card.actionLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </CardContent>
@@ -406,18 +469,32 @@ function ActionsTab({ data, setLocation }: { data: any; setLocation: (path: stri
       </Card>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        {(data?.guides ?? []).map((guide: any) => (
-          <Card key={guide.title} className="border-slate-200/80 bg-slate-50/70 shadow-sm">
-            <CardContent className="flex h-full flex-col p-4">
-              <p className="font-semibold text-slate-950">{guide.title}</p>
-              <p className="mt-2 text-sm leading-relaxed text-slate-500">{guide.description}</p>
-              <Button type="button" variant="ghost" className="mt-auto justify-start px-0 text-slate-900" onClick={() => setLocation(guide.href)}>
-                확인하기
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </CardContent>
-          </Card>
-        ))}
+        {(data?.guides ?? []).map((guide: any) => {
+          const meta = getGuideMeta(guide.title);
+          return (
+            <Card key={guide.title} className="border-slate-200/80 bg-slate-50/70 shadow-sm">
+              <CardContent className="flex h-full flex-col p-4">
+                <p className="font-semibold text-slate-950">{guide.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{guide.description}</p>
+                <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 text-xs">
+                  <div>
+                    <p className="text-slate-500">담당</p>
+                    <p className="font-bold text-slate-900">{meta.owner}</p>
+                  </div>
+                  <div>
+                    <p className="text-slate-500">기한</p>
+                    <p className="font-bold text-slate-900">{meta.deadline}</p>
+                  </div>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">{meta.nextAction}</p>
+                <Button type="button" variant="ghost" className="mt-auto justify-start px-0 text-slate-900" onClick={() => setLocation(guide.href)}>
+                  조치 화면 열기
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
     </>
   );
@@ -448,37 +525,73 @@ function AuditLogsTab(props: {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="grid gap-2 md:grid-cols-6">
-          <Select value={props.auditDatePreset} onValueChange={(value) => props.onDatePresetChange(value as AuditPeriod)}>
-            <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="today">오늘</SelectItem>
-              <SelectItem value="7d">최근 7일</SelectItem>
-              <SelectItem value="30d">최근 30일</SelectItem>
-              <SelectItem value="custom">직접 선택</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={props.auditCategory} onValueChange={props.onCategoryChange}>
-            <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="분류" /></SelectTrigger>
-            <SelectContent>
-              {Object.entries(auditCategoryLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={props.auditTargetType} onValueChange={props.onTargetTypeChange}>
-            <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="대상" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">전체 대상</SelectItem>
-              <SelectItem value="user">user</SelectItem>
-              <SelectItem value="customer">customer</SelectItem>
-              <SelectItem value="contract">contract</SelectItem>
-              <SelectItem value="team">team</SelectItem>
-              <SelectItem value="customers">customers</SelectItem>
-              <SelectItem value="contracts">contracts</SelectItem>
-            </SelectContent>
-          </Select>
-          <Input value={props.auditAction} onChange={(event) => props.onActionChange(event.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="작업 코드" />
-          <Input value={props.auditSearch} onChange={(event) => props.onSearchChange(event.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="검색어" />
-          <Button variant={props.auditRiskOnly ? "default" : "outline"} onClick={() => props.onRiskOnlyChange(!props.auditRiskOnly)} className="h-9">
-            위험 작업만
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">기간</Label>
+            <Select value={props.auditDatePreset} onValueChange={(value) => props.onDatePresetChange(value as AuditPeriod)}>
+              <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="today">오늘</SelectItem>
+                <SelectItem value="7d">최근 7일</SelectItem>
+                <SelectItem value="30d">최근 30일</SelectItem>
+                <SelectItem value="custom">직접 선택</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">분류</Label>
+            <Select value={props.auditCategory} onValueChange={props.onCategoryChange}>
+              <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="분류" /></SelectTrigger>
+              <SelectContent>
+                {Object.entries(auditCategoryLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">대상</Label>
+            <Select value={props.auditTargetType} onValueChange={props.onTargetTypeChange}>
+              <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="대상" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">전체 대상</SelectItem>
+                <SelectItem value="user">user</SelectItem>
+                <SelectItem value="customer">customer</SelectItem>
+                <SelectItem value="contract">contract</SelectItem>
+                <SelectItem value="team">team</SelectItem>
+                <SelectItem value="customers">customers</SelectItem>
+                <SelectItem value="contracts">contracts</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">Action</Label>
+            <Input value={props.auditAction} onChange={(event) => props.onActionChange(event.target.value)} className="h-10 rounded-xl bg-slate-50" placeholder="예: DATA_DOWNLOAD" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[11px] text-slate-500">검색</Label>
+            <Input value={props.auditSearch} onChange={(event) => props.onSearchChange(event.target.value)} className="h-10 rounded-xl bg-slate-50" placeholder="작업자, 대상, 사유" />
+          </div>
+          <div className="flex items-end">
+            <Button variant={props.auditRiskOnly ? "default" : "outline"} onClick={() => props.onRiskOnlyChange(!props.auditRiskOnly)} className="h-10 w-full">
+              위험 작업만
+            </Button>
+          </div>
+        </div>
+        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+          <span>표시 {props.auditLogs?.items.length ?? 0}건 / 전체 {props.auditLogs?.total ?? 0}건</span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 justify-start px-0 text-xs sm:px-2"
+            onClick={() => {
+              props.onDatePresetChange("7d");
+              props.onCategoryChange("all");
+              props.onTargetTypeChange("all");
+              props.onActionChange("");
+              props.onSearchChange("");
+              props.onRiskOnlyChange(false);
+            }}
+          >
+            필터 초기화
           </Button>
         </div>
         {props.isAuditFetching ? <p className="text-xs text-slate-500">운영 로그를 갱신하고 있습니다.</p> : null}
