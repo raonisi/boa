@@ -333,6 +333,14 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 7. If visual snapshots change, review the diff before updating baselines.
 8. Server RBAC remains covered by unit/integration tests; Playwright role switching is a fixture-level UI smoke, not a replacement for server authorization tests.
 
+## Android Route / Generated Files UAT
+1. Android/WebView canonical routes are `/dashboard`, `/customers`, `/calendar`, `/notifications`, `/analytics`, and `/operation-risk`.
+2. Operations/audit drawer key `ops` resolves to `/operation-risk?tab=logs`; `/admin-audit` remains a web redirect only, not the Android canonical target.
+3. `/operation-risk` remains protected by branch_admin UI/server authorization and route cleanup does not widen access.
+4. Run `pnpm.cmd exec cap sync android` and verify generated Android assets/config are not staged for commit.
+5. Run `cd android && gradlew.bat assembleDebug` when the Android SDK/JDK is available.
+6. `git ls-files` must not include `android/.gradle/**`, copied web assets under `android/app/src/main/assets/public/**`, generated Capacitor config/plugin JSON, APK/AAB/JKS/keystore files, `google-services.json`, or `local.properties`.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.

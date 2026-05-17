@@ -14,7 +14,7 @@ void main() {
     expect(crmWebPathForRouteKey('users'), '/users');
     expect(crmWebPathForRouteKey('handover'), '/users/handoff');
     expect(crmWebPathForRouteKey('teams'), '/teams');
-    expect(crmWebPathForRouteKey('ops'), '/admin-audit');
+    expect(crmWebPathForRouteKey('ops'), '/operation-risk?tab=logs');
     expect(crmWebPathForRouteKey('push_ops'), '/push-notifications');
     expect(crmWebPathForRouteKey('deleted'), '/deleted-data');
     expect(crmWebPathForRouteKey('download'), '/download');
@@ -25,5 +25,18 @@ void main() {
   test('crmWebPathForRouteKey returns null for native-only keys', () {
     expect(crmWebPathForRouteKey('performance'), isNull);
     expect(crmWebPathForRouteKey('unknown'), isNull);
+  });
+
+  test('crmWebRedirectPathWithQuery preserves canonical route query', () {
+    expect(
+      crmWebRedirectPathWithQuery(
+        Uri.parse('https://raonisis.kr/operation-risk?tab=logs'),
+      ),
+      '/operation-risk?tab=logs',
+    );
+    expect(
+      crmWebRedirectPathWithQuery(Uri.parse('https://raonisis.kr/customers')),
+      '/customers',
+    );
   });
 }

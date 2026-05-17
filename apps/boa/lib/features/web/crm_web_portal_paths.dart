@@ -39,3 +39,8 @@ String? crmWebPathForRouteKey(String routeKey) {
       return null;
   }
 }
+
+String crmWebRedirectPathWithQuery(Uri uri) {
+  final query = uri.hasQuery ? '?${uri.query}' : '';
+  return '${uri.path}$query';
+}
