@@ -197,6 +197,38 @@ export default function SalesFunnelAnalytics() {
   const ranking = data?.ranking ?? [];
   const performance = data?.performance;
   const hasData = Boolean(data && !data.empty);
+  const selectedOrgLabel = organizationType === "all"
+    ? "전체 조직"
+    : organizationType === "sub_branch"
+      ? subBranchAdminId === "all"
+        ? "부지점 전체"
+        : filterOptions?.subBranches?.find((item) => String(item.id) === subBranchAdminId)?.name ?? "부지점 선택"
+      : organizationType === "team"
+        ? teamId === "all"
+          ? "팀 전체"
+          : filterOptions?.teams?.find((item) => String(item.id) === teamId)?.name ?? "팀 선택"
+        : targetUserId === "all"
+          ? "개인 전체"
+          : formatUserWithRole(filterOptions?.users?.find((item) => String(item.id) === targetUserId) ?? { name: "개인 선택", role: "member" });
+  const selectedScopeLabel = isMember
+    ? "내 담당 고객"
+    : effectiveOwnershipScope === "managed"
+      ? "산하 전체"
+      : effectiveOwnershipScope === "mine"
+        ? "내 담당 고객"
+        : selectedMember
+          ? `조직원별: ${formatUserWithRole(selectedMember)}`
+          : "조직원별: 선택 필요";
+  const rankingPolicyLabel = data?.scope.canViewRanking
+    ? "구성원 비교 표시"
+    : effectiveOwnershipScope === "member"
+      ? "선택 조직원 단일 범위라 랭킹 숨김"
+      : "내 담당 고객 단일 범위라 랭킹 숨김";
+  const bottleneckChecklist = data?.bottleneck ? [
+    `${data.bottleneck.customerSegment} 고객군을 먼저 확인`,
+    data.bottleneck.action,
+    "이번 주 상담/후속관리 일정으로 전환 여부 점검",
+  ] : [];
 
   const conversionRows = [
     { label: "DB 대비 상담 전환율", value: performance?.dbToConsultRate ?? 0, helper: "보유 DB 중 상담으로 진입한 비율" },
@@ -422,6 +454,30 @@ export default function SalesFunnelAnalytics() {
           </CardContent>
         </Card>
 
+        <Card className="border-slate-200/80 bg-white shadow-sm">
+          <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+              <p className="text-xs font-semibold text-slate-500">현재 조회 범위</p>
+              <p className="mt-1 text-sm font-bold text-slate-950">{selectedScopeLabel}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">{ownershipScopeHelper}</p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+              <p className="text-xs font-semibold text-slate-500">조직 필터</p>
+              <p className="mt-1 text-sm font-bold text-slate-950">{isMember ? "본인 담당 고객" : selectedOrgLabel}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                서버에서 역할별 권한 범위를 다시 검증한 뒤 집계합니다.
+              </p>
+            </div>
+            <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+              <p className="text-xs font-semibold text-slate-500">랭킹 표시 정책</p>
+              <p className="mt-1 text-sm font-bold text-slate-950">{rankingPolicyLabel}</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                단일 담당자 범위에서는 비교보다 해당 파이프라인 병목을 우선 표시합니다.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {isError && (
           <EmptyState
             icon={AlertTriangle}
@@ -566,6 +622,16 @@ export default function SalesFunnelAnalytics() {
                     <div className="mt-4 rounded-xl bg-white/75 p-3 text-sm text-amber-950">
                       <p className="font-semibold">추천 행동</p>
                       <p className="mt-1 text-amber-900">{data.bottleneck.action}</p>
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                      {bottleneckChecklist.map((item, index) => (
+                        <div key={item} className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-xs text-amber-950">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[11px] font-bold text-amber-950">
+                            {index + 1}
+                          </span>
+                          <span className="leading-relaxed">{item}</span>
+                        </div>
+                      ))}
                     </div>
                     <p className="mt-3 text-xs text-amber-800">확인할 고객군: {data.bottleneck.customerSegment}</p>
                   </div>
