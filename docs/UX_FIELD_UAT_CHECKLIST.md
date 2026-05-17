@@ -23,6 +23,16 @@
 - Mobile Android app (internal build)
 - Normal network + temporarily degraded network
 
+## Android Canonical Web Route UAT
+1. Confirm Capacitor Android uses the production web origin `https://raonisis.kr` and does not define a separate native route map.
+2. In the Android internal build or mobile WebView, verify canonical route entry for `/dashboard` redirects safely to the dashboard.
+3. Verify `/customers`, `/calendar`, `/notifications`, `/analytics`, and `/operation-risk` load their intended screens.
+4. Verify `/operation-risk` remains branch_admin-only; sub_branch_admin, team_leader, member, inactive, and resigned users cannot bypass the guard by direct URL.
+5. Verify deprecated `/admin-audit` does not 404 and redirects to `/operation-risk?tab=logs` only after branch_admin authorization.
+6. Verify MobileNav and DashboardLayout use the same canonical route targets for customers, calendar, notifications, analytics, and operation risk.
+7. After `pnpm.cmd exec cap sync android`, confirm generated Android files are not committed unless the PR intentionally changes native configuration.
+8. Confirm no APK/AAB/JKS/keystore/google-services.json/local.properties files are included in the PR.
+
 ## Core Acceptance Criteria
 - Priority labels are consistent across web and mobile.
 - Sorting order is consistent across web and mobile.
