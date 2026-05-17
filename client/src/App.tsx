@@ -26,7 +26,6 @@ import OrganizationManagement from "./pages/OrganizationManagement";
 import UserHandoffManagement from "./pages/UserHandoffManagement";
 import TeamManagement from "./pages/TeamManagement";
 import ActivityLog from "./pages/ActivityLog";
-import AdminAuditDashboard from "./pages/AdminAuditDashboard";
 import Download from "./pages/Download";
 import Settings from "./pages/Settings";
 import PushNotificationPreferences from "./pages/PushNotificationPreferences";
@@ -238,7 +237,7 @@ function Router() {
       <Route path="/admin-audit">
         <AuthGuard>
           <AdminGuard>
-            <AdminAuditDashboard />
+            <Redirect to="/operation-risk?tab=logs" />
           </AdminGuard>
         </AuthGuard>
       </Route>

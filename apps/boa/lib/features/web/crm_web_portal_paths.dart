@@ -24,7 +24,7 @@ String? crmWebPathForRouteKey(String routeKey) {
     case 'teams':
       return '/teams';
     case 'ops':
-      return '/admin-audit';
+      return '/operation-risk?tab=logs';
     case 'push_ops':
       return '/push-notifications';
     case 'deleted':

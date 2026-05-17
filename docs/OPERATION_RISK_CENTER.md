@@ -63,3 +63,15 @@ branch_admin이 데이터 다운로드, 삭제·복구, 계정·권한, 인수�
 6. sub_branch_admin, team_leader, member로 직접 URL 접근 시 차단되는지 확인한다.
 7. 모바일/Android WebView에서 카드가 세로로 정리되고 가로 스크롤이 생기지 않는지 확인한다.
 8. PR5 `/analytics` 영업 퍼널 화면과 PR6 운영 리스크 센터 내용이 섞이지 않는지 확인한다.
+
+## 운영점검 통합 정책
+
+- `/operation-risk`를 운영 리스크와 감사 확인의 canonical 운영 허브로 사용한다.
+- 기존 `/admin-audit` 직접 접근은 `/operation-risk?tab=logs`로 이동시켜 운영점검 북마크가 404가 되지 않게 한다.
+- `/logs`는 기존 활동 로그 화면으로 유지하며, 운영 리스크 센터의 branch_admin 전용 권한으로 흡수하지 않는다.
+- 운영점검의 상세 감사 로그 필터와 DATA_DOWNLOAD 사유 확인은 운영 리스크 센터의 "상세 운영 로그" 탭에서 확인한다.
+- 운영점검의 운영 건강도와 시스템 상태 카드는 운영 리스크 센터의 "운영 상태" 탭에서 확인한다.
+- `operationRisk.*`, `adminAudit.logSearch`, `logs.list`는 유지한다. `adminAudit.summary`는 즉시 삭제하지 않고 후속 cleanup 후보로만 둔다.
+- 새 DB migration은 없다.
+- `activity_logs` 구조와 DATA_DOWNLOAD 정책은 변경하지 않는다.
+- token 원문, secret, password, DATABASE_URL, 전화번호 전체, 상담 본문 전문, 질병명, 보험상품명, 보험료 상세 전문은 운영 로그 탭에 노출하지 않는다.
