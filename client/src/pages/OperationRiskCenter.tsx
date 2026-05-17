@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +23,6 @@ import {
   Download,
   Loader2,
   RefreshCcw,
-  ShieldAlert,
   ShieldCheck,
   Trash2,
   UserRoundCog,
@@ -209,7 +208,7 @@ export default function OperationRiskCenter() {
     dateTo: period === "custom" && dateTo ? dateTo : undefined,
   }), [dateFrom, dateTo, period]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = trpc.operationRisk.summary.useQuery(reportInput, {
+  const { data, isLoading, isFetching, isError, refetch } = trpc.operationRisk.summary.useQuery(reportInput, {
     placeholderData: (previous) => previous,
   });
   const { data: auditSummary } = trpc.adminAudit.summary.useQuery();
@@ -279,11 +278,10 @@ export default function OperationRiskCenter() {
         {isError ? (
           <Card className="border-red-200 bg-red-50">
             <CardContent className="p-5">
-              <EmptyState
-                icon={ShieldAlert}
+              <ErrorState
                 title="운영 리스크 정보를 불러오지 못했습니다."
-                description={error?.message ?? "잠시 후 다시 시도해 주세요."}
-                action={<Button type="button" onClick={() => refetch()}>다시 시도</Button>}
+                description="잠시 후 다시 시도해 주세요. 권한이 필요한 화면이면 관리자에게 문의해 주세요."
+                onRetry={() => refetch()}
               />
             </CardContent>
           </Card>
