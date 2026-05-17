@@ -26,7 +26,7 @@ export function BranchMark({ className, iconClassName }: BranchMarkProps) {
   return (
     <div
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white/95 shadow-sm ring-1 ring-white/20",
+        "flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-sidebar-border/70",
         className
       )}
     >
