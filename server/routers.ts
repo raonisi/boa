@@ -3620,7 +3620,8 @@ export const appRouter = router({
         agentIdFilter: z.number().optional(),
         assignedDateFrom: z.string().optional(),
         assignedDateTo: z.string().optional(),
-        scope: z.enum(["all", "mine"]).optional(),
+        scope: z.enum(["all", "mine", "member"]).optional(),
+        selectedUserId: z.number().optional(),
       }))
       .query(async ({ ctx, input }) => {
         const user = ctx.user;
@@ -3639,6 +3640,13 @@ export const appRouter = router({
           assignedDateFrom: input.assignedDateFrom ? new Date(input.assignedDateFrom) : undefined,
           assignedDateTo: input.assignedDateTo ? new Date(input.assignedDateTo) : undefined,
         };
+        if (input.scope === "member") {
+          if (input.selectedUserId == null) {
+            throw new TRPCError({ code: "BAD_REQUEST", message: "Select a member to view." });
+          }
+          const target = await verifyTargetUserAccess(user, input.selectedUserId);
+          return getCustomers({ ...baseFilter, agentId: target.id });
+        }
         if (user.role === "branch_admin") {
           const scopedAgentId = input.scope === "mine" ? user.id : input.agentIdFilter;
           return getCustomers({ ...baseFilter, agentId: scopedAgentId });

@@ -3,6 +3,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -31,7 +32,7 @@ import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
-type PipelineScope = "all" | "mine";
+type PipelineScope = "all" | "mine" | "member";
 
 type ListCustomer = {
   id: number;
@@ -233,10 +234,20 @@ export default function SalesPipeline() {
   const isMember = user?.role === "member";
   const canSwitchScope = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role));
   const [pipelineScope, setPipelineScope] = useState<PipelineScope>("all");
+  const [selectedMemberId, setSelectedMemberId] = useState("all");
   const effectivePipelineScope = isMember ? "mine" : pipelineScope;
   const managedLabel = user?.role === "branch_admin" ? "전체 DB" : user?.role === "team_leader" ? "팀 전체" : "산하 전체";
-  const { data: customers, isLoading } = trpc.customers.list.useQuery({ scope: effectivePipelineScope });
   const { data: usersList } = trpc.users.list.useQuery();
+  const { data: filterOptions, isLoading: filterLoading } = trpc.salesReports.filterOptions.useQuery(undefined, { enabled: canSwitchScope });
+  const selectedMember = (filterOptions?.users ?? []).find((item) => String(item.id) === selectedMemberId);
+  const needsMemberSelection = canSwitchScope && effectivePipelineScope === "member" && selectedMemberId === "all";
+  const customerListInput = useMemo(() => ({
+    scope: effectivePipelineScope,
+    selectedUserId: effectivePipelineScope === "member" && selectedMemberId !== "all" ? Number(selectedMemberId) : undefined,
+  }), [effectivePipelineScope, selectedMemberId]);
+  const { data: customers, isLoading } = trpc.customers.list.useQuery(customerListInput, {
+    enabled: !needsMemberSelection,
+  });
   const utils = trpc.useUtils();
 
   const agentNameById = useMemo(() => {
@@ -309,28 +320,51 @@ export default function SalesPipeline() {
           {canSwitchScope ? (
             <div className="w-full max-w-sm space-y-2 rounded-2xl border border-border bg-card p-3 shadow-sm lg:w-80">
               <p className="text-xs font-semibold text-muted-foreground">파이프라인 범위</p>
-              <div className="grid h-11 grid-cols-2 rounded-xl border border-border bg-muted/40 p-1">
+              <div className="grid min-h-11 grid-cols-3 rounded-xl border border-border bg-muted/40 p-1">
                 {([
                   ["all", managedLabel],
                   ["mine", "내 담당 고객"],
+                  ["member", "조직원별"],
                 ] as const).map(([value, label]) => (
                   <button
                     key={value}
                     type="button"
                     className={cn(
-                      "rounded-lg px-2 text-sm font-semibold transition",
+                      "rounded-lg px-2 py-2 text-sm font-semibold transition",
                       effectivePipelineScope === value
                         ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
                         : "text-muted-foreground hover:bg-background"
                     )}
-                    onClick={() => setPipelineScope(value)}
+                    onClick={() => {
+                      setPipelineScope(value);
+                      if (value !== "member") setSelectedMemberId("all");
+                    }}
                   >
                     {label}
                   </button>
                 ))}
               </div>
+              {effectivePipelineScope === "member" ? (
+                <Select value={selectedMemberId} onValueChange={setSelectedMemberId} disabled={filterLoading}>
+                  <SelectTrigger className="h-11 rounded-xl bg-muted/30">
+                    <SelectValue placeholder="확인할 조직원을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">확인할 조직원을 선택하세요</SelectItem>
+                    {(filterOptions?.users ?? []).map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.name ?? `사용자 #${item.id}`} · {item.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
               <p className="text-xs leading-relaxed text-muted-foreground">
-                {effectivePipelineScope === "mine"
+                {effectivePipelineScope === "member"
+                  ? selectedMember
+                    ? `${selectedMember.name ?? `사용자 #${selectedMember.id}`}의 담당 고객 기준으로 집계합니다.`
+                    : "확인할 조직원을 선택하세요."
+                  : effectivePipelineScope === "mine"
                   ? "내가 담당자인 고객만 파이프라인에 표시합니다."
                   : "권한 범위 내 고객을 파이프라인에 표시합니다."}
               </p>
@@ -342,7 +376,14 @@ export default function SalesPipeline() {
           )}
         </div>
 
-        {isLoading ? (
+        {needsMemberSelection ? (
+          <Card className="border-dashed border-border bg-muted/20 p-8 text-center shadow-sm">
+            <p className="text-sm font-semibold text-foreground">확인할 조직원을 선택하세요.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              조직원별 보기는 선택한 조직원이 담당자인 고객만 기준으로 세일즈 파이프라인을 표시합니다.
+            </p>
+          </Card>
+        ) : isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="h-64 animate-pulse rounded-2xl bg-muted/50" />
@@ -351,12 +392,16 @@ export default function SalesPipeline() {
         ) : customers?.length === 0 ? (
           <Card className="border-dashed border-border bg-muted/20 p-8 text-center shadow-sm">
             <p className="text-sm font-semibold text-foreground">
-              {effectivePipelineScope === "mine"
+              {effectivePipelineScope === "member"
+                ? "선택한 조직원의 파이프라인 데이터가 없습니다."
+                : effectivePipelineScope === "mine"
                 ? "내 담당 고객 파이프라인 데이터가 없습니다."
                 : "표시할 고객 파이프라인 데이터가 없습니다."}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
-              {effectivePipelineScope === "mine"
+              {effectivePipelineScope === "member"
+                ? "선택한 조직원에게 고객을 배정하면 이곳에 표시됩니다."
+                : effectivePipelineScope === "mine"
                 ? "고객을 직접 등록하거나 담당자로 배정받으면 이곳에 표시됩니다."
                 : "고객 등록 또는 필터 범위를 확인해 주세요."}
             </p>

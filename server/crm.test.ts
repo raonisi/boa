@@ -1219,6 +1219,38 @@ describe("PR16 - branch_admin own scope and assignee handling", () => {
     expect(getCustomersSpy).toHaveBeenNthCalledWith(4, expect.objectContaining({ agentId: 3 }));
   });
 
+  it("lets managers narrow the actual sales pipeline customer list to a selected organization member", async () => {
+    const users = [
+      { id: 1, name: "[TEST] Branch", role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: null },
+      { id: 2, name: "[TEST] Sub", role: "sub_branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: 1 },
+      { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 2 },
+      { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+      { id: 5, name: "[TEST] Other", role: "member", accountStatus: "active", teamId: 20, subBranchAdminId: 99, parentUserId: 30 },
+      { id: 6, name: "[TEST] Inactive", role: "member", accountStatus: "inactive", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+    ] as any[];
+    const teams = [
+      { id: 10, name: "[TEST] Team", managerId: 3, subBranchAdminId: 2, isActive: true, deletedAt: null },
+      { id: 20, name: "[TEST] Other Team", managerId: 30, subBranchAdminId: 99, isActive: true, deletedAt: null },
+    ] as any[];
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(users as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue(teams as any);
+    vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => users.find((item) => item.id === id) as any);
+    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.list({ scope: "member", selectedUserId: 4 });
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.list({ scope: "member", selectedUserId: 4 });
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).customers.list({ scope: "member", selectedUserId: 4 });
+
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(1, expect.objectContaining({ agentId: 4 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({ agentId: 4 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(3, expect.objectContaining({ agentId: 4 }));
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.list({ scope: "member" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.list({ scope: "member", selectedUserId: 6 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.list({ scope: "member", selectedUserId: 5 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).customers.list({ scope: "member", selectedUserId: 5 })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).customers.list({ scope: "member", selectedUserId: 5 })).rejects.toThrow();
+  });
+
   it("blocks non-branch_admin from requesting all DB scope", async () => {
     await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customers.list({ scope: "all" })).rejects.toThrow();
   });
