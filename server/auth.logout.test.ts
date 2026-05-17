@@ -111,29 +111,50 @@ describe("session cookie options", () => {
 });
 
 describe("session invalidation", () => {
+  const sessionUser = (accountStatus: "active" | "inactive" | "resigned" = "active") => ({
+    id: 1,
+    openId: "google-sub",
+    email: "admin@test.local",
+    name: "[TEST] Admin",
+    loginMethod: "google",
+    role: "branch_admin",
+    accountStatus,
+    loginStatus: "linked",
+    teamId: null,
+    subBranchAdminId: null,
+    sessionInvalidatedAt: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    lastSignedIn: new Date(),
+  });
+
   it("rejects a session issued before the user's invalidation timestamp", async () => {
     ENV.cookieSecret = "test-session-secret";
     ENV.appId = "test-app";
     const token = await sdk.createSessionToken("google-sub", { name: "[TEST] Admin" });
     vi.spyOn(db, "getUserByOpenId").mockResolvedValue({
-      id: 1,
-      openId: "google-sub",
-      email: "admin@test.local",
-      name: "[TEST] Admin",
-      loginMethod: "google",
-      role: "branch_admin",
-      accountStatus: "active",
-      loginStatus: "linked",
-      teamId: null,
-      subBranchAdminId: null,
+      ...sessionUser("active"),
       sessionInvalidatedAt: new Date(Date.now() + 1000),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      lastSignedIn: new Date(),
     } as any);
 
     await expect(sdk.authenticateRequest({
       headers: { cookie: `${COOKIE_NAME}=${token}` },
     } as any)).rejects.toThrow("Session has been invalidated");
+  });
+
+  it("rejects inactive and resigned stale sessions before returning a user", async () => {
+    ENV.cookieSecret = "test-session-secret";
+    ENV.appId = "test-app";
+    const token = await sdk.createSessionToken("google-sub", { name: "[TEST] Admin" });
+    const upsertSpy = vi.spyOn(db, "upsertUser").mockResolvedValue(undefined);
+
+    for (const accountStatus of ["inactive", "resigned"] as const) {
+      vi.spyOn(db, "getUserByOpenId").mockResolvedValueOnce(sessionUser(accountStatus) as any);
+      await expect(sdk.authenticateRequest({
+        headers: { cookie: `${COOKIE_NAME}=${token}` },
+      } as any)).rejects.toThrow("Account is inactive");
+    }
+
+    expect(upsertSpy).not.toHaveBeenCalled();
   });
 });
