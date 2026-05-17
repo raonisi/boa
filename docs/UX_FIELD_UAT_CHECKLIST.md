@@ -159,6 +159,16 @@ This hotfix completes the consultation-tools CRUD pattern for checklist definiti
 5. Confirm empty mine-scope data shows the dedicated empty state and no NaN/Infinity values.
 6. Confirm mobile filter controls do not overflow.
 
+
+### Actual Sales Pipeline My Customer Scope Hotfix
+1. Log in as branch_admin and open `/sales-pipeline`.
+2. Switch between the managed-scope option and my-customer option; the actual drag-and-drop pipeline columns and customer counts must refetch and change.
+3. Confirm my-customer scope includes only customers whose direct assignee is the current user and excludes subordinate users' customers.
+4. Repeat as sub_branch_admin and team_leader; managed scope may include subordinate customers, while my-customer scope must not.
+5. Log in as member and confirm the pipeline is fixed to my-customer scope with no managed-scope toggle.
+6. Confirm the my-customer empty state appears and no stale managed cards remain after switching.
+7. Drag a card after switching scope and confirm the saved status remains server-authorized and the scoped list invalidates.
+
 ## PR6 Operation Risk Center UAT Steps
 
 This PR6 means the new roadmap "Operation Risk Center", not the older mobile quick-work PR6. It is also separate from PR5 `/analytics` sales funnel reports and PR19-4 notification preference work.
