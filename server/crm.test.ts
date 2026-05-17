@@ -76,6 +76,11 @@ describe("auth.me", () => {
     const ctx = createCtx("branch_admin");
     expect((await appRouter.createCaller(ctx).auth.me())?.role).toBe("branch_admin");
   });
+
+  it("does not return inactive or resigned user payloads", async () => {
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).auth.me()).resolves.toBeNull();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).auth.me()).resolves.toBeNull();
+  });
 });
 
 describe("auth.logout", () => {

@@ -2565,7 +2565,7 @@ export const appRouter = router({
 
   // ── Auth ──────────────────────────────────────────────────────────────────
   auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
+    me: publicProcedure.query((opts) => opts.ctx.user?.accountStatus === "active" ? opts.ctx.user : null),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });

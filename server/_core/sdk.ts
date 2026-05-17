@@ -352,6 +352,10 @@ class SDKServer {
       throw ForbiddenError("Pre-registered user not found");
     }
 
+    if (user.accountStatus !== "active") {
+      throw ForbiddenError("Account is inactive");
+    }
+
     if (user.sessionInvalidatedAt) {
       const issuedAtMs = session.issuedAt ? session.issuedAt * 1000 : 0;
       if (!session.issuedAt || issuedAtMs <= user.sessionInvalidatedAt.getTime()) {
