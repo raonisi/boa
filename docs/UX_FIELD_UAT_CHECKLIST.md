@@ -7,6 +7,7 @@
 - Sales funnel and performance report: see `docs/SALES_FUNNEL_PERFORMANCE_REPORT.md`
 - New roadmap PR6 operation risk center: see `docs/OPERATION_RISK_CENTER.md`
 - Consultation script edit/delete hotfix in consultation tools management
+- BOA logo and premium login branding hotfix
 - Customer detail quick actions
 - Priority rules: urgent -> today -> general
 - Unread-first sorting within each priority
@@ -29,6 +30,7 @@
 - Read/process actions reflect immediately after mutation.
 - No role can access out-of-scope operational data.
 - Consultation script edit/delete actions are branch_admin-only and refresh the list after mutation.
+- Login, sidebar, and mobile branding show the BOA logo without checkerboard background or stretched proportions.
 
 ## Web UAT Steps
 1. Open dashboard and verify "field immediate queue" appears.
@@ -39,6 +41,17 @@
    - priority cards count correctly,
    - filter + sort behavior matches dashboard,
    - unread badge changes after mark-read.
+
+## Branding / Login UAT Steps
+
+1. Open a signed-out browser session and verify the BOA Best of All logo appears on the login screen without a checkerboard background.
+2. Confirm the login copy reads as a premium internal financial CRM screen and the CTA remains the Google login entry point.
+3. Click the login CTA and confirm the existing Google OAuth flow starts.
+4. In a signed-in desktop session, verify the sidebar top logo is visible, not stretched, and still works in collapsed mode.
+5. In mobile web, open the bottom "더보기" sheet and verify the BOA logo is visible without crowding menu actions.
+6. Confirm route/menu visibility by role is unchanged.
+7. Confirm Android app icon was not changed in this PR.
+8. Confirm no `.env`, `google-services.json`, APK/AAB/JKS/keystore, or `local.properties` files are included.
 
 ## Mobile UAT Steps
 1. Open home tab and verify:

@@ -33,7 +33,6 @@ import {
   Bell,
   BellRing,
   BookOpen,
-  Building2,
   CalendarDays,
   ClipboardCheck,
   Download,
@@ -54,6 +53,8 @@ import {
   UserSquare2,
 } from "lucide-react";
 import { BranchMark } from "./BranchMark";
+import { BrandLogo } from "./BrandLogo";
+import { BrandedLogin } from "./BrandedLogin";
 import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -192,23 +193,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLoginConfigMessage(loginUrl.message);
     };
 
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full">
-          <Building2 className="h-12 w-12 text-primary" />
-          <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">BOA 지점관리 CRM</h1>
-            <p className="text-sm text-muted-foreground mt-2">업무를 계속하려면 로그인이 필요합니다.</p>
-          </div>
-          {loginConfigMessage ? (
-            <p className="text-sm text-destructive text-center">{loginConfigMessage}</p>
-          ) : null}
-          <Button onClick={handleLogin} size="lg" className="w-full">
-            로그인
-          </Button>
-        </div>
-      </div>
-    );
+    return <BrandedLogin onLogin={handleLogin} loginConfigMessage={loginConfigMessage} />;
   }
 
   return (
@@ -270,8 +255,8 @@ function DashboardLayoutContent({
               <BranchMark />
               {!isCollapsed && (
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">BOA 지점관리</p>
-                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">Premium CRM</p>
+                  <BrandLogo className="h-7 w-24 justify-start" />
+                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
                 </div>
               )}
             </div>
