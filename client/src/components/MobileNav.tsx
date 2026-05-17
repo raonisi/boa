@@ -94,7 +94,7 @@ export function MobileNav() {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bg-sidebar/98 text-sidebar-foreground shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:shadow-[0_-8px_28px_rgba(0,0,0,0.35)]">
-        <div className="grid min-h-[56px] grid-cols-5 px-1 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1">
+        <div className="grid min-h-[64px] grid-cols-5 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5">
           {primaryItems.map((item) => {
             const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
             const isNotif = item.path === "/notifications";
@@ -103,7 +103,7 @@ export function MobileNav() {
                 key={item.path}
                 type="button"
                 onClick={() => goTo(item.path)}
-                className={`relative flex min-h-[44px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+                className={`relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
                   isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
                 }`}
               >
@@ -126,7 +126,7 @@ export function MobileNav() {
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className={`flex min-h-[44px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+            className={`flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
               moreOpen ? "text-sidebar-primary" : "text-sidebar-foreground/70"
             }`}
           >
@@ -143,14 +143,14 @@ export function MobileNav() {
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[82vh] rounded-t-2xl border-border bg-card pb-5 pt-3 md:hidden">
+        <SheetContent side="bottom" className="max-h-[min(86vh,42rem)] rounded-t-2xl border-border bg-card pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:hidden">
           <SheetHeader className="text-left">
             <SheetTitle className="flex items-center gap-3 text-base font-semibold">
               <BrandLogo className="h-9 w-24 justify-start" />
               <span>더보기</span>
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-4 grid grid-cols-2 gap-2 overflow-y-auto pb-4">
+          <div className="mt-4 grid max-h-[calc(86vh-7rem)] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pb-4">
             {visibleMoreItems.map((item) => {
               const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
               return (
