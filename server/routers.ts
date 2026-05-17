@@ -4437,7 +4437,12 @@ export const appRouter = router({
       }))
       .mutation(async ({ ctx, input }) => {
         const created = await createConsultationChecklistTemplate({ ...input, createdBy: ctx.user.id, isActive: true });
-        await log(ctx.user.id, "CONSULTATION_CHECKLIST_TEMPLATE_CREATED", "consultation_checklist", created?.id, logDetails({ actor: ctx.user.id, targetType: "consultation_checklist", targetId: created?.id, afterValue: input }));
+        await log(ctx.user.id, "CONSULTATION_CHECKLIST_TEMPLATE_CREATED", "consultation_checklist", created?.id, logDetails({
+          actor: ctx.user.id,
+          targetType: "consultation_checklist",
+          targetId: created?.id,
+          afterValue: { ...input, description: input.description ? "[redacted]" : undefined },
+        }));
         return created;
       }),
 
@@ -4457,7 +4462,13 @@ export const appRouter = router({
         if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
         const { id, ...changes } = input;
         await updateConsultationChecklistTemplate(id, { ...changes, updatedBy: ctx.user.id, deletedAt: input.isActive === false ? new Date() : input.isActive === true ? null : undefined });
-        await log(ctx.user.id, input.isActive === false ? "CONSULTATION_CHECKLIST_TEMPLATE_DEACTIVATED" : input.isActive === true ? "CONSULTATION_CHECKLIST_TEMPLATE_REACTIVATED" : "CONSULTATION_CHECKLIST_TEMPLATE_UPDATED", "consultation_checklist", id, logDetails({ actor: ctx.user.id, targetType: "consultation_checklist", targetId: id, beforeValue: { title: existing.title, isActive: existing.isActive }, afterValue: changes }));
+        await log(ctx.user.id, input.isActive === false ? "CONSULTATION_CHECKLIST_TEMPLATE_DEACTIVATED" : input.isActive === true ? "CONSULTATION_CHECKLIST_TEMPLATE_REACTIVATED" : "CONSULTATION_CHECKLIST_TEMPLATE_UPDATED", "consultation_checklist", id, logDetails({
+          actor: ctx.user.id,
+          targetType: "consultation_checklist",
+          targetId: id,
+          beforeValue: { title: existing.title, isActive: existing.isActive },
+          afterValue: { ...changes, description: changes.description ? "[redacted]" : undefined },
+        }));
         return { success: true };
       }),
 

@@ -2462,6 +2462,70 @@ describe("PR11 consultation tools", () => {
     })).rejects.toThrow();
   });
 
+  it("allows branch_admin to update and soft-deactivate checklist templates without logging full description", async () => {
+    const existing = {
+      id: 701,
+      title: "기존 체크리스트",
+      description: "Original checklist detail.",
+      phase: "before",
+      category: "basic",
+      sortOrder: 1,
+      isRequired: false,
+      isActive: true,
+      deletedAt: null,
+    } as any;
+    vi.spyOn(db, "getConsultationChecklistTemplateById").mockResolvedValue(existing);
+    const updateSpy = vi.spyOn(db, "updateConsultationChecklistTemplate").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.updateChecklist({
+      id: 701,
+      title: "수정된 체크리스트",
+      description: "Updated checklist detail that should not be logged.",
+      phase: "during",
+      category: "needs",
+      sortOrder: 2,
+      isRequired: true,
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalledWith(701, expect.objectContaining({
+      title: "수정된 체크리스트",
+      description: "Updated checklist detail that should not be logged.",
+      updatedBy: 1,
+    }));
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "CONSULTATION_CHECKLIST_TEMPLATE_UPDATED",
+      details: expect.not.stringContaining("Updated checklist detail"),
+    }), undefined);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      details: expect.stringContaining("[redacted]"),
+    }), undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.updateChecklist({
+      id: 701,
+      isActive: false,
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenLastCalledWith(701, expect.objectContaining({
+      isActive: false,
+      deletedAt: expect.any(Date),
+      updatedBy: 1,
+    }));
+    expect(logSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "CONSULTATION_CHECKLIST_TEMPLATE_DEACTIVATED",
+      details: expect.not.stringContaining("Original checklist detail"),
+    }), undefined);
+  });
+
+  it("keeps checklist template update and deactivate branch_admin only", async () => {
+    const input = { id: 701, title: "Blocked checklist" };
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin")).consultationTools.updateChecklist(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader")).consultationTools.updateChecklist(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member")).consultationTools.updateChecklist(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).consultationTools.updateChecklist(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).consultationTools.updateChecklist(input)).rejects.toThrow();
+  });
+
   it("stores checklist result only inside customer access scope", async () => {
     vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
     vi.spyOn(db, "getConsultationChecklistTemplateById").mockResolvedValue({ id: 701, isActive: true, deletedAt: null } as any);
@@ -2528,6 +2592,91 @@ describe("PR11 consultation tools", () => {
     })).rejects.toThrow();
   });
 
+  it("allows branch_admin to update and soft-deactivate message templates without logging full body", async () => {
+    const existing = {
+      id: 901,
+      title: "부재 후 재연락",
+      situation: "missed_call",
+      channel: "both",
+      body: "Original template body.",
+      complianceNote: null,
+      isActive: true,
+      deletedAt: null,
+    } as any;
+    vi.spyOn(db, "getMessageTemplateById").mockResolvedValue(existing);
+    const updateSpy = vi.spyOn(db, "updateMessageTemplate").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.updateMessageTemplate({
+      id: 901,
+      title: "수정된 문구",
+      situation: "proposal_follow_up",
+      channel: "sms",
+      body: "{고객명}님 {담당자명}입니다. {상담주제} 관련해 다시 안내드립니다.",
+      complianceNote: "확정 표현 금지",
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalledWith(901, expect.objectContaining({
+      title: "수정된 문구",
+      body: "{고객명}님 {담당자명}입니다. {상담주제} 관련해 다시 안내드립니다.",
+      updatedBy: 1,
+    }));
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "MESSAGE_TEMPLATE_UPDATED",
+      details: expect.not.stringContaining("다시 안내드립니다"),
+    }), undefined);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      details: expect.stringContaining("[redacted]"),
+    }), undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.updateMessageTemplate({
+      id: 901,
+      isActive: false,
+    })).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenLastCalledWith(901, expect.objectContaining({
+      isActive: false,
+      deletedAt: expect.any(Date),
+      updatedBy: 1,
+    }));
+    expect(logSpy).toHaveBeenLastCalledWith(expect.objectContaining({
+      action: "MESSAGE_TEMPLATE_DEACTIVATED",
+      details: expect.not.stringContaining("Original template body"),
+    }), undefined);
+  });
+
+  it("keeps message template update and deactivate branch_admin only", async () => {
+    const input = { id: 901, title: "Blocked template" };
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin")).consultationTools.updateMessageTemplate(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader")).consultationTools.updateMessageTemplate(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member")).consultationTools.updateMessageTemplate(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).consultationTools.updateMessageTemplate(input)).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).consultationTools.updateMessageTemplate(input)).rejects.toThrow();
+  });
+
+  it("keeps message template update compliance guards", async () => {
+    vi.spyOn(db, "getMessageTemplateById").mockResolvedValue({
+      id: 901,
+      title: "부재 후 재연락",
+      situation: "missed_call",
+      channel: "both",
+      body: "safe body",
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    const updateSpy = vi.spyOn(db, "updateMessageTemplate").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.updateMessageTemplate({
+      id: 901,
+      body: "지금 가입해야 합니다.",
+    })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin")).consultationTools.updateMessageTemplate({
+      id: 901,
+      body: "{연락처}로 연락주세요.",
+    })).rejects.toThrow();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
   it("renders and logs message copy without storing full body in activity log", async () => {
     vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
     vi.spyOn(db, "getMessageTemplateById").mockResolvedValue({
@@ -2557,6 +2706,12 @@ describe("PR11 consultation tools", () => {
     expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
       action: "MESSAGE_TEMPLATE_COPIED",
       details: expect.not.stringContaining("안녕하세요"),
+    }), undefined);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      details: expect.stringContaining("\"templateId\":901"),
+    }), undefined);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      details: expect.stringContaining("\"channel\":\"both\""),
     }), undefined);
   });
 });
