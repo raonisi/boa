@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { redactAuditDisplayText } from "@/lib/auditRedaction";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { getRoleLabel, getTargetTypeLabel } from "@/lib/userRole";
@@ -512,7 +513,7 @@ function AuditLogsTab(props: {
                       <div className="font-semibold text-slate-900">{getActionLabel(entry.action)}</div>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">{getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
-                    <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{entry.reason ?? entry.summary ?? "-"}</TableCell>
+                    <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{redactAuditDisplayText(entry.reason ?? entry.summary ?? "-", 160)}</TableCell>
                     <TableCell><Badge className={eventLevelClasses[entry.riskLevel] ?? eventLevelClasses.normal}>{eventLevelLabels[entry.riskLevel] ?? eventLevelLabels.normal}</Badge></TableCell>
                   </TableRow>
                 ))

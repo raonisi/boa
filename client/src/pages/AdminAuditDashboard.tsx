@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { redactAuditDisplayText } from "@/lib/auditRedaction";
 import { trpc } from "@/lib/trpc";
 import { getTargetTypeLabel } from "@/lib/userRole";
 import { Activity, AlertTriangle, Bell, Database, Download, ShieldCheck, Trash2, Users } from "lucide-react";
@@ -239,7 +240,7 @@ export default function AdminAuditDashboard() {
                           {getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}
                         </TableCell>
                         <TableCell className="max-w-sm truncate text-xs text-muted-foreground">
-                          {entry.reason ?? entry.summary ?? "-"}
+                          {redactAuditDisplayText(entry.reason ?? entry.summary ?? "-", 160)}
                         </TableCell>
                         <TableCell>
                           <Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge>
@@ -330,7 +331,7 @@ export default function AdminAuditDashboard() {
                           <div className="font-semibold text-slate-900">{actionLabel(entry.action)}</div>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">{getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
-                        <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{entry.reason ?? entry.summary ?? "-"}</TableCell>
+                        <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{redactAuditDisplayText(entry.reason ?? entry.summary ?? "-", 160)}</TableCell>
                         <TableCell><Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge></TableCell>
                       </TableRow>
                     ))
