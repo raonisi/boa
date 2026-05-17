@@ -653,6 +653,7 @@ export async function getCustomers(filter: {
   priority?: string;
   tag?: string;
   nextAction?: string;
+  search?: string;
   assignedDateFrom?: Date;
   assignedDateTo?: Date;
 }) {
@@ -689,6 +690,18 @@ export async function getCustomers(filter: {
   if (filter.priority) conditions.push(eq(customers.priority, filter.priority as any));
   if (filter.nextAction) conditions.push(eq(customers.nextAction, filter.nextAction));
   if (filter.tag) conditions.push(sql`${customers.customerTags} like ${`%${filter.tag}%`}` as any);
+  const search = filter.search?.trim().toLowerCase();
+  if (search) {
+    const likeSearch = `%${search}%`;
+    conditions.push(or(
+      sql`lower(${customers.name}) like ${likeSearch}`,
+      sql`lower(${customers.phone}) like ${likeSearch}`,
+      sql`lower(${customers.region}) like ${likeSearch}`,
+      sql`lower(${customers.source}) like ${likeSearch}`,
+      sql`lower(${customers.consultStatus}) like ${likeSearch}`,
+      sql`lower(${customers.priority}) like ${likeSearch}`,
+    ) as any);
+  }
   if (filter.assignedDateFrom) conditions.push(gte(customers.assignedAt, filter.assignedDateFrom) as any);
   if (filter.assignedDateTo) conditions.push(lte(customers.assignedAt, filter.assignedDateTo) as any);
 

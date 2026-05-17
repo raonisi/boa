@@ -117,6 +117,7 @@ export default function CustomerList() {
 
   const utils = trpc.useUtils();
   const { data: customers, refetch, isLoading: isCustomersLoading, isError: isCustomersError } = trpc.customers.list.useQuery({
+    search: search.trim() || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
     priority: priorityFilter === "all" ? undefined : priorityFilter as any,
     tag: tagFilter === "all" ? undefined : tagFilter as any,
@@ -194,7 +195,6 @@ export default function CustomerList() {
   const reclaimTargetCustomer = (customers ?? []).find((c) => c.id === reclaimCustomerId);
 
   const filtered = (customers ?? []).filter((c) => {
-    const matchSearch = !search || c.name.includes(search) || (c.phone ?? "").includes(search);
     const matchRegion = !regionFilter || (c.region ?? "").includes(regionFilter);
     const matchSource = !sourceFilter || (c.source ?? "").includes(sourceFilter);
     const matchAgent = agentFilter === "all" || String(c.agentId) === agentFilter;
@@ -204,7 +204,7 @@ export default function CustomerList() {
       (recommendationFilter === "recommended" && Boolean(recommendation)) ||
       (recommendationFilter === "warning" && Boolean(recommendation?.warnings?.length)) ||
       (recommendationFilter === "high" && recommendation?.urgency === "high");
-    return matchSearch && matchRegion && matchSource && matchAgent && matchRecommendation;
+    return matchRegion && matchSource && matchAgent && matchRecommendation;
   });
 
   const workspaceStats = {
@@ -250,9 +250,10 @@ export default function CustomerList() {
   });
   const selectedBulkAssignee = bulkAssignableUsers.find((agent) => String(agent.id) === bulkAssigneeId);
 
-  const hasActiveFilters = statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || workspaceFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
+  const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || workspaceFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
 
   const clearFilters = () => {
+    setSearch("");
     setStatusFilter("all");
     setRegionFilter("");
     setSourceFilter("");

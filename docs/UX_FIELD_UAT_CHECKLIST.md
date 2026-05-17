@@ -350,6 +350,14 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 6. ActivityLog query failure shows retry guidance and does not show "no logs" messaging.
 7. Error states do not render raw API errors, stack traces, tokens, secrets, or customer details.
 
+## Mobile Customer Search UAT
+1. Mobile CustomerList search input sends the search term to `customers.list` and refreshes results while typing.
+2. Search results remain limited to the signed-in user's existing customer scope: branch_admin, sub_branch_admin, team_leader, and member.
+3. member search does not reveal customers assigned to another member, team, sub-branch, or branch.
+4. team_leader search does not reveal customers outside the leader's team scope.
+5. Search result zero state uses EmptyState and API failure uses ErrorState.
+6. Authorized customer phone and birth-date display policy remains unchanged in mobile customer cards and details.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.

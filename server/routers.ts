@@ -3691,6 +3691,7 @@ export const appRouter = router({
     list: activeUserProcedure
       .input(z.object({
         status: z.string().optional(),
+        search: z.string().optional(),
         unassigned: z.boolean().optional(),
         assignmentStatus: z.enum(["unassigned", "assigned_to_sub_branch", "assigned_to_agent"]).optional(),
         region: z.string().optional(),
@@ -3710,6 +3711,7 @@ export const appRouter = router({
           throw new TRPCError({ code: "FORBIDDEN", message: "전체 DB는 지점장만 조회할 수 있습니다." });
         }
         const baseFilter = {
+          search: input.search?.trim() || undefined,
           status: input.status,
           unassigned: input.unassigned,
           assignmentStatus: input.assignmentStatus,

@@ -1433,6 +1433,21 @@ describe("PR16 - branch_admin own scope and assignee handling", () => {
     expect(getCustomersSpy).toHaveBeenNthCalledWith(4, expect.objectContaining({ agentId: 3 }));
   });
 
+  it("applies customer search inside each role scope without widening access", async () => {
+    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.list({ search: "  test  " });
+    await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customers.list({ search: "test" });
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).customers.list({ search: "test" });
+    await appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).customers.list({ search: "test" });
+
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(1, expect.objectContaining({ search: "test" }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(1, expect.not.objectContaining({ agentId: 4, teamId: 10, subBranchAdminId: 2 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(2, expect.objectContaining({ search: "test", subBranchAdminId: 2 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(3, expect.objectContaining({ search: "test", teamId: 10 }));
+    expect(getCustomersSpy).toHaveBeenNthCalledWith(4, expect.objectContaining({ search: "test", agentId: 4 }));
+  });
+
   it("lets managers narrow the actual sales pipeline customer list to a selected organization member", async () => {
     const users = [
       { id: 1, name: "[TEST] Branch", role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: null },
