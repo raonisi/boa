@@ -10,16 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { KeyRound, LogOut, Plus, ShieldCheck, ShieldX, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const roleLabels: Record<string, string> = {
-  branch_admin: "지점장",
-  sub_branch_admin: "부지점장",
-  team_leader: "팀장",
-  member: "팀원",
-};
 
 const roleBadgeColors: Record<string, string> = {
   branch_admin: "bg-purple-100 text-purple-700",
@@ -32,12 +26,6 @@ const statusBadgeColors: Record<string, string> = {
   active: "bg-green-100 text-green-700",
   inactive: "bg-gray-100 text-gray-500",
   resigned: "bg-red-100 text-red-700",
-};
-
-const statusLabels: Record<string, string> = {
-  active: "재직",
-  inactive: "비활성",
-  resigned: "퇴사",
 };
 
 const loginStatusLabels: Record<string, string> = {
@@ -196,12 +184,12 @@ export default function UserManagement() {
                           <TableCell className="text-xs">{(u as any).phone ?? "-"}</TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}>
-                              {roleLabels[u.role] ?? u.role}
+                              {getRoleLabel(u.role)}
                             </span>
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}>
-                              {statusLabels[(u as any).accountStatus] ?? (u as any).accountStatus}
+                              {getUserStatusLabel((u as any).accountStatus)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -367,9 +355,9 @@ export default function UserManagement() {
                 <Select defaultValue={(editUser as any).accountStatus ?? "active"} onValueChange={(v) => updateAccountStatusMutation.mutate({ userId: editUser.id, accountStatus: v as any })}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">재직 (active)</SelectItem>
-                    <SelectItem value="inactive">비활성 (inactive)</SelectItem>
-                    <SelectItem value="resigned">퇴사 (resigned)</SelectItem>
+                    <SelectItem value="active">활성</SelectItem>
+                    <SelectItem value="inactive">비활성</SelectItem>
+                    <SelectItem value="resigned">퇴사자</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -531,8 +519,8 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
             <Select value={form.accountStatus} onValueChange={(v) => setForm({ ...form, accountStatus: v as any })}>
               <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">재직 (active)</SelectItem>
-                <SelectItem value="inactive">비활성 (inactive)</SelectItem>
+                <SelectItem value="active">활성</SelectItem>
+                <SelectItem value="inactive">비활성</SelectItem>
               </SelectContent>
             </Select>
           </div>

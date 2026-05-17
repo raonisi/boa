@@ -29,6 +29,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+const followUpStatusLabels: Record<string, string> = {
+  scheduled: "예정",
+  postponed: "연기",
+  completed: "완료",
+  cancelled: "취소",
+};
+
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
 const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "보장분석", "계약상담", "사후관리", "기타"] as const;
 const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
@@ -1538,7 +1545,7 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
                     <p className="text-sm font-medium">{new Date(item.nextContactDate).toLocaleString("ko-KR")} · {item.nextAction}</p>
                     <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
                   </div>
-                  <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{item.status}</span>
+                  <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{followUpStatusLabels[item.status] ?? item.status}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap justify-end gap-2">
                   <Button size="sm" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>

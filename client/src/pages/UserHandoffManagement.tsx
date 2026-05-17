@@ -9,23 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { formatUserWithRole } from "@/lib/userRole";
+import { formatUserWithRole, getUserStatusLabel } from "@/lib/userRole";
 import { ArrowRightLeft, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-
-const roleLabel: Record<string, string> = {
-  branch_admin: "지점장",
-  sub_branch_admin: "부지점장",
-  team_leader: "팀장",
-  member: "팀원",
-};
-
-const statusLabel: Record<string, string> = {
-  active: "active",
-  inactive: "inactive",
-  resigned: "resigned",
-};
 
 export default function UserHandoffManagement() {
   const utils = trpc.useUtils();
@@ -102,7 +89,7 @@ export default function UserHandoffManagement() {
                     <SelectContent>
                       {sourceUsers.map((user: any) => (
                         <SelectItem key={user.id} value={String(user.id)}>
-                          {formatUserWithRole(user)} · {statusLabel[user.accountStatus] ?? user.accountStatus}
+                          {formatUserWithRole(user)} · {getUserStatusLabel(user.accountStatus)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -111,7 +98,7 @@ export default function UserHandoffManagement() {
                 <div className="space-y-2">
                   <Label>새 담당자</Label>
                   <Select value={targetUserId ? String(targetUserId) : ""} onValueChange={(value) => setTargetUserId(Number(value))}>
-                    <SelectTrigger className="rounded-xl bg-slate-50"><SelectValue placeholder="active 팀장/팀원 선택" /></SelectTrigger>
+                    <SelectTrigger className="rounded-xl bg-slate-50"><SelectValue placeholder="활성 팀장/팀원 선택" /></SelectTrigger>
                     <SelectContent>
                       {targetUsers.map((user: any) => (
                         <SelectItem key={user.id} value={String(user.id)}>
@@ -126,8 +113,8 @@ export default function UserHandoffManagement() {
               {preview && (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {[
-                    ["activeCustomers", "active 고객"],
-                    ["activeContracts", "active 계약"],
+                    ["activeCustomers", "활성 고객"],
+                    ["activeContracts", "활성 계약"],
                     ["pendingFollowUps", "미완료 후속관리"],
                     ["pendingSchedules", "미완료 일정"],
                     ["pendingNotifications", "미확인 알림"],
@@ -149,7 +136,7 @@ export default function UserHandoffManagement() {
                 <p className="mb-3 text-sm font-medium">이관 범위</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
-                    [transferCustomers, setTransferCustomers, "고객 및 active 계약 담당자"],
+                    [transferCustomers, setTransferCustomers, "고객 및 활성 계약 담당자"],
                     [transferFollowUps, setTransferFollowUps, "scheduled/postponed 후속관리"],
                     [transferSchedules, setTransferSchedules, "미완료 일정"],
                     [transferNotifications, setTransferNotifications, "미확인 알림"],
@@ -169,8 +156,8 @@ export default function UserHandoffManagement() {
                     <SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="keep">상태 유지</SelectItem>
-                      <SelectItem value="inactive">inactive 전환</SelectItem>
-                      <SelectItem value="resigned">resigned 전환</SelectItem>
+                      <SelectItem value="inactive">비활성 전환</SelectItem>
+                      <SelectItem value="resigned">퇴사자 전환</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -221,7 +208,7 @@ export default function UserHandoffManagement() {
                 <p className="font-medium">{selectedTarget ? formatUserWithRole(selectedTarget) : "-"}</p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-muted-foreground">
-                새 담당자는 active 상태의 team_leader/member만 허용됩니다. 고객의 팀과 부지점장 범위는 새 담당자 기준으로 동기화됩니다.
+                새 담당자는 활성 상태의 팀장/팀원만 허용됩니다. 고객의 팀과 부지점장 범위는 새 담당자 기준으로 동기화됩니다.
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-muted-foreground">
                 고객별 인수인계 메모는 고객 상세 화면의 인수인계 메모 카드에서 작성할 수 있습니다. 민감정보는 메모에 입력하지 마세요.
@@ -254,7 +241,7 @@ export default function UserHandoffManagement() {
                     <TableCell>#{item.sourceUserId}</TableCell>
                     <TableCell>#{item.targetUserId}</TableCell>
                     <TableCell>{item.transferredCustomerCount}/{item.transferredFollowUpCount}/{item.transferredScheduleCount}/{item.transferredNotificationCount}</TableCell>
-                    <TableCell>{item.sourceAccountStatusBefore} → {item.sourceAccountStatusAfter}</TableCell>
+                    <TableCell>{getUserStatusLabel(item.sourceAccountStatusBefore)} → {getUserStatusLabel(item.sourceAccountStatusAfter)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

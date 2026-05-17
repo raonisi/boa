@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { formatUserWithRole } from "@/lib/userRole";
 import {
   OTHER_PIPELINE_COLUMN,
   SALES_PIPELINE_COLUMNS,
@@ -353,7 +354,7 @@ export default function SalesPipeline() {
                     <SelectItem value="all">확인할 조직원을 선택하세요</SelectItem>
                     {(filterOptions?.users ?? []).map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
-                        {item.name ?? `사용자 #${item.id}`} · {item.role}
+                        {formatUserWithRole(item)}
                       </SelectItem>
                     ))}
                   </SelectContent>

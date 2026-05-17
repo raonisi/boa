@@ -59,6 +59,7 @@ import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "./ui/button";
+import { getRoleLabel } from "@/lib/userRole";
 
 type NavItem = {
   icon: React.ElementType;
@@ -123,13 +124,6 @@ const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";
 const DEFAULT_WIDTH = 220;
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 300;
-
-const roleLabel: Record<string, string> = {
-  branch_admin: "지점장",
-  sub_branch_admin: "부지점장",
-  team_leader: "팀장",
-  member: "팀원",
-};
 
 const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/analytics", title: "영업 분석" },
@@ -326,7 +320,7 @@ function DashboardLayoutContent({
                     <div className="flex-1 min-w-0">
                       <p className="truncate text-xs font-semibold text-sidebar-foreground">{user?.name ?? "-"}</p>
                       <p className="truncate text-[10px] text-sidebar-primary/85">
-                        {roleLabel[user?.role ?? "member"]}
+                        {getRoleLabel(user?.role)}
                       </p>
                     </div>
                   )}
@@ -335,7 +329,7 @@ function DashboardLayoutContent({
               <DropdownMenuContent align="end" className="w-44">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{roleLabel[user?.role ?? "member"]}</p>
+                  <p className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</p>
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">

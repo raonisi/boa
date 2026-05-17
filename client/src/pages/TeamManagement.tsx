@@ -7,16 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
+import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { Building2, Edit2, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const roleLabels: Record<string, string> = {
-  branch_admin: "지점장",
-  sub_branch_admin: "부지점장",
-  team_leader: "팀장",
-  member: "팀원",
-};
 
 export default function TeamManagement() {
   return (
@@ -148,7 +142,7 @@ function OrgHierarchyView() {
                           {teamMembers.map((u) => (
                             <div key={u.id} className="flex items-center gap-2 text-xs">
                               <span className={`px-1.5 py-0.5 rounded text-[10px] ${u.role === "team_leader" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}>
-                                {roleLabels[u.role] ?? u.role}
+                                {getRoleLabel(u.role)}
                               </span>
                               <span className="font-medium">{u.name}</span>
                               {/* 팀원 부지점장 변경 */}
@@ -179,7 +173,7 @@ function OrgHierarchyView() {
                     <div className="space-y-1 pl-2">
                       {unassignedInSba.map((u) => (
                         <div key={u.id} className="flex items-center gap-2 text-xs">
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700">{roleLabels[u.role] ?? u.role}</span>
+                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700">{getRoleLabel(u.role)}</span>
                           <span className="font-medium">{u.name}</span>
                           <Select
                             value={String(u.teamId ?? "none")}
@@ -212,7 +206,7 @@ function OrgHierarchyView() {
             <div className="space-y-2">
               {unassignedUsers.map((u) => (
                 <div key={u.id} className="flex items-center gap-2 text-sm">
-                  <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{roleLabels[u.role] ?? u.role}</span>
+                  <span className="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">{getRoleLabel(u.role)}</span>
                   <span className="font-medium">{u.name}</span>
                   <div className="ml-auto flex gap-2">
                     {/* 부지점장 배치 */}
@@ -356,7 +350,7 @@ function TeamListView() {
                             </td>
                             <td className="p-3">
                               <span className={`text-xs px-2 py-0.5 rounded-full ${(u as any).accountStatus === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                                {(u as any).accountStatus === "active" ? "재직" : "비활성"}
+                                {getUserStatusLabel((u as any).accountStatus)}
                               </span>
                             </td>
                             <td className="p-3">
@@ -399,7 +393,7 @@ function TeamListView() {
                   {unassigned.map((u) => (
                     <tr key={u.id}>
                       <td className="p-3 font-medium">{u.name ?? "-"}</td>
-                      <td className="p-3 text-xs text-muted-foreground">{roleLabels[u.role] ?? u.role}</td>
+                      <td className="p-3 text-xs text-muted-foreground">{getRoleLabel(u.role)}</td>
                       <td className="p-3">
                         <Select value="none" onValueChange={(v) => updateUserTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}>
                           <SelectTrigger className="h-7 text-xs w-28"><SelectValue placeholder="팀 선택" /></SelectTrigger>
