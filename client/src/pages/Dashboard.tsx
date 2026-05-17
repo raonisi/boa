@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ErrorState } from "@/components/ui/empty-state";
 import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import {
@@ -166,8 +167,12 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
   const [confirmAction, setConfirmAction] = useState<"cancelFollowUp" | null>(null);
   const busyTaskKeyRef = useRef<string | null>(null);
   const utils = trpc.useUtils();
-  const { data, isLoading } = trpc.dashboard.todayWork.useQuery({});
-  const { data: recommendationSummary } = trpc.recommendations.dashboardSummary.useQuery({});
+  const { data, isLoading, isError, refetch } = trpc.dashboard.todayWork.useQuery({});
+  const {
+    data: recommendationSummary,
+    isError: isRecommendationError,
+    refetch: refetchRecommendationSummary,
+  } = trpc.recommendations.dashboardSummary.useQuery({});
   const refreshTodayWork = () => {
     utils.dashboard.todayWork.invalidate();
     utils.notifications.list.invalidate();
@@ -194,6 +199,12 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
   const followUpCancelMutation = trpc.followUps.cancel.useMutation({ onSuccess: refreshTodayWork });
   const scheduleUpdateMutation = trpc.schedules.update.useMutation({ onSuccess: refreshTodayWork });
   const customerUpdateMutation = trpc.customers.update.useMutation({ onSuccess: refreshTodayWork });
+  const retryTodayWork = () => {
+    void refetch();
+  };
+  const retryRecommendationSummary = () => {
+    void refetchRecommendationSummary();
+  };
   const cards = data?.cards;
   const topContacts = recommendationSummary?.topContacts ?? [];
   const rolePriorityText =
@@ -208,7 +219,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
     {
       key: "notifications",
       title: "미확인 알림",
-      count: cards?.pendingNotificationCount ?? 0,
+      count: isError ? "-" : cards?.pendingNotificationCount ?? 0,
       hint: "즉시 확인이 필요한 알림",
       actionLabel: "알림센터",
       onClick: () => setLocation("/notifications"),
@@ -217,7 +228,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
     {
       key: "overdueFollowUps",
       title: "미처리 후속",
-      count: cards?.overdueFollowUpCount ?? 0,
+      count: isError ? "-" : cards?.overdueFollowUpCount ?? 0,
       hint: "기한이 지난 재연락 업무",
       actionLabel: "후속관리 열기",
       onClick: () => setLocation("/customers"),
@@ -226,7 +237,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
     {
       key: "todayContacts",
       title: "오늘 연락 대상",
-      count: cards?.todayFollowUpCount ?? 0,
+      count: isError ? "-" : cards?.todayFollowUpCount ?? 0,
       hint: "이전에 약속한 연락 업무",
       actionLabel: "고객 DB",
       onClick: () => setLocation("/customers"),
@@ -235,7 +246,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
     {
       key: "schedules",
       title: "오늘 일정",
-      count: cards?.todayScheduleCount ?? 0,
+      count: isError ? "-" : cards?.todayScheduleCount ?? 0,
       hint: "오늘 진행할 상담·계약 일정",
       actionLabel: "일정 캘린더",
       onClick: () => setLocation("/calendar"),
@@ -423,7 +434,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
                   className="rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/45"
                 >
                   <p className="text-[11px] font-medium text-muted-foreground">{item.label}</p>
-                  <p className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${item.tone}`}>{isLoading ? "-" : item.value}</p>
+                  <p className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${item.tone}`}>{isLoading || isError ? "-" : item.value}</p>
                 </button>
               ))}
             </div>
@@ -450,7 +461,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
                       <p className="truncate text-sm font-bold">{item.label}</p>
                       <p className="mt-1 text-xs opacity-80">{item.helper}</p>
                     </div>
-                    <p className="shrink-0 text-2xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : item.value}</p>
+                    <p className="shrink-0 text-2xl font-bold tabular-nums tracking-tight">{isLoading || isError ? "-" : item.value}</p>
                   </div>
                 </button>
               ))}
@@ -460,13 +471,13 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
       </Card>
 
       <div className="hidden gap-3 md:grid md:grid-cols-4 xl:grid-cols-7">
-        <PremiumStatCard title="오늘 연락 대상" value={isLoading ? "-" : cards?.todayFollowUpCount} icon={Phone} tone="gold" helper="후속 연락 예정" />
-        <PremiumStatCard title="미처리 후속관리" value={isLoading ? "-" : cards?.overdueFollowUpCount} icon={Clock3} tone="red" helper="기한 경과" />
-        <PremiumStatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} tone="blue" helper="오늘 진행할 일정" />
-        <PremiumStatCard title="미완료 일정" value={isLoading ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} tone="orange" helper="처리 필요 일정" />
-        <PremiumStatCard title="미확인 알림" value={isLoading ? "-" : cards?.pendingNotificationCount} icon={Bell} tone="red" helper="확인 대기" />
-        <PremiumStatCard title="이번 달 신규 계약" value={isLoading ? "-" : cards?.monthlyContractCount} icon={FileText} tone="green" helper="신규 영업 성과" />
-        <PremiumStatCard title="월납보험료 실적" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} tone="navy" helper="입력 계약 기준" />
+        <PremiumStatCard title="오늘 연락 대상" value={isLoading || isError ? "-" : cards?.todayFollowUpCount} icon={Phone} tone="gold" helper="후속 연락 예정" />
+        <PremiumStatCard title="미처리 후속관리" value={isLoading || isError ? "-" : cards?.overdueFollowUpCount} icon={Clock3} tone="red" helper="기한 경과" />
+        <PremiumStatCard title="오늘 상담 예정" value={isLoading || isError ? "-" : cards?.todayScheduleCount} icon={CalendarDays} tone="blue" helper="오늘 진행할 일정" />
+        <PremiumStatCard title="미완료 일정" value={isLoading || isError ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} tone="orange" helper="처리 필요 일정" />
+        <PremiumStatCard title="미확인 알림" value={isLoading || isError ? "-" : cards?.pendingNotificationCount} icon={Bell} tone="red" helper="확인 대기" />
+        <PremiumStatCard title="이번 달 신규 계약" value={isLoading || isError ? "-" : cards?.monthlyContractCount} icon={FileText} tone="green" helper="신규 영업 성과" />
+        <PremiumStatCard title="월납보험료 실적" value={isLoading || isError ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} tone="navy" helper="입력 계약 기준" />
       </div>
 
       <Card className="md:hidden shadow-sm">
@@ -491,7 +502,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
                 className="min-h-12 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
               >
                 <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">{item.value}</p>
+                <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">{isLoading || isError ? "-" : item.value}</p>
               </button>
             ))}
           </div>
@@ -510,6 +521,14 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
             <div className="space-y-2">
               {[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-lg bg-muted" />)}
             </div>
+          ) : isError ? (
+            <ErrorState
+              title="오늘 업무를 불러오지 못했습니다."
+              description="업무 수치를 0건으로 표시하지 않고 있습니다. 잠시 후 다시 시도해 주세요."
+              retryLabel="다시 시도"
+              onRetry={retryTodayWork}
+              className="border-0 bg-transparent py-6"
+            />
           ) : !hasMobileTasks ? (
             <EmptyState action={<Button type="button" size="sm" variant="outline" onClick={() => setLocation("/calendar")}>일정 등록</Button>}>
               처리할 업무가 없습니다.
@@ -732,7 +751,17 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
         </CardHeader>
         <CardContent className="space-y-3 px-5 pb-5">
           <div className="grid gap-2 md:grid-cols-4">
-            {fieldQueue.map((item) => (
+            {isError ? (
+              <div className="md:col-span-4">
+                <ErrorState
+                  title="현장 처리 업무를 불러오지 못했습니다."
+                  description="알림, 후속관리, 일정 수치를 0건으로 표시하지 않고 있습니다."
+                  retryLabel="다시 시도"
+                  onRetry={retryTodayWork}
+                  className="py-6"
+                />
+              </div>
+            ) : fieldQueue.map((item) => (
               <div key={item.title} className={`rounded-lg border p-3 shadow-sm ${item.tone}`}>
                 <p className="text-xs text-muted-foreground">{item.title}</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">{item.count}</p>
@@ -793,7 +822,15 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
               일반 {priorityCounts.general}건
             </button>
           </div>
-          {sortedPendingNotifications.length === 0 ? (
+          {isError ? (
+            <ErrorState
+              title="알림 업무를 불러오지 못했습니다."
+              description="미확인 알림을 0건으로 표시하지 않고 있습니다. 다시 시도해 주세요."
+              retryLabel="다시 시도"
+              onRetry={retryTodayWork}
+              className="py-6"
+            />
+          ) : sortedPendingNotifications.length === 0 ? (
             <EmptyState
               action={
                 <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/notifications")}>
@@ -866,20 +903,28 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
           <div className="hidden grid-cols-3 gap-2 text-xs sm:grid">
             <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
               <p className="text-muted-foreground">추천</p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">{recommendationSummary?.priorityContactCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">{isRecommendationError ? "-" : recommendationSummary?.priorityContactCount ?? 0}</p>
             </div>
             <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
               <p className="text-muted-foreground">긴급</p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">{recommendationSummary?.highUrgencyCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-red-600 dark:text-red-400">{isRecommendationError ? "-" : recommendationSummary?.highUrgencyCount ?? 0}</p>
             </div>
             <div className="rounded-lg border border-border/80 bg-muted/30 px-3 py-2 text-center">
               <p className="text-muted-foreground">경고</p>
-              <p className="text-lg font-bold tabular-nums tracking-tight text-amber-800 dark:text-amber-300">{recommendationSummary?.warningCount ?? 0}</p>
+              <p className="text-lg font-bold tabular-nums tracking-tight text-amber-800 dark:text-amber-300">{isRecommendationError ? "-" : recommendationSummary?.warningCount ?? 0}</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="px-5 pb-5">
-          {topContacts.length === 0 ? (
+          {isRecommendationError ? (
+            <ErrorState
+              title="우선 연락 고객을 불러오지 못했습니다."
+              description="추천 고객이 없는 상태와 구분해 표시하고 있습니다."
+              retryLabel="다시 시도"
+              onRetry={retryRecommendationSummary}
+              className="py-6"
+            />
+          ) : topContacts.length === 0 ? (
             <EmptyState
               action={
                 <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
@@ -920,7 +965,15 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-4">
         <SectionCard title="오늘의 일정" icon={CalendarDays} action={<button type="button" onClick={() => setLocation("/calendar")} className="text-xs font-semibold text-primary hover:underline">전체 보기</button>}>
-          {(data?.todaySchedules ?? []).length === 0 ? (
+          {isError ? (
+            <ErrorState
+              title="오늘 일정을 불러오지 못했습니다."
+              description="일정이 없는 상태와 구분해 표시하고 있습니다."
+              retryLabel="다시 시도"
+              onRetry={retryTodayWork}
+              className="py-6"
+            />
+          ) : (data?.todaySchedules ?? []).length === 0 ? (
             <EmptyState
               action={
                 <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/calendar")}>
@@ -944,7 +997,15 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
         </SectionCard>
 
         <SectionCard title="중요 알림" icon={Bell} action={<button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">알림센터</button>}>
-          {(data?.pendingNotifications ?? []).length === 0 ? (
+          {isError ? (
+            <ErrorState
+              title="중요 알림을 불러오지 못했습니다."
+              description="알림이 없는 상태와 구분해 표시하고 있습니다."
+              retryLabel="다시 시도"
+              onRetry={retryTodayWork}
+              className="py-6"
+            />
+          ) : (data?.pendingNotifications ?? []).length === 0 ? (
             <EmptyState
               action={
                 <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/notifications")}>
@@ -968,7 +1029,15 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
         </SectionCard>
 
         <SectionCard title="장기 미관리 고객" icon={Users}>
-          {(data?.longUnmanagedCustomers ?? []).filter(Boolean).length === 0 ? (
+          {isError ? (
+            <ErrorState
+              title="장기 미관리 고객을 불러오지 못했습니다."
+              description="고객이 없는 상태와 구분해 표시하고 있습니다."
+              retryLabel="다시 시도"
+              onRetry={retryTodayWork}
+              className="py-6"
+            />
+          ) : (data?.longUnmanagedCustomers ?? []).filter(Boolean).length === 0 ? (
             <EmptyState
               action={
                 <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
@@ -990,7 +1059,15 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
         </SectionCard>
 
         <SectionCard title="오늘 연락 대상" icon={Phone}>
-          {(data?.todayFollowUps ?? []).length === 0 ? (
+          {isError ? (
+            <ErrorState
+              title="오늘 연락 대상을 불러오지 못했습니다."
+              description="연락 대상이 없는 상태와 구분해 표시하고 있습니다."
+              retryLabel="다시 시도"
+              onRetry={retryTodayWork}
+              className="py-6"
+            />
+          ) : (data?.todayFollowUps ?? []).length === 0 ? (
             <EmptyState
               action={
                 <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>

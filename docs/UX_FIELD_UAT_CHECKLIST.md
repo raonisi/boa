@@ -341,6 +341,15 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 5. Run `cd android && gradlew.bat assembleDebug` when the Android SDK/JDK is available.
 6. `git ls-files` must not include `android/.gradle/**`, copied web assets under `android/app/src/main/assets/public/**`, generated Capacitor config/plugin JSON, APK/AAB/JKS/keystore files, `google-services.json`, or `local.properties`.
 
+## Core Screen Error State UAT
+1. Dashboard `dashboard.todayWork` failure shows ErrorState in today-work sections and does not display failed counts as `0`.
+2. Dashboard priority-contact summary failure shows ErrorState and does not imply there are no recommended customers.
+3. CustomerList `customers.list` loading, empty, and error states are visually distinct on desktop and mobile.
+4. CustomerList query failure shows retry guidance and does not show "no customers" messaging.
+5. ActivityLog `logs.list` loading, empty, and error states are visually distinct.
+6. ActivityLog query failure shows retry guidance and does not show "no logs" messaging.
+7. Error states do not render raw API errors, stack traces, tokens, secrets, or customer details.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.

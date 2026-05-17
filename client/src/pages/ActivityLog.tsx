@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,7 +86,7 @@ export default function ActivityLog() {
   const [riskFilter, setRiskFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("30");
   const [selectedLog, setSelectedLog] = useState<any>(null);
-  const { data: logs } = trpc.logs.list.useQuery();
+  const { data: logs, isLoading: isLogsLoading, isError: isLogsError, refetch: refetchLogs } = trpc.logs.list.useQuery();
   const { data: users } = trpc.users.list.useQuery();
 
   const getUserName = (userId: number) => users?.find((u) => u.id === userId)?.name ?? `#${userId}`;
@@ -173,7 +174,7 @@ export default function ActivityLog() {
               </Select>
             </div>
             <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-              <span>표시 {filtered.length}건 / 전체 {(logs ?? []).length}건</span>
+              <span>표시 {isLogsLoading || isLogsError ? "-" : filtered.length}건 / 전체 {isLogsLoading || isLogsError ? "-" : (logs ?? []).length}건</span>
               <Button
                 type="button"
                 variant="ghost"
@@ -208,7 +209,30 @@ export default function ActivityLog() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 ? (
+                  {isLogsLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-12 text-center">
+                        <EmptyState
+                          variant="loading"
+                          title="활동 로그를 불러오는 중입니다."
+                          description="권한 범위 안의 감사 기록을 확인하고 있습니다."
+                          className="mx-auto max-w-md border-0 bg-transparent py-0"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : isLogsError ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="py-12 text-center">
+                        <ErrorState
+                          title="활동 로그를 불러오지 못했습니다."
+                          description="로그가 없는 상태와 구분해 표시하고 있습니다. 잠시 후 다시 시도해 주세요."
+                          retryLabel="다시 시도"
+                          onRetry={() => void refetchLogs()}
+                          className="mx-auto max-w-md border-0 bg-transparent py-0"
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ) : filtered.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-12">
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
