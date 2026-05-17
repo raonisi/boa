@@ -6,6 +6,7 @@
 - Mobile three-touch task completion: see `docs/MOBILE_THREE_TOUCH_TASK_UX.md`
 - Sales funnel and performance report: see `docs/SALES_FUNNEL_PERFORMANCE_REPORT.md`
 - New roadmap PR6 operation risk center: see `docs/OPERATION_RISK_CENTER.md`
+- Consultation script edit/delete hotfix in consultation tools management
 - Customer detail quick actions
 - Priority rules: urgent -> today -> general
 - Unread-first sorting within each priority
@@ -27,6 +28,7 @@
 - Quick actions are reachable within two taps/clicks.
 - Read/process actions reflect immediately after mutation.
 - No role can access out-of-scope operational data.
+- Consultation script edit/delete actions are branch_admin-only and refresh the list after mutation.
 
 ## Web UAT Steps
 1. Open dashboard and verify "field immediate queue" appears.
@@ -59,6 +61,21 @@
    - add contract,
    - open message template tools.
 3. Scroll long page and verify sticky behavior remains usable.
+
+## Consultation Tools Management UAT Steps
+
+This hotfix is separate from PR5 `/analytics`, PR6 `/operation-risk`, and PR19-4 notification preference work.
+
+1. Open the consultation tools management page as branch_admin.
+2. In the consultation script tab, create a test script with safe placeholder text only.
+3. Click "수정", change title/category/body/compliance note/tags, save, and verify the list reflects the edited values.
+4. Click "삭제", confirm the dialog, and verify the script disappears from the list.
+5. Confirm delete is a soft deactivation (`isActive=false` / `deletedAt`), not a hard delete.
+6. Confirm default seed scripts use the same soft-deactivate path because the current schema has no seed marker.
+7. Confirm sub_branch_admin, team_leader, and member do not see edit/delete controls and direct API mutation is blocked.
+8. Confirm inactive/resigned accounts cannot call consultation script mutations.
+9. Confirm activity logs do not store full consultation script body text.
+10. Confirm PR5 `/analytics` and PR6 `/operation-risk` screens are unchanged.
 
 ## Sales Funnel / Performance Report UAT Steps
 

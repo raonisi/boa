@@ -1,4 +1,6 @@
+import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -8,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { ClipboardCheck, MessageSquareText, Plus, RefreshCw } from "lucide-react";
+import { ClipboardCheck, Edit3, MessageSquareText, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -49,7 +51,9 @@ const scriptCategories = [
 const channels = ["kakao", "sms", "both"] as const;
 
 export default function ConsultationToolsManagement() {
+  const { user } = useAuth();
   const utils = trpc.useUtils();
+  const isBranchAdmin = user?.role === "branch_admin";
   const [checkTitle, setCheckTitle] = useState("");
   const [checkDescription, setCheckDescription] = useState("");
   const [checkPhase, setCheckPhase] = useState<(typeof phases)[number]["value"]>("before");
@@ -66,10 +70,17 @@ export default function ConsultationToolsManagement() {
   const [scriptBody, setScriptBody] = useState("");
   const [scriptNote, setScriptNote] = useState("");
   const [scriptTags, setScriptTags] = useState("");
+  const [editingScript, setEditingScript] = useState<any | null>(null);
+  const [editScriptTitle, setEditScriptTitle] = useState("");
+  const [editScriptCategory, setEditScriptCategory] = useState<(typeof scriptCategories)[number]>("first_call");
+  const [editScriptBody, setEditScriptBody] = useState("");
+  const [editScriptNote, setEditScriptNote] = useState("");
+  const [editScriptTags, setEditScriptTags] = useState("");
+  const [deleteScript, setDeleteScript] = useState<any | null>(null);
 
   const { data: checklists } = trpc.consultationTools.listChecklists.useQuery({ includeInactive: true });
   const { data: templates } = trpc.consultationTools.listMessageTemplates.useQuery({ includeInactive: true });
-  const { data: scripts } = trpc.consultationScripts.list.useQuery({ includeInactive: true });
+  const { data: scripts } = trpc.consultationScripts.list.useQuery({ includeInactive: false });
 
   const createChecklist = trpc.consultationTools.createChecklist.useMutation({
     onSuccess: () => {
@@ -131,9 +142,35 @@ export default function ConsultationToolsManagement() {
     onError: (error) => toast.error(error.message),
   });
   const updateScript = trpc.consultationScripts.update.useMutation({
-    onSuccess: () => utils.consultationScripts.list.invalidate(),
+    onSuccess: (_, variables) => {
+      toast.success(variables.isActive === false ? "상담 스크립트를 삭제했습니다." : "상담 스크립트를 수정했습니다.");
+      setEditingScript(null);
+      setDeleteScript(null);
+      utils.consultationScripts.list.invalidate();
+    },
     onError: (error) => toast.error(error.message),
   });
+
+  const openScriptEdit = (item: any) => {
+    setEditingScript(item);
+    setEditScriptTitle(item.title ?? "");
+    setEditScriptCategory(item.category ?? "first_call");
+    setEditScriptBody(item.scriptBody ?? "");
+    setEditScriptNote(item.complianceNote ?? "");
+    setEditScriptTags(item.tags ?? "");
+  };
+
+  const submitScriptEdit = () => {
+    if (!editingScript) return;
+    updateScript.mutate({
+      id: editingScript.id,
+      title: editScriptTitle,
+      category: editScriptCategory,
+      scriptBody: editScriptBody,
+      complianceNote: editScriptNote || null,
+      tags: editScriptTags || null,
+    });
+  };
 
   return (
     <DashboardLayout>
@@ -240,7 +277,56 @@ export default function ConsultationToolsManagement() {
                 <div className="md:col-span-4 flex justify-end"><Button onClick={() => createScript.mutate({ title: scriptTitle, category: scriptCategory, scriptBody, complianceNote: scriptNote || undefined, tags: scriptTags || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />스크립트 추가</Button></div>
               </CardContent>
             </Card>
+            {editingScript ? (
+              <Card className="border-primary/20 bg-primary/5 shadow-sm">
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">상담 스크립트 수정</CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">수정한 본문 전문은 활동 로그에 저장하지 않습니다.</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setEditingScript(null)} disabled={updateScript.isPending} aria-label="수정 취소">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-4">
+                  <div>
+                    <Label>제목</Label>
+                    <Input className="rounded-xl bg-white" value={editScriptTitle} onChange={(event) => setEditScriptTitle(event.target.value)} />
+                  </div>
+                  <div>
+                    <Label>카테고리</Label>
+                    <Select value={editScriptCategory} onValueChange={(value) => setEditScriptCategory(value as any)}>
+                      <SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger>
+                      <SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label>태그</Label>
+                    <Input className="rounded-xl bg-white" value={editScriptTags} onChange={(event) => setEditScriptTags(event.target.value)} />
+                  </div>
+                  <div className="md:col-span-4">
+                    <Label>본문</Label>
+                    <Textarea className="rounded-xl bg-white" rows={8} value={editScriptBody} onChange={(event) => setEditScriptBody(event.target.value)} />
+                  </div>
+                  <div className="md:col-span-4">
+                    <Label>준법 주의 메모</Label>
+                    <Textarea className="rounded-xl bg-white" value={editScriptNote} onChange={(event) => setEditScriptNote(event.target.value)} />
+                  </div>
+                  <div className="md:col-span-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={() => setEditingScript(null)} disabled={updateScript.isPending}>취소</Button>
+                    <Button onClick={submitScriptEdit} disabled={updateScript.isPending}>
+                      {updateScript.isPending ? "저장 중..." : "저장"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
             <div className="grid gap-3">
+              {(scripts ?? []).length === 0 ? (
+                <Card className="border-dashed border-slate-200 bg-white/80">
+                  <CardContent className="p-6 text-sm text-muted-foreground">등록된 상담 스크립트가 없습니다.</CardContent>
+                </Card>
+              ) : null}
               {(scripts ?? []).map((item: any) => (
                 <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
@@ -249,15 +335,46 @@ export default function ConsultationToolsManagement() {
                       <p className="text-xs text-muted-foreground">{item.category} / {item.tags ?? "태그 없음"} / {item.isActive ? "active" : "inactive"}</p>
                       <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{item.scriptBody}</p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => updateScript.mutate({ id: item.id, isActive: !item.isActive })}>
-                      {item.isActive ? "비활성" : "재활성"}
-                    </Button>
+                    {isBranchAdmin ? (
+                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+                        <Button size="sm" variant="outline" onClick={() => openScriptEdit(item)} disabled={updateScript.isPending}>
+                          <Edit3 className="mr-1 h-4 w-4" />수정
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => setDeleteScript(item)} disabled={updateScript.isPending}>
+                          <Trash2 className="mr-1 h-4 w-4" />삭제
+                        </Button>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               ))}
             </div>
           </TabsContent>
         </Tabs>
+        <AlertDialog open={!!deleteScript} onOpenChange={(open) => !open && setDeleteScript(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>이 상담 스크립트를 삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription>
+                삭제 후 목록에서 보이지 않습니다. 실제 데이터는 hard delete하지 않고 비활성화 상태로 전환됩니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={updateScript.isPending}>취소</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={updateScript.isPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (!deleteScript) return;
+                  updateScript.mutate({ id: deleteScript.id, isActive: false });
+                }}
+              >
+                {updateScript.isPending ? "삭제 중..." : "삭제"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </DashboardLayout>
   );
