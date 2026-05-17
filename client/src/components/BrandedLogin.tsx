@@ -14,7 +14,10 @@ export function BrandedLogin({ onLogin, loginConfigMessage }: BrandedLoginProps)
         <div className="grid w-full overflow-hidden rounded-[28px] border border-white/70 bg-white shadow-2xl shadow-slate-950/20 md:grid-cols-[1.05fr_0.95fr]">
           <section className="hidden bg-[#06172f] p-10 text-white md:flex md:flex-col md:justify-between">
             <div>
-              <BrandLogo className="h-28 w-56 justify-start" imageClassName="drop-shadow-[0_18px_35px_rgba(0,0,0,0.28)]" />
+              <BrandLogo
+                className="h-32 w-64 justify-start rounded-3xl bg-white p-4 shadow-2xl shadow-black/25 ring-1 ring-white/70"
+                imageClassName="drop-shadow-[0_10px_20px_rgba(15,23,42,0.18)]"
+              />
               <div className="mt-10 max-w-md">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#d6b14f]">Best of All</p>
                 <h1 className="mt-4 text-4xl font-bold leading-tight tracking-tight">

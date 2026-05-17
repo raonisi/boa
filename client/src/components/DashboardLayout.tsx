@@ -255,7 +255,7 @@ function DashboardLayoutContent({
               <BranchMark />
               {!isCollapsed && (
                 <div className="min-w-0">
-                  <BrandLogo className="h-7 w-24 justify-start" />
+                  <BrandLogo className="h-9 w-28 justify-start rounded-xl bg-white px-2 py-1 shadow-sm ring-1 ring-sidebar-border/70" />
                   <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
                 </div>
               )}
