@@ -8,6 +8,24 @@
 - 고객, 계약, 상담기록, 일정, 활동 로그는 일반 기능에서 hard delete하지 않습니다.
 - 삭제, 복구, 완전삭제, 다운로드, OAuth 초기화, 강제 로그아웃 같은 위험 작업은 활동 로그에 기록합니다.
 - 주민등록번호, 증권번호, 신분증, 병력상세, 계좌번호, 카드번호, 비밀키, DB URL, 토큰 원문은 저장하거나 로그에 남기지 않습니다.
+- DB/API/RBAC enum은 영어 값을 유지하고, 사용자-facing 화면에서만 한글 표시명을 사용합니다.
+
+## 사용자 화면 표시명
+
+| 내부 값 | 화면 표시 |
+|---|---|
+| `branch_admin` | 지점장 |
+| `sub_branch_admin` | 부지점장 |
+| `team_leader` | 팀장 |
+| `member` | 팀원 |
+| `active` | 활성 |
+| `inactive` | 비활성 |
+| `resigned` | 퇴사자 |
+| `managed` | 산하 전체 |
+| `mine` | 내 담당 고객 |
+| `member` scope | 조직원별 |
+
+표시명 변경은 화면 렌더링 전용이며 DB 저장값, API payload, 라우터 권한 조건, 테스트 fixture enum 값은 변경하지 않습니다.
 
 ## branch_admin
 

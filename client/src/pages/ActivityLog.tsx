@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { getTargetTypeLabel, localizeKnownEnumText } from "@/lib/userRole";
 import { Activity, Search, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 
@@ -41,7 +42,7 @@ const actionLabels: Record<string, string> = {
 const riskyPatterns = ["DOWNLOAD", "DELETE", "DELETED", "RESTORE", "RESTORED", "PURGE", "PERMANENT", "FORCE_LOGOUT", "OAUTH_RESET"];
 
 function actionLabel(action: string) {
-  return actionLabels[action] ?? action.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (s) => s.toUpperCase());
+  return actionLabels[action] ?? "기타 작업";
 }
 
 function isRiskAction(action: string) {
@@ -200,10 +201,10 @@ export default function ActivityLog() {
                             </div>
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {log.targetType ? `${log.targetType}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
+                            {log.targetType ? `${getTargetTypeLabel(log.targetType)}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
                           </TableCell>
                           <TableCell className="max-w-64 text-xs text-muted-foreground">
-                            <span className="line-clamp-2">{reason ? `사유: ${reason}` : log.details ?? "-"}</span>
+                            <span className="line-clamp-2">{reason ? `사유: ${reason}` : localizeKnownEnumText(log.details)}</span>
                           </TableCell>
                           <TableCell>
                             <Button variant="outline" size="sm" onClick={() => setSelectedLog(log)}>상세보기</Button>
@@ -227,11 +228,11 @@ export default function ActivityLog() {
                   <div><p className="text-xs text-muted-foreground">작업</p><p className="font-medium">{actionLabel(selectedLog.action)}</p></div>
                   <div><p className="text-xs text-muted-foreground">사용자</p><p className="font-medium">{getUserName(selectedLog.userId)}</p></div>
                   <div><p className="text-xs text-muted-foreground">시각</p><p>{new Date(selectedLog.createdAt).toLocaleString("ko-KR")}</p></div>
-                  <div><p className="text-xs text-muted-foreground">대상</p><p>{selectedLog.targetType ? `${selectedLog.targetType}${selectedLog.targetId ? ` #${selectedLog.targetId}` : ""}` : "-"}</p></div>
+                  <div><p className="text-xs text-muted-foreground">대상</p><p>{selectedLog.targetType ? `${getTargetTypeLabel(selectedLog.targetType)}${selectedLog.targetId ? ` #${selectedLog.targetId}` : ""}` : "-"}</p></div>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">상세</p>
-                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">{selectedLog.details ?? "-"}</pre>
+                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">{localizeKnownEnumText(selectedLog.details)}</pre>
                 </div>
               </div>
             )}

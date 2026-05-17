@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { getActiveLabel } from "@/lib/userRole";
 import { ClipboardCheck, Edit3, MessageSquareText, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -317,7 +318,7 @@ export default function ConsultationToolsManagement() {
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="font-medium">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
-                      <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {item.isActive ? "active" : "inactive"}</p>
+                      <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {getActiveLabel(item.isActive)}</p>
                       {item.description ? <p className="mt-1 text-sm text-muted-foreground">{item.description}</p> : null}
                     </div>
                     {isBranchAdmin ? (
@@ -381,7 +382,7 @@ export default function ConsultationToolsManagement() {
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <p className="font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.situation} / {item.channel} / {item.isActive ? "active" : "inactive"}</p>
+                      <p className="text-xs text-muted-foreground">{item.situation} / {item.channel} / {getActiveLabel(item.isActive)}</p>
                       <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.body}</p>
                     </div>
                     {isBranchAdmin ? (
@@ -468,7 +469,7 @@ export default function ConsultationToolsManagement() {
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <p className="font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.category} / {item.tags ?? "태그 없음"} / {item.isActive ? "active" : "inactive"}</p>
+                      <p className="text-xs text-muted-foreground">{item.category} / {item.tags ?? "태그 없음"} / {getActiveLabel(item.isActive)}</p>
                       <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{item.scriptBody}</p>
                     </div>
                     {isBranchAdmin ? (

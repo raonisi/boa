@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { getTargetTypeLabel } from "@/lib/userRole";
 import { Activity, AlertTriangle, Bell, Database, Download, ShieldCheck, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
@@ -37,7 +38,7 @@ const actionLabels: Record<string, string> = {
 };
 
 function actionLabel(action: string) {
-  return actionLabels[action] ?? action.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (s) => s.toUpperCase());
+  return actionLabels[action] ?? "기타 작업";
 }
 
 export default function AdminAuditDashboard() {
@@ -68,7 +69,7 @@ export default function AdminAuditDashboard() {
     : { label: "정상", className: "bg-emerald-100 text-emerald-700", helper: "현재 주요 운영 위험이 낮습니다." };
   const cautionCards = [
     { key: "unreadNotifications", label: "미확인 알림", helper: "알림센터에서 처리하세요.", icon: Bell, onClick: () => setLocation("/notifications") },
-    { key: "inactiveUsers", label: "inactive 사용자", helper: "계정 상태를 확인하세요.", icon: Users, onClick: () => setLocation("/users") },
+    { key: "inactiveUsers", label: "비활성 사용자", helper: "계정 상태를 확인하세요.", icon: Users, onClick: () => setLocation("/users") },
     { key: "softDeletedCustomers", label: "삭제 처리 고객", helper: "복구/정리 정책을 확인하세요.", icon: Database, onClick: () => setLocation("/deleted-data") },
     { key: "softDeletedContracts", label: "삭제 처리 계약", helper: "삭제 요청 이력을 확인하세요.", icon: Database, onClick: () => setLocation("/deleted-data") },
   ] as const;
@@ -233,10 +234,9 @@ export default function AdminAuditDashboard() {
                         </TableCell>
                         <TableCell className="text-xs">
                           <div className="font-semibold text-slate-900">{actionLabel(entry.action)}</div>
-                          <div className="text-slate-400">{entry.action}</div>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {entry.targetType ?? "-"}{entry.targetId ? ` #${entry.targetId}` : ""}
+                          {getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}
                         </TableCell>
                         <TableCell className="max-w-sm truncate text-xs text-muted-foreground">
                           {entry.reason ?? entry.summary ?? "-"}
@@ -282,15 +282,15 @@ export default function AdminAuditDashboard() {
                 </SelectContent>
               </Select>
               <Select value={targetType} onValueChange={setTargetType}>
-                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="targetType" /></SelectTrigger>
+                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="대상 유형" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 대상</SelectItem>
-                  <SelectItem value="user">user</SelectItem>
-                  <SelectItem value="customer">customer</SelectItem>
-                  <SelectItem value="contract">contract</SelectItem>
-                  <SelectItem value="team">team</SelectItem>
-                  <SelectItem value="customers">customers</SelectItem>
-                  <SelectItem value="contracts">contracts</SelectItem>
+                  <SelectItem value="user">사용자</SelectItem>
+                  <SelectItem value="customer">고객</SelectItem>
+                  <SelectItem value="contract">계약</SelectItem>
+                  <SelectItem value="team">팀</SelectItem>
+                  <SelectItem value="customers">고객</SelectItem>
+                  <SelectItem value="contracts">계약</SelectItem>
                 </SelectContent>
               </Select>
               <Input value={action} onChange={(e) => setAction(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="작업 코드" />
@@ -328,9 +328,8 @@ export default function AdminAuditDashboard() {
                         </TableCell>
                         <TableCell className="text-xs">
                           <div className="font-semibold text-slate-900">{actionLabel(entry.action)}</div>
-                          <div className="text-slate-400">{entry.action}</div>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{entry.targetType ?? "-"}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
                         <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{entry.reason ?? entry.summary ?? "-"}</TableCell>
                         <TableCell><Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge></TableCell>
                       </TableRow>

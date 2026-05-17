@@ -41,6 +41,15 @@ const typeLabels: Record<string, string> = {
   test: "테스트",
 };
 
+const sourceTypeLabels: Record<string, string> = {
+  notification: "알림",
+  schedule: "일정",
+  follow_up: "후속관리",
+  contract: "계약",
+  customer: "고객",
+  test: "테스트",
+};
+
 export default function PushNotificationOperations() {
   const utils = trpc.useUtils();
   const [status, setStatus] = useState("all");
@@ -131,7 +140,7 @@ export default function PushNotificationOperations() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input value={sourceType} onChange={(event) => setSourceType(event.target.value)} placeholder="sourceType" />
+              <Input value={sourceType} onChange={(event) => setSourceType(event.target.value)} placeholder="소스 유형" />
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-slate-100">
@@ -142,9 +151,9 @@ export default function PushNotificationOperations() {
                     <TableHead>유형</TableHead>
                     <TableHead>상태</TableHead>
                     <TableHead>사용자</TableHead>
-                    <TableHead>source</TableHead>
-                    <TableHead>errorCode</TableHead>
-                    <TableHead>sentAt</TableHead>
+                    <TableHead>소스</TableHead>
+                    <TableHead>오류 코드</TableHead>
+                    <TableHead>발송 시각</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -156,13 +165,13 @@ export default function PushNotificationOperations() {
                     (logs ?? []).map((log) => (
                       <TableRow key={log.id}>
                         <TableCell className="whitespace-nowrap text-xs text-slate-500">{new Date(log.createdAt).toLocaleString("ko-KR")}</TableCell>
-                        <TableCell className="whitespace-nowrap text-sm">{typeLabels[log.type] ?? log.type}</TableCell>
+                        <TableCell className="whitespace-nowrap text-sm">{typeLabels[log.type] ?? "기타 알림"}</TableCell>
                         <TableCell>
-                          <Badge className={statusClasses[log.status] ?? "bg-slate-100 text-slate-700"}>{statusLabels[log.status] ?? log.status}</Badge>
+                          <Badge className={statusClasses[log.status] ?? "bg-slate-100 text-slate-700"}>{statusLabels[log.status] ?? "기타 상태"}</Badge>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm">{log.userName ?? `#${log.userId}`}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-slate-500">
-                          {log.sourceType ?? "-"}{log.sourceId ? ` #${log.sourceId}` : ""}
+                          {log.sourceType ? sourceTypeLabels[log.sourceType] ?? "기타 소스" : "-"}{log.sourceId ? ` #${log.sourceId}` : ""}
                         </TableCell>
                         <TableCell className="text-xs text-slate-500">{log.errorCode ?? "-"}</TableCell>
                         <TableCell className="whitespace-nowrap text-xs text-slate-500">{log.sentAt ? new Date(log.sentAt).toLocaleString("ko-KR") : "-"}</TableCell>

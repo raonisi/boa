@@ -28,6 +28,13 @@ function fmtDate(value: unknown) {
   return new Date(value as string | Date).toLocaleString("ko-KR");
 }
 
+const deleteRequestStatusLabels: Record<string, string> = {
+  pending: "대기",
+  approved: "승인",
+  rejected: "반려",
+  cancelled: "취소",
+};
+
 export default function DeletedDataManagement() {
   const utils = trpc.useUtils();
   const [permanentTarget, setPermanentTarget] = useState<PermanentTarget>(null);
@@ -141,7 +148,7 @@ export default function DeletedDataManagement() {
                         <TableCell>{request.contract?.productName ?? request.targetId}</TableCell>
                         <TableCell>{request.contract?.monthlyPremium?.toLocaleString() ?? "-"}</TableCell>
                         <TableCell>{request.requestReason}</TableCell>
-                        <TableCell>{request.status}</TableCell>
+                        <TableCell>{deleteRequestStatusLabels[request.status] ?? "기타 상태"}</TableCell>
                         <TableCell className="text-right space-x-1">
                           <Button size="sm" variant="outline" onClick={() => setReviewTarget({ id: request.id, action: "approve" })}><Check className="h-3.5 w-3.5 mr-1" />승인</Button>
                           <Button size="sm" variant="outline" onClick={() => setReviewTarget({ id: request.id, action: "reject" })}><X className="h-3.5 w-3.5 mr-1" />반려</Button>

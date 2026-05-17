@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { getRoleLabel, getTargetTypeLabel } from "@/lib/userRole";
 import {
   Activity,
   AlertTriangle,
@@ -130,7 +131,7 @@ function formatDateTime(value?: string | Date | null) {
 }
 
 function getActionLabel(action: string) {
-  return actionLabels[action] ?? action.replaceAll("_", " ");
+  return actionLabels[action] ?? "기타 작업";
 }
 
 function getTabFromLocation(location: string): OperationRiskTab {
@@ -509,9 +510,8 @@ function AuditLogsTab(props: {
                     </TableCell>
                     <TableCell className="text-xs">
                       <div className="font-semibold text-slate-900">{getActionLabel(entry.action)}</div>
-                      <div className="text-slate-400">{entry.action}</div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{entry.targetType ?? "-"}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground">{getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
                     <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{entry.reason ?? entry.summary ?? "-"}</TableCell>
                     <TableCell><Badge className={eventLevelClasses[entry.riskLevel] ?? eventLevelClasses.normal}>{eventLevelLabels[entry.riskLevel] ?? eventLevelLabels.normal}</Badge></TableCell>
                   </TableRow>
@@ -540,7 +540,7 @@ function StatusTab({ metric, cautionCount, riskCount, setLocation }: {
 
   const cautionCards = [
     { key: "unreadNotifications", label: "미확인 알림", helper: "알림 센터에서 처리하세요.", icon: Bell, href: "/notifications" },
-    { key: "inactiveUsers", label: "inactive 사용자", helper: "계정 상태를 확인하세요.", icon: Users, href: "/users" },
+    { key: "inactiveUsers", label: "비활성 사용자", helper: "계정 상태를 확인하세요.", icon: Users, href: "/users" },
     { key: "softDeletedCustomers", label: "삭제 처리 고객", helper: "복구/정리 정책을 확인하세요.", icon: Database, href: "/deleted-data" },
     { key: "softDeletedContracts", label: "삭제 처리 계약", helper: "삭제 요청 이력을 확인하세요.", icon: Database, href: "/deleted-data" },
   ] as const;
@@ -655,13 +655,12 @@ function RiskEventsTable({ events }: { events: any[] }) {
                 <TableCell className="whitespace-nowrap text-xs text-slate-500">{formatDateTime(event.createdAt)}</TableCell>
                 <TableCell className="text-xs">
                   <div className="font-semibold text-slate-900">{getActionLabel(event.action)}</div>
-                  <div className="text-slate-400">{event.action}</div>
                 </TableCell>
                 <TableCell className="text-xs">
                   <div className="font-medium text-slate-900">{event.actor?.name ?? "-"}</div>
-                  <div className="text-slate-400">{event.actor?.role ?? "-"}</div>
+                  <div className="text-slate-400">{getRoleLabel(event.actor?.role)}</div>
                 </TableCell>
-                <TableCell className="text-xs text-slate-500">{event.targetType ?? "-"}{event.targetId ? ` #${event.targetId}` : ""}</TableCell>
+                <TableCell className="text-xs text-slate-500">{getTargetTypeLabel(event.targetType)}{event.targetId ? ` #${event.targetId}` : ""}</TableCell>
                 <TableCell className="max-w-sm truncate text-xs text-slate-500">{event.reason ?? event.summary ?? "-"}</TableCell>
                 <TableCell><Badge className={eventLevelClasses[event.riskLevel] ?? eventLevelClasses.normal}>{eventLevelLabels[event.riskLevel] ?? "일반"}</Badge></TableCell>
               </TableRow>

@@ -237,6 +237,14 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 - member: only own scope data appears.
 - Verify no cross-scope data leaks through direct navigation.
 
+## Korean Role/Status Display UAT
+1. 사용자 관리, 조직 구조, 팀 관리, 인수인계 관리에서 역할이 지점장/부지점장/팀장/팀원으로 표시되는지 확인한다.
+2. 사용자 관리와 조직 구조에서 계정 상태가 활성/비활성/퇴사자로 표시되는지 확인한다.
+3. 고객 DB 담당자 선택, DB 배정, 세일즈 파이프라인 조직원 선택에서 `member`, `team_leader`, `branch_admin` 같은 내부 enum이 보이지 않는지 확인한다.
+4. `/analytics`와 `/sales-pipeline` 범위 UI가 산하 전체/내 담당 고객/조직원별로 표시되는지 확인한다.
+5. 활동 로그와 운영 리스크 센터의 대상 유형이 사용자/고객/계약/팀처럼 표시되고, raw target type이 주요 화면에 노출되지 않는지 확인한다.
+6. 직접 API payload, DB enum, 권한 조건, activity log action code가 한글 값으로 바뀌지 않았는지 회귀 테스트로 확인한다.
+
 ## Regression Checks
 - Existing notification mutations still work:
   - markRead

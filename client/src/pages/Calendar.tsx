@@ -1,5 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, SCHEDULE_TYPES, SCHEDULE_STATUSES } from "@/components/StatusBadge";
+import { getStatusLabel, StatusBadge, SCHEDULE_TYPES, SCHEDULE_STATUSES } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -242,7 +242,7 @@ export default function Calendar() {
                     <div className="text-xs font-bold w-10 shrink-0">{format(new Date(s.startTime), "HH:mm")}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{s.title}</p>
-                      <p className="text-xs opacity-80">{s.type} · {s.status} · 알림 {scheduleReminderText(s)}</p>
+                      <p className="text-xs opacity-80">{s.type} · {getStatusLabel(s.status)} · 알림 {scheduleReminderText(s)}</p>
                     </div>
                   </div>
                 ))
@@ -264,7 +264,7 @@ export default function Calendar() {
                       <p className="text-sm font-medium truncate">{s.title}</p>
                       <p className="text-xs text-orange-600">종료: {s.endTime ? format(new Date(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
                     </div>
-                    <span className="text-xs text-orange-600 font-medium">{s.status}</span>
+                    <span className="text-xs text-orange-600 font-medium">{getStatusLabel(s.status)}</span>
                   </div>
                 ))}
               </CardContent>

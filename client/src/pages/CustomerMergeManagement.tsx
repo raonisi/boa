@@ -59,7 +59,7 @@ export default function CustomerMergeManagement() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Customer Merge</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">중복 고객 관리</h1>
             <p className="mt-1 text-sm text-slate-500">
-              연락처가 같은 active 고객을 찾고, 상담기록·계약·후속관리 이력을 기준 고객으로 안전하게 병합합니다.
+              연락처가 같은 활성 고객을 찾고, 상담기록·계약·후속관리 이력을 기준 고객으로 안전하게 병합합니다.
             </p>
           </CardContent>
         </Card>

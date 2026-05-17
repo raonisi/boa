@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { ChevronDown, GitBranch, Network, RefreshCw, ShieldAlert } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
@@ -22,19 +23,6 @@ type OrgNode = {
   directReportCount: number;
   descendantCount: number;
   customerCount: number;
-};
-
-const roleLabels: Record<string, string> = {
-  branch_admin: "지점장",
-  sub_branch_admin: "부지점장",
-  team_leader: "팀장",
-  member: "팀원",
-};
-
-const statusLabels: Record<string, string> = {
-  active: "재직",
-  inactive: "비활성",
-  resigned: "퇴사",
 };
 
 function roleBadgeClass(role: string) {
@@ -78,7 +66,7 @@ function relationBadge(node: OrgNode, parent?: OrgNode | null) {
 
 function userLabel(node?: Pick<OrgNode, "id" | "name" | "role"> | null) {
   if (!node) return "미배정";
-  return `${node.name ?? `사용자 #${node.id}`}(${roleLabels[node.role] ?? node.role})`;
+  return `${node.name ?? `사용자 #${node.id}`}(${getRoleLabel(node.role)})`;
 }
 
 function canBeParentFor(targetRole: string, parentRole: string) {
@@ -230,8 +218,8 @@ export default function OrganizationManagement() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className={roleBadgeClass(node.role)}>{roleLabels[node.role] ?? node.role}</Badge>
-                  <Badge variant="outline" className={statusBadgeClass(node.accountStatus)}>{statusLabels[node.accountStatus] ?? node.accountStatus}</Badge>
+                  <Badge variant="outline" className={roleBadgeClass(node.role)}>{getRoleLabel(node.role)}</Badge>
+                  <Badge variant="outline" className={statusBadgeClass(node.accountStatus)}>{getUserStatusLabel(node.accountStatus)}</Badge>
                   {relation ? <Badge variant="outline" className={relation.className}>{relation.label}</Badge> : null}
                 </div>
                 <h3 className={`mt-2 text-lg font-bold ${node.role === "branch_admin" ? "text-white" : "text-slate-950"}`}>
@@ -304,7 +292,7 @@ export default function OrganizationManagement() {
           <OrgSection title="부지점장 조직" description="부지점장별 산하 팀장과 직할 팀원을 확인합니다." count={subBranchNodes.length}>
             {subBranchNodes.length > 0 ? subBranchNodes.map((node) => renderNode(node)) : <p className="p-3 text-sm text-slate-500">부지점장 조직이 없습니다.</p>}
           </OrgSection>
-          <OrgSection title="미배정 사용자" description="상위자가 없고 fallback 소속도 없는 active 사용자입니다." count={unassignedNodes.length} defaultOpen={unassignedNodes.length > 0}>
+          <OrgSection title="미배정 사용자" description="상위자가 없고 fallback 소속도 없는 활성 사용자입니다." count={unassignedNodes.length} defaultOpen={unassignedNodes.length > 0}>
             {unassignedNodes.length > 0 ? unassignedNodes.map((node) => renderNode(node)) : <p className="p-3 text-sm text-slate-500">미배정 사용자가 없습니다.</p>}
           </OrgSection>
         </div>
@@ -377,7 +365,7 @@ export default function OrganizationManagement() {
             <CardContent className="space-y-3 text-sm text-slate-700">
               <p>상위자 변경은 고객 담당자를 자동 변경하지 않습니다.</p>
               <p>산하 조회 범위와 DB 배분 가능 범위만 조직 트리 기준으로 다시 계산합니다.</p>
-              <p>inactive/resigned 사용자는 신규 조직 배정 대상에서 제외됩니다.</p>
+              <p>비활성/퇴사자 사용자는 신규 조직 배정 대상에서 제외됩니다.</p>
               <p>순환 구조와 자기 자신을 상위자로 지정하는 변경은 서버에서 차단합니다.</p>
             </CardContent>
           </Card>

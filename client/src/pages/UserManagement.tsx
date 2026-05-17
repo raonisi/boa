@@ -10,16 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { KeyRound, LogOut, Plus, ShieldCheck, ShieldX, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const roleLabels: Record<string, string> = {
-  branch_admin: "지점장",
-  sub_branch_admin: "부지점장",
-  team_leader: "팀장",
-  member: "팀원",
-};
 
 const roleBadgeColors: Record<string, string> = {
   branch_admin: "bg-purple-100 text-purple-700",
@@ -34,12 +28,6 @@ const statusBadgeColors: Record<string, string> = {
   resigned: "bg-red-100 text-red-700",
 };
 
-const statusLabels: Record<string, string> = {
-  active: "재직",
-  inactive: "비활성",
-  resigned: "퇴사",
-};
-
 const loginStatusLabels: Record<string, string> = {
   invited: "초대됨",
   linked: "로그인 완료",
@@ -48,6 +36,15 @@ const loginStatusLabels: Record<string, string> = {
 const loginStatusColors: Record<string, string> = {
   invited: "bg-yellow-100 text-yellow-700",
   linked: "bg-green-100 text-green-700",
+};
+
+const securityActionLabels: Record<string, string> = {
+  USER_LOGIN: "로그인",
+  USER_LOGOUT: "로그아웃",
+  USER_FORCE_LOGOUT: "사용자 강제 로그아웃",
+  ALL_USERS_FORCE_LOGOUT: "전체 사용자 강제 로그아웃",
+  USER_OAUTH_RESET: "OAuth 연결 초기화",
+  LOGIN_BLOCKED: "로그인 차단",
 };
 
 export default function UserManagement() {
@@ -196,12 +193,12 @@ export default function UserManagement() {
                           <TableCell className="text-xs">{(u as any).phone ?? "-"}</TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}>
-                              {roleLabels[u.role] ?? u.role}
+                              {getRoleLabel(u.role)}
                             </span>
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}>
-                              {statusLabels[(u as any).accountStatus] ?? (u as any).accountStatus}
+                              {getUserStatusLabel((u as any).accountStatus)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -308,7 +305,7 @@ export default function UserManagement() {
                           <div className="font-medium">{entry.user?.name ?? "-"}</div>
                           <div className="text-muted-foreground">{entry.user?.email ?? "-"}</div>
                         </TableCell>
-                        <TableCell className="text-xs font-medium">{entry.action}</TableCell>
+                        <TableCell className="text-xs font-medium">{securityActionLabels[entry.action] ?? "보안 작업"}</TableCell>
                         <TableCell className="text-xs">{entry.actor?.name ?? "-"}</TableCell>
                       </TableRow>
                     ))
@@ -367,9 +364,9 @@ export default function UserManagement() {
                 <Select defaultValue={(editUser as any).accountStatus ?? "active"} onValueChange={(v) => updateAccountStatusMutation.mutate({ userId: editUser.id, accountStatus: v as any })}>
                   <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="active">재직 (active)</SelectItem>
-                    <SelectItem value="inactive">비활성 (inactive)</SelectItem>
-                    <SelectItem value="resigned">퇴사 (resigned)</SelectItem>
+                    <SelectItem value="active">활성</SelectItem>
+                    <SelectItem value="inactive">비활성</SelectItem>
+                    <SelectItem value="resigned">퇴사자</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -531,8 +528,8 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
             <Select value={form.accountStatus} onValueChange={(v) => setForm({ ...form, accountStatus: v as any })}>
               <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">재직 (active)</SelectItem>
-                <SelectItem value="inactive">비활성 (inactive)</SelectItem>
+                <SelectItem value="active">활성</SelectItem>
+                <SelectItem value="inactive">비활성</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -29,6 +29,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
+const followUpStatusLabels: Record<string, string> = {
+  scheduled: "예정",
+  postponed: "연기",
+  completed: "완료",
+  cancelled: "취소",
+};
+
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
 const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "보장분석", "계약상담", "사후관리", "기타"] as const;
 const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
@@ -1107,7 +1114,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                           return (
                             <tr key={h.id}>
                               <td className="p-3 text-xs text-muted-foreground">{new Date(h.createdAt).toLocaleString("ko-KR")}</td>
-                              <td className="p-3"><span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{typeLabels[(h as any).assignmentType ?? ""] ?? (h as any).assignmentType ?? "-"}</span></td>
+                              <td className="p-3"><span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{typeLabels[(h as any).assignmentType ?? ""] ?? "기타 배정"}</span></td>
                               <td className="p-3 text-xs">{prevSubAdmin}</td>
                               <td className="p-3 text-xs">{newSubAdmin}</td>
                               <td className="p-3 text-xs">{prevAgent}</td>
@@ -1538,7 +1545,7 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
                     <p className="text-sm font-medium">{new Date(item.nextContactDate).toLocaleString("ko-KR")} · {item.nextAction}</p>
                     <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
                   </div>
-                  <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{item.status}</span>
+                  <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{followUpStatusLabels[item.status] ?? "기타 상태"}</span>
                 </div>
                 <div className="mt-2 flex flex-wrap justify-end gap-2">
                   <Button size="sm" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>

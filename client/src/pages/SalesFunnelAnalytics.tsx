@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
+import { formatUserWithRole, getRoleLabel } from "@/lib/userRole";
 import {
   AlertTriangle,
   BarChart3,
@@ -164,7 +165,7 @@ export default function SalesFunnelAnalytics() {
   const needsMemberSelection = !isMember && effectiveOwnershipScope === "member" && selectedMemberId === "all";
   const ownershipScopeHelper = effectiveOwnershipScope === "member"
     ? selectedMember
-      ? `${selectedMember.name ?? `사용자 #${selectedMember.id}`}(${selectedMember.role})의 담당 고객 기준으로 집계합니다.`
+      ? `${formatUserWithRole(selectedMember)}의 담당 고객 기준으로 집계합니다.`
       : "확인할 조직원을 선택하세요."
     : effectiveOwnershipScope === "mine"
       ? "내가 담당자인 고객만 기준으로 집계합니다."
@@ -235,7 +236,7 @@ export default function SalesFunnelAnalytics() {
                 </div>
                 <div className="rounded-xl border border-white/10 bg-white/5 p-3">
                   <p className="text-slate-400">권한</p>
-                  <p className="mt-1 font-semibold text-white">{user?.role ?? "-"}</p>
+                  <p className="mt-1 font-semibold text-white">{getRoleLabel(user?.role)}</p>
                 </div>
               </div>
             </div>
@@ -319,7 +320,7 @@ export default function SalesFunnelAnalytics() {
                         <SelectItem value="all">개인 선택</SelectItem>
                         {(filterOptions?.users ?? []).map((item) => (
                           <SelectItem key={item.id} value={String(item.id)}>
-                            {item.name} · {item.role}
+                            {formatUserWithRole(item)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -375,7 +376,7 @@ export default function SalesFunnelAnalytics() {
                     <SelectItem value="all">조직원 선택</SelectItem>
                     {(filterOptions?.users ?? []).map((item) => (
                       <SelectItem key={item.id} value={String(item.id)}>
-                        {item.name} · {item.role}
+                        {formatUserWithRole(item)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -624,7 +625,7 @@ export default function SalesFunnelAnalytics() {
                                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">{index + 1}</span>
                                   <div>
                                     <p className="font-semibold text-slate-950">{row.name}</p>
-                                    <p className="text-xs text-slate-500">{row.role}</p>
+                                    <p className="text-xs text-slate-500">{getRoleLabel(row.role)}</p>
                                   </div>
                                 </div>
                               </td>
