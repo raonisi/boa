@@ -77,9 +77,24 @@ export default function ConsultationToolsManagement() {
   const [editScriptNote, setEditScriptNote] = useState("");
   const [editScriptTags, setEditScriptTags] = useState("");
   const [deleteScript, setDeleteScript] = useState<any | null>(null);
+  const [editingChecklist, setEditingChecklist] = useState<any | null>(null);
+  const [editCheckTitle, setEditCheckTitle] = useState("");
+  const [editCheckDescription, setEditCheckDescription] = useState("");
+  const [editCheckPhase, setEditCheckPhase] = useState<(typeof phases)[number]["value"]>("before");
+  const [editCheckCategory, setEditCheckCategory] = useState<(typeof categories)[number]>("basic");
+  const [editCheckRequired, setEditCheckRequired] = useState(false);
+  const [editCheckSort, setEditCheckSort] = useState(0);
+  const [deleteChecklist, setDeleteChecklist] = useState<any | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+  const [editTemplateTitle, setEditTemplateTitle] = useState("");
+  const [editTemplateSituation, setEditTemplateSituation] = useState<(typeof situations)[number]>("missed_call");
+  const [editTemplateChannel, setEditTemplateChannel] = useState<(typeof channels)[number]>("both");
+  const [editTemplateBody, setEditTemplateBody] = useState("");
+  const [editTemplateNote, setEditTemplateNote] = useState("");
+  const [deleteTemplate, setDeleteTemplate] = useState<any | null>(null);
 
-  const { data: checklists } = trpc.consultationTools.listChecklists.useQuery({ includeInactive: true });
-  const { data: templates } = trpc.consultationTools.listMessageTemplates.useQuery({ includeInactive: true });
+  const { data: checklists } = trpc.consultationTools.listChecklists.useQuery({ includeInactive: false });
+  const { data: templates } = trpc.consultationTools.listMessageTemplates.useQuery({ includeInactive: false });
   const { data: scripts } = trpc.consultationScripts.list.useQuery({ includeInactive: false });
 
   const createChecklist = trpc.consultationTools.createChecklist.useMutation({
@@ -92,7 +107,12 @@ export default function ConsultationToolsManagement() {
     onError: (error) => toast.error(error.message),
   });
   const updateChecklist = trpc.consultationTools.updateChecklist.useMutation({
-    onSuccess: () => utils.consultationTools.listChecklists.invalidate(),
+    onSuccess: (_, variables) => {
+      toast.success(variables.isActive === false ? "체크리스트를 삭제했습니다." : "체크리스트를 수정했습니다.");
+      setEditingChecklist(null);
+      setDeleteChecklist(null);
+      utils.consultationTools.listChecklists.invalidate();
+    },
     onError: (error) => toast.error(error.message),
   });
   const seedChecklists = trpc.consultationTools.seedDefaultChecklists.useMutation({
@@ -120,7 +140,12 @@ export default function ConsultationToolsManagement() {
     onError: (error) => toast.error(error.message),
   });
   const updateTemplate = trpc.consultationTools.updateMessageTemplate.useMutation({
-    onSuccess: () => utils.consultationTools.listMessageTemplates.invalidate(),
+    onSuccess: (_, variables) => {
+      toast.success(variables.isActive === false ? "문구 템플릿을 삭제했습니다." : "문구 템플릿을 수정했습니다.");
+      setEditingTemplate(null);
+      setDeleteTemplate(null);
+      utils.consultationTools.listMessageTemplates.invalidate();
+    },
     onError: (error) => toast.error(error.message),
   });
   const seedScripts = trpc.consultationScripts.seedDefaults.useMutation({
@@ -172,6 +197,50 @@ export default function ConsultationToolsManagement() {
     });
   };
 
+  const openChecklistEdit = (item: any) => {
+    setEditingChecklist(item);
+    setEditCheckTitle(item.title ?? "");
+    setEditCheckDescription(item.description ?? "");
+    setEditCheckPhase(item.phase ?? "before");
+    setEditCheckCategory(item.category ?? "basic");
+    setEditCheckRequired(item.isRequired === true);
+    setEditCheckSort(Number(item.sortOrder ?? 0));
+  };
+
+  const submitChecklistEdit = () => {
+    if (!editingChecklist) return;
+    updateChecklist.mutate({
+      id: editingChecklist.id,
+      title: editCheckTitle,
+      description: editCheckDescription || null,
+      phase: editCheckPhase,
+      category: editCheckCategory,
+      sortOrder: editCheckSort,
+      isRequired: editCheckRequired,
+    });
+  };
+
+  const openTemplateEdit = (item: any) => {
+    setEditingTemplate(item);
+    setEditTemplateTitle(item.title ?? "");
+    setEditTemplateSituation(item.situation ?? "missed_call");
+    setEditTemplateChannel(item.channel ?? "both");
+    setEditTemplateBody(item.body ?? "");
+    setEditTemplateNote(item.complianceNote ?? "");
+  };
+
+  const submitTemplateEdit = () => {
+    if (!editingTemplate) return;
+    updateTemplate.mutate({
+      id: editingTemplate.id,
+      title: editTemplateTitle,
+      situation: editTemplateSituation,
+      channel: editTemplateChannel,
+      body: editTemplateBody,
+      complianceNote: editTemplateNote || null,
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-5 p-4 md:p-6">
@@ -200,6 +269,7 @@ export default function ConsultationToolsManagement() {
           </TabsList>
 
           <TabsContent value="checklists" className="space-y-4">
+            {isBranchAdmin ? (
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">체크리스트 항목 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-6">
@@ -215,6 +285,32 @@ export default function ConsultationToolsManagement() {
                 <div className="md:col-span-6 flex justify-end"><Button onClick={() => createChecklist.mutate({ title: checkTitle, description: checkDescription || undefined, phase: checkPhase, category: checkCategory, sortOrder: checkSort, isRequired: checkRequired })}><Plus className="h-4 w-4 mr-1" />추가</Button></div>
               </CardContent>
             </Card>
+            ) : null}
+            {editingChecklist ? (
+              <Card className="border-primary/20 bg-primary/5 shadow-sm">
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">상담 체크리스트 수정</CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">체크리스트 상세 설명 전문은 활동 로그에 저장하지 않습니다.</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setEditingChecklist(null)} disabled={updateChecklist.isPending} aria-label="수정 취소">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-6">
+                  <div className="md:col-span-2"><Label>제목</Label><Input className="rounded-xl bg-white" value={editCheckTitle} onChange={(event) => setEditCheckTitle(event.target.value)} /></div>
+                  <div><Label>단계</Label><Select value={editCheckPhase} onValueChange={(value) => setEditCheckPhase(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
+                  <div><Label>카테고리</Label><Select value={editCheckCategory} onValueChange={(value) => setEditCheckCategory(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                  <div><Label>정렬</Label><Input className="rounded-xl bg-white" type="number" value={editCheckSort} onChange={(event) => setEditCheckSort(Number(event.target.value))} /></div>
+                  <div className="flex items-end gap-2"><Checkbox checked={editCheckRequired} onCheckedChange={(checked) => setEditCheckRequired(checked === true)} /><span className="text-sm">필수</span></div>
+                  <div className="md:col-span-6"><Label>설명</Label><Textarea className="rounded-xl bg-white" value={editCheckDescription} onChange={(event) => setEditCheckDescription(event.target.value)} /></div>
+                  <div className="md:col-span-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={() => setEditingChecklist(null)} disabled={updateChecklist.isPending}>취소</Button>
+                    <Button onClick={submitChecklistEdit} disabled={updateChecklist.isPending}>{updateChecklist.isPending ? "저장 중..." : "저장"}</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
             <div className="grid gap-3">
               {(checklists ?? []).map((item: any) => (
                 <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
@@ -224,9 +320,16 @@ export default function ConsultationToolsManagement() {
                       <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {item.isActive ? "active" : "inactive"}</p>
                       {item.description ? <p className="mt-1 text-sm text-muted-foreground">{item.description}</p> : null}
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => updateChecklist.mutate({ id: item.id, isActive: !item.isActive })}>
-                      {item.isActive ? "비활성" : "재활성"}
-                    </Button>
+                    {isBranchAdmin ? (
+                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+                        <Button size="sm" variant="outline" onClick={() => openChecklistEdit(item)} disabled={updateChecklist.isPending}>
+                          <Edit3 className="mr-1 h-4 w-4" />수정
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => setDeleteChecklist(item)} disabled={updateChecklist.isPending}>
+                          <Trash2 className="mr-1 h-4 w-4" />삭제
+                        </Button>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               ))}
@@ -234,6 +337,7 @@ export default function ConsultationToolsManagement() {
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-4">
+            {isBranchAdmin ? (
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">후속 문구 템플릿 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-4">
@@ -246,6 +350,31 @@ export default function ConsultationToolsManagement() {
                 <div className="md:col-span-4 flex justify-end"><Button onClick={() => createTemplate.mutate({ title: templateTitle, situation: templateSituation, channel: templateChannel, body: templateBody, complianceNote: templateNote || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />템플릿 추가</Button></div>
               </CardContent>
             </Card>
+            ) : null}
+            {editingTemplate ? (
+              <Card className="border-primary/20 bg-primary/5 shadow-sm">
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base">후속 문구 템플릿 수정</CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">템플릿 본문 전문은 활동 로그에 저장하지 않습니다.</p>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => setEditingTemplate(null)} disabled={updateTemplate.isPending} aria-label="수정 취소">
+                    <X className="h-4 w-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="grid gap-3 md:grid-cols-4">
+                  <div><Label>제목</Label><Input className="rounded-xl bg-white" value={editTemplateTitle} onChange={(event) => setEditTemplateTitle(event.target.value)} /></div>
+                  <div><Label>상황</Label><Select value={editTemplateSituation} onValueChange={(value) => setEditTemplateSituation(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
+                  <div><Label>채널</Label><Select value={editTemplateChannel} onValueChange={(value) => setEditTemplateChannel(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="md:col-span-4"><Label>본문</Label><Textarea className="rounded-xl bg-white" rows={7} value={editTemplateBody} onChange={(event) => setEditTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
+                  <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="rounded-xl bg-white" value={editTemplateNote} onChange={(event) => setEditTemplateNote(event.target.value)} /></div>
+                  <div className="md:col-span-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={() => setEditingTemplate(null)} disabled={updateTemplate.isPending}>취소</Button>
+                    <Button onClick={submitTemplateEdit} disabled={updateTemplate.isPending}>{updateTemplate.isPending ? "저장 중..." : "저장"}</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
             <div className="grid gap-3">
               {(templates ?? []).map((item: any) => (
                 <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
@@ -255,9 +384,16 @@ export default function ConsultationToolsManagement() {
                       <p className="text-xs text-muted-foreground">{item.situation} / {item.channel} / {item.isActive ? "active" : "inactive"}</p>
                       <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.body}</p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => updateTemplate.mutate({ id: item.id, isActive: !item.isActive })}>
-                      {item.isActive ? "비활성" : "재활성"}
-                    </Button>
+                    {isBranchAdmin ? (
+                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
+                        <Button size="sm" variant="outline" onClick={() => openTemplateEdit(item)} disabled={updateTemplate.isPending}>
+                          <Edit3 className="mr-1 h-4 w-4" />수정
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => setDeleteTemplate(item)} disabled={updateTemplate.isPending}>
+                          <Trash2 className="mr-1 h-4 w-4" />삭제
+                        </Button>
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
               ))}
@@ -351,6 +487,54 @@ export default function ConsultationToolsManagement() {
             </div>
           </TabsContent>
         </Tabs>
+        <AlertDialog open={!!deleteChecklist} onOpenChange={(open) => !open && setDeleteChecklist(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>상담 체크리스트를 삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription>
+                삭제 후 목록에서 보이지 않습니다. 실제 상담 체크 결과는 삭제하지 않고 체크리스트 정의만 비활성화합니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={updateChecklist.isPending}>취소</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={updateChecklist.isPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (!deleteChecklist) return;
+                  updateChecklist.mutate({ id: deleteChecklist.id, isActive: false });
+                }}
+              >
+                {updateChecklist.isPending ? "삭제 중..." : "삭제"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+        <AlertDialog open={!!deleteTemplate} onOpenChange={(open) => !open && setDeleteTemplate(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>후속 문구 템플릿을 삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription>
+                삭제 후 목록에서 보이지 않습니다. 템플릿 본문 전문은 활동 로그에 저장하지 않습니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={updateTemplate.isPending}>취소</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={updateTemplate.isPending}
+                onClick={(event) => {
+                  event.preventDefault();
+                  if (!deleteTemplate) return;
+                  updateTemplate.mutate({ id: deleteTemplate.id, isActive: false });
+                }}
+              >
+                {updateTemplate.isPending ? "삭제 중..." : "삭제"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <AlertDialog open={!!deleteScript} onOpenChange={(open) => !open && setDeleteScript(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>

@@ -90,6 +90,30 @@ This hotfix is separate from PR5 `/analytics`, PR6 `/operation-risk`, and PR19-4
 9. Confirm activity logs do not store full consultation script body text.
 10. Confirm PR5 `/analytics` and PR6 `/operation-risk` screens are unchanged.
 
+## Consultation Checklist / Message Template CRUD Hotfix UAT
+
+This hotfix completes the consultation-tools CRUD pattern for checklist definitions and follow-up message templates. It is separate from consultation script CRUD, PR5 analytics, PR6 operation-risk, and push notification work.
+
+### Checklist Definitions
+1. Log in as branch_admin and open the consultation tools checklist tab.
+2. Confirm checklist create still works.
+3. Click "수정", change title/phase/category/sort/required/description, save, and verify the list refreshes.
+4. Click "삭제", confirm the dialog, and verify the checklist disappears from the normal list.
+5. Confirm delete is a soft deactivation (`isActive=false` / `deletedAt`) and existing consultation check results are not deleted.
+6. Confirm sub_branch_admin, team_leader, and member do not see edit/delete controls and direct API mutation is blocked.
+7. Confirm inactive/resigned accounts cannot call checklist management mutations.
+8. Confirm activity logs do not store full checklist description text.
+
+### Message Templates
+1. Log in as branch_admin and open the follow-up message template tab.
+2. Confirm template create still works.
+3. Click "수정", change title/situation/channel/body/compliance note, save, and verify the list refreshes.
+4. Confirm banned phrases and unsupported placeholders are still rejected.
+5. Click "삭제", confirm the dialog, and verify the template disappears from the normal list.
+6. Confirm delete is a soft deactivation (`isActive=false` / `deletedAt`).
+7. Confirm sub_branch_admin, team_leader, and member can still view/copy usable templates but cannot edit/delete.
+8. Confirm `MESSAGE_TEMPLATE_COPIED` still records copy activity without storing full message body text.
+
 ## Sales Funnel / Performance Report UAT Steps
 
 ### Desktop
