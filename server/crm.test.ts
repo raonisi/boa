@@ -1101,6 +1101,65 @@ describe("RBAC - customers.assignToSubBranch (branch_admin only)", () => {
 });
 
 // ─── RBAC - logs.list (team_leader or above) ─────────────────────────────────
+describe("RBAC - logs.list activity log scope", () => {
+  const logRow = (overrides: Partial<any> = {}) => ({
+    id: overrides.id ?? 1,
+    userId: overrides.userId ?? 1,
+    action: overrides.action ?? "CUSTOMER_CREATED",
+    targetType: overrides.targetType ?? "customer",
+    targetId: overrides.targetId ?? 100,
+    details: overrides.details ?? "{}",
+    ipAddress: null,
+    userAgent: null,
+    createdAt: new Date("2026-05-17T00:00:00.000Z"),
+  });
+
+  it("keeps branch_admin full activity log scope explicit", async () => {
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([logRow({ userId: 1 })] as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).logs.list();
+
+    expect(getLogsSpy).toHaveBeenCalledWith(500);
+    expect(result).toHaveLength(1);
+  });
+
+  it("keeps sub_branch_admin activity logs scoped to subordinate users", async () => {
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([logRow({ userId: 4 })] as any);
+
+    const result = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).logs.list();
+
+    expect(getLogsSpy).toHaveBeenCalledWith(500, 2);
+    expect(result).toHaveLength(1);
+  });
+
+  it("keeps team_leader activity logs scoped to own team", async () => {
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([logRow({ userId: 4 })] as any);
+
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).logs.list();
+
+    expect(getLogsSpy).toHaveBeenCalledWith(500, undefined, 10);
+    expect(result).toHaveLength(1);
+  });
+
+  it("blocks team_leader without teamId instead of falling back to all activity logs", async () => {
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([logRow({ userId: 1 })] as any);
+
+    await expect(
+      appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: null })).logs.list()
+    ).rejects.toThrow("팀 범위가 없는 팀장은 활동 로그에 접근할 수 없습니다.");
+    expect(getLogsSpy).not.toHaveBeenCalled();
+  });
+
+  it("blocks member and inactive users from activity logs", async () => {
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([logRow({ userId: 1 })] as any);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).logs.list()).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, accountStatus: "inactive" })).logs.list()).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, accountStatus: "resigned" })).logs.list()).rejects.toThrow();
+    expect(getLogsSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("Branch admin DB reclaim", () => {
   const assignedCustomer = (overrides: Partial<any> = {}) => ({
     id: 100,
@@ -1235,13 +1294,19 @@ describe("RBAC - logs.list (team_leader+)", () => {
     await expect(appRouter.createCaller(createCtx("member")).logs.list()).rejects.toThrow();
   });
   it("allows team_leader to access logs.list", async () => {
-    await expect(appRouter.createCaller(createCtx("team_leader")).logs.list()).resolves.toBeDefined();
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([] as any);
+    await expect(appRouter.createCaller(createCtx("team_leader", { teamId: 10 })).logs.list()).resolves.toEqual([]);
+    expect(getLogsSpy).toHaveBeenCalledWith(500, undefined, 10);
   });
   it("allows sub_branch_admin to access logs.list", async () => {
-    await expect(appRouter.createCaller(createCtx("sub_branch_admin")).logs.list()).resolves.toBeDefined();
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([] as any);
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).logs.list()).resolves.toEqual([]);
+    expect(getLogsSpy).toHaveBeenCalledWith(500, 2);
   });
   it("allows branch_admin to access logs.list", async () => {
-    await expect(appRouter.createCaller(createCtx("branch_admin")).logs.list()).resolves.toBeDefined();
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([] as any);
+    await expect(appRouter.createCaller(createCtx("branch_admin")).logs.list()).resolves.toEqual([]);
+    expect(getLogsSpy).toHaveBeenCalledWith(500);
   });
   it("redacts sensitive legacy activity log details without changing business customer APIs", async () => {
     vi.spyOn(db, "getActivityLogs").mockResolvedValue([
