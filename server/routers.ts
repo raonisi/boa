@@ -3595,7 +3595,7 @@ export const appRouter = router({
       }))
       .query(async ({ ctx, input }) => {
         const user = ctx.user;
-        if (input.scope === "all" && user.role !== "branch_admin") {
+        if (input.scope === "all" && user.role === "member") {
           throw new TRPCError({ code: "FORBIDDEN", message: "전체 DB는 지점장만 조회할 수 있습니다." });
         }
         const baseFilter = {
@@ -3615,6 +3615,7 @@ export const appRouter = router({
           return getCustomers({ ...baseFilter, agentId: scopedAgentId });
         }
         if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+          if (input.scope === "mine") return getCustomers({ ...baseFilter, agentId: user.id });
           if (user.role === "team_leader" && user.teamId) return getCustomers({ ...baseFilter, teamId: user.teamId });
           if (user.role === "sub_branch_admin") return getCustomers({ ...baseFilter, subBranchAdminId: user.id });
           const agentIds = await getHierarchyScopeUserIds(user);

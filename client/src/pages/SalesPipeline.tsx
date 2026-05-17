@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -29,6 +30,8 @@ import { GripVertical, LayoutGrid } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+
+type PipelineScope = "all" | "mine";
 
 type ListCustomer = {
   id: number;
@@ -226,7 +229,13 @@ function PipelineColumn({
 }
 
 export default function SalesPipeline() {
-  const { data: customers, isLoading } = trpc.customers.list.useQuery({});
+  const { user } = useAuth();
+  const isMember = user?.role === "member";
+  const canSwitchScope = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role));
+  const [pipelineScope, setPipelineScope] = useState<PipelineScope>("all");
+  const effectivePipelineScope = isMember ? "mine" : pipelineScope;
+  const managedLabel = user?.role === "branch_admin" ? "전체 DB" : user?.role === "team_leader" ? "팀 전체" : "산하 전체";
+  const { data: customers, isLoading } = trpc.customers.list.useQuery({ scope: effectivePipelineScope });
   const { data: usersList } = trpc.users.list.useQuery();
   const utils = trpc.useUtils();
 
@@ -284,16 +293,53 @@ export default function SalesPipeline() {
   return (
     <DashboardLayout>
       <div className="mx-auto max-w-[1920px] space-y-5">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
-              <LayoutGrid className="h-4 w-4" />
-            </span>
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">세일즈 파이프라인</h1>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+                <LayoutGrid className="h-4 w-4" />
+              </span>
+              <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">세일즈 파이프라인</h1>
+            </div>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              드래그해서 단계를 변경하면 서버에서 권한 검증 후 상담 상태가 저장됩니다. 범위를 전환하면 실제
+              파이프라인 카드와 단계별 고객 수가 다시 계산됩니다.
+            </p>
           </div>
-          <p className="max-w-2xl text-sm text-muted-foreground">
-            드래그하여 단계를 변경하면 서버에서 권한 검증 후 상담 상태가 저장됩니다. 지점장은 전체, 부지점장·팀장은 산하, 팀원은 본인 담당 고객만 표시됩니다.
-          </p>
+          {canSwitchScope ? (
+            <div className="w-full max-w-sm space-y-2 rounded-2xl border border-border bg-card p-3 shadow-sm lg:w-80">
+              <p className="text-xs font-semibold text-muted-foreground">파이프라인 범위</p>
+              <div className="grid h-11 grid-cols-2 rounded-xl border border-border bg-muted/40 p-1">
+                {([
+                  ["all", managedLabel],
+                  ["mine", "내 담당 고객"],
+                ] as const).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={cn(
+                      "rounded-lg px-2 text-sm font-semibold transition",
+                      effectivePipelineScope === value
+                        ? "bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950"
+                        : "text-muted-foreground hover:bg-background"
+                    )}
+                    onClick={() => setPipelineScope(value)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {effectivePipelineScope === "mine"
+                  ? "내가 담당자인 고객만 파이프라인에 표시합니다."
+                  : "권한 범위 내 고객을 파이프라인에 표시합니다."}
+              </p>
+            </div>
+          ) : (
+            <div className="w-full max-w-xs rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800 lg:w-64">
+              내 담당 고객 고정
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -302,6 +348,19 @@ export default function SalesPipeline() {
               <div key={i} className="h-64 animate-pulse rounded-2xl bg-muted/50" />
             ))}
           </div>
+        ) : customers?.length === 0 ? (
+          <Card className="border-dashed border-border bg-muted/20 p-8 text-center shadow-sm">
+            <p className="text-sm font-semibold text-foreground">
+              {effectivePipelineScope === "mine"
+                ? "내 담당 고객 파이프라인 데이터가 없습니다."
+                : "표시할 고객 파이프라인 데이터가 없습니다."}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {effectivePipelineScope === "mine"
+                ? "고객을 직접 등록하거나 담당자로 배정받으면 이곳에 표시됩니다."
+                : "고객 등록 또는 필터 범위를 확인해 주세요."}
+            </p>
+          </Card>
         ) : (
           <DndContext
             sensors={sensors}
