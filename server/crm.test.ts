@@ -3485,6 +3485,8 @@ describe("PR5 sales funnel performance report", () => {
     { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 2 },
     { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
     { id: 5, name: "[TEST] Other", role: "member", accountStatus: "active", teamId: 20, subBranchAdminId: 99, parentUserId: 30 },
+    { id: 6, name: "[TEST] Inactive", role: "member", accountStatus: "inactive", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+    { id: 7, name: "[TEST] Resigned", role: "member", accountStatus: "resigned", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
   ] as any[];
   const teams = [
     { id: 10, name: "[TEST] Team", managerId: 3, subBranchAdminId: 2, isActive: true, deletedAt: null },
@@ -3691,6 +3693,78 @@ describe("PR5 sales funnel performance report", () => {
     });
 
     expect(result.scope.ownershipScope).toBe("mine");
+    expect(result.scope.canViewRanking).toBe(false);
+    expect(result.ranking).toHaveLength(0);
+  });
+
+  it("lets managers report on a selected active organization member without including other assignees", async () => {
+    mockSalesReportData();
+
+    const branchResult = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "member",
+      selectedUserId: 4,
+    });
+    const subResult = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "member",
+      selectedUserId: 4,
+    });
+    const leaderResult = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "member",
+      selectedUserId: 4,
+    });
+
+    for (const result of [branchResult, subResult, leaderResult]) {
+      expect(result.scope.ownershipScope).toBe("member");
+      expect(result.scope.targetUserId).toBe(4);
+      expect(result.funnel.stages.find((stage) => stage.key === "db")?.count).toBe(2);
+      expect(result.performance.newContractCount).toBe(1);
+      expect(result.performance.monthlyPremiumTotal).toBe(100000);
+      expect(result.scope.canViewRanking).toBe(false);
+      expect(result.ranking).toHaveLength(0);
+      expect(JSON.stringify(result)).not.toContain("other memo");
+    }
+  });
+
+  it("blocks invalid selected member scopes and hides inactive or resigned users from options", async () => {
+    mockSalesReportData();
+    const branchCaller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
+    const subCaller = appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 }));
+    const leaderCaller = appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 }));
+    const memberCaller = appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 }));
+
+    await expect(branchCaller.salesReports.summary({ period: "custom", dateFrom, dateTo, ownershipScope: "member" })).rejects.toThrow();
+    await expect(branchCaller.salesReports.summary({ period: "custom", dateFrom, dateTo, ownershipScope: "member", selectedUserId: 6 })).rejects.toThrow();
+    await expect(branchCaller.salesReports.summary({ period: "custom", dateFrom, dateTo, ownershipScope: "member", selectedUserId: 7 })).rejects.toThrow();
+    await expect(subCaller.salesReports.summary({ period: "custom", dateFrom, dateTo, ownershipScope: "member", selectedUserId: 5 })).rejects.toThrow();
+    await expect(leaderCaller.salesReports.summary({ period: "custom", dateFrom, dateTo, ownershipScope: "member", selectedUserId: 5 })).rejects.toThrow();
+    await expect(memberCaller.salesReports.summary({ period: "custom", dateFrom, dateTo, ownershipScope: "member", selectedUserId: 5 })).rejects.toThrow();
+
+    const options = await branchCaller.salesReports.filterOptions();
+    expect(options.users.map((item) => item.id)).toEqual(expect.arrayContaining([2, 3, 4, 5]));
+    expect(options.users.map((item) => item.id)).not.toEqual(expect.arrayContaining([6, 7]));
+  });
+
+  it("hides ranking for ownershipScope member across direct endpoint calls", async () => {
+    mockSalesReportData();
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).salesReports.memberRanking({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "member",
+      selectedUserId: 4,
+    });
+
+    expect(result.scope.ownershipScope).toBe("member");
+    expect(result.scope.targetUserId).toBe(4);
     expect(result.scope.canViewRanking).toBe(false);
     expect(result.ranking).toHaveLength(0);
   });

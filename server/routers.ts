@@ -1676,7 +1676,8 @@ const salesReportInputSchema = z.object({
   teamId: z.number().nullable().optional(),
   userId: z.number().nullable().optional(),
   scope: z.enum(["all", "mine"]).default("all"),
-  ownershipScope: z.enum(["managed", "mine"]).optional(),
+  ownershipScope: z.enum(["managed", "mine", "member"]).optional(),
+  selectedUserId: z.number().optional(),
   performanceBasis: z.enum(["new_contract", "monthly_premium"]).default("monthly_premium"),
 });
 
@@ -1796,6 +1797,34 @@ async function resolveSalesReportScope(
   const hierarchyIds = user.role === "branch_admin"
     ? activeUsers.map((item) => item.id)
     : ((await getHierarchyScopeUserIds(user)) ?? [user.id]).filter((id) => activeUserIds.has(id));
+
+  if (ownershipScope === "member") {
+    if (input.selectedUserId == null) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Select a member to view." });
+    }
+    const target = activeUsers.find((item) => item.id === input.selectedUserId);
+    if (!target) {
+      throw new TRPCError({ code: "BAD_REQUEST", message: "Selected member is not available." });
+    }
+    if (!hierarchyIds.includes(target.id)) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Selected member is outside your report scope." });
+    }
+    if (user.role === "member" && target.id !== user.id) {
+      throw new TRPCError({ code: "FORBIDDEN", message: "Members can only view their own report." });
+    }
+    return {
+      userIds: [target.id],
+      teamId: target.teamId ?? null,
+      subBranchAdminId: target.subBranchAdminId ?? null,
+      targetUserId: target.id,
+      label: `${target.name ?? `User #${target.id}`} member scope`,
+      ownershipScope,
+      canViewRanking: false,
+      includeAllCustomers: false,
+      activeUsers,
+      activeTeams: allTeams.filter((team) => team.isActive !== false && !team.deletedAt),
+    };
+  }
 
   if (user.role === "member") {
     if (input.organizationType === "user" && input.userId != null && input.userId !== user.id) {

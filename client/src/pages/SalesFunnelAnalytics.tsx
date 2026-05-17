@@ -39,7 +39,7 @@ import {
 
 type Period = "today" | "last7" | "month" | "lastMonth" | "custom";
 type OrganizationType = "all" | "sub_branch" | "team" | "user";
-type OwnershipScope = "managed" | "mine";
+type OwnershipScope = "managed" | "mine" | "member";
 type PerformanceBasis = "new_contract" | "monthly_premium";
 
 const periodLabels: Record<Period, string> = {
@@ -154,14 +154,21 @@ export default function SalesFunnelAnalytics() {
   const [teamId, setTeamId] = useState("all");
   const [targetUserId, setTargetUserId] = useState("all");
   const [ownershipScope, setOwnershipScope] = useState<OwnershipScope>("managed");
+  const [selectedMemberId, setSelectedMemberId] = useState("all");
   const [performanceBasis, setPerformanceBasis] = useState<PerformanceBasis>("monthly_premium");
 
   const { data: filterOptions, isLoading: filterLoading } = trpc.salesReports.filterOptions.useQuery();
   const isMember = user?.role === "member";
   const effectiveOwnershipScope = isMember ? "mine" : ownershipScope;
-  const ownershipScopeHelper = effectiveOwnershipScope === "mine"
-    ? "내가 담당자인 고객만 기준으로 집계합니다."
-    : "권한 범위 내 산하 고객까지 포함한 파이프라인입니다.";
+  const selectedMember = (filterOptions?.users ?? []).find((item) => String(item.id) === selectedMemberId);
+  const needsMemberSelection = !isMember && effectiveOwnershipScope === "member" && selectedMemberId === "all";
+  const ownershipScopeHelper = effectiveOwnershipScope === "member"
+    ? selectedMember
+      ? `${selectedMember.name ?? `사용자 #${selectedMember.id}`}(${selectedMember.role})의 담당 고객 기준으로 집계합니다.`
+      : "확인할 조직원을 선택하세요."
+    : effectiveOwnershipScope === "mine"
+      ? "내가 담당자인 고객만 기준으로 집계합니다."
+      : "권한 범위 내 산하 고객까지 포함한 파이프라인입니다.";
 
   const reportInput = useMemo(() => ({
     period,
@@ -172,8 +179,9 @@ export default function SalesFunnelAnalytics() {
     teamId: !isMember && organizationType === "team" && teamId !== "all" ? Number(teamId) : undefined,
     userId: !isMember && organizationType === "user" && targetUserId !== "all" ? Number(targetUserId) : undefined,
     ownershipScope: effectiveOwnershipScope,
+    selectedUserId: !isMember && effectiveOwnershipScope === "member" && selectedMemberId !== "all" ? Number(selectedMemberId) : undefined,
     performanceBasis,
-  }), [dateFrom, dateTo, effectiveOwnershipScope, isMember, organizationType, performanceBasis, period, subBranchAdminId, targetUserId, teamId]);
+  }), [dateFrom, dateTo, effectiveOwnershipScope, isMember, organizationType, performanceBasis, period, selectedMemberId, subBranchAdminId, targetUserId, teamId]);
 
   const {
     data,
@@ -182,7 +190,7 @@ export default function SalesFunnelAnalytics() {
     isError,
     error,
     refetch,
-  } = trpc.salesReports.summary.useQuery(reportInput, { placeholderData: (prev) => prev });
+  } = trpc.salesReports.summary.useQuery(reportInput, { enabled: !needsMemberSelection, placeholderData: (prev) => prev });
 
   const stages = data?.funnel.stages ?? [];
   const ranking = data?.ranking ?? [];
@@ -333,26 +341,45 @@ export default function SalesFunnelAnalytics() {
                   내 담당 고객 고정
                 </div>
               ) : (
-                <div className="grid h-11 grid-cols-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
+                <div className="grid min-h-11 grid-cols-3 rounded-xl border border-slate-200 bg-slate-50 p-1">
                   {([
                     ["managed", "산하 전체"],
                     ["mine", "내 담당 고객"],
+                    ["member", "조직원별"],
                   ] as const).map(([value, label]) => (
                     <button
                       key={value}
                       type="button"
                       className={cn(
-                        "rounded-lg px-2 text-sm font-semibold transition",
+                        "rounded-lg px-2 py-2 text-sm font-semibold transition",
                         effectiveOwnershipScope === value
                           ? "bg-slate-950 text-white shadow-sm"
                           : "text-slate-600 hover:bg-white"
                       )}
-                      onClick={() => setOwnershipScope(value)}
+                      onClick={() => {
+                        setOwnershipScope(value);
+                        if (value !== "member") setSelectedMemberId("all");
+                      }}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
+              )}
+              {!isMember && effectiveOwnershipScope === "member" && (
+                <Select value={selectedMemberId} onValueChange={setSelectedMemberId} disabled={filterLoading}>
+                  <SelectTrigger className="h-11 rounded-xl bg-slate-50">
+                    <SelectValue placeholder="조직원 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">조직원 선택</SelectItem>
+                    {(filterOptions?.users ?? []).map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>
+                        {item.name} · {item.role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               )}
               <p className="text-xs leading-relaxed text-slate-500">{ownershipScopeHelper}</p>
             </div>
@@ -373,7 +400,7 @@ export default function SalesFunnelAnalytics() {
             </div>
 
             <div className="flex items-end gap-2">
-              <Button variant="outline" className="h-11 flex-1 rounded-xl" onClick={() => refetch()} disabled={isFetching}>
+              <Button variant="outline" className="h-11 flex-1 rounded-xl" onClick={() => refetch()} disabled={isFetching || needsMemberSelection}>
                 <RefreshCcw className={cn("h-4 w-4", isFetching && "animate-spin")} />
                 새로고침
               </Button>
@@ -403,7 +430,15 @@ export default function SalesFunnelAnalytics() {
           />
         )}
 
-        {!isError && isLoading && (
+        {!isError && needsMemberSelection && (
+          <EmptyState
+            icon={Users}
+            title="확인할 조직원을 선택하세요."
+            description="조직원별 보기는 선택한 조직원이 담당자인 고객만 기준으로 파이프라인을 집계합니다."
+          />
+        )}
+
+        {!isError && !needsMemberSelection && isLoading && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 8 }).map((_, index) => (
               <div key={index} className="h-28 animate-pulse rounded-xl border border-slate-200 bg-slate-100" />
@@ -411,7 +446,7 @@ export default function SalesFunnelAnalytics() {
           </div>
         )}
 
-        {!isError && data && (
+        {!isError && !needsMemberSelection && data && (
           <>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <StatCard title="신규 계약" value={`${formatNumber(performance?.newContractCount)}건`} helper="기간 내 신규 계약 등록" icon={ClipboardList} tone="navy" />
@@ -551,12 +586,21 @@ export default function SalesFunnelAnalytics() {
                     팀원 성과 비교
                   </CardTitle>
                   <CardDescription>
-                    {data.scope.canViewRanking ? "권한 범위 내 구성원별 개선 필요 항목을 함께 표시합니다." : "내 담당 고객 보기에서는 구성원 비교를 표시하지 않습니다."}
+                    {data.scope.canViewRanking
+                      ? "권한 범위 내 구성원별 개선 필요 항목을 함께 표시합니다."
+                      : effectiveOwnershipScope === "member"
+                        ? "조직원별 보기에서는 팀원 비교를 표시하지 않습니다."
+                        : "내 담당 고객 보기에서는 구성원 비교를 표시하지 않습니다."}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {!data.scope.canViewRanking ? (
-                    <EmptyState title="내 담당 고객 기준입니다." description="내 담당 고객 보기에서는 팀원 비교 대신 본인 파이프라인 지표만 표시합니다." />
+                    <EmptyState
+                      title={effectiveOwnershipScope === "member" ? "선택한 조직원 기준입니다." : "내 담당 고객 기준입니다."}
+                      description={effectiveOwnershipScope === "member"
+                        ? "조직원별 보기에서는 팀원 비교 대신 선택한 조직원의 담당 고객 파이프라인만 표시합니다."
+                        : "내 담당 고객 보기에서는 팀원 비교 대신 본인 파이프라인 지표만 표시합니다."}
+                    />
                   ) : ranking.length === 0 ? (
                     <EmptyState title="비교할 구성원이 없습니다." description="조직 필터를 넓히거나 기간을 변경해 주세요." />
                   ) : (

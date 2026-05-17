@@ -136,3 +136,12 @@ This PR adds the `/analytics` sales pipeline ownership scope filter. The filter 
 - If a member requests `managed`, the server still returns only that member's assigned customers.
 - Member ranking is hidden for `mine` scope because subordinate comparison does not apply.
 - Related consultations, contracts, follow-ups, and schedules are calculated from the filtered customer pipeline scope where customer linkage exists.
+
+### Member-specific pipeline scope
+
+- `ownershipScope: "member"` with `selectedUserId` narrows the report to customers directly assigned to the selected active organization member.
+- The assignee basis is `customers.agentId === selectedUserId`, not consultation author or contract author.
+- The server rejects missing, inactive/resigned, or out-of-hierarchy `selectedUserId` values.
+- branch_admin can choose active organization users; sub_branch_admin/team_leader can choose only users inside their accessible hierarchy.
+- member users do not get the member selector in the UI and cannot use it to view another user.
+- Member ranking is hidden for member-specific scope because it is a single-assignee report.
