@@ -207,7 +207,7 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 1. Open `/operation-risk` in a narrow viewport.
 2. Confirm risk cards stack vertically without horizontal scroll.
 3. Confirm long action names, team/user labels, and empty states do not break the layout.
-4. Confirm branch_admin can navigate from the mobile more menu to "운영 리스크".
+4. Confirm branch_admin can navigate from the mobile more menu to "운영 리스크 센터".
 
 ### Android APK
 1. Open the Android internal build and navigate to `/operation-risk`.
@@ -223,9 +223,11 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 
 ### Regression
 1. `/analytics` remains sales funnel/performance only.
-2. `/admin-audit`, `/logs`, `/deleted-data`, `/users/handoff`, and `/push-notifications` still load.
-3. No download/export feature is added by PR6.
-4. No automatic account status, role, assignee, handoff, deletion, or push sending policy change occurs.
+2. `/admin-audit` redirects to `/operation-risk?tab=logs` for branch_admin.
+3. `/logs` still loads as the retained activity log screen with its existing permissions.
+4. `/deleted-data`, `/users/handoff`, and `/push-notifications` still load.
+5. No download/export feature is added by PR6.
+6. No DB schema, activity log structure, DATA_DOWNLOAD policy, automatic account status, role, assignee, handoff, deletion, or push sending policy change occurs.
 
 ## Role Boundary UAT (Safety)
 - branch_admin: full visibility in allowed pages.

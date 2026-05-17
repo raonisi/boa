@@ -1770,6 +1770,11 @@ describe("admin audit and download reason controls", () => {
     expect(result.items[0].actor?.email).toContain("***");
   });
 
+  it("blocks inactive or resigned branch admins from audit log search", async () => {
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).adminAudit.logSearch({ riskOnly: true })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).adminAudit.logSearch({ riskOnly: true })).rejects.toThrow();
+  });
+
   it("requires a download reason and records it in DATA_DOWNLOAD metadata", async () => {
     vi.spyOn(db, "getCustomers").mockResolvedValue([{ id: 100, name: "[TEST] Customer" }] as any);
     const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
@@ -1886,6 +1891,28 @@ describe("PR6 operation risk center", () => {
     }
     await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "inactive" })).operationRisk.summary({ period: "7d" })).rejects.toThrow();
     await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).operationRisk.summary({ period: "7d" })).rejects.toThrow();
+  });
+
+  it("keeps all operation risk sub-queries branch_admin only", async () => {
+    mockOperationRiskSources();
+    const branchAdmin = appRouter.createCaller(createCtx("branch_admin"));
+
+    await expect(branchAdmin.operationRisk.downloadRisk({ period: "7d" })).resolves.toBeDefined();
+    await expect(branchAdmin.operationRisk.accountRisk({ period: "7d" })).resolves.toBeDefined();
+    await expect(branchAdmin.operationRisk.deletionRisk({ period: "7d" })).resolves.toBeDefined();
+    await expect(branchAdmin.operationRisk.handoffRisk({ period: "7d" })).resolves.toBeDefined();
+    await expect(branchAdmin.operationRisk.pushRisk({ period: "7d" })).resolves.toBeDefined();
+    await expect(branchAdmin.operationRisk.unresolvedWorkRisk({ period: "7d" })).resolves.toBeDefined();
+
+    for (const role of ["sub_branch_admin", "team_leader", "member"] as Role[]) {
+      const caller = appRouter.createCaller(createCtx(role));
+      await expect(caller.operationRisk.downloadRisk({ period: "7d" })).rejects.toThrow();
+      await expect(caller.operationRisk.accountRisk({ period: "7d" })).rejects.toThrow();
+      await expect(caller.operationRisk.deletionRisk({ period: "7d" })).rejects.toThrow();
+      await expect(caller.operationRisk.handoffRisk({ period: "7d" })).rejects.toThrow();
+      await expect(caller.operationRisk.pushRisk({ period: "7d" })).rejects.toThrow();
+      await expect(caller.operationRisk.unresolvedWorkRisk({ period: "7d" })).rejects.toThrow();
+    }
   });
 
   it("returns stable normal output for empty operation risk data", async () => {
