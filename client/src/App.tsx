@@ -109,6 +109,11 @@ function Router() {
           <Dashboard />
         </AuthGuard>
       </Route>
+      <Route path="/dashboard">
+        <AuthGuard>
+          <Redirect to="/" />
+        </AuthGuard>
+      </Route>
       <Route path="/sales-pipeline-preview">
         <AuthGuard>
           <Redirect to="/sales-pipeline" />
