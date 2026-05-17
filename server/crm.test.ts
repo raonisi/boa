@@ -993,6 +993,85 @@ describe("RBAC - customers.assign (team_leader or above only)", () => {
       appRouter.createCaller(createCtx("member")).customers.assign({ customerId: 1, agentId: 3 })
     ).rejects.toThrow();
   });
+
+  it("allows team_leader to assign an own-team customer to an active subordinate member", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "[TEST] Team Customer",
+      agentId: null,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+      assignmentStatus: "assigned_to_sub_branch",
+      birthDate: null,
+      isActive: true,
+    } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      name: "[TEST] Member",
+      role: "member",
+      accountStatus: "active",
+      teamId: 10,
+      subBranchAdminId: 2,
+    } as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", parentUserId: null, teamId: 10, subBranchAdminId: 2 },
+      { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", parentUserId: 3, teamId: 10, subBranchAdminId: 2 },
+    ] as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([] as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const assignSpy = vi.spyOn(db, "assignCustomer").mockResolvedValue(undefined);
+    const historySpy = vi.spyOn(db, "createAssignmentHistory").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createNotification").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createUncontactedReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createBirthdayReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "refreshLongUnmanagedReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).customers.assign({ customerId: 100, agentId: 4 });
+
+    expect(assignSpy).toHaveBeenCalledWith(100, 4, 10, 2, tx);
+    expect(historySpy).toHaveBeenCalledWith(expect.objectContaining({
+      customerId: 100,
+      newAgentId: 4,
+      newTeamId: 10,
+      newSubBranchAdminId: 2,
+      assignedBy: 3,
+      assignmentType: "reassignment",
+    }), tx);
+    expect(db.createActivityLog).toHaveBeenCalledWith(expect.objectContaining({ action: "DB_ASSIGNED_BY_TEAM_LEADER" }), tx);
+  });
+
+  it("blocks team_leader from assigning a customer outside own team even to an own-team member", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "[TEST] Outside Customer",
+      agentId: null,
+      assignedTeamId: 99,
+      subBranchAdminId: 8,
+      isActive: true,
+    } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      name: "[TEST] Member",
+      role: "member",
+      accountStatus: "active",
+      teamId: 10,
+      subBranchAdminId: 2,
+    } as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", parentUserId: null, teamId: 10, subBranchAdminId: 2 },
+      { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", parentUserId: 3, teamId: 10, subBranchAdminId: 2 },
+    ] as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([] as any);
+    const transactionSpy = vi.spyOn(db, "runDbTransaction");
+
+    await expect(
+      appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).customers.assign({ customerId: 100, agentId: 4 })
+    ).rejects.toThrow("본인 팀 고객만 접근 가능합니다.");
+    expect(transactionSpy).not.toHaveBeenCalled();
+  });
+
   it("blocks team_leader from assigning outside descendants", async () => {
     vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 1, agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, isActive: true } as any);
     vi.spyOn(db, "getUserById").mockResolvedValue({ id: 99, name: "[TEST] Outside", role: "member", accountStatus: "active", teamId: null, subBranchAdminId: null } as any);

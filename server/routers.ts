@@ -3979,8 +3979,7 @@ export const appRouter = router({
       .input(z.object({ customerId: z.number(), agentId: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
-        const customer = await getCustomerById(input.customerId);
-        if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+        const customer = await verifyCustomerAccess(user, input.customerId);
         const agent = await verifyAgentTarget(user, input.agentId);
 
         // 부지점장 이중 검증 (조건 3)
