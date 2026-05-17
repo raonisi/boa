@@ -156,7 +156,7 @@ function SectionCard({
   );
 }
 
-function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; roleTitle: string }) {
+function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | null; role?: string; roleTitle: string }) {
   const [, setLocation] = useLocation();
   const [queuePriorityFilter, setQueuePriorityFilter] = useState<"all" | "urgent" | "today" | "general">("all");
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
@@ -196,8 +196,26 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
   const customerUpdateMutation = trpc.customers.update.useMutation({ onSuccess: refreshTodayWork });
   const cards = data?.cards;
   const topContacts = recommendationSummary?.topContacts ?? [];
-  const fieldQueue = [
+  const rolePriorityText =
+    role === "branch_admin"
+      ? "지점 전체 미처리 업무와 리스크를 먼저 정리합니다."
+      : role === "sub_branch_admin"
+        ? "산하 조직의 미처리 업무와 오늘 실행 건을 먼저 정리합니다."
+        : role === "team_leader"
+          ? "팀의 오늘 연락, 미완료 일정, 누락 위험을 먼저 정리합니다."
+          : "내 고객의 오늘 연락과 후속관리부터 바로 처리합니다.";
+  const fieldQueueBase = [
     {
+      key: "notifications",
+      title: "미확인 알림",
+      count: cards?.pendingNotificationCount ?? 0,
+      hint: "즉시 확인이 필요한 알림",
+      actionLabel: "알림센터",
+      onClick: () => setLocation("/notifications"),
+      tone: "border-blue-200 bg-blue-50/55 dark:border-blue-900/40 dark:bg-blue-950/20",
+    },
+    {
+      key: "overdueFollowUps",
       title: "미처리 후속",
       count: cards?.overdueFollowUpCount ?? 0,
       hint: "기한이 지난 재연락 업무",
@@ -206,6 +224,16 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
       tone: "border-red-200 bg-red-50/55 dark:border-red-900/40 dark:bg-red-950/20",
     },
     {
+      key: "todayContacts",
+      title: "오늘 연락 대상",
+      count: cards?.todayFollowUpCount ?? 0,
+      hint: "이전에 약속한 연락 업무",
+      actionLabel: "고객 DB",
+      onClick: () => setLocation("/customers"),
+      tone: "border-emerald-200 bg-emerald-50/55 dark:border-emerald-900/40 dark:bg-emerald-950/20",
+    },
+    {
+      key: "schedules",
       title: "오늘 일정",
       count: cards?.todayScheduleCount ?? 0,
       hint: "오늘 진행할 상담·계약 일정",
@@ -213,23 +241,11 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
       onClick: () => setLocation("/calendar"),
       tone: "border-amber-200 bg-amber-50/55 dark:border-amber-900/40 dark:bg-amber-950/20",
     },
-    {
-      title: "미확인",
-      count: cards?.pendingNotificationCount ?? 0,
-      hint: "즉시 확인이 필요한 알림",
-      actionLabel: "알림센터",
-      onClick: () => setLocation("/notifications"),
-      tone: "border-blue-200 bg-blue-50/55 dark:border-blue-900/40 dark:bg-blue-950/20",
-    },
-    {
-      title: "추천 고객",
-      count: recommendationSummary?.priorityContactCount ?? 0,
-      hint: "오늘 먼저 볼 우선순위 고객",
-      actionLabel: "고객 DB",
-      onClick: () => setLocation("/customers"),
-      tone: "border-emerald-200 bg-emerald-50/55 dark:border-emerald-900/40 dark:bg-emerald-950/20",
-    },
   ];
+  const fieldQueue =
+    role === "member"
+      ? ["todayContacts", "overdueFollowUps", "schedules", "notifications"].map((key) => fieldQueueBase.find((item) => item.key === key)!)
+      : fieldQueueBase;
   const pendingNotifications = data?.pendingNotifications ?? [];
   const priorityCounts = {
     urgent: pendingNotifications.filter((n) => classifyNotificationPriority(n) === "urgent").length,
@@ -242,20 +258,59 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
   const sortedPendingNotifications = sortNotificationsForQueue(filteredPendingNotifications);
   const commandItems = [
     { label: "미확인 알림", value: cards?.pendingNotificationCount ?? 0, path: "/notifications", tone: "text-red-700" },
-    { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar", tone: "text-amber-700" },
-    { label: "추천 고객", value: recommendationSummary?.priorityContactCount ?? 0, path: "/customers", tone: "text-emerald-700" },
     { label: "미처리 후속", value: cards?.overdueFollowUpCount ?? 0, path: "/customers", tone: "text-red-700" },
+    { label: "오늘 연락", value: cards?.todayFollowUpCount ?? 0, path: "/customers", tone: "text-emerald-700" },
+    { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar", tone: "text-amber-700" },
   ];
+  const priorityWorkItems = [
+    {
+      label: "긴급 알림 처리",
+      value: priorityCounts.urgent,
+      helper: "미확인 알림 중 긴급 분류",
+      path: "/notifications",
+      tone: "border-red-200 bg-red-50/70 text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200",
+    },
+    {
+      label: "미처리 후속 완료",
+      value: cards?.overdueFollowUpCount ?? 0,
+      helper: "기한이 지난 재연락",
+      path: "/customers",
+      tone: "border-orange-200 bg-orange-50/70 text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200",
+    },
+    {
+      label: "오늘 연락 실행",
+      value: cards?.todayFollowUpCount ?? 0,
+      helper: "오늘 도래한 후속관리",
+      path: "/customers",
+      tone: "border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200",
+    },
+    {
+      label: "오늘 일정 확인",
+      value: cards?.todayScheduleCount ?? 0,
+      helper: "상담·계약 일정",
+      path: "/calendar",
+      tone: "border-amber-200 bg-amber-50/70 text-amber-900 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-200",
+    },
+    {
+      label: "장기 미관리 점검",
+      value: cards?.longUnmanagedCustomerCount ?? 0,
+      helper: "누락 위험 고객",
+      path: "/customers",
+      tone: "border-slate-200 bg-slate-50/80 text-slate-800 dark:border-slate-800 dark:bg-slate-950/20 dark:text-slate-200",
+    },
+  ]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 3);
   const hasImmediateWork = commandItems.some((item) => item.value > 0);
   const primaryCommandPath =
     (cards?.pendingNotificationCount ?? 0) > 0 ? "/notifications" :
+    (cards?.overdueFollowUpCount ?? 0) > 0 || (cards?.todayFollowUpCount ?? 0) > 0 ? "/customers" :
     (cards?.todayScheduleCount ?? 0) > 0 ? "/calendar" :
-    (recommendationSummary?.priorityContactCount ?? 0) > 0 || (cards?.overdueFollowUpCount ?? 0) > 0 ? "/customers" :
     "/calendar";
   const primaryCommandLabel =
     (cards?.pendingNotificationCount ?? 0) > 0 ? "알림 처리하기" :
+    (cards?.overdueFollowUpCount ?? 0) > 0 || (cards?.todayFollowUpCount ?? 0) > 0 ? "고객 처리하기" :
     (cards?.todayScheduleCount ?? 0) > 0 ? "오늘 일정 보기" :
-    (recommendationSummary?.priorityContactCount ?? 0) > 0 || (cards?.overdueFollowUpCount ?? 0) > 0 ? "고객 처리하기" :
     "일정 등록하기";
   const mobileFollowUpTasks = [
     ...(data?.overdueFollowUps ?? []).map((item) => ({ ...item, taskType: "followUp", priorityLabel: "기한 경과" })),
@@ -356,7 +411,7 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
                 {userName ?? "담당자"}님, 지금 처리할 업무부터 보세요.
               </h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                미확인 알림, 오늘 일정, 우선 연락 고객, 미처리 후속관리 순서로 현장 업무를 정리했습니다.
+                {rolePriorityText} 오늘 연락할 고객, 미처리 업무, 일정, 알림을 한 번에 확인하세요.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -382,16 +437,34 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
                 파이프라인
               </Button>
             </div>
+            <div className="grid gap-2 sm:grid-cols-3 xl:col-span-3">
+              {priorityWorkItems.map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => setLocation(item.path)}
+                  className={`rounded-lg border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.tone}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold">{item.label}</p>
+                      <p className="mt-1 text-xs opacity-80">{item.helper}</p>
+                    </div>
+                    <p className="shrink-0 text-2xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : item.value}</p>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
 
       <div className="hidden gap-3 md:grid md:grid-cols-4 xl:grid-cols-7">
-        <PremiumStatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} tone="blue" helper="오늘 진행할 일정" />
         <PremiumStatCard title="오늘 연락 대상" value={isLoading ? "-" : cards?.todayFollowUpCount} icon={Phone} tone="gold" helper="후속 연락 예정" />
+        <PremiumStatCard title="미처리 후속관리" value={isLoading ? "-" : cards?.overdueFollowUpCount} icon={Clock3} tone="red" helper="기한 경과" />
+        <PremiumStatCard title="오늘 상담 예정" value={isLoading ? "-" : cards?.todayScheduleCount} icon={CalendarDays} tone="blue" helper="오늘 진행할 일정" />
         <PremiumStatCard title="미완료 일정" value={isLoading ? "-" : cards?.incompleteScheduleCount} icon={AlertCircle} tone="orange" helper="처리 필요 일정" />
         <PremiumStatCard title="미확인 알림" value={isLoading ? "-" : cards?.pendingNotificationCount} icon={Bell} tone="red" helper="확인 대기" />
-        <PremiumStatCard title="미처리 후속관리" value={isLoading ? "-" : cards?.overdueFollowUpCount} icon={Clock3} tone="red" helper="기한 경과" />
         <PremiumStatCard title="이번 달 신규 계약" value={isLoading ? "-" : cards?.monthlyContractCount} icon={FileText} tone="green" helper="신규 영업 성과" />
         <PremiumStatCard title="월납보험료 실적" value={isLoading ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} tone="navy" helper="입력 계약 기준" />
       </div>
@@ -406,10 +479,10 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
         <CardContent className="space-y-2 px-4 pb-4">
           <div className="grid grid-cols-2 gap-2">
             {[
-              { label: "미확인", value: cards?.pendingNotificationCount ?? 0, path: "/notifications" },
-              { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar" },
-              { label: "추천 고객", value: recommendationSummary?.priorityContactCount ?? 0, path: "/customers" },
               { label: "미처리 후속", value: cards?.overdueFollowUpCount ?? 0, path: "/customers" },
+              { label: "오늘 연락", value: cards?.todayFollowUpCount ?? 0, path: "/customers" },
+              { label: "오늘 일정", value: cards?.todayScheduleCount ?? 0, path: "/calendar" },
+              { label: "미확인", value: cards?.pendingNotificationCount ?? 0, path: "/notifications" },
             ].map((item) => (
               <button
                 key={item.label}
@@ -818,7 +891,7 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
               {topContacts.slice(0, 5).map((contact) => (
-                <button key={contact.customerId} type="button" onClick={() => setLocation(`/customers/${contact.customerId}`)} className="rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/35">
+                <div key={contact.customerId} className="rounded-lg border border-border bg-card p-3 shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/35">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-bold text-foreground">{contact.customerName}</span>
                     <Badge className={contact.urgency === "high" ? "border-0 bg-red-100 text-red-700" : contact.urgency === "medium" ? "border-0 bg-amber-100 text-amber-700" : "border-0 bg-slate-100 text-slate-600"}>
@@ -826,7 +899,18 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
                     </Badge>
                   </div>
                   <p className="mt-2 line-clamp-2 text-xs leading-5 text-muted-foreground">{contact.reasons.slice(0, 2).join(" · ") || contact.recommendedAction}</p>
-                </button>
+                  <div className="mt-3 grid grid-cols-3 gap-1.5">
+                    <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={() => setLocation(`/customers/${contact.customerId}`)}>
+                      상세
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-8 px-2 text-xs" onClick={() => setLocation(`/customers/${contact.customerId}?action=consult`)}>
+                      상담
+                    </Button>
+                    <Button type="button" size="sm" className="h-8 px-2 text-xs" onClick={() => setLocation(`/customers/${contact.customerId}?action=followup`)}>
+                      후속
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           )}
@@ -1053,33 +1137,12 @@ function WorkRhythmSummaryCard() {
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const utils = trpc.useUtils();
   const { data: stats } = trpc.performance.stats.useQuery();
   const { data: myBranchAdminStats } = trpc.performance.stats.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
-  const { data: notifResult } = trpc.notifications.list.useQuery({});
-  const markReadMutation = trpc.notifications.markRead.useMutation({
-    onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
-    },
-  });
-  const completeMutation = trpc.notifications.updateProcessStatus.useMutation({
-    onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
-    },
-  });
-  const notifications = notifResult?.items ?? [];
-  const { data: schedules } = trpc.schedules.list.useQuery();
-  const { data: customers } = trpc.customers.list.useQuery({});
+  const { data: customers } = trpc.customers.list.useQuery({}, { enabled: user?.role === "branch_admin" });
   const { data: myBranchAdminCustomers } = trpc.customers.list.useQuery({ scope: "mine" }, { enabled: user?.role === "branch_admin" });
 
-  const today = new Date();
-  const todaySchedules = schedules?.filter((schedule) => new Date(schedule.startTime).toDateString() === today.toDateString()) ?? [];
-  const unreadNotifs = notifications.filter((notification: any) => !notification.isRead);
-  const recentCustomers = customers?.slice(0, 5) ?? [];
   const roleTitle =
     user?.role === "branch_admin" ? "지점장" :
     user?.role === "sub_branch_admin" ? "부지점장" :
@@ -1095,7 +1158,7 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        <TodayWorkSection userName={user?.name} roleTitle={roleTitle} />
+        <TodayWorkSection userName={user?.name} role={user?.role} roleTitle={roleTitle} />
 
         {user?.role === "branch_admin" ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -1117,139 +1180,6 @@ export default function Dashboard() {
           <PerformanceGoalSummaryCard />
           <WorkRhythmSummaryCard />
         </div>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <SectionCard title="최근 고객" icon={Users} action={<button type="button" onClick={() => setLocation("/customers")} className="text-xs font-semibold text-primary hover:underline">고객 DB</button>}>
-            {recentCustomers.length === 0 ? (
-              <EmptyState
-                action={
-                  <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/customers")}>
-                    고객 DB 열기
-                  </Button>
-                }
-            >
-              표시할 고객이 없습니다. 신규 고객 등록 또는 DB 배정을 먼저 확인하세요.
-            </EmptyState>
-            ) : recentCustomers.map((customer) => (
-              <button
-                key={customer.id}
-                type="button"
-                onClick={() => setLocation(`/customers/${customer.id}`)}
-                className="flex w-full items-center justify-between gap-3 rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{customer.name}</p>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{customer.region ?? "지역 미입력"}</p>
-                </div>
-                <StatusBadge status={customer.consultStatus} />
-              </button>
-            ))}
-          </SectionCard>
-
-          <SectionCard title="오늘 일정" icon={CalendarDays} action={<button type="button" onClick={() => setLocation("/calendar")} className="text-xs font-semibold text-primary hover:underline">일정 보기</button>}>
-            {todaySchedules.length === 0 ? (
-              <EmptyState
-                action={
-                  <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/calendar")}>
-                    캘린더로 이동
-                  </Button>
-                }
-            >
-                오늘 일정이 없습니다. 상담 예약이나 후속관리 일정을 등록해보세요.
-              </EmptyState>
-            ) : todaySchedules.slice(0, 5).map((schedule) => (
-              <div key={schedule.id} className="rounded-lg border border-border bg-card p-3 shadow-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="truncate text-sm font-semibold text-foreground">{schedule.title}</p>
-                  <StatusBadge status={schedule.status} />
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {new Date(schedule.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · {schedule.type}
-                </p>
-              </div>
-            ))}
-          </SectionCard>
-
-          <SectionCard title="중요 알림" icon={Bell} action={<button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">알림 보기</button>}>
-            {unreadNotifs.length === 0 ? (
-              <EmptyState
-                action={
-                  <Button type="button" size="sm" variant="outline" onClick={() => setLocation("/notifications")}>
-                    알림센터 열기
-                  </Button>
-                }
-            >
-                새 알림이 없습니다. 알림센터에서 처리 완료 상태를 확인할 수 있습니다.
-              </EmptyState>
-            ) : unreadNotifs.slice(0, 5).map((notification) => (
-              <div key={notification.id} className="rounded-lg border border-border border-l-[3px] border-l-sidebar-primary bg-muted/25 p-3 shadow-sm">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
-                    <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{notification.message}</p>
-                  </div>
-                  <div className="flex shrink-0 gap-1">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="h-7 text-xs"
-                      disabled={markReadMutation.isPending}
-                      onClick={() => markReadMutation.mutate({ id: notification.id })}
-                    >
-                      읽음
-                    </Button>
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="h-7 text-xs"
-                      disabled={completeMutation.isPending}
-                      onClick={() => completeMutation.mutate({ id: notification.id, processStatus: "처리완료" })}
-                    >
-                      완료
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </SectionCard>
-        </div>
-
-        <Card className="shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 border-b border-border/70 pb-3">
-            <CardTitle className="text-base font-semibold tracking-tight">상담 현황 요약</CardTitle>
-            <button
-              type="button"
-              onClick={() => setLocation("/sales-pipeline")}
-              className="shrink-0 text-xs font-semibold text-primary hover:underline"
-            >
-              칸반으로 보기
-            </button>
-          </CardHeader>
-          <CardContent className="px-5 pb-5">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
-              {[
-                { label: "미상담", value: stats?.uncontacted },
-                { label: "부재", value: stats?.absent },
-                { label: "통화완료", value: stats?.called },
-                { label: "상담예정", value: stats?.scheduled },
-                { label: "설계중", value: stats?.designing },
-                { label: "신규 계약", value: stats?.newContractCount ?? stats?.contractCount ?? stats?.contracted },
-                { label: "상담률", value: `${stats?.consultRate ?? 0}%` },
-                { label: "신규 계약률", value: `${stats?.contractRate ?? 0}%` },
-              ].map((item) => (
-                <div key={item.label} className="rounded-lg border border-border/70 bg-muted/30 p-3 text-center shadow-sm">
-                  <p className="text-lg font-bold tabular-nums tracking-tight text-foreground">{item.value ?? 0}</p>
-                  <p className="mt-1 text-[11px] font-medium text-muted-foreground">{item.label}</p>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4 flex items-center gap-2 rounded-lg border border-border bg-muted/35 px-4 py-3 text-xs text-muted-foreground">
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-sidebar-primary" />
-              BOA CRM은 신규 계약과 월납보험료 실적을 중심으로 표시합니다. 계약 유지 상태는 GA 본사 전산 기준으로 확인합니다.
-            </div>
-          </CardContent>
-        </Card>
         {showBackToTop ? (
         <div className="fixed bottom-24 right-4 z-40 md:hidden">
           <Button
