@@ -148,7 +148,7 @@ export default function DeletedDataManagement() {
                         <TableCell>{request.contract?.productName ?? request.targetId}</TableCell>
                         <TableCell>{request.contract?.monthlyPremium?.toLocaleString() ?? "-"}</TableCell>
                         <TableCell>{request.requestReason}</TableCell>
-                        <TableCell>{deleteRequestStatusLabels[request.status] ?? request.status}</TableCell>
+                        <TableCell>{deleteRequestStatusLabels[request.status] ?? "기타 상태"}</TableCell>
                         <TableCell className="text-right space-x-1">
                           <Button size="sm" variant="outline" onClick={() => setReviewTarget({ id: request.id, action: "approve" })}><Check className="h-3.5 w-3.5 mr-1" />승인</Button>
                           <Button size="sm" variant="outline" onClick={() => setReviewTarget({ id: request.id, action: "reject" })}><X className="h-3.5 w-3.5 mr-1" />반려</Button>

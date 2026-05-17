@@ -42,7 +42,7 @@ const actionLabels: Record<string, string> = {
 const riskyPatterns = ["DOWNLOAD", "DELETE", "DELETED", "RESTORE", "RESTORED", "PURGE", "PERMANENT", "FORCE_LOGOUT", "OAUTH_RESET"];
 
 function actionLabel(action: string) {
-  return actionLabels[action] ?? action.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (s) => s.toUpperCase());
+  return actionLabels[action] ?? "기타 작업";
 }
 
 function isRiskAction(action: string) {

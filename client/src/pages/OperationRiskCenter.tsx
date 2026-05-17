@@ -131,7 +131,7 @@ function formatDateTime(value?: string | Date | null) {
 }
 
 function getActionLabel(action: string) {
-  return actionLabels[action] ?? action.replaceAll("_", " ");
+  return actionLabels[action] ?? "기타 작업";
 }
 
 function getTabFromLocation(location: string): OperationRiskTab {

@@ -38,6 +38,15 @@ const loginStatusColors: Record<string, string> = {
   linked: "bg-green-100 text-green-700",
 };
 
+const securityActionLabels: Record<string, string> = {
+  USER_LOGIN: "로그인",
+  USER_LOGOUT: "로그아웃",
+  USER_FORCE_LOGOUT: "사용자 강제 로그아웃",
+  ALL_USERS_FORCE_LOGOUT: "전체 사용자 강제 로그아웃",
+  USER_OAUTH_RESET: "OAuth 연결 초기화",
+  LOGIN_BLOCKED: "로그인 차단",
+};
+
 export default function UserManagement() {
   const utils = trpc.useUtils();
   const { data: users } = trpc.users.list.useQuery();
@@ -296,7 +305,7 @@ export default function UserManagement() {
                           <div className="font-medium">{entry.user?.name ?? "-"}</div>
                           <div className="text-muted-foreground">{entry.user?.email ?? "-"}</div>
                         </TableCell>
-                        <TableCell className="text-xs font-medium">{entry.action}</TableCell>
+                        <TableCell className="text-xs font-medium">{securityActionLabels[entry.action] ?? "보안 작업"}</TableCell>
                         <TableCell className="text-xs">{entry.actor?.name ?? "-"}</TableCell>
                       </TableRow>
                     ))

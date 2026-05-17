@@ -38,7 +38,7 @@ const actionLabels: Record<string, string> = {
 };
 
 function actionLabel(action: string) {
-  return actionLabels[action] ?? action.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (s) => s.toUpperCase());
+  return actionLabels[action] ?? "기타 작업";
 }
 
 export default function AdminAuditDashboard() {

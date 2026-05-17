@@ -129,7 +129,7 @@ export default function ImportBatchManagement() {
                         <TableCell className="text-right">{batch.duplicateRows}</TableCell>
                         <TableCell className="text-right">{batch.activeCustomerCount}</TableCell>
                         <TableCell className="text-right">{batch.cancelledCustomerCount}</TableCell>
-                        <TableCell>{batchStatusLabels[batch.status] ?? batch.status}</TableCell>
+                        <TableCell>{batchStatusLabels[batch.status] ?? "기타 상태"}</TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-2">
                             <Button size="sm" variant="outline" onClick={() => setSelectedBatchId(batch.importBatchId)}>
@@ -158,7 +158,7 @@ export default function ImportBatchManagement() {
                   <div><p className="text-muted-foreground">batch ID</p><p className="font-mono text-xs">{detail.batch.importBatchId}</p></div>
                   <div><p className="text-muted-foreground">파일명</p><p>{detail.batch.fileName ?? "-"}</p></div>
                   <div><p className="text-muted-foreground">업로드자</p><p>{detail.batch.uploader?.name ?? detail.batch.uploadedBy}</p></div>
-                  <div><p className="text-muted-foreground">상태</p><p>{batchStatusLabels[detail.batch.status] ?? detail.batch.status}</p></div>
+                  <div><p className="text-muted-foreground">상태</p><p>{batchStatusLabels[detail.batch.status] ?? "기타 상태"}</p></div>
                 </div>
                 <div className="overflow-x-auto border rounded-md max-h-96">
                   <Table>
@@ -181,9 +181,9 @@ export default function ImportBatchManagement() {
                           <TableCell>{customer.maskedPhone ?? "-"}</TableCell>
                           <TableCell>{customer.consultStatus}</TableCell>
                           <TableCell>{customer.agent?.name ?? "-"}</TableCell>
-                          <TableCell>{assignmentStatusLabels[customer.assignmentStatus] ?? customer.assignmentStatus}</TableCell>
+                          <TableCell>{assignmentStatusLabels[customer.assignmentStatus] ?? "기타 배정"}</TableCell>
                           <TableCell className="text-xs">{customer.createdAt ? new Date(customer.createdAt).toLocaleDateString("ko-KR") : "-"}</TableCell>
-                          <TableCell>{customerStatusLabels[customer.status] ?? customer.status}</TableCell>
+                          <TableCell>{customerStatusLabels[customer.status] ?? "기타 상태"}</TableCell>
                           <TableCell>{customer.hasLinkedData ? "있음" : "없음"}</TableCell>
                         </TableRow>
                       ))}

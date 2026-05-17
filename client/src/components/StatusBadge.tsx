@@ -1,5 +1,22 @@
 import { cn } from "@/lib/utils";
 
+const statusLabels: Record<string, string> = {
+  active: "활성",
+  inactive: "비활성",
+  resigned: "퇴사자",
+  scheduled: "예정",
+  postponed: "연기",
+  completed: "완료",
+  cancelled: "취소",
+  pending: "대기",
+  approved: "승인",
+  rejected: "반려",
+  failed: "실패",
+  success: "성공",
+  sent: "성공",
+  skipped: "스킵",
+};
+
 const statusColors: Record<string, string> = {
   "미상담": "bg-gray-100 text-gray-700",
   "부재": "bg-orange-100 text-orange-700",
@@ -27,13 +44,34 @@ const statusColors: Record<string, string> = {
   "취소": "bg-gray-100 text-gray-500",
   "변경": "bg-yellow-100 text-yellow-700",
   "노쇼": "bg-red-100 text-red-700",
+  active: "bg-green-100 text-green-700",
+  inactive: "bg-gray-100 text-gray-600",
+  resigned: "bg-red-100 text-red-700",
+  scheduled: "bg-blue-100 text-blue-700",
+  postponed: "bg-yellow-100 text-yellow-700",
+  completed: "bg-green-100 text-green-700",
+  cancelled: "bg-gray-100 text-gray-500",
+  pending: "bg-amber-100 text-amber-800",
+  approved: "bg-green-100 text-green-700",
+  rejected: "bg-red-100 text-red-700",
+  failed: "bg-red-100 text-red-700",
+  success: "bg-green-100 text-green-700",
+  sent: "bg-green-100 text-green-700",
+  skipped: "bg-slate-100 text-slate-700",
 };
+
+export function getStatusLabel(status: string | null | undefined) {
+  if (!status) return "상태 미지정";
+  if (statusLabels[status]) return statusLabels[status];
+  return /^[a-z][a-z0-9_:-]*$/i.test(status) ? "기타 상태" : status;
+}
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const color = statusColors[status] ?? "bg-gray-100 text-gray-600";
+  const label = getStatusLabel(status);
   return (
     <span className={cn("inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium", color, className)}>
-      {status}
+      {label}
     </span>
   );
 }

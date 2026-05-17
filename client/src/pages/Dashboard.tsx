@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge } from "@/components/StatusBadge";
+import { getStatusLabel, StatusBadge } from "@/components/StatusBadge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,31 @@ function formatNumber(value: number | string | undefined) {
 
 function formatWon(value: number | undefined) {
   return `${(value ?? 0).toLocaleString()}원`;
+}
+
+const dashboardNotificationTypeLabels: Record<string, string> = {
+  contract_90: "계약 90일 알림",
+  contract_180: "계약 180일 알림",
+  contract_365: "계약 365일 알림",
+  birthday: "생일 알림",
+  uncontacted_3days: "3일 미상담",
+  long_unmanaged_90: "90일 장기 미관리",
+  reconsult: "재상담 알림",
+  unpaid_lapse: "미납/실효 알림",
+  schedule_1day: "일정 1일 전",
+  schedule_today: "오늘 일정",
+  schedule_1hour: "일정 1시간 전",
+  schedule_incomplete: "미완료 일정",
+  customer_assigned: "고객 배정",
+  today_follow_up: "오늘 연락 대상",
+  schedule_30min: "일정 30분 전",
+  contract_delete_request: "계약 삭제 요청",
+  general: "일반 알림",
+};
+
+function getDashboardNotificationTypeLabel(type?: string | null) {
+  if (!type) return "알림";
+  return dashboardNotificationTypeLabels[type] ?? "기타 알림";
 }
 
 function EmptyState({
@@ -744,7 +769,7 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
                     {notification.customerName ? `${notification.customerName} · ` : ""}
-                    {notification.type}
+                    {getDashboardNotificationTypeLabel(notification.type)}
                   </p>
                 </div>
               );
@@ -848,10 +873,10 @@ function TodayWorkSection({ userName, roleTitle }: { userName?: string | null; r
             <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-foreground">{notification.title}</span>
-                <span className="text-[11px] text-muted-foreground">{notification.processStatus}</span>
+                <span className="text-[11px] text-muted-foreground">{getStatusLabel(notification.processStatus)}</span>
               </div>
               <p className="mt-1 truncate text-xs text-muted-foreground">
-                {notification.customerName ? `${notification.customerName} · ` : ""}{notification.type}
+                {notification.customerName ? `${notification.customerName} · ` : ""}{getDashboardNotificationTypeLabel(notification.type)}
               </p>
             </button>
           ))}
