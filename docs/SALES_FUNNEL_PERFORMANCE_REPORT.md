@@ -125,3 +125,14 @@ PR4 모바일 3터치 업무 완료 UX 이후, 실제 처리 행동이 영업 �
 - `pnpm.cmd build`: 실행 필요
 - `pnpm.cmd exec cap sync android`: 가능하면 실행
 - `android/gradlew.bat assembleDebug`: JDK/JAVA_HOME 환경이 준비된 경우 실행
+
+## Sales pipeline ownership scope
+
+This PR adds the `/analytics` sales pipeline ownership scope filter. The filter narrows already-authorized data and does not expand role or organization access.
+
+- `ownershipScope: "managed"`: existing behavior, including customers inside the actor's authorized managed scope.
+- `ownershipScope: "mine"`: customers directly assigned to the current user only.
+- "내 담당 고객" is based on `customers.agentId === currentUser.id`, not the consultation author.
+- If a member requests `managed`, the server still returns only that member's assigned customers.
+- Member ranking is hidden for `mine` scope because subordinate comparison does not apply.
+- Related consultations, contracts, follow-ups, and schedules are calculated from the filtered customer pipeline scope where customer linkage exists.

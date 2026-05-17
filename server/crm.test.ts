@@ -3588,6 +3588,99 @@ describe("PR5 sales funnel performance report", () => {
     expect(result.ranking).toHaveLength(0);
   });
 
+  it("limits branch_admin ownershipScope mine to customers directly assigned to the branch admin", async () => {
+    mockSalesReportData({
+      customers: [
+        ...customers,
+        { id: 300, name: "[TEST] Branch Own", agentId: 1, assignedTeamId: null, subBranchAdminId: null, consultStatus: "계약", isActive: true, deletedAt: null, createdAt: new Date("2026-04-04") },
+      ],
+      contracts: [
+        ...contracts,
+        { id: 13, customerId: 300, agentId: 1, contractDate: new Date("2026-05-12"), monthlyPremium: 50000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+      ],
+    });
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "mine",
+    });
+
+    expect(result.scope.ownershipScope).toBe("mine");
+    expect(result.scope.targetUserId).toBe(1);
+    expect(result.funnel.stages.find((stage) => stage.key === "db")?.count).toBe(1);
+    expect(result.performance.newContractCount).toBe(1);
+    expect(result.performance.monthlyPremiumTotal).toBe(50000);
+    expect(result.ranking).toHaveLength(0);
+  });
+
+  it("keeps sub_branch_admin and team_leader ownershipScope mine separate from subordinate customers", async () => {
+    mockSalesReportData({
+      customers: [
+        ...customers,
+        { id: 301, name: "[TEST] Sub Own", agentId: 2, assignedTeamId: null, subBranchAdminId: 2, consultStatus: "계약", isActive: true, deletedAt: null, createdAt: new Date("2026-04-05") },
+        { id: 302, name: "[TEST] Leader Own", agentId: 3, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "계약", isActive: true, deletedAt: null, createdAt: new Date("2026-04-06") },
+      ],
+      contracts: [
+        ...contracts,
+        { id: 14, customerId: 301, agentId: 2, contractDate: new Date("2026-05-12"), monthlyPremium: 60000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+        { id: 15, customerId: 302, agentId: 3, contractDate: new Date("2026-05-13"), monthlyPremium: 70000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+      ],
+    });
+
+    const subResult = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "mine",
+    });
+    const leaderResult = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "mine",
+    });
+
+    expect(subResult.performance.newContractCount).toBe(1);
+    expect(subResult.performance.monthlyPremiumTotal).toBe(60000);
+    expect(subResult.funnel.stages.find((stage) => stage.key === "db")?.count).toBe(1);
+    expect(subResult.ranking).toHaveLength(0);
+    expect(leaderResult.performance.newContractCount).toBe(1);
+    expect(leaderResult.performance.monthlyPremiumTotal).toBe(70000);
+    expect(leaderResult.funnel.stages.find((stage) => stage.key === "db")?.count).toBe(1);
+    expect(leaderResult.ranking).toHaveLength(0);
+  });
+
+  it("keeps member managed ownership requests scoped to the member's own customers", async () => {
+    mockSalesReportData();
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4, teamId: 10, subBranchAdminId: 2 })).salesReports.summary({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "managed",
+    });
+
+    expect(result.scope.ownershipScope).toBe("mine");
+    expect(result.performance.newContractCount).toBe(1);
+    expect(result.performance.monthlyPremiumTotal).toBe(100000);
+    expect(result.scope.canViewRanking).toBe(false);
+    expect(result.ranking).toHaveLength(0);
+  });
+
+  it("hides member ranking for ownershipScope mine across direct endpoint calls", async () => {
+    mockSalesReportData();
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 })).salesReports.memberRanking({
+      period: "custom",
+      dateFrom,
+      dateTo,
+      ownershipScope: "mine",
+    });
+
+    expect(result.scope.ownershipScope).toBe("mine");
+    expect(result.scope.canViewRanking).toBe(false);
+    expect(result.ranking).toHaveLength(0);
+  });
+
   it("allows sub_branch_admin own scope and blocks outside user or team", async () => {
     mockSalesReportData();
     const caller = appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 }));
