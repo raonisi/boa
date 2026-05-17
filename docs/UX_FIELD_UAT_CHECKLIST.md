@@ -160,6 +160,17 @@ This hotfix completes the consultation-tools CRUD pattern for checklist definiti
 6. Confirm mobile filter controls do not overflow.
 
 
+### Sales Pipeline Member-Specific Scope UAT
+1. Log in as branch_admin and open `/analytics`.
+2. Select the member-specific scope option and choose an active organization member.
+3. Confirm KPI cards, funnel stages, conversion rows, bottleneck diagnosis, and premium totals are recalculated from only that selected user's assigned customers.
+4. Confirm member ranking is hidden and the page explains that member-specific scope is a single-assignee report.
+5. Repeat as sub_branch_admin and confirm only subordinate users can be selected.
+6. Repeat as team_leader and confirm only accessible team users can be selected.
+7. Log in as member and confirm the member-specific scope option is not shown.
+8. Confirm selecting no member shows the choose-member empty state and does not reuse stale managed-scope data.
+9. Confirm mobile layout keeps the three scope buttons and member selector readable.
+
 ### Actual Sales Pipeline My Customer Scope Hotfix
 1. Log in as branch_admin and open `/sales-pipeline`.
 2. Switch between the managed-scope option and my-customer option; the actual drag-and-drop pipeline columns and customer counts must refetch and change.
