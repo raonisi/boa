@@ -113,7 +113,7 @@ const navGroups: NavGroup[] = [
       { icon: Network, label: "조직 구조", path: "/organization", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },
       { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
-      { icon: ShieldCheck, label: "운영 리스크 센터", path: "/operation-risk", roles: ["branch_admin"] },
+      { icon: ShieldCheck, label: "운영 리스크 센터", path: "/operation-risk", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: BellRing, label: "푸시 알림 운영", path: "/push-notifications", roles: ["branch_admin"] },
       { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },

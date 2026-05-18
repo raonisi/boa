@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -189,7 +190,115 @@ function getTabFromLocation(location: string): OperationRiskTab {
   return tab && validTabs.includes(tab) ? tab : "summary";
 }
 
+function ManagerScopedRiskView({
+  data,
+  isLoading,
+  isError,
+  onRefresh,
+  setLocation,
+}: {
+  data: any;
+  isLoading: boolean;
+  isError: boolean;
+  onRefresh: () => void;
+  setLocation: (path: string) => void;
+}) {
+  const level = (data?.overall?.level ?? "normal") as RiskLevel;
+  const cards = data?.cards ?? [];
+
+  return (
+    <div className="space-y-5">
+      <Card className="border-slate-200/80 bg-white shadow-sm">
+        <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Scoped Risk Summary</p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">{data?.scope?.label ?? "산하 조직 리스크"}</h1>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+              권한 범위 안에서 조치 가능한 고객, 후속관리, 일정, 알림 리스크만 read-only로 확인합니다.
+              감사 로그, 다운로드 상세, 완전삭제, OAuth 초기화, 강제 로그아웃 이벤트는 지점장 전용입니다.
+            </p>
+          </div>
+          <Button type="button" variant="outline" onClick={onRefresh} disabled={isLoading}>
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+            새로고침
+          </Button>
+        </CardContent>
+      </Card>
+
+      {isError ? (
+        <ErrorState
+          title="산하 조직 리스크를 불러오지 못했습니다."
+          description="잠시 후 다시 시도해 주세요."
+          retryLabel="다시 시도"
+          onRetry={onRefresh}
+        />
+      ) : isLoading ? (
+        <Card className="border-slate-200/80 bg-white shadow-sm">
+          <CardContent className="grid gap-3 p-5 md:grid-cols-3">
+            {[0, 1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl bg-slate-100" />)}
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Card className="border-slate-200/80 bg-white shadow-sm">
+            <CardContent className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr]">
+              <div>
+                <p className="text-sm font-semibold text-slate-500">종합 상태</p>
+                <div className="mt-2 flex items-center gap-3">
+                  <ShieldCheck className={cn("h-6 w-6", level === "danger" ? "text-destructive" : level === "warning" || level === "caution" ? "text-amber-700" : "text-boa-green")} />
+                  <span className="text-3xl font-bold text-slate-950">{levelLabels[level]}</span>
+                  <Badge className={cn("border", levelClasses[level])}>점수 {data?.overall?.score ?? 0}</Badge>
+                </div>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">{data?.overall?.message}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-semibold text-slate-500">검토 범위</p>
+                <p className="mt-1 text-sm font-bold text-slate-900">{data?.scope?.label ?? "-"}</p>
+                <p className="mt-2 text-xs text-slate-500">권한 범위 안의 업무 리스크만 집계하며, 고객 상세 전문이나 감사 로그 원문은 포함하지 않습니다.</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {cards.map((card: any) => {
+              const cardLevel = (card.level ?? "normal") as RiskLevel;
+              return (
+                <Card key={card.title} className="border-slate-200/80 bg-white shadow-sm">
+                  <CardContent className="flex h-full flex-col p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{card.title}</p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">{card.description}</p>
+                      </div>
+                      <Badge className={cn("border", levelClasses[cardLevel])}>{levelLabels[cardLevel]}</Badge>
+                    </div>
+                    <div className="mt-4 flex items-end justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500">대상</p>
+                        <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">{formatNumber(card.count)}</p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={() => setLocation(card.href)}>
+                        {card.actionLabel}
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {cards.length === 0 ? (
+            <EmptyState title="확인할 리스크가 없습니다." description="현재 산하 범위에서 조치가 필요한 업무 리스크가 없습니다." />
+          ) : null}
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function OperationRiskCenter() {
+  const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const [period, setPeriod] = useState<Period>("7d");
   const [dateFrom, setDateFrom] = useState("");
@@ -202,6 +311,7 @@ export default function OperationRiskCenter() {
   const [auditRiskOnly, setAuditRiskOnly] = useState(false);
 
   const activeTab = getTabFromLocation(location);
+  const isBranchAdmin = user?.role === "branch_admin";
   const reportInput = useMemo(() => ({
     period,
     dateFrom: period === "custom" && dateFrom ? dateFrom : undefined,
@@ -209,9 +319,14 @@ export default function OperationRiskCenter() {
   }), [dateFrom, dateTo, period]);
 
   const { data, isLoading, isFetching, isError, refetch } = trpc.operationRisk.summary.useQuery(reportInput, {
+    enabled: isBranchAdmin,
     placeholderData: (previous) => previous,
   });
-  const { data: auditSummary } = trpc.adminAudit.summary.useQuery();
+  const { data: scopedSummary, isLoading: isScopedLoading, isError: isScopedError, refetch: refetchScoped } = trpc.operationRisk.scopedSummary.useQuery(reportInput, {
+    enabled: !isBranchAdmin,
+    placeholderData: (previous) => previous,
+  });
+  const { data: auditSummary } = trpc.adminAudit.summary.useQuery(undefined, { enabled: isBranchAdmin });
   const { data: auditLogs, isFetching: isAuditFetching } = trpc.adminAudit.logSearch.useQuery({
     datePreset: auditDatePreset,
     category: auditCategory === "all" ? undefined : auditCategory as "download" | "delete" | "security" | "customer" | "contract" | "user",
@@ -220,12 +335,28 @@ export default function OperationRiskCenter() {
     search: auditSearch.trim() || undefined,
     riskOnly: auditRiskOnly,
     limit: 50,
+  }, {
+    enabled: isBranchAdmin,
   });
 
   const overallLevel = (data?.overall.level ?? "normal") as RiskLevel;
   const metric = (key: keyof NonNullable<typeof auditSummary>["cards"]) => Number(auditSummary?.cards?.[key] ?? 0);
   const cautionCount = metric("unreadNotifications") + metric("inactiveUsers") + metric("softDeletedCustomers") + metric("softDeletedContracts");
   const riskCount = metric("recentDownloads") + metric("recentDeleteRestore") + metric("recentLoginBlocked") + metric("recentSecurityActions");
+
+  if (!isBranchAdmin) {
+    return (
+      <DashboardLayout>
+        <ManagerScopedRiskView
+          data={scopedSummary}
+          isLoading={isScopedLoading}
+          isError={isScopedError}
+          onRefresh={() => refetchScoped()}
+          setLocation={setLocation}
+        />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>

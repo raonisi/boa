@@ -27,7 +27,7 @@
 1. Confirm Capacitor Android uses the production web origin `https://raonisis.kr` and does not define a separate native route map.
 2. In the Android internal build or mobile WebView, verify canonical route entry for `/dashboard` redirects safely to the dashboard.
 3. Verify `/customers`, `/calendar`, `/notifications`, `/analytics`, and `/operation-risk` load their intended screens.
-4. Verify `/operation-risk` remains branch_admin-only; sub_branch_admin, team_leader, member, inactive, and resigned users cannot bypass the guard by direct URL.
+4. Verify `/operation-risk` loads the full center for branch_admin, scoped read-only risk summary for sub_branch_admin/team_leader, and blocks member, inactive, and resigned users by direct URL.
 5. Verify deprecated `/admin-audit` does not 404 and redirects to `/operation-risk?tab=logs` only after branch_admin authorization.
 6. Verify MobileNav and DashboardLayout use the same canonical route targets for customers, calendar, notifications, analytics, and operation risk.
 7. After `pnpm.cmd exec cap sync android`, confirm generated Android files are not committed unless the PR intentionally changes native configuration.
@@ -276,12 +276,20 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 2. Confirm WebView route access, card scrolling, and action buttons are stable.
 3. Confirm no APK/AAB/JKS/keystore/google-services.json/local.properties files are included in the PR.
 
+### Manager Scoped View
+1. Open `/operation-risk` as sub_branch_admin and confirm only scoped organization risk cards are shown.
+2. Open `/operation-risk` as team_leader and confirm only team risk cards are shown.
+3. Confirm manager cards are read-only summaries for overdue follow-ups, stale schedules, long unmanaged customers, unread notifications, and assignment/handoff review.
+4. Confirm DATA_DOWNLOAD details, permanent delete, OAuth reset, force logout, and raw activity log entries are not visible to sub_branch_admin/team_leader.
+5. Confirm card CTAs route only to allowed customer, calendar, notification, or DB assignment screens.
+6. Confirm member, inactive, and resigned users cannot access the scoped view.
+
 ## P2-1 Analytics / Operation UX Polish UAT Steps
 1. Open `/analytics` and confirm the current scope card clearly shows managed, mine, or member-specific scope.
 2. Select member-specific scope and confirm the selected member name is visible and member ranking is hidden.
 3. Confirm bottleneck diagnosis includes a concrete action sequence, not only a rate.
 4. Open `/operation-risk` as branch_admin and confirm each risk card shows owner, deadline, next action, and a clear action CTA.
-5. Confirm `/operation-risk` remains unavailable to sub_branch_admin, team_leader, member, inactive, and resigned users by direct URL and API.
+5. Confirm `/operation-risk` shows only scoped read-only risk summary to sub_branch_admin/team_leader and remains unavailable to member, inactive, and resigned users by direct URL and API.
 6. In operation-risk logs, test period, category, target, action, search, riskOnly, and reset controls.
 7. Open `/logs` and confirm period, user, category, risk, search, and reset controls are usable on mobile without horizontal page overflow.
 8. Confirm DATA_DOWNLOAD entries show safe reason/summary text and do not expose raw tokens, full phone numbers, customer memo bodies, illness details, product names, or premium details.

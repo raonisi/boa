@@ -2566,6 +2566,62 @@ describe("PR6 operation risk center", () => {
     await expect(appRouter.createCaller(createCtx("branch_admin", { accountStatus: "resigned" })).operationRisk.summary({ period: "7d" })).rejects.toThrow();
   });
 
+  it("allows sub_branch_admin and team_leader to view scoped read-only operation risk", async () => {
+    const now = new Date();
+    const oldDate = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
+    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([
+      { id: 101, agentId: 4, isActive: true, createdAt: oldDate, updatedAt: oldDate, lastContactDate: oldDate, assignmentStatus: "assigned" },
+      { id: 102, agentId: null, subBranchAdminId: null, isActive: true, createdAt: oldDate, updatedAt: oldDate, assignmentStatus: "unassigned" },
+    ] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([
+      { id: 201, userId: 4, status: "scheduled", startTime: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000) },
+    ] as any);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
+      items: [{ id: 301, userId: 4, isRead: false, processStatus: "unread" }],
+      totalCount: 1,
+      hasMore: false,
+    } as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue([
+      { id: 401, assignedAgentId: 4, status: "scheduled", nextContactDate: new Date(now.getTime() - 24 * 60 * 60 * 1000) },
+    ] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 2, role: "sub_branch_admin", accountStatus: "active" },
+      { id: 3, role: "team_leader", accountStatus: "active", parentUserId: 2, teamId: 10 },
+      { id: 4, role: "member", accountStatus: "active", parentUserId: 3, teamId: 10 },
+      { id: 9, role: "member", accountStatus: "active", parentUserId: 99, teamId: 99 },
+    ] as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([{ id: 10, managerId: 3, subBranchAdminId: 2 }] as any);
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      { id: 1, action: "DATA_DOWNLOAD", details: JSON.stringify({ phone: "010-0000-0000" }), createdAt: now },
+    ] as any);
+
+    const subBranchResult = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).operationRisk.scopedSummary({ period: "7d" });
+    const teamResult = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).operationRisk.scopedSummary({ period: "7d" });
+
+    expect(subBranchResult.scope.role).toBe("sub_branch_admin");
+    expect(teamResult.scope.role).toBe("team_leader");
+    expect(subBranchResult.cards.map((card) => card.title)).toEqual([
+      "미처리 후속관리",
+      "오래된 미완료 일정",
+      "장기 미관리 고객",
+      "미확인 알림",
+      "배정/인수인계 확인 필요",
+    ]);
+    expect(subBranchResult.cards.some((card) => card.count > 0)).toBe(true);
+    expect(JSON.stringify(subBranchResult)).not.toContain("DATA_DOWNLOAD");
+    expect(JSON.stringify(subBranchResult)).not.toContain("010-0000-0000");
+    expect(getLogsSpy).not.toHaveBeenCalled();
+    expect(getCustomersSpy).toHaveBeenCalledWith({ agentIds: [2, 3, 4] });
+    expect(getCustomersSpy).toHaveBeenCalledWith({ agentIds: [3, 4] });
+  });
+
+  it("blocks member and inactive users from scoped operation risk", async () => {
+    await expect(appRouter.createCaller(createCtx("member")).operationRisk.scopedSummary({ period: "7d" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { accountStatus: "inactive" })).operationRisk.scopedSummary({ period: "7d" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("sub_branch_admin", { accountStatus: "resigned" })).operationRisk.scopedSummary({ period: "7d" })).rejects.toThrow();
+  });
+
   it("keeps all operation risk sub-queries branch_admin only", async () => {
     mockOperationRiskSources();
     const branchAdmin = appRouter.createCaller(createCtx("branch_admin"));
