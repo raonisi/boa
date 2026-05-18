@@ -2685,7 +2685,8 @@ async function buildWorkRhythmReport(
 
 const downloadRequestSchema = z.object({
   reason: z.string().min(5).max(300),
-  masked: z.boolean().optional().default(false),
+  masked: z.boolean().optional().default(true),
+  rawConfirm: z.boolean().optional().default(false),
 });
 
 const downloadFieldPreview = {
@@ -2710,10 +2711,10 @@ const downloadFieldPreview = {
   ],
   schedules: [
     { key: "title", label: "일정 제목", sensitive: true },
-    { key: "scheduleType", label: "일정 유형", sensitive: false },
+    { key: "type", label: "일정 유형", sensitive: false },
     { key: "status", label: "상태", sensitive: false },
     { key: "startTime", label: "시작시간", sensitive: false },
-    { key: "customerName", label: "고객명", sensitive: true },
+    { key: "customerId", label: "고객ID", sensitive: false },
   ],
   performance: [
     { key: "newContractCount", label: "신규 계약", sensitive: false },
@@ -2722,6 +2723,13 @@ const downloadFieldPreview = {
     { key: "goalAchievementRate", label: "목표 달성률", sensitive: false },
   ],
 } as const;
+
+type DownloadType = keyof typeof downloadFieldPreview;
+
+function neutralizeSpreadsheetFormula(raw: unknown): unknown {
+  if (typeof raw !== "string") return raw;
+  return /^[=+\-@\t\r\n]/.test(raw) ? `'${raw}` : raw;
+}
 
 function maskDownloadValue(key: string, raw: unknown): unknown {
   if (raw === null || raw === undefined) return raw;
@@ -2739,6 +2747,22 @@ function maskDownloadRows<T extends Record<string, unknown>>(rows: T[]): T[] {
   return rows.map((row) => Object.fromEntries(
     Object.entries(row).map(([key, value]) => [key, maskDownloadValue(key, value)])
   ) as T);
+}
+
+function projectDownloadRows<T extends DownloadType>(type: T, rows: Record<string, unknown>[], masked: boolean) {
+  const fields = downloadFieldPreview[type];
+  return rows.map((row) => Object.fromEntries(
+    fields.map((field) => {
+      const value = masked ? maskDownloadValue(field.key, row[field.key]) : row[field.key];
+      return [field.key, neutralizeSpreadsheetFormula(value)];
+    })
+  ));
+}
+
+function assertDownloadMode(input: z.infer<typeof downloadRequestSchema>) {
+  if (!input.masked && !input.rawConfirm) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Raw export requires explicit confirmation." });
+  }
 }
 
 export const appRouter = router({
@@ -6346,34 +6370,39 @@ export const appRouter = router({
     customers: branchAdminProcedure
       .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
-      const data = await getCustomers({});
+      assertDownloadMode(input);
+      const data = projectDownloadRows("customers", await getCustomers({}) as Record<string, unknown>[], input.masked);
       await log(ctx.user.id, "DATA_DOWNLOAD", "customers", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "customers", metadata: { type: "customers", rowCount: data.length, reason: input.reason, masked: input.masked } }));
-      return input.masked ? maskDownloadRows(data as Record<string, unknown>[]) : data;
+        logDetails({ actor: ctx.user.id, targetType: "customers", metadata: { type: "customers", rowCount: data.length, reason: input.reason, masked: input.masked, mode: input.masked ? "masked" : "raw", fields: downloadFieldPreview.customers.map((field) => field.key) } }));
+      return data;
     }),
     contracts: branchAdminProcedure
       .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
-      const data = await getAllContracts({});
+      assertDownloadMode(input);
+      const data = projectDownloadRows("contracts", await getAllContracts({}) as Record<string, unknown>[], input.masked);
       await log(ctx.user.id, "DATA_DOWNLOAD", "contracts", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "contracts", metadata: { type: "contracts", rowCount: data.length, reason: input.reason, masked: input.masked } }));
-      return input.masked ? maskDownloadRows(data as Record<string, unknown>[]) : data;
+        logDetails({ actor: ctx.user.id, targetType: "contracts", metadata: { type: "contracts", rowCount: data.length, reason: input.reason, masked: input.masked, mode: input.masked ? "masked" : "raw", fields: downloadFieldPreview.contracts.map((field) => field.key) } }));
+      return data;
     }),
     schedules: branchAdminProcedure
       .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
-      const data = await getSchedules({});
+      assertDownloadMode(input);
+      const data = projectDownloadRows("schedules", await getSchedules({}) as Record<string, unknown>[], input.masked);
       await log(ctx.user.id, "DATA_DOWNLOAD", "schedules", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "schedules", metadata: { type: "schedules", rowCount: data.length, reason: input.reason, masked: input.masked } }));
-      return input.masked ? maskDownloadRows(data as Record<string, unknown>[]) : data;
+        logDetails({ actor: ctx.user.id, targetType: "schedules", metadata: { type: "schedules", rowCount: data.length, reason: input.reason, masked: input.masked, mode: input.masked ? "masked" : "raw", fields: downloadFieldPreview.schedules.map((field) => field.key) } }));
+      return data;
     }),
     performance: branchAdminProcedure
       .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
-      const data = await getPerformanceStats({});
+      assertDownloadMode(input);
+      const stats = await getPerformanceStats({});
+      const rows = stats ? projectDownloadRows("performance", [stats as Record<string, unknown>], input.masked) : [];
       await log(ctx.user.id, "DATA_DOWNLOAD", "performance", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "performance", metadata: { type: "performance", rowCount: data ? 1 : 0, reason: input.reason, masked: input.masked } }));
-      return input.masked ? maskDownloadRows([data as Record<string, unknown>])[0] : data;
+        logDetails({ actor: ctx.user.id, targetType: "performance", metadata: { type: "performance", rowCount: rows.length, reason: input.reason, masked: input.masked, mode: input.masked ? "masked" : "raw", fields: downloadFieldPreview.performance.map((field) => field.key) } }));
+      return rows[0] ?? null;
     }),
   }),
 

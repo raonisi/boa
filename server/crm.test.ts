@@ -2544,6 +2544,27 @@ describe("admin audit and download reason controls", () => {
     await expect(appRouter.createCaller(createCtx("member")).download.preview()).rejects.toThrow();
   });
 
+  it("keeps preview field keys aligned with actual exported fields", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{ id: 100, name: "[TEST] Customer", phone: "010-1111-2222", extraSecret: "hidden" }] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([{ id: 10, company: "[TEST] Insurer", productName: "[TEST] Product", extraSecret: "hidden" }] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([{ id: 20, title: "[TEST] Schedule", type: "교육", status: "예정", startTime: new Date("2026-05-01T00:00:00.000Z"), customerId: 100, extraSecret: "hidden" }] as any);
+    vi.spyOn(db, "getPerformanceStats").mockResolvedValue({ newContractCount: 1, monthlyPremiumTotal: 10000, consultationCount: 2, goalAchievementRate: 50, extraSecret: "hidden" } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+    const preview = await caller.download.preview();
+    const customers = await caller.download.customers({ reason: "[TEST] field alignment" });
+    const contracts = await caller.download.contracts({ reason: "[TEST] field alignment" });
+    const schedules = await caller.download.schedules({ reason: "[TEST] field alignment" });
+    const performance = await caller.download.performance({ reason: "[TEST] field alignment" });
+
+    expect(Object.keys(customers[0])).toEqual(preview.customers.fields.map((field) => field.key));
+    expect(Object.keys(contracts[0])).toEqual(preview.contracts.fields.map((field) => field.key));
+    expect(Object.keys(schedules[0])).toEqual(preview.schedules.fields.map((field) => field.key));
+    expect(Object.keys(performance ?? {})).toEqual(preview.performance.fields.map((field) => field.key));
+    expect(JSON.stringify(customers)).not.toContain("extraSecret");
+  });
+
   it("supports masked customer exports without storing raw sensitive details in DATA_DOWNLOAD metadata", async () => {
     vi.spyOn(db, "getCustomers").mockResolvedValue([{
       id: 100,
@@ -2576,6 +2597,58 @@ describe("admin audit and download reason controls", () => {
     });
     expect(String(logSpy.mock.calls[0]?.[0].details)).not.toContain("010-1111-2222");
     expect(String(logSpy.mock.calls[0]?.[0].details)).not.toContain("홍길동");
+  });
+
+  it("defaults to masked exports and requires explicit confirmation for raw exports", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{
+      id: 100,
+      name: "[TEST] Customer",
+      phone: "010-1111-2222",
+      birthDate: "1990-01-01",
+      expectedPremium: 120000,
+    }] as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+
+    const maskedByDefault = await caller.download.customers({ reason: "[TEST] default masked" });
+    expect(JSON.stringify(maskedByDefault)).toContain("010-****-2222");
+    expect(JSON.stringify(maskedByDefault)).not.toContain("010-1111-2222");
+
+    await expect(caller.download.customers({ reason: "[TEST] raw blocked", masked: false })).rejects.toThrow();
+    const raw = await caller.download.customers({ reason: "[TEST] raw allowed", masked: false, rawConfirm: true });
+    expect(raw[0].phone).toBe("010-1111-2222");
+  });
+
+  it("neutralizes spreadsheet formulas in exported string values", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{
+      id: 100,
+      name: "=1+1",
+      birthDate: "\t1990-01-01",
+      phone: "\r010-1111-2222",
+      gender: "\nF",
+      region: "@HYPERLINK(\"http://example.test\")",
+      source: "+SUM(A1:A2)",
+      consultStatus: "-10+20",
+      expectedPremium: 120000,
+    }] as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const data = await appRouter.createCaller(createCtx("branch_admin")).download.customers({
+      reason: "[TEST] formula safety",
+      masked: false,
+      rawConfirm: true,
+    });
+
+    expect(data[0]).toMatchObject({
+      name: "'=1+1",
+      birthDate: "'\t1990-01-01",
+      phone: "'\r010-1111-2222",
+      gender: "'\nF",
+      region: "'@HYPERLINK(\"http://example.test\")",
+      source: "'+SUM(A1:A2)",
+      consultStatus: "'-10+20",
+      expectedPremium: 120000,
+    });
   });
 
   it("keeps download APIs branch_admin only", async () => {

@@ -35,6 +35,16 @@ const itemMeta: Record<DownloadType, { label: string; desc: string; icon: typeof
   },
 };
 
+export function neutralizeSpreadsheetFormula(raw: unknown): string {
+  const value = raw === null || raw === undefined ? "" : String(raw);
+  return /^[=+\-@\t\r\n]/.test(value) ? `'${value}` : value;
+}
+
+export function escapeCsvCell(raw: unknown): string {
+  const value = neutralizeSpreadsheetFormula(raw);
+  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
+
 function downloadCSV(data: any[], filename: string) {
   if (!data || data.length === 0) {
     toast.error("다운로드할 데이터가 없습니다.");
@@ -45,9 +55,7 @@ function downloadCSV(data: any[], filename: string) {
   const rows = data.map((row) =>
     keys.map((k) => {
       const val = row[k];
-      if (val === null || val === undefined) return "";
-      const str = String(val);
-      return str.includes(",") || str.includes('"') || str.includes("\n") ? `"${str.replace(/"/g, '""')}"` : str;
+      return escapeCsvCell(val);
     }).join(",")
   );
   const csv = [header, ...rows].join("\n");
@@ -83,17 +91,18 @@ export default function Download() {
     try {
       let data: any[] = [];
       const now = new Date().toISOString().slice(0, 10);
+      const request = { reason, masked, rawConfirm: !masked };
       if (type === "customers") {
-        data = await utils.download.customers.fetch({ reason, masked });
+        data = await utils.download.customers.fetch(request);
         downloadCSV(data, `고객DB_${now}${masked ? "_마스킹" : ""}.csv`);
       } else if (type === "contracts") {
-        data = await utils.download.contracts.fetch({ reason, masked });
+        data = await utils.download.contracts.fetch(request);
         downloadCSV(data, `계약정보_${now}${masked ? "_마스킹" : ""}.csv`);
       } else if (type === "schedules") {
-        data = await utils.download.schedules.fetch({ reason, masked });
+        data = await utils.download.schedules.fetch(request);
         downloadCSV(data, `일정정보_${now}${masked ? "_마스킹" : ""}.csv`);
       } else if (type === "performance") {
-        const stats = await utils.download.performance.fetch({ reason, masked });
+        const stats = await utils.download.performance.fetch(request);
         downloadCSV(stats ? [stats] : [], `실적정보_${now}${masked ? "_마스킹" : ""}.csv`);
       }
       setPendingType(null);
