@@ -99,6 +99,13 @@ Authenticated shell polish check:
    - add contract,
    - open message template tools.
 3. Scroll long page and verify sticky behavior remains usable.
+4. At 360px mobile width, confirm the sticky quick action bar stays above MobileNav, keeps 44px touch targets, and does not create horizontal scroll.
+
+## Mobile Dialog / Touch Target UAT Steps
+1. At 360px mobile width, open a long dialog and confirm content scrolls inside the dialog without leaving the viewport.
+2. Confirm Sheet/Drawer content respects the bottom safe-area and keeps the close button easy to tap.
+3. Confirm destructive confirmation dialogs keep confirm/cancel buttons at mobile-friendly height and spacing.
+4. Confirm Calendar, Notifications, and CustomerDetail dialogs do not overlap MobileNav or hide primary actions.
 
 ## Customer Sales Workspace UAT Steps
 1. Open `/customers` and confirm the first visible section answers which customers to contact today.
