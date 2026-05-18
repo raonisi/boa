@@ -393,6 +393,11 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 8. branch_admin/sub_branch_admin의 기존 DB 배정 흐름이 동일하게 유지되는지 확인한다.
 9. assignment_history와 activity_logs가 기존 정책대로 기록되는지 확인한다.
 
+10. `/customers/assign` search/status/source filters keep the visible list inside the existing role scope.
+11. Bulk selection shows total, filtered, selected, and target-user summary before assignment execution.
+12. Assignment result shows success/failure breakdown and lets operators reselect failed rows for retry.
+13. Mobile `/customers/assign` has no horizontal overflow while filtering, selecting, and opening confirmation.
+
 ## Regression Checks
 - Existing notification mutations still work:
   - markRead

@@ -3,12 +3,14 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
-import { UserPlus, Users } from "lucide-react";
+import { Search, UserPlus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -31,6 +33,48 @@ type UserRow = {
   teamId?: number | null;
   subBranchAdminId?: number | null;
 };
+
+type AssignmentResultItem = {
+  customerId: number;
+  customerName: string;
+  status: "success" | "failed";
+  reason?: string;
+};
+
+type AssignmentResult = {
+  requestedCount: number;
+  successCount: number;
+  failedCount: number;
+  items: AssignmentResultItem[];
+};
+
+function normalizeText(value: unknown) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function filterCustomers(customers: CustomerRow[], filters: { search: string; status: string; source: string }) {
+  const search = normalizeText(filters.search);
+  return customers.filter((customer) => {
+    const searchTarget = `${customer.name ?? ""} ${customer.phone ?? ""} ${customer.region ?? ""} ${customer.source ?? ""}`.toLowerCase();
+    const matchesSearch = !search || searchTarget.includes(search);
+    const matchesStatus = filters.status === "all" || String(customer.consultStatus ?? "") === filters.status;
+    const matchesSource = filters.source === "all" || String(customer.source ?? "") === filters.source;
+    return matchesSearch && matchesStatus && matchesSource;
+  });
+}
+
+function uniqueValues(customers: CustomerRow[], key: "consultStatus" | "source") {
+  return Array.from(new Set(customers.map((customer) => String(customer[key] ?? "").trim()).filter(Boolean)));
+}
+
+function assignmentResultFromItems(items: AssignmentResultItem[]): AssignmentResult {
+  return {
+    requestedCount: items.length,
+    successCount: items.filter((item) => item.status === "success").length,
+    failedCount: items.filter((item) => item.status === "failed").length,
+    items,
+  };
+}
 
 export default function CustomerAssign() {
   const { user } = useAuth();
@@ -62,7 +106,7 @@ function BranchAdminAssign() {
     <div className="space-y-4">
       <PageHeader
         title="DB 배정 관리"
-        description="고객 DB를 부지점장에게 배분하거나 팀장·팀원에게 직접 배정합니다."
+        description="고객 DB를 부지점장에게 배분하거나 팀/담당자에게 직접 배정합니다."
       />
       <Tabs defaultValue="to_agent">
         <TabsList className="flex h-auto flex-wrap">
@@ -124,12 +168,25 @@ function AssignToSubBranch() {
   const utils = trpc.useUtils();
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectedSubBranchAdmin, setSelectedSubBranchAdmin] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [result, setResult] = useState<AssignmentResult | null>(null);
 
   const { data: unassigned, refetch } = trpc.customers.list.useQuery({ unassigned: true, assignmentStatus: "unassigned" });
   const { data: allUsers } = trpc.users.list.useQuery();
   const subBranchAdmins = ((allUsers ?? []) as UserRow[]).filter(
     (candidate) => candidate.role === "sub_branch_admin" && candidate.accountStatus === "active",
   );
+  const customers = (unassigned ?? []) as CustomerRow[];
+  const filteredCustomers = useMemo(
+    () => filterCustomers(customers, { search, status: statusFilter, source: sourceFilter }),
+    [customers, search, sourceFilter, statusFilter],
+  );
+  const visibleCustomerIds = filteredCustomers.map((customer) => customer.id);
+  const selectedVisibleCount = selectedCustomers.filter((id) => visibleCustomerIds.includes(id)).length;
+  const selectedTarget = subBranchAdmins.find((candidate) => String(candidate.id) === selectedSubBranchAdmin);
 
   const assignToSubBranchMutation = trpc.customers.assignToSubBranch.useMutation({
     onSuccess: () => {
@@ -145,22 +202,26 @@ function AssignToSubBranch() {
       return;
     }
 
-    let count = 0;
+    const items: AssignmentResultItem[] = [];
     for (const customerId of selectedCustomers) {
+      const customer = customers.find((item) => item.id === customerId);
       try {
         await assignToSubBranchMutation.mutateAsync({ customerId, subBranchAdminId: Number(selectedSubBranchAdmin) });
-        count += 1;
-      } catch {
-        // Individual failures are surfaced by the mutation toast.
+        items.push({ customerId, customerName: customer?.name ?? `#${customerId}`, status: "success" });
+      } catch (error: any) {
+        items.push({ customerId, customerName: customer?.name ?? `#${customerId}`, status: "failed", reason: error?.message ?? "배분 실패" });
       }
     }
 
-    if (count > 0) {
-      toast.success(`${count}명 배분 완료`);
+    const nextResult = assignmentResultFromItems(items);
+    setResult(nextResult);
+    setConfirmOpen(false);
+    if (nextResult.successCount > 0) {
+      toast.success(`DB 배분 완료: 성공 ${nextResult.successCount}건, 실패 ${nextResult.failedCount}건`);
       setSelectedCustomers([]);
       setSelectedSubBranchAdmin("");
     } else {
-      toast.error("배분된 고객이 없습니다. 다시 시도해 주세요.");
+      toast.error("배분된 고객이 없습니다. 실패 항목을 확인해 주세요.");
     }
   };
 
@@ -192,7 +253,7 @@ function AssignToSubBranch() {
           <Button
             size="sm"
             disabled={!selectedSubBranchAdmin || selectedCustomers.length === 0 || assignToSubBranchMutation.isPending}
-            onClick={handleAssign}
+            onClick={() => setConfirmOpen(true)}
           >
             <Users className="mr-1 h-4 w-4" />
             {selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배분` : "배분하기"}
@@ -202,16 +263,39 @@ function AssignToSubBranch() {
           )}
         </CardContent>
       </Card>
+      <AssignmentResultCard result={result} onRetryFailed={(ids) => setSelectedCustomers(ids)} />
       <CustomerTable
-        customers={(unassigned ?? []) as CustomerRow[]}
+        customers={filteredCustomers}
+        totalCount={customers.length}
         selected={selectedCustomers}
         onToggle={(id) => setSelectedCustomers((prev) => toggleId(prev, id))}
         onToggleAll={() =>
-          setSelectedCustomers(selectedCustomers.length === (unassigned?.length ?? 0) ? [] : (unassigned?.map((customer) => customer.id) ?? []))
+          setSelectedCustomers(
+            selectedVisibleCount === visibleCustomerIds.length
+              ? selectedCustomers.filter((id) => !visibleCustomerIds.includes(id))
+              : Array.from(new Set([...selectedCustomers, ...visibleCustomerIds])),
+          )
         }
+        search={search}
+        onSearchChange={setSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        sourceFilter={sourceFilter}
+        onSourceFilterChange={setSourceFilter}
+        statusOptions={uniqueValues(customers, "consultStatus")}
+        sourceOptions={uniqueValues(customers, "source")}
         title={`미배분 고객 목록 (${unassigned?.length ?? 0}명)`}
         emptyTitle="미배분 고객 DB가 없습니다."
         emptyDescription="신규 고객 DB가 생기면 부지점장에게 배분할 수 있습니다."
+      />
+      <AssignmentConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="DB 배분 확인"
+        selectedCount={selectedCustomers.length}
+        targetLabel={selectedTarget ? formatUserWithRole(selectedTarget) : "-"}
+        loading={assignToSubBranchMutation.isPending}
+        onConfirm={handleAssign}
       />
     </div>
   );
@@ -303,7 +387,18 @@ function AssignmentPanel({
   const utils = trpc.useUtils();
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [result, setResult] = useState<AssignmentResult | null>(null);
   const selectedAgentUser = agents.find((agent) => String(agent.id) === selectedAgent);
+  const filteredCustomers = useMemo(
+    () => filterCustomers(customers, { search, status: statusFilter, source: sourceFilter }),
+    [customers, search, sourceFilter, statusFilter],
+  );
+  const visibleCustomerIds = filteredCustomers.map((customer) => customer.id);
+  const selectedVisibleCount = selectedCustomers.filter((id) => visibleCustomerIds.includes(id)).length;
 
   const assignMutation = trpc.customers.assign.useMutation({
     onSuccess: () => {
@@ -319,22 +414,26 @@ function AssignmentPanel({
       return;
     }
 
-    let count = 0;
+    const items: AssignmentResultItem[] = [];
     for (const customerId of selectedCustomers) {
+      const customer = customers.find((item) => item.id === customerId);
       try {
         await assignMutation.mutateAsync({ customerId, agentId: Number(selectedAgent) });
-        count += 1;
-      } catch {
-        // Individual failures are surfaced by the mutation toast.
+        items.push({ customerId, customerName: customer?.name ?? `#${customerId}`, status: "success" });
+      } catch (error: any) {
+        items.push({ customerId, customerName: customer?.name ?? `#${customerId}`, status: "failed", reason: error?.message ?? "배정 실패" });
       }
     }
 
-    if (count > 0) {
-      toast.success(`${count}명 배정 완료`);
+    const nextResult = assignmentResultFromItems(items);
+    setResult(nextResult);
+    setConfirmOpen(false);
+    if (nextResult.successCount > 0) {
+      toast.success(`DB 배정 완료: 성공 ${nextResult.successCount}건, 실패 ${nextResult.failedCount}건`);
       setSelectedCustomers([]);
       setSelectedAgent("");
     } else {
-      toast.error("배정된 고객이 없습니다. 다시 시도해 주세요.");
+      toast.error("배정된 고객이 없습니다. 실패 항목을 확인해 주세요.");
     }
   };
 
@@ -363,21 +462,46 @@ function AssignmentPanel({
               )}
             </SelectContent>
           </Select>
-          <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={handleAssign}>
+          <Button size="sm" disabled={!selectedAgent || selectedCustomers.length === 0 || assignMutation.isPending} onClick={() => setConfirmOpen(true)}>
             <UserPlus className="mr-1 h-4 w-4" />
             {selectedCustomers.length > 0 ? `${selectedCustomers.length}명 배정` : "배정하기"}
           </Button>
           {selectedAgentUser && <p className="basis-full text-xs text-muted-foreground">{helperText(selectedAgentUser)}</p>}
         </CardContent>
       </Card>
+      <AssignmentResultCard result={result} onRetryFailed={(ids) => setSelectedCustomers(ids)} />
       <CustomerTable
-        customers={customers}
+        customers={filteredCustomers}
+        totalCount={customers.length}
         selected={selectedCustomers}
         onToggle={(id) => setSelectedCustomers((prev) => toggleId(prev, id))}
-        onToggleAll={() => setSelectedCustomers(selectedCustomers.length === customers.length ? [] : customers.map((customer) => customer.id))}
+        onToggleAll={() =>
+          setSelectedCustomers(
+            selectedVisibleCount === visibleCustomerIds.length
+              ? selectedCustomers.filter((id) => !visibleCustomerIds.includes(id))
+              : Array.from(new Set([...selectedCustomers, ...visibleCustomerIds])),
+          )
+        }
+        search={search}
+        onSearchChange={setSearch}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        sourceFilter={sourceFilter}
+        onSourceFilterChange={setSourceFilter}
+        statusOptions={uniqueValues(customers, "consultStatus")}
+        sourceOptions={uniqueValues(customers, "source")}
         title={title}
         emptyTitle={emptyCustomerTitle}
         emptyDescription={emptyCustomerDescription}
+      />
+      <AssignmentConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        title="DB 배정 확인"
+        selectedCount={selectedCustomers.length}
+        targetLabel={selectedAgentUser ? formatUserWithRole(selectedAgentUser) : "-"}
+        loading={assignMutation.isPending}
+        onConfirm={handleAssign}
       />
     </div>
   );
@@ -396,19 +520,125 @@ function toggleId(selected: number[], id: number) {
   return selected.includes(id) ? selected.filter((selectedId) => selectedId !== id) : [...selected, id];
 }
 
+function AssignmentResultCard({ result, onRetryFailed }: { result: AssignmentResult | null; onRetryFailed: (ids: number[]) => void }) {
+  if (!result) return null;
+  const failedItems = result.items.filter((item) => item.status === "failed");
+  return (
+    <Card className="border-slate-200">
+      <CardContent className="space-y-3 p-4">
+        <div className="grid gap-2 sm:grid-cols-3">
+          <div className="rounded-lg border bg-slate-50 p-3 text-sm">
+            <p className="text-xs text-muted-foreground">처리 대상</p>
+            <p className="mt-1 text-lg font-bold">{result.requestedCount}</p>
+          </div>
+          <div className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-800">
+            <p className="text-xs">성공</p>
+            <p className="mt-1 text-lg font-bold">{result.successCount}</p>
+          </div>
+          <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-sm text-amber-800">
+            <p className="text-xs">실패/제외</p>
+            <p className="mt-1 text-lg font-bold">{result.failedCount}</p>
+          </div>
+        </div>
+        {failedItems.length > 0 && (
+          <div className="rounded-lg border border-amber-100 bg-white p-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-amber-900">실패 항목</p>
+              <Button size="sm" variant="outline" onClick={() => onRetryFailed(failedItems.map((item) => item.customerId))}>
+                실패 항목 다시 선택
+              </Button>
+            </div>
+            <div className="mt-2 max-h-40 space-y-1 overflow-y-auto text-xs text-amber-900">
+              {failedItems.map((item) => (
+                <p key={item.customerId}>
+                  {item.customerName}: {item.reason ?? "처리 실패"}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AssignmentConfirmDialog({
+  open,
+  onOpenChange,
+  title,
+  selectedCount,
+  targetLabel,
+  loading,
+  onConfirm,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  title: string;
+  selectedCount: number;
+  targetLabel: string;
+  loading: boolean;
+  onConfirm: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>선택한 고객 DB를 지정 대상에게 배정합니다. 권한과 상태는 서버에서 다시 검증됩니다.</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
+          <p>
+            선택 고객: <span className="font-semibold">{selectedCount}건</span>
+          </p>
+          <p>
+            배정 대상: <span className="font-semibold">{targetLabel}</span>
+          </p>
+          <p className="text-xs text-muted-foreground">일부 고객은 권한 또는 상태 문제로 실패할 수 있으며, 완료 후 결과 breakdown을 표시합니다.</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            취소
+          </Button>
+          <Button onClick={onConfirm} disabled={loading || selectedCount === 0}>
+            {loading ? "처리 중..." : "배정 실행"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CustomerTable({
   customers,
+  totalCount,
   selected,
   onToggle,
   onToggleAll,
+  search,
+  onSearchChange,
+  statusFilter,
+  onStatusFilterChange,
+  sourceFilter,
+  onSourceFilterChange,
+  statusOptions,
+  sourceOptions,
   title,
   emptyTitle,
   emptyDescription,
 }: {
   customers: CustomerRow[];
+  totalCount: number;
   selected: number[];
   onToggle: (id: number) => void;
   onToggleAll: () => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  statusFilter: string;
+  onStatusFilterChange: (value: string) => void;
+  sourceFilter: string;
+  onSourceFilterChange: (value: string) => void;
+  statusOptions: string[];
+  sourceOptions: string[];
   title: string;
   emptyTitle: string;
   emptyDescription: string;
@@ -418,13 +648,56 @@ function CustomerTable({
       <CardHeader className="pb-2">
         <CardTitle className="text-sm">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="p-0">
+      <CardContent className="space-y-3 p-4">
+        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              className="h-9 pl-9"
+              placeholder="고객명, 연락처, 지역, 유입경로 검색"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="상담상태" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">상담상태 전체</SelectItem>
+              {statusOptions.map((status) => (
+                <SelectItem key={status} value={status}>
+                  {status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
+            <SelectTrigger className="h-9">
+              <SelectValue placeholder="유입경로" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">유입경로 전체</SelectItem>
+              {sourceOptions.map((source) => (
+                <SelectItem key={source} value={source}>
+                  {source}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-xs text-slate-700">
+          <span>전체 {totalCount}건</span>
+          <span>필터 결과 {customers.length}건</span>
+          <span>선택 {selected.length}건</span>
+          {selected.length > 0 && <span className="font-medium text-emerald-700">총 {selected.length}건이 배정 대상입니다.</span>}
+        </div>
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-10">
-                  <input type="checkbox" onChange={onToggleAll} checked={selected.length === customers.length && customers.length > 0} />
+                  <input type="checkbox" onChange={onToggleAll} checked={customers.length > 0 && customers.every((customer) => selected.includes(customer.id))} />
                 </TableHead>
                 <TableHead>이름</TableHead>
                 <TableHead>연락처</TableHead>
