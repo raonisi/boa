@@ -34,6 +34,7 @@ export function getContractListStatus({
 }): ContractListStatus {
   if (isLoading) return "loading";
   if (isError) return "error";
+  if (totalCount === 0 && hasActiveFilters) return "no-result";
   if (totalCount === 0) return "empty";
   if (filteredCount === 0 && hasActiveFilters) return "no-result";
   return "ready";
@@ -90,7 +91,10 @@ export default function ContractList() {
     return matchSearch && matchStatus && matchPayment;
   });
 
-  const hasActiveFilters = normalizedSearch.length > 0 || statusFilter !== "all" || paymentFilter !== "all";
+  const hasActiveFilters = normalizedSearch.length > 0
+    || statusFilter !== "all"
+    || paymentFilter !== "all"
+    || (user?.role === "branch_admin" && scopeFilter !== "all");
   const contractListStatus = getContractListStatus({
     isLoading: isContractsLoading,
     isError: isContractsError,
@@ -103,6 +107,7 @@ export default function ContractList() {
     setSearch("");
     setStatusFilter("all");
     setPaymentFilter("all");
+    setScopeFilter("all");
   };
 
   const stateContent = contractListStatus === "loading" ? (

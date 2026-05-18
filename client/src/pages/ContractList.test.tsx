@@ -27,13 +27,23 @@ describe("getContractListStatus", () => {
       isError: false,
       totalCount: 0,
       filteredCount: 0,
-      hasActiveFilters: true,
+      hasActiveFilters: false,
     })).toBe("empty");
 
     expect(getContractListStatus({
       isLoading: false,
       isError: false,
       totalCount: 3,
+      filteredCount: 0,
+      hasActiveFilters: true,
+    })).toBe("no-result");
+  });
+
+  it("treats scoped branch-admin empty responses as no-result states", () => {
+    expect(getContractListStatus({
+      isLoading: false,
+      isError: false,
+      totalCount: 0,
       filteredCount: 0,
       hasActiveFilters: true,
     })).toBe("no-result");
