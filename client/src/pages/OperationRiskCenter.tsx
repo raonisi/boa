@@ -215,7 +215,7 @@ function ManagerScopedRiskView({
             <h1 className="mt-1 text-2xl font-bold text-slate-950">{data?.scope?.label ?? "산하 조직 리스크"}</h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
               권한 범위 안에서 조치 가능한 고객, 후속관리, 일정, 알림 리스크만 read-only로 확인합니다.
-              감사 로그, 다운로드 상세, 완전삭제, OAuth 초기화, 강제 로그아웃 이벤트는 지점장 전용입니다.
+              운영 감사 로그와 위험 작업 상세는 지점장 전용으로 보호됩니다.
             </p>
           </div>
           <Button type="button" variant="outline" onClick={onRefresh} disabled={isLoading}>

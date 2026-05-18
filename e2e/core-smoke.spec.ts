@@ -147,6 +147,30 @@ test.describe("BOA CRM e2e smoke", () => {
     await expectStablePageShell(page, errors);
   });
 
+  test("mobile manager opens scoped operation risk from more menu", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only manager scoped risk smoke");
+    await mockBoaTrpc(page, "team_leader");
+    const errors = collectPageErrors(page);
+    const mobileNavButtons = page.locator("nav.fixed button");
+
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+    await expect(mobileNavButtons).toHaveCount(5);
+    await mobileNavButtons.nth(4).click();
+
+    const moreDialog = page.locator('[role="dialog"]');
+    await expect(moreDialog).toBeVisible();
+    await moreDialog.getByRole("button", { name: "운영 리스크" }).click();
+
+    await expect(page).toHaveURL(/\/operation-risk$/);
+    await expect(page.getByRole("heading", { name: "팀 리스크" })).toBeVisible();
+    await expect(page.getByText("미처리 후속관리")).toBeVisible();
+    await expect(page.getByText("DATA_DOWNLOAD")).toHaveCount(0);
+    await expect(page.getByText("완전삭제")).toHaveCount(0);
+    await expect(page.getByText("OAuth")).toHaveCount(0);
+    await expect(page.getByText("010-1000-2000")).toHaveCount(0);
+    await expectStablePageShell(page, errors);
+  });
+
   test("member sees permission state for branch-admin-only operation risk", async ({ page }) => {
     await mockBoaTrpc(page, "member");
 
