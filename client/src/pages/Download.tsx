@@ -75,6 +75,7 @@ export default function Download() {
   const [downloadReason, setDownloadReason] = useState("");
   const [maskedDownload, setMaskedDownload] = useState(true);
   const [finalConfirmed, setFinalConfirmed] = useState(false);
+  const [rawExportConfirmed, setRawExportConfirmed] = useState(false);
 
   const utils = trpc.useUtils();
   const previewQuery = trpc.download.preview.useQuery();
@@ -84,14 +85,15 @@ export default function Download() {
     setDownloadReason("");
     setMaskedDownload(true);
     setFinalConfirmed(false);
+    setRawExportConfirmed(false);
   };
 
-  const handleDownload = async (type: DownloadType, reason: string, masked: boolean) => {
+  const handleDownload = async (type: DownloadType, reason: string, masked: boolean, rawConfirmed: boolean) => {
     setDownloading(type);
     try {
       let data: any[] = [];
       const now = new Date().toISOString().slice(0, 10);
-      const request = { reason, masked, rawConfirm: !masked };
+      const request = { reason, masked, rawConfirm: !masked && rawConfirmed };
       if (type === "customers") {
         data = await utils.download.customers.fetch(request);
         downloadCSV(data, `고객DB_${now}${masked ? "_마스킹" : ""}.csv`);
@@ -108,6 +110,7 @@ export default function Download() {
       setPendingType(null);
       setDownloadReason("");
       setFinalConfirmed(false);
+      setRawExportConfirmed(false);
     } catch {
       toast.error("다운로드에 실패했습니다.");
     } finally {
@@ -120,6 +123,7 @@ export default function Download() {
   const canExecute = Boolean(pendingType)
     && downloadReason.trim().length >= 5
     && finalConfirmed
+    && (maskedDownload || rawExportConfirmed)
     && downloading === null
     && !previewQuery.isLoading;
 
@@ -220,7 +224,10 @@ export default function Download() {
               <input
                 type="checkbox"
                 checked={maskedDownload}
-                onChange={(event) => setMaskedDownload(event.target.checked)}
+                onChange={(event) => {
+                  setMaskedDownload(event.target.checked);
+                  setRawExportConfirmed(false);
+                }}
                 className="mt-1"
               />
               <span>
@@ -228,6 +235,26 @@ export default function Download() {
                 <span className="mt-1 block text-xs text-muted-foreground">이름, 연락처, 생년월일, 상품명, 보험료 등 민감 필드를 서버에서 마스킹한 뒤 CSV를 생성합니다.</span>
               </span>
             </label>
+
+            {!maskedDownload && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-950">
+                <input
+                  type="checkbox"
+                  checked={rawExportConfirmed}
+                  onChange={(event) => setRawExportConfirmed(event.target.checked)}
+                  className="mt-1"
+                />
+                <span>
+                  <span className="flex items-center gap-1 font-semibold">
+                    <AlertTriangle className="h-4 w-4" />
+                    원본 데이터 export를 승인합니다
+                  </span>
+                  <span className="mt-1 block text-xs">
+                    마스킹 없이 외부 CSV 파일이 생성됩니다. 업무상 필요한 경우에만 사유를 남기고 실행하세요.
+                  </span>
+                </span>
+              </label>
+            )}
 
             <div>
               <Label htmlFor="download-reason" className="text-xs">다운로드 사유 *</Label>
@@ -258,7 +285,7 @@ export default function Download() {
               <Button
                 size="sm"
                 disabled={!canExecute}
-                onClick={() => pendingType && handleDownload(pendingType, downloadReason.trim(), maskedDownload)}
+                onClick={() => pendingType && handleDownload(pendingType, downloadReason.trim(), maskedDownload, rawExportConfirmed)}
               >
                 다운로드 실행
               </Button>

@@ -2651,8 +2651,92 @@ describe("admin audit and download reason controls", () => {
     });
   });
 
+  it("neutralizes spreadsheet formulas across export types", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([{
+      id: 10,
+      company: "=cmd|calc",
+      productName: "+SUM(A1:A2)",
+      productGroup: "@HYPERLINK(\"http://example.test\")",
+      contractDate: "\t2026-05-01",
+      monthlyPremium: 120000,
+      paymentStatus: "\r정상",
+      contractStatus: "\n유지",
+    }] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([{
+      id: 20,
+      title: "=1+1",
+      type: "+meeting",
+      status: "-10+20",
+      startTime: "\t2026-05-01T10:00:00.000Z",
+      customerId: 100,
+    }] as any);
+    vi.spyOn(db, "getPerformanceStats").mockResolvedValue({
+      newContractCount: 1,
+      monthlyPremiumTotal: "@HYPERLINK(\"http://example.test\")",
+      consultationCount: 2,
+      goalAchievementRate: "-10+20",
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+
+    const contracts = await caller.download.contracts({ reason: "[TEST] formula safety", masked: false, rawConfirm: true });
+    const schedules = await caller.download.schedules({ reason: "[TEST] formula safety", masked: false, rawConfirm: true });
+    const performance = await caller.download.performance({ reason: "[TEST] formula safety", masked: false, rawConfirm: true });
+
+    expect(contracts[0]).toMatchObject({
+      company: "'=cmd|calc",
+      productName: "'+SUM(A1:A2)",
+      productGroup: "'@HYPERLINK(\"http://example.test\")",
+      contractDate: "'\t2026-05-01",
+      paymentStatus: "'\r정상",
+      contractStatus: "'\n유지",
+    });
+    expect(schedules[0]).toMatchObject({
+      title: "'=1+1",
+      type: "'+meeting",
+      status: "'-10+20",
+      startTime: "'\t2026-05-01T10:00:00.000Z",
+    });
+    expect(performance).toMatchObject({
+      monthlyPremiumTotal: "'@HYPERLINK(\"http://example.test\")",
+      goalAchievementRate: "'-10+20",
+    });
+  });
+
+  it("records safe DATA_DOWNLOAD metadata for each export type", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{ id: 100, name: "raw customer", phone: "010-1111-2222" }] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([{ id: 10, company: "raw insurer", productName: "raw product", monthlyPremium: 120000 }] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([{ id: 20, title: "raw schedule", customerId: 100 }] as any);
+    vi.spyOn(db, "getPerformanceStats").mockResolvedValue({ newContractCount: 1, monthlyPremiumTotal: 120000, consultationCount: 2, goalAchievementRate: 50 } as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+
+    await caller.download.customers({ reason: "[TEST] metadata safe", masked: true });
+    await caller.download.contracts({ reason: "[TEST] metadata safe", masked: true });
+    await caller.download.schedules({ reason: "[TEST] metadata safe", masked: true });
+    await caller.download.performance({ reason: "[TEST] metadata safe", masked: true });
+
+    const details = logSpy.mock.calls.map((call) => JSON.parse(String(call[0].details)).metadata);
+    expect(details.map((item) => item.type)).toEqual(["customers", "contracts", "schedules", "performance"]);
+    expect(details.map((item) => item.rowCount)).toEqual([1, 1, 1, 1]);
+    for (const item of details) {
+      expect(item).toMatchObject({ reason: "[TEST] metadata safe", masked: true, mode: "masked" });
+      expect(Array.isArray(item.fields)).toBe(true);
+    }
+    const serialized = JSON.stringify(logSpy.mock.calls);
+    expect(serialized).not.toContain("010-1111-2222");
+    expect(serialized).not.toContain("raw product");
+    expect(serialized).not.toContain("120000");
+  });
+
   it("keeps download APIs branch_admin only", async () => {
-    await expect(appRouter.createCaller(createCtx("member")).download.customers({ reason: "[TEST] no permission" })).rejects.toThrow();
+    const caller = appRouter.createCaller(createCtx("member"));
+    await expect(caller.download.preview()).rejects.toThrow();
+    await expect(caller.download.customers({ reason: "[TEST] no permission" })).rejects.toThrow();
+    await expect(caller.download.contracts({ reason: "[TEST] no permission" })).rejects.toThrow();
+    await expect(caller.download.schedules({ reason: "[TEST] no permission" })).rejects.toThrow();
+    await expect(caller.download.performance({ reason: "[TEST] no permission" })).rejects.toThrow();
   });
 });
 
