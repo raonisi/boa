@@ -9,6 +9,7 @@ const routeAliases: Record<string, string> = {
 const smokeRoutes = [
   "/dashboard",
   "/customers",
+  "/customers/bulk-import",
   "/calendar",
   "/notifications",
   "/analytics",
@@ -50,7 +51,7 @@ test.describe("BOA CRM e2e smoke", () => {
       });
 
       const canonicalPath = routeAliases[requestedPath] ?? requestedPath;
-      await page.goto(requestedPath, { waitUntil: "networkidle" });
+      await page.goto(requestedPath, { waitUntil: "domcontentloaded" });
 
       await expect(page.locator("#root")).not.toBeEmpty();
       await expect(page.locator("body")).not.toHaveText(/login required|not found/i);
@@ -68,5 +69,24 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(page.getByText(/권한|Permission|required|접근/).first()).toBeVisible();
     await expect(page.getByText("[E2E] Customer Alpha")).toHaveCount(0);
     await expect(page.getByText("010-1000-2000")).toHaveCount(0);
+  });
+
+  test("member sees permission state for restricted bulk import route", async ({ page }) => {
+    await mockBoaTrpc(page, "member");
+
+    await page.goto("/customers/bulk-import");
+    await expect(page.locator("#root")).not.toBeEmpty();
+    await expect(page.locator('[role="status"]').first()).toBeVisible();
+    await expect(page.getByText("[E2E] Customer Alpha")).toHaveCount(0);
+    await expect(page.getByText("010-1000-2000")).toHaveCount(0);
+  });
+
+  test("team_leader with bulk import permission can open bulk import route", async ({ page }) => {
+    await mockBoaTrpc(page, "team_leader", { permissions: ["customers.bulk_import"] });
+
+    await page.goto("/customers/bulk-import");
+    await expect(page.locator("#root")).not.toBeEmpty();
+    await expect(page.locator('[role="status"]')).toHaveCount(0);
+    await expect(page).toHaveURL(/\/customers\/bulk-import$/);
   });
 });

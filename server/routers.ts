@@ -6,6 +6,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import {
   activeUserProcedure,
   branchAdminProcedure,
+  customerBulkImportProcedure,
   subBranchAdminOrAboveProcedure,
   teamLeaderOrAboveProcedure,
   managerAnalyticsProcedure,
@@ -4279,7 +4280,7 @@ export const appRouter = router({
         });
       }),
 
-    downloadImportTemplate: activeUserProcedure.query(async ({ ctx }) => {
+    downloadImportTemplate: customerBulkImportProcedure.query(async ({ ctx }) => {
       const baseHeaders = [
         "이름",
         "생년월일",
@@ -4304,7 +4305,7 @@ export const appRouter = router({
       };
     }),
 
-    previewImport: activeUserProcedure
+    previewImport: customerBulkImportProcedure
       .input(z.object({
         rows: z.array(z.record(z.string(), z.any())).max(5000),
         fileName: z.string().optional(),
@@ -4356,7 +4357,7 @@ export const appRouter = router({
         };
       }),
 
-    bulkImport: activeUserProcedure
+    bulkImport: customerBulkImportProcedure
       .input(z.object({
         rows: z.array(z.record(z.string(), z.any())).max(5000),
         fileName: z.string().optional(),

@@ -1,4 +1,5 @@
 import { TRPCError } from "@trpc/server";
+import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { protectedProcedure } from "./trpc";
 
 /** 지점장 전용 (branch_admin + accountStatus=active) */
@@ -31,6 +32,15 @@ export const teamLeaderOrAboveProcedure = protectedProcedure.use(({ ctx, next })
 export const activeUserProcedure = protectedProcedure.use(({ ctx, next }) => {
   const u = ctx.user;
   if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  return next({ ctx });
+});
+
+export const customerBulkImportProcedure = protectedProcedure.use(({ ctx, next }) => {
+  const u = ctx.user;
+  if (u.accountStatus !== "active") throw new TRPCError({ code: "FORBIDDEN", message: "계정이 비활성화되었습니다." });
+  if (!hasCustomerBulkImportAccess(u)) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "고객 일괄 등록 권한이 없습니다." });
+  }
   return next({ ctx });
 });
 

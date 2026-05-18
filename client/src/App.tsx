@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrlResult } from "./const";
 import { Loader2 } from "lucide-react";
+import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { ForbiddenState } from "./components/ForbiddenState";
 
 // Pages
@@ -94,6 +95,16 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function BulkImportGuard({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!hasCustomerBulkImportAccess(user)) {
+    return (
+      <ForbiddenState description="고객 일괄 등록은 지점장 또는 별도 권한이 부여된 부지점장·팀장만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
+    );
+  }
+  return <>{children}</>;
+}
+
 function ManagerGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin" && user.role !== "team_leader")) {
@@ -156,7 +167,9 @@ function Router() {
       </Route>
       <Route path="/customers/bulk-import">
         <AuthGuard>
-          <CustomerBulkImport />
+          <BulkImportGuard>
+            <CustomerBulkImport />
+          </BulkImportGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/import-batches">
