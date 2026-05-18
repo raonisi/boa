@@ -338,6 +338,7 @@ export const schedules = mysqlTable("schedules", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   teamId: int("teamId"),
+  customerId: int("customerId"),
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description"),
   type: mysqlEnum("type", [

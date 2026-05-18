@@ -110,4 +110,24 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(execute).toBeEnabled();
     await expectNoHorizontalOverflow(page);
   });
+
+  test("calendar shows linked customer context and detail CTA", async ({ page }) => {
+    await mockBoaTrpc(page, "branch_admin");
+
+    await page.goto("/calendar");
+    await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    await page.getByText("[E2E] 고객 상담 일정").first().click();
+    await expect(page.getByRole("button", { name: /고객 상세 보기/ })).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("customer detail can start a customer-linked calendar schedule", async ({ page }) => {
+    await mockBoaTrpc(page, "branch_admin");
+
+    await page.goto("/customers/101");
+    await page.getByRole("button", { name: /이 고객 일정 추가|일정 추가/ }).first().click();
+    await expect(page).toHaveURL(/\/calendar\?customerId=101&action=create$/);
+    await expect(page.getByText("연결 고객")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
 });

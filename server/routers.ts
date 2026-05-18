@@ -5626,6 +5626,7 @@ export const appRouter = router({
         reminderOneHourBefore: z.boolean().default(true),
         reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).default(30),
         targetUserId: z.number().optional(),
+        customerId: z.number().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
@@ -5634,6 +5635,12 @@ export const appRouter = router({
           await verifyTargetUserAccess(user, input.targetUserId);
           targetUserId = input.targetUserId;
         }
+        let linkedCustomerId: number | undefined;
+        if (input.customerId !== undefined) {
+          const customer = await verifyCustomerAccess(user, input.customerId);
+          if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Inactive customers cannot be linked to schedules." });
+          linkedCustomerId = customer.id;
+        }
         const startTimeDate = parseScheduleDateTime(input.startTime, "시작 시간");
         const endTimeDate = input.endTime ? parseScheduleDateTime(input.endTime, "종료 시간") : undefined;
         assertScheduleEndAfterStart(startTimeDate, endTimeDate);
@@ -5641,6 +5648,7 @@ export const appRouter = router({
 
         await createSchedule({
           userId: targetUserId,
+          customerId: linkedCustomerId,
           title: input.title,
           type: input.type,
           status: input.status,
@@ -5676,9 +5684,10 @@ export const appRouter = router({
         endTime: z.string().nullable().optional(),
         memo: z.string().optional(),
         reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).optional(),
+        customerId: z.number().nullable().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const { id, startTime, endTime, status, reminderOffsetMinutes, ...rest } = input;
+        const { id, startTime, endTime, status, reminderOffsetMinutes, customerId, ...rest } = input;
         const user = ctx.user;
 
         // 역할별 범위 조회로 소유권 검증 (조건 3 수정)
@@ -5698,6 +5707,15 @@ export const appRouter = router({
         if (status !== undefined) updateData.status = status;
         if (parsedStartTime !== undefined) updateData.startTime = parsedStartTime;
         if (parsedEndTime !== undefined) updateData.endTime = parsedEndTime;
+        if (customerId !== undefined) {
+          if (customerId === null) {
+            updateData.customerId = null;
+          } else {
+            const customer = await verifyCustomerAccess(user, customerId);
+            if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "Inactive customers cannot be linked to schedules." });
+            updateData.customerId = customer.id;
+          }
+        }
         if (reminderOffsetMinutes !== undefined) {
           updateData.reminderOffsetMinutes = reminderOffsetMinutes;
           Object.assign(updateData, reminderFlagsFromOffset(reminderOffsetMinutes));
