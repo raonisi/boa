@@ -406,6 +406,17 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 - Existing dashboard widgets render without crash.
 - Existing mobile refresh flow still updates dashboard/notification providers.
 
+## Visual QA / Mobile Smoke UAT
+1. Playwright checks `/src/main.tsx` returns JavaScript, not SPA fallback HTML.
+2. Desktop dashboard smoke verifies the mocked work surface renders with no console errors or horizontal overflow.
+3. Desktop CustomerList smoke verifies the mocked customer row, search input, and primary DB actions render.
+4. Mobile dashboard smoke verifies the bottom navigation is visible and stable.
+5. Mobile CustomerList smoke verifies safe mocked contact action rendering and no horizontal overflow.
+6. MobileNav smoke verifies bottom navigation route changes for dashboard, customers, calendar, notifications, and analytics.
+7. Mobile CustomerDetail smoke verifies quick actions render and schedule creation can be reached with mocked customer data only.
+8. OperationRisk/Analytics smoke verifies route shells render and operation-risk views do not expose mocked customer phone numbers.
+9. Visual assertions must use mock fixture data only; no production customer screenshots or logs are allowed.
+
 ## Pass/Fail Rule
 - PASS: all core acceptance criteria + no critical or high issues.
 - FAIL: any RBAC breach, stale read/process state, broken sorting rule, or crash.
