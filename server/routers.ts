@@ -188,6 +188,7 @@ import {
   createUncontactedReminder,
   refreshLongUnmanagedReminder,
 } from "./notifications";
+import { parseKstLocalDateTime } from "./scheduleDateTime";
 import * as pushNotifications from "./pushNotifications";
 
 /**
@@ -1541,7 +1542,7 @@ async function getAccessibleSchedules(user: { id: number; role: string; teamId: 
 }
 
 function parseScheduleDateTime(value: string, fieldName: string) {
-  const parsed = new Date(value);
+  const parsed = parseKstLocalDateTime(value);
   if (Number.isNaN(parsed.getTime())) {
     throw new TRPCError({ code: "BAD_REQUEST", message: `${fieldName}이 올바르지 않습니다.` });
   }
