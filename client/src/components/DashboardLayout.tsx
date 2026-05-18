@@ -60,12 +60,14 @@ import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "./ui/button";
 import { getRoleLabel } from "@/lib/userRole";
+import { hasCustomerBulkImportAccess } from "@shared/permissions";
 
 type NavItem = {
   icon: React.ElementType;
   label: string;
   path: string;
   roles?: string[];
+  canAccess?: (user: any) => boolean;
 };
 
 type NavGroup = {
@@ -86,7 +88,7 @@ const navGroups: NavGroup[] = [
     label: "고객 관리",
     items: [
       { icon: Users, label: "고객 DB", path: "/customers" },
-      { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import" },
+      { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },
       { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
       { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
       { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
@@ -258,7 +260,7 @@ function DashboardLayoutContent({
           <SidebarContent className="gap-0 py-2">
             {navGroups.map((group, gi) => {
               const groupItems = group.items.filter(
-                (item) => !item.roles || item.roles.includes(user?.role ?? "")
+                (item) => item.canAccess?.(user) ?? (!item.roles || item.roles.includes(user?.role ?? ""))
               );
               if (groupItems.length === 0) return null;
               return (

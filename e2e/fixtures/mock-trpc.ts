@@ -2,10 +2,13 @@ import type { Page, Route } from "@playwright/test";
 import SuperJSON from "superjson";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+type MockOptions = {
+  permissions?: string[];
+};
 
 const now = "2026-05-18T09:00:00.000Z";
 
-function userFor(role: Role) {
+function userFor(role: Role, options?: MockOptions) {
   return {
     id: role === "member" ? 4 : 1,
     openId: `e2e-${role}`,
@@ -17,6 +20,7 @@ function userFor(role: Role) {
     subBranchAdminId: role === "member" ? 2 : null,
     parentUserId: role === "member" ? 3 : null,
     sessionInvalidatedAt: null,
+    permissions: options?.permissions,
   };
 }
 
@@ -125,6 +129,13 @@ const defaults: Record<string, unknown> = {
   "performance.stats": { assigned: 1, contracts: 1, monthlyPremium: 120000 },
   "customers.list": [customer],
   "customers.get": customer,
+  "customers.downloadImportTemplate": {
+    headers: ["name", "birthDate", "phone", "gender", "region", "expectedPremium", "availableTime", "source", "consultStatus", "memo", "agent"],
+    csvContent: "name,birthDate,phone,gender,region,expectedPremium,availableTime,source,consultStatus,memo,agent",
+    requiredHeaders: ["name", "birthDate", "phone"],
+    optionalHeaders: ["gender", "region", "expectedPremium", "availableTime", "source", "consultStatus", "memo", "agent"],
+    assigneeHeaderEnabled: true,
+  },
   "recommendations.priorityContacts": [{ customerId: customer.id, urgency: "medium", warnings: [{ warningType: "no_next_action", message: "[E2E] 다음 행동 확인" }], reasons: [{ title: "상담 필요", label: "상담", points: 10 }] }],
   "users.list": users,
   "settings.formOptions": [],
@@ -148,8 +159,8 @@ const defaults: Record<string, unknown> = {
   "adminAudit.logSearch": { items: [{ id: 701, action: "DATA_DOWNLOAD", actorName: "[E2E] Branch Admin", targetType: "customer", reason: "[E2E] audit reason", summary: "[E2E] safe summary", createdAt: now }], total: 1 },
 };
 
-function responseFor(procedure: string, role: Role) {
-  if (procedure === "auth.me") return userFor(role);
+function responseFor(procedure: string, role: Role, options?: MockOptions) {
+  if (procedure === "auth.me") return userFor(role, options);
   return defaults[procedure] ?? null;
 }
 
@@ -157,11 +168,11 @@ function serialize(data: unknown) {
   return { result: { data: SuperJSON.serialize(data) } };
 }
 
-async function fulfillTrpc(route: Route, role: Role) {
+async function fulfillTrpc(route: Route, role: Role, options?: MockOptions) {
   const url = new URL(route.request().url());
   const rawPath = decodeURIComponent(url.pathname.replace(/^\/api\/trpc\/?/, ""));
   const procedures = rawPath.split(",").filter(Boolean);
-  const body = procedures.map((procedure) => serialize(responseFor(procedure, role)));
+  const body = procedures.map((procedure) => serialize(responseFor(procedure, role, options)));
 
   await route.fulfill({
     status: 200,
@@ -170,6 +181,6 @@ async function fulfillTrpc(route: Route, role: Role) {
   });
 }
 
-export async function mockBoaTrpc(page: Page, role: Role = "branch_admin") {
-  await page.route("**/api/trpc/**", (route) => fulfillTrpc(route, role));
+export async function mockBoaTrpc(page: Page, role: Role = "branch_admin", options?: MockOptions) {
+  await page.route("**/api/trpc/**", (route) => fulfillTrpc(route, role, options));
 }

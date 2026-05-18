@@ -5,11 +5,12 @@ import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
 import * as db from "./db";
 import * as notifications from "./notifications";
 import * as pushNotifications from "./pushNotifications";
+import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 type AccountStatus = "active" | "inactive" | "resigned";
 
-function createCtx(role: Role, opts?: { teamId?: number; subBranchAdminId?: number; userId?: number; accountStatus?: AccountStatus }): TrpcContext {
+function createCtx(role: Role, opts?: { teamId?: number; subBranchAdminId?: number; userId?: number; accountStatus?: AccountStatus; permissions?: string[] }): TrpcContext {
   const id = opts?.userId ?? (role === "branch_admin" ? 1 : role === "sub_branch_admin" ? 2 : role === "team_leader" ? 3 : 4);
   return {
     user: {
@@ -25,7 +26,8 @@ function createCtx(role: Role, opts?: { teamId?: number; subBranchAdminId?: numb
       createdAt: new Date(),
       updatedAt: new Date(),
       lastSignedIn: new Date(),
-    },
+      permissions: opts?.permissions,
+    } as any,
     req: { protocol: "https", headers: {} } as TrpcContext["req"],
     res: { clearCookie: () => {} } as TrpcContext["res"],
   };
@@ -383,20 +385,29 @@ describe("Bulk import router policy", () => {
     ).rejects.toThrow();
   });
 
-  it("returns role-specific bulk import template columns", async () => {
+  it("keeps bulk import template access branch_admin only", async () => {
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
     const branchTemplate = await appRouter.createCaller(createCtx("branch_admin")).customers.downloadImportTemplate();
-    const memberTemplate = await appRouter.createCaller(createCtx("member")).customers.downloadImportTemplate();
 
     expect(branchTemplate.requiredHeaders).toEqual(["이름", "생년월일", "연락처"]);
     expect(branchTemplate.headers).toContain("담당자");
     expect(branchTemplate.headers).not.toContain("부지점장");
     expect(branchTemplate.headers).not.toContain("팀");
-    expect(memberTemplate.headers).not.toContain("담당자");
-    expect(memberTemplate.headers).not.toContain("부지점장");
-    expect(memberTemplate.headers).not.toContain("팀");
-    expect(memberTemplate.assigneeHeaderEnabled).toBe(false);
+    expect(branchTemplate.assigneeHeaderEnabled).toBe(true);
+    await expect(appRouter.createCaller(createCtx("member")).customers.downloadImportTemplate()).rejects.toThrow();
+
+    const teamLeaderTemplate = await appRouter.createCaller(createCtx("team_leader", {
+      teamId: 10,
+      permissions: [CUSTOMER_BULK_IMPORT_PERMISSION],
+    })).customers.downloadImportTemplate();
+    expect(teamLeaderTemplate.assigneeHeaderEnabled).toBe(false);
+
+    const subBranchTemplate = await appRouter.createCaller(createCtx("sub_branch_admin", {
+      subBranchAdminId: 2,
+      permissions: [CUSTOMER_BULK_IMPORT_PERMISSION],
+    })).customers.downloadImportTemplate();
+    expect(subBranchTemplate.assigneeHeaderEnabled).toBe(false);
   });
 });
 
@@ -515,55 +526,59 @@ describe("PR18-4 - direct customer creation assignment policy", () => {
   });
 });
 
-describe("PR18-4 - customer bulk import self assignment policy", () => {
-  it("allows member bulk import and forces rows to the member", async () => {
+describe("Bulk import branch-admin access policy", () => {
+  const row = { name: "[TEST] Bulk", birthDate: "1990-01-15", phone: "010-2000-0001" };
+
+  it("blocks users without bulk import permission", async () => {
+    const memberCaller = appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 }));
+
+    await expect(memberCaller.customers.downloadImportTemplate()).rejects.toThrow();
+    await expect(memberCaller.customers.previewImport({ fileName: "customers.csv", rows: [row] })).rejects.toThrow();
+    await expect(memberCaller.customers.bulkImport({ fileName: "customers.csv", rows: [row] })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", {
+      userId: 44,
+      teamId: 10,
+      subBranchAdminId: 2,
+      permissions: [CUSTOMER_BULK_IMPORT_PERMISSION],
+    })).customers.downloadImportTemplate()).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customers.downloadImportTemplate()).rejects.toThrow();
+  });
+
+  it("allows team_leader with customers.bulk_import permission and keeps self assignment", async () => {
     vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
     vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
     const bulkCreateSpy = vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
     vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
 
-    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
+    await appRouter.createCaller(createCtx("team_leader", {
+      userId: 3,
+      teamId: 10,
+      subBranchAdminId: 2,
+      permissions: [CUSTOMER_BULK_IMPORT_PERMISSION],
+    })).customers.bulkImport({
       fileName: "customers.csv",
-      rows: [{ 이름: "[TEST] Bulk Member", 생년월일: "1990-01-15", 연락처: "010-2000-0001", 담당자: "다른사람" }],
+      rows: [{ ...row, name: "[TEST] Bulk Team Leader" }],
     });
 
     expect(bulkCreateSpy).toHaveBeenCalledWith([
       expect.objectContaining({
-        name: "[TEST] Bulk Member",
-        consultStatus: "미상담",
-        agentId: 44,
+        name: "[TEST] Bulk Team Leader",
+        agentId: 3,
         assignedTeamId: 10,
         subBranchAdminId: 2,
-        assignmentStatus: "assigned_to_agent",
       }),
     ], {});
   });
 
-  it("blocks member bulk import when trying to submit another agentId", async () => {
-    await expect(
-      appRouter.createCaller(createCtx("member", { userId: 44 })).customers.previewImport({
-        fileName: "customers.csv",
-        rows: [{ 이름: "[TEST] Bulk Bad", 생년월일: "1990-01-15", 연락처: "010-2000-0002" }],
-        agentId: 45,
-      })
-    ).rejects.toThrow("본인만 지정");
-  });
-
   it("allows branch_admin bulk import to force a selected assignee", async () => {
     vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
-    vi.spyOn(db, "getUserById").mockResolvedValue({
-      id: 4,
-      role: "member",
-      accountStatus: "active",
-      teamId: 10,
-      subBranchAdminId: 2,
-    } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 } as any);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
     const preview = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.previewImport({
       fileName: "customers.csv",
-      rows: [{ 이름: "[TEST] Bulk Branch", 생년월일: "1990-01-15", 연락처: "010-2000-0003" }],
+      rows: [{ ...row, name: "[TEST] Bulk Branch" }],
       agentId: 4,
     });
 
@@ -576,24 +591,22 @@ describe("PR18-4 - customer bulk import self assignment policy", () => {
     });
   });
 
-  it("keeps provided consultation status during bulk import", async () => {
+  it("allows branch_admin bulk import to persist a selected assignee", async () => {
     vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 } as any);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
     vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
     const bulkCreateSpy = vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
     vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
 
-    await appRouter.createCaller(createCtx("member", { userId: 44, teamId: 10, subBranchAdminId: 2 })).customers.bulkImport({
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.bulkImport({
       fileName: "customers.xlsx",
-      rows: [{ 이름: "[TEST] Bulk Status", 생년월일: "1990-01-15", 연락처: "010-2000-0004", 상담상태: "상담예정" }],
+      rows: [{ ...row, name: "[TEST] Bulk Status" }],
+      agentId: 4,
     });
 
     expect(bulkCreateSpy).toHaveBeenCalledWith([
-      expect.objectContaining({
-        name: "[TEST] Bulk Status",
-        consultStatus: "상담예정",
-        agentId: 44,
-      }),
+      expect.objectContaining({ name: "[TEST] Bulk Status", agentId: 4 }),
     ], {});
   });
 });
@@ -2503,20 +2516,21 @@ describe("P0-3 phone duplicate checks", () => {
     })).rejects.not.toThrow("[TEST] Hidden Customer");
   });
 
-  it("uses scoped existing phone sets for bulk import preview and import", async () => {
+  it("uses global existing phone sets for branch_admin bulk import preview and import", async () => {
     const phoneSpy = vi.spyOn(db, "getAllActiveCustomerPhones").mockResolvedValue(new Set());
     vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined as any);
     vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback({}));
 
     const row = { name: "[TEST] Bulk", birthDate: "1990-01-01", phone: "010-1234-5678" };
-    const caller = appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10, subBranchAdminId: 2 }));
+    const caller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
 
     await caller.customers.previewImport({ rows: [row], fileName: "test.csv", fileSize: 100, mimeType: "text/csv" });
     await caller.customers.bulkImport({ rows: [row], fileName: "test.csv", fileSize: 100, mimeType: "text/csv" });
 
-    expect(phoneSpy).toHaveBeenNthCalledWith(1, { teamId: 10 });
-    expect(phoneSpy).toHaveBeenNthCalledWith(2, { teamId: 10 });
+    expect(phoneSpy).toHaveBeenNthCalledWith(1, {});
+    expect(phoneSpy).toHaveBeenNthCalledWith(2, {});
   });
 
   it("keeps global duplicate reconciliation available only through branch_admin merge management", async () => {

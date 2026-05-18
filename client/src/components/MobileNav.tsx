@@ -8,6 +8,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
+import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import {
   Activity,
   ArrowRightLeft,
@@ -41,6 +42,7 @@ type MobileMenuItem = {
   label: string;
   path: string;
   roles?: string[];
+  canAccess?: (user: any) => boolean;
 };
 
 const primaryItems: MobileMenuItem[] = [
@@ -57,7 +59,7 @@ const moreItems: MobileMenuItem[] = [
   { icon: FileText, label: "계약관리", path: "/contracts" },
   { icon: BarChart3, label: "실적관리", path: "/performance" },
   { icon: Target, label: "목표관리", path: "/performance/goals" },
-  { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import" },
+  { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },
   { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
   { icon: Database, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: Users, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
@@ -83,7 +85,7 @@ export function MobileNav() {
   });
 
   const visibleMoreItems = moreItems.filter(
-    (item) => !item.roles || item.roles.includes(user?.role ?? "")
+    (item) => item.canAccess?.(user) ?? (!item.roles || item.roles.includes(user?.role ?? ""))
   );
 
   const goTo = (path: string) => {

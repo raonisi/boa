@@ -24,6 +24,7 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { buildCustomerExecutionScore, type CustomerExecutionRecommendation } from "@shared/customerExecution";
+import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { useIsMobile } from "@/hooks/useMobile";
 import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2, UserCog } from "lucide-react";
 import { useState } from "react";
@@ -190,6 +191,7 @@ export default function CustomerList() {
   const canReclaimCustomer = user?.role === "branch_admin";
   const canBulkChangeAssignee = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role));
   const canCreateCustomer = Boolean(user && ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(user.role));
+  const canBulkImportCustomers = hasCustomerBulkImportAccess(user);
   const recommendationByCustomerId = new Map((priorityContacts ?? []).map((item) => [item.customerId, item]));
   const deleteTargetCustomer = (customers ?? []).find((c) => c.id === deleteCustomerId);
   const reclaimTargetCustomer = (customers ?? []).find((c) => c.id === reclaimCustomerId);
@@ -405,7 +407,7 @@ export default function CustomerList() {
                     <UserPlus className="h-4 w-4 mr-1" /> DB 배정
                   </Button>
                 )}
-                {canCreateCustomer && (
+                {canBulkImportCustomers && (
                   <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
                     <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
                   </Button>
