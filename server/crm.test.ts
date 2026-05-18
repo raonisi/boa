@@ -137,6 +137,19 @@ describe("RBAC - users.list", () => {
     expect("phone" in result[0]).toBe(false);
     expect("memo" in result[0]).toBe(false);
   });
+  it("returns only active users when activeOnly is requested", async () => {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 1, name: "[TEST] Admin", role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null },
+      { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 },
+      { id: 5, name: "[TEST] Inactive", role: "member", accountStatus: "inactive", teamId: 10, subBranchAdminId: 2 },
+      { id: 6, name: "[TEST] Resigned", role: "member", accountStatus: "resigned", teamId: 10, subBranchAdminId: 2 },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).users.list({ activeOnly: true });
+
+    expect(result.map((user) => user.id)).toEqual([1, 4]);
+    expect(result.every((user) => user.accountStatus === "active")).toBe(true);
+  });
 });
 
 describe("RBAC - list null scope guards", () => {
@@ -268,6 +281,28 @@ describe("Schedules - datetime and reminder persistence", () => {
     expect(createSpy).not.toHaveBeenCalled();
   });
 
+  it("blocks schedule creation for inactive and resigned target users", async () => {
+    for (const accountStatus of ["inactive", "resigned"] as const) {
+      vi.restoreAllMocks();
+      vi.spyOn(db, "getUserById").mockResolvedValue({ id: 5, name: "[TEST] Target", role: "member", accountStatus, teamId: 10, subBranchAdminId: 2 } as any);
+      vi.spyOn(db, "getAllUsers").mockResolvedValue([
+        { id: 1, role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null },
+        { id: 5, role: "member", accountStatus, teamId: 10, subBranchAdminId: 2 },
+      ] as any);
+      vi.spyOn(db, "getAllTeams").mockResolvedValue([] as any);
+      const createSpy = vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
+
+      await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).schedules.create({
+        title: "[TEST] blocked target",
+        type: "怨좉컼?곷떞",
+        startTime: "2026-05-22T11:00:00",
+        targetUserId: 5,
+      })).rejects.toThrow();
+
+      expect(createSpy).not.toHaveBeenCalled();
+    }
+  });
+
   it("updates and clears schedule customer context with existing schedule scope", async () => {
     vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
     vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 100, agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, isActive: true, deletedAt: null } as any);
@@ -283,6 +318,22 @@ describe("Schedules - datetime and reminder persistence", () => {
 
     expect(updateSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ customerId: 100 }));
     expect(updateSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ customerId: null }));
+  });
+
+  it("blocks schedule updates when the existing schedule target is inactive or resigned", async () => {
+    for (const accountStatus of ["inactive", "resigned"] as const) {
+      vi.restoreAllMocks();
+      vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule({ userId: 5 })] as any);
+      vi.spyOn(db, "getUserById").mockResolvedValue({ id: 5, role: "member", accountStatus, teamId: 10, subBranchAdminId: 2 } as any);
+      const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+
+      await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).schedules.update({
+        id: 77,
+        title: "[TEST] blocked update",
+      })).rejects.toThrow();
+
+      expect(updateSpy).not.toHaveBeenCalled();
+    }
   });
 
   it("updates start/end datetimes, persists reminderOffsetMinutes, and recalculates timing notifications", async () => {

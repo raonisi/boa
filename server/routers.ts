@@ -1379,6 +1379,15 @@ async function verifyTargetUserAccess(
 }
 
 // ─── App Router ───────────────────────────────────────────────────────────────
+async function assertActiveScheduleTarget(userId: number) {
+  const target = await getUserById(userId);
+  if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "Target user not found." });
+  if (target.accountStatus !== "active") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Cannot update schedules for inactive users." });
+  }
+  return target;
+}
+
 type MinimalUser = {
   id: number;
   name: string | null;
@@ -3202,9 +3211,11 @@ export const appRouter = router({
   }),
 
   users: router({
-    list: activeUserProcedure.query(async ({ ctx }) => {
+    list: activeUserProcedure
+      .input(z.object({ activeOnly: z.boolean().optional() }).optional())
+      .query(async ({ ctx, input }) => {
       const all = await getAllUsers();
-      if (ctx.user.role === "branch_admin") return all;
+      if (ctx.user.role === "branch_admin") return input?.activeOnly ? all.filter((u) => u.accountStatus === "active") : all;
       // 비활성 사용자 제외 후 반환
       if (ctx.user.role === "sub_branch_admin" || ctx.user.role === "team_leader") {
         const teams = await getAllTeams();
@@ -5740,6 +5751,7 @@ export const appRouter = router({
         let targetUserId = user.id;
         if (input.targetUserId) {
           await verifyTargetUserAccess(user, input.targetUserId);
+          await assertActiveScheduleTarget(input.targetUserId);
           targetUserId = input.targetUserId;
         }
         let linkedCustomerId: number | undefined;
@@ -5802,6 +5814,8 @@ export const appRouter = router({
 
         const existing = allSchedulesList.find((s) => s.id === id);
         if (!existing) throw new TRPCError({ code: "FORBIDDEN", message: "해당 일정에 접근 권한이 없습니다." });
+
+        if (existing.userId !== user.id) await assertActiveScheduleTarget(existing.userId);
 
         const actionLabel = status === "취소" ? "SCHEDULE_CANCELLED" : status === "완료" ? "SCHEDULE_COMPLETED" : "SCHEDULE_UPDATED";
         const parsedStartTime = startTime !== undefined ? parseScheduleDateTime(startTime, "시작 시간") : undefined;
