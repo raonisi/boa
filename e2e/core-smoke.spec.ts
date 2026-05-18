@@ -29,6 +29,24 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(hasOverflow).toBe(false);
 }
 
+function collectPageErrors(page: Page) {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("console", (message) => {
+    if (message.type() === "error" && !isExpectedDevConsoleNoise(message.text())) {
+      errors.push(message.text());
+    }
+  });
+  return errors;
+}
+
+async function expectStablePageShell(page: Page, errors: string[]) {
+  await expect(page.locator("#root")).not.toBeEmpty();
+  await expect(page.locator("body")).not.toHaveText(/login required|not found/i);
+  await expectNoHorizontalOverflow(page);
+  expect(errors, errors.join("\n")).toEqual([]);
+}
+
 function isExpectedDevConsoleNoise(text: string) {
   return ignoredConsoleErrors.some((pattern) => pattern.test(text));
 }
@@ -45,24 +63,89 @@ test.describe("BOA CRM e2e smoke", () => {
     test(`route smoke: ${requestedPath}`, async ({ page }) => {
       await mockBoaTrpc(page, "branch_admin");
 
-      const errors: string[] = [];
-      page.on("pageerror", (error) => errors.push(error.message));
-      page.on("console", (message) => {
-        if (message.type() === "error" && !isExpectedDevConsoleNoise(message.text())) {
-          errors.push(message.text());
-        }
-      });
+      const errors = collectPageErrors(page);
 
       const canonicalPath = routeAliases[requestedPath] ?? requestedPath;
       await page.goto(requestedPath, { waitUntil: "domcontentloaded" });
 
-      await expect(page.locator("#root")).not.toBeEmpty();
-      await expect(page.locator("body")).not.toHaveText(/login required|not found/i);
       await expect(page).toHaveURL(new RegExp(`${canonicalPath.replace("/", "\\/")}(\\?.*)?$`));
-      await expectNoHorizontalOverflow(page);
-      expect(errors, errors.join("\n")).toEqual([]);
+      await expectStablePageShell(page, errors);
     });
   }
+
+  test("desktop visual smoke: dashboard and customer list render core work surfaces", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("desktop"), "desktop-only visual smoke");
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("body")).toContainText("[E2E] Customer Alpha");
+    await expect(page.getByText("[E2E] Branch Admin").first()).toBeVisible();
+    await expectStablePageShell(page, errors);
+
+    await page.goto("/customers", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    await expect(page.locator('input[type="text"], input[type="search"], input:not([type])').first()).toBeVisible();
+    await expect(page.getByRole("button").filter({ hasText: /DB|배정|등록|일괄/ }).first()).toBeVisible();
+    await expectStablePageShell(page, errors);
+  });
+
+  test("mobile visual smoke: dashboard, customer list, and bottom nav flow stay usable", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only visual smoke");
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+    const mobileNavButtons = page.locator("nav.fixed button");
+
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    await expect(mobileNavButtons).toHaveCount(5);
+    await expectStablePageShell(page, errors);
+
+    await mobileNavButtons.nth(1).click();
+    await expect(page).toHaveURL(/\/customers$/);
+    await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    await expect(page.locator('a[href^="tel:"]').first()).toBeVisible();
+    await expectStablePageShell(page, errors);
+
+    await mobileNavButtons.nth(2).click();
+    await expect(page).toHaveURL(/\/calendar$/);
+    await expectStablePageShell(page, errors);
+
+    await mobileNavButtons.nth(3).click();
+    await expect(page).toHaveURL(/\/notifications$/);
+    await expectStablePageShell(page, errors);
+
+    await mobileNavButtons.nth(4).click();
+    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await page.locator('[role="dialog"] button').first().click();
+    await expect(page).toHaveURL(/\/analytics$/);
+    await expectStablePageShell(page, errors);
+  });
+
+  test("mobile customer detail quick actions render without overflow", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only customer detail quick action smoke");
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+
+    await page.goto("/customers/101", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    await expect(page.locator('a[href^="tel:"]').first()).toBeVisible();
+    await expect(page.locator("div.fixed button").first()).toBeVisible();
+    await expectStablePageShell(page, errors);
+  });
+
+  test("operation risk and analytics visual shells do not leak customer contact data", async ({ page }) => {
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+
+    await page.goto("/operation-risk", { waitUntil: "domcontentloaded" });
+    await expect(page.getByText("010-1000-2000")).toHaveCount(0);
+    await expectStablePageShell(page, errors);
+
+    await page.goto("/analytics", { waitUntil: "domcontentloaded" });
+    await expect(page.locator("#root")).not.toBeEmpty();
+    await expectStablePageShell(page, errors);
+  });
 
   test("member sees permission state for branch-admin-only operation risk", async ({ page }) => {
     await mockBoaTrpc(page, "member");
