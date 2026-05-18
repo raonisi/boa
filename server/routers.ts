@@ -203,9 +203,10 @@ import * as pushNotifications from "./pushNotifications";
  */
 
 /** 고객 소유권 검증 헬퍼 */
-async function verifyCustomerAccess(user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string }, customerId: number) {
+async function verifyCustomerAccess(user: { id: number; role: string; teamId: number | null; subBranchAdminId: number | null; accountStatus: string }, customerId: number, options: { includeInactiveOrDeleted?: boolean } = {}) {
   const customer = await getCustomerById(customerId);
   if (!customer) throw new TRPCError({ code: "NOT_FOUND" });
+  if (!options.includeInactiveOrDeleted && isSoftDeleted(customer)) throw new TRPCError({ code: "NOT_FOUND" });
   if (user.role === "branch_admin") return customer;
   if (user.role === "sub_branch_admin") {
     if (customer.subBranchAdminId !== user.id)
@@ -4332,7 +4333,7 @@ export const appRouter = router({
           for (const customerId of uniqueCustomerIds) {
             let existing: Awaited<ReturnType<typeof getCustomerById>>;
             try {
-              existing = await verifyCustomerAccess(ctx.user, customerId);
+              existing = await verifyCustomerAccess(ctx.user, customerId, { includeInactiveOrDeleted: true });
             } catch {
               skipped.push({ customerId, reason: "OUT_OF_SCOPE" });
               continue;

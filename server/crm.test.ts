@@ -1628,6 +1628,67 @@ describe("Branch admin DB reclaim", () => {
     await expect(appRouter.createCaller(createCtx("member", { userId: 44 })).customers.get({ id: 100 })).rejects.toThrow();
     await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.get({ id: 100 })).resolves.toMatchObject({ id: 100 });
   });
+
+  it("keeps active scoped customer get and update working", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(assignedCustomer() as any);
+    const updateSpy = vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const caller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
+
+    await expect(caller.customers.get({ id: 100 })).resolves.toMatchObject({ id: 100 });
+    await expect(caller.customers.update({ id: 100, name: "[TEST] Updated" })).resolves.toEqual({ success: true });
+    expect(updateSpy).toHaveBeenCalledWith(100, expect.objectContaining({ name: "[TEST] Updated" }));
+    expect(logSpy.mock.calls.map((call) => call[0].action)).toEqual(expect.arrayContaining(["CUSTOMER_VIEWED", "CUSTOMER_UPDATED"]));
+  });
+
+  it("blocks inactive or soft-deleted customer direct get and update for all business roles", async () => {
+    const actors = [
+      createCtx("branch_admin", { userId: 1 }),
+      createCtx("sub_branch_admin", { userId: 20 }),
+      createCtx("team_leader", { userId: 3, teamId: 10 }),
+      createCtx("member", { userId: 44 }),
+    ];
+    const lifecycleRows = [
+      assignedCustomer({ isActive: false, deletedAt: new Date("2026-05-01T00:00:00.000Z"), phone: "010-1111-2222", birthDate: new Date("1990-01-01") }),
+      assignedCustomer({ isActive: false, deletedAt: null, phone: "010-1111-2222", birthDate: new Date("1990-01-01") }),
+    ];
+
+    for (const customer of lifecycleRows) {
+      vi.restoreAllMocks();
+      vi.spyOn(db, "getCustomerById").mockResolvedValue(customer as any);
+      const updateSpy = vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+      const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+      for (const ctx of actors) {
+        const caller = appRouter.createCaller(ctx);
+
+        await expect(caller.customers.get({ id: 100 })).rejects.toThrow();
+        await expect(caller.customers.update({ id: 100, name: "[TEST] Blocked" })).rejects.toThrow();
+        await caller.customers.get({ id: 100 }).catch((error) => {
+          const message = String((error as Error).message);
+          expect(message).not.toContain("010-1111-2222");
+          expect(message).not.toContain("1990-01-01");
+        });
+      }
+
+      expect(updateSpy).not.toHaveBeenCalled();
+      expect(logSpy).not.toHaveBeenCalled();
+    }
+  });
+
+  it("keeps branch_admin deleted-data restore path for soft-deleted customers", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(assignedCustomer({ isActive: false, deletedAt: new Date("2026-05-01T00:00:00.000Z") }) as any);
+    vi.spyOn(db, "checkPhoneDuplicate").mockResolvedValue(null as any);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) => callback(tx));
+    const restoreSpy = vi.spyOn(db, "restoreCustomer").mockResolvedValue(undefined);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).deletedData.restoreCustomer({ id: 100 })).resolves.toEqual({ success: true });
+    expect(restoreSpy).toHaveBeenCalledWith(100, tx);
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({ action: "CUSTOMER_RESTORED", targetType: "customer", targetId: 100 }), tx);
+  });
 });
 
 describe("RBAC - logs.list (team_leader+)", () => {
