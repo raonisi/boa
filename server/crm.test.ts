@@ -2362,6 +2362,56 @@ describe("admin audit and download reason controls", () => {
     expect(details.metadata.reason).toBe("[TEST] 파일럿 점검");
   });
 
+  it("previews export row counts and field sensitivity for branch admins only", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{ id: 100 }] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([{ id: 10 }, { id: 11 }] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+    vi.spyOn(db, "getPerformanceStats").mockResolvedValue({ newContractCount: 1 } as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).download.preview();
+
+    expect(result.customers.rowCount).toBe(1);
+    expect(result.contracts.rowCount).toBe(2);
+    expect(result.schedules.rowCount).toBe(0);
+    expect(result.performance.rowCount).toBe(1);
+    expect(result.customers.fields.some((field) => field.key === "phone" && field.sensitive)).toBe(true);
+    await expect(appRouter.createCaller(createCtx("member")).download.preview()).rejects.toThrow();
+  });
+
+  it("supports masked customer exports without storing raw sensitive details in DATA_DOWNLOAD metadata", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{
+      id: 100,
+      name: "홍길동",
+      phone: "010-1111-2222",
+      birthDate: "1990-01-01",
+      expectedPremium: 120000,
+      memo: "raw memo",
+    }] as any);
+    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const data = await appRouter.createCaller(createCtx("branch_admin")).download.customers({
+      reason: "[TEST] masked export",
+      masked: true,
+    });
+
+    const serialized = JSON.stringify(data);
+    expect(serialized).toContain("010-****-2222");
+    expect(serialized).not.toContain("010-1111-2222");
+    expect(serialized).not.toContain("1990-01-01");
+    expect(serialized).not.toContain("120000");
+    expect(serialized).not.toContain("raw memo");
+
+    const details = JSON.parse(String(logSpy.mock.calls[0]?.[0].details));
+    expect(details.metadata).toMatchObject({
+      type: "customers",
+      rowCount: 1,
+      reason: "[TEST] masked export",
+      masked: true,
+    });
+    expect(String(logSpy.mock.calls[0]?.[0].details)).not.toContain("010-1111-2222");
+    expect(String(logSpy.mock.calls[0]?.[0].details)).not.toContain("홍길동");
+  });
+
   it("keeps download APIs branch_admin only", async () => {
     await expect(appRouter.createCaller(createCtx("member")).download.customers({ reason: "[TEST] no permission" })).rejects.toThrow();
   });

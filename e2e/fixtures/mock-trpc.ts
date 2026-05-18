@@ -119,6 +119,21 @@ const operationRisk = {
   guides: [{ title: "다운로드 사유 점검", description: "사유와 대상 범위를 확인하세요.", category: "download" }],
 };
 
+const downloadPreview = {
+  customers: {
+    rowCount: 1,
+    fields: [
+      { key: "name", label: "이름", sensitive: true },
+      { key: "birthDate", label: "생년월일", sensitive: true },
+      { key: "phone", label: "연락처", sensitive: true },
+      { key: "consultStatus", label: "상담상태", sensitive: false },
+    ],
+  },
+  contracts: { rowCount: 0, fields: [{ key: "productName", label: "상품명", sensitive: true }] },
+  schedules: { rowCount: 1, fields: [{ key: "title", label: "일정 제목", sensitive: true }] },
+  performance: { rowCount: 1, fields: [{ key: "monthlyPremiumTotal", label: "월납보험료 합계", sensitive: true }] },
+};
+
 const defaults: Record<string, unknown> = {
   "auth.me": userFor("branch_admin"),
   "notifications.unreadCount": 1,
@@ -158,6 +173,7 @@ const defaults: Record<string, unknown> = {
   "operationRisk.summary": operationRisk,
   "adminAudit.summary": { cards: { total: 1, risky: 1, downloads: 1, deletes: 0, users: 0, customers: 0 } },
   "adminAudit.logSearch": { items: [{ id: 701, action: "DATA_DOWNLOAD", actorName: "[E2E] Branch Admin", targetType: "customer", reason: "[E2E] audit reason", summary: "[E2E] safe summary", createdAt: now }], total: 1 },
+  "download.preview": downloadPreview,
 };
 
 function responseFor(procedure: string, role: Role, options?: MockOptions) {
