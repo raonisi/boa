@@ -9,6 +9,7 @@ const routeAliases: Record<string, string> = {
 const smokeRoutes = [
   "/dashboard",
   "/customers",
+  "/customers/assign",
   "/customers/bulk-import",
   "/contracts",
   "/calendar",
@@ -128,6 +129,21 @@ test.describe("BOA CRM e2e smoke", () => {
     await page.getByRole("button", { name: /이 고객 일정 추가|일정 추가/ }).first().click();
     await expect(page).toHaveURL(/\/calendar\?customerId=101&action=create$/);
     await expect(page.getByText("연결 고객")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("customer assignment page shows filters, selection summary, and confirmation", async ({ page }) => {
+    await mockBoaTrpc(page, "branch_admin");
+
+    await page.goto("/customers/assign");
+    await expect(page.getByPlaceholder(/고객명|연락처/)).toBeVisible();
+    await page.getByPlaceholder(/고객명|연락처/).fill("[E2E]");
+    await page.locator('input[type="checkbox"]').nth(1).check();
+    await expect(page.getByText(/선택 1건/)).toBeVisible();
+    await page.getByRole("combobox").first().click();
+    await page.getByRole("option", { name: /\[E2E\] Member/ }).click();
+    await page.getByRole("button", { name: /1.*배정/ }).click();
+    await expect(page.getByText("DB 배정 확인")).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
 });
