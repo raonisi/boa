@@ -16,6 +16,7 @@ const smokeRoutes = [
   "/analytics",
   "/operation-risk",
   "/admin-audit",
+  "/download",
 ];
 
 const ignoredConsoleErrors = [
@@ -89,5 +90,24 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(page.locator("#root")).not.toBeEmpty();
     await expect(page.locator('[role="status"]')).toHaveCount(0);
     await expect(page).toHaveURL(/\/customers\/bulk-import$/);
+  });
+
+  test("download confirmation requires reason and second confirmation", async ({ page }) => {
+    await mockBoaTrpc(page, "branch_admin");
+
+    await page.goto("/download");
+    await page.getByRole("button", { name: /CSV 다운로드/ }).first().click();
+
+    await expect(page.getByText("다운로드 범위를 확인해 주세요.")).toBeVisible();
+    await expect(page.getByText(/총 1건이 다운로드됩니다/)).toBeVisible();
+    await expect(page.getByText(/연락처 · 민감/)).toBeVisible();
+
+    const execute = page.getByRole("button", { name: "다운로드 실행" });
+    await expect(execute).toBeDisabled();
+    await page.getByLabel("다운로드 사유 *").fill("[E2E] export safety check");
+    await expect(execute).toBeDisabled();
+    await page.getByLabel("다운로드 범위와 외부 파일 생성 주의사항을 확인했습니다.").check();
+    await expect(execute).toBeEnabled();
+    await expectNoHorizontalOverflow(page);
   });
 });

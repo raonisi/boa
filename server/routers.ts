@@ -2570,6 +2570,64 @@ async function buildWorkRhythmReport(
   };
 }
 
+const downloadRequestSchema = z.object({
+  reason: z.string().min(5).max(300),
+  masked: z.boolean().optional().default(false),
+});
+
+const downloadFieldPreview = {
+  customers: [
+    { key: "name", label: "이름", sensitive: true },
+    { key: "birthDate", label: "생년월일", sensitive: true },
+    { key: "phone", label: "연락처", sensitive: true },
+    { key: "gender", label: "성별", sensitive: false },
+    { key: "region", label: "지역", sensitive: false },
+    { key: "source", label: "유입경로", sensitive: false },
+    { key: "consultStatus", label: "상담상태", sensitive: false },
+    { key: "expectedPremium", label: "예상보험료", sensitive: true },
+  ],
+  contracts: [
+    { key: "company", label: "보험사", sensitive: true },
+    { key: "productName", label: "상품명", sensitive: true },
+    { key: "productGroup", label: "상품군", sensitive: true },
+    { key: "contractDate", label: "계약일", sensitive: false },
+    { key: "monthlyPremium", label: "월납보험료", sensitive: true },
+    { key: "paymentStatus", label: "결제상태", sensitive: false },
+    { key: "contractStatus", label: "계약상태", sensitive: false },
+  ],
+  schedules: [
+    { key: "title", label: "일정 제목", sensitive: true },
+    { key: "scheduleType", label: "일정 유형", sensitive: false },
+    { key: "status", label: "상태", sensitive: false },
+    { key: "startTime", label: "시작시간", sensitive: false },
+    { key: "customerName", label: "고객명", sensitive: true },
+  ],
+  performance: [
+    { key: "newContractCount", label: "신규 계약", sensitive: false },
+    { key: "monthlyPremiumTotal", label: "월납보험료 합계", sensitive: true },
+    { key: "consultationCount", label: "상담 수", sensitive: false },
+    { key: "goalAchievementRate", label: "목표 달성률", sensitive: false },
+  ],
+} as const;
+
+function maskDownloadValue(key: string, raw: unknown): unknown {
+  if (raw === null || raw === undefined) return raw;
+  const normalizedKey = key.toLowerCase();
+  if (/phone|contact|mobile|tel/i.test(normalizedKey)) return maskPhone(String(raw));
+  if (/birth(date|day)?/i.test(normalizedKey)) return maskBirthDateForLogs(String(raw));
+  if (/email/i.test(normalizedKey)) return maskEmail(String(raw));
+  if (/(name|product|company|premium|amount|fee|memo|note|message|content|description|disease|illness|medical)/i.test(normalizedKey)) {
+    return "[마스킹]";
+  }
+  return raw;
+}
+
+function maskDownloadRows<T extends Record<string, unknown>>(rows: T[]): T[] {
+  return rows.map((row) => Object.fromEntries(
+    Object.entries(row).map(([key, value]) => [key, maskDownloadValue(key, value)])
+  ) as T);
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -6132,37 +6190,51 @@ export const appRouter = router({
 
   // ── Download (지점장 전용) ─────────────────────────────────────────────────────────
   download: router({
+    preview: branchAdminProcedure.query(async () => {
+      const [customers, contracts, schedules, performance] = await Promise.all([
+        getCustomers({}),
+        getAllContracts({}),
+        getSchedules({}),
+        getPerformanceStats({}),
+      ]);
+      return {
+        customers: { rowCount: customers.length, fields: downloadFieldPreview.customers },
+        contracts: { rowCount: contracts.length, fields: downloadFieldPreview.contracts },
+        schedules: { rowCount: schedules.length, fields: downloadFieldPreview.schedules },
+        performance: { rowCount: performance ? 1 : 0, fields: downloadFieldPreview.performance },
+      };
+    }),
     customers: branchAdminProcedure
-      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
       const data = await getCustomers({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "customers", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "customers", metadata: { type: "customers", rowCount: data.length, reason: input.reason } }));
-      return data;
+        logDetails({ actor: ctx.user.id, targetType: "customers", metadata: { type: "customers", rowCount: data.length, reason: input.reason, masked: input.masked } }));
+      return input.masked ? maskDownloadRows(data as Record<string, unknown>[]) : data;
     }),
     contracts: branchAdminProcedure
-      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
       const data = await getAllContracts({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "contracts", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "contracts", metadata: { type: "contracts", rowCount: data.length, reason: input.reason } }));
-      return data;
+        logDetails({ actor: ctx.user.id, targetType: "contracts", metadata: { type: "contracts", rowCount: data.length, reason: input.reason, masked: input.masked } }));
+      return input.masked ? maskDownloadRows(data as Record<string, unknown>[]) : data;
     }),
     schedules: branchAdminProcedure
-      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
       const data = await getSchedules({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "schedules", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "schedules", metadata: { type: "schedules", rowCount: data.length, reason: input.reason } }));
-      return data;
+        logDetails({ actor: ctx.user.id, targetType: "schedules", metadata: { type: "schedules", rowCount: data.length, reason: input.reason, masked: input.masked } }));
+      return input.masked ? maskDownloadRows(data as Record<string, unknown>[]) : data;
     }),
     performance: branchAdminProcedure
-      .input(z.object({ reason: z.string().min(5).max(300) }))
+      .input(downloadRequestSchema)
       .query(async ({ ctx, input }) => {
       const data = await getPerformanceStats({});
       await log(ctx.user.id, "DATA_DOWNLOAD", "performance", undefined,
-        logDetails({ actor: ctx.user.id, targetType: "performance", metadata: { type: "performance", reason: input.reason } }));
-      return data;
+        logDetails({ actor: ctx.user.id, targetType: "performance", metadata: { type: "performance", rowCount: data ? 1 : 0, reason: input.reason, masked: input.masked } }));
+      return input.masked ? maskDownloadRows([data as Record<string, unknown>])[0] : data;
     }),
   }),
 
