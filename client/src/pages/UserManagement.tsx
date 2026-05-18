@@ -17,16 +17,16 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 const roleBadgeColors: Record<string, string> = {
-  branch_admin: "bg-purple-100 text-purple-700",
-  sub_branch_admin: "bg-blue-100 text-blue-700",
-  team_leader: "bg-indigo-100 text-indigo-700",
-  member: "bg-green-100 text-green-700",
+  branch_admin: "bg-primary/10 text-primary ring-1 ring-primary/15",
+  sub_branch_admin: "bg-primary/10 text-primary ring-1 ring-primary/15",
+  team_leader: "bg-primary/10 text-primary ring-1 ring-primary/15",
+  member: "bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20",
 };
 
 const statusBadgeColors: Record<string, string> = {
-  active: "bg-green-100 text-green-700",
-  inactive: "bg-gray-100 text-gray-500",
-  resigned: "bg-red-100 text-red-700",
+  active: "bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20",
+  inactive: "bg-muted text-muted-foreground ring-1 ring-border/70",
+  resigned: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
 };
 
 const loginStatusLabels: Record<string, string> = {
@@ -35,8 +35,8 @@ const loginStatusLabels: Record<string, string> = {
 };
 
 const loginStatusColors: Record<string, string> = {
-  invited: "bg-yellow-100 text-yellow-700",
-  linked: "bg-green-100 text-green-700",
+  invited: "bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25",
+  linked: "bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20",
 };
 
 const securityActionLabels: Record<string, string> = {

@@ -47,10 +47,10 @@ const levelLabels: Record<RiskLevel, string> = {
 };
 
 const levelClasses: Record<RiskLevel, string> = {
-  normal: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  caution: "bg-amber-100 text-amber-800 border-amber-200",
-  warning: "bg-orange-100 text-orange-800 border-orange-200",
-  danger: "bg-red-100 text-red-700 border-red-200",
+  normal: "border-boa-green/20 bg-boa-green/12 text-boa-green",
+  caution: "border-boa-amber/25 bg-boa-amber/16 text-amber-800",
+  warning: "border-boa-amber/30 bg-boa-amber/20 text-amber-900",
+  danger: "border-destructive/20 bg-destructive/10 text-destructive",
 };
 
 const eventLevelLabels: Record<string, string> = {
@@ -61,10 +61,10 @@ const eventLevelLabels: Record<string, string> = {
 };
 
 const eventLevelClasses: Record<string, string> = {
-  high: "bg-red-100 text-red-700",
-  medium: "bg-orange-100 text-orange-800",
-  low: "bg-amber-100 text-amber-800",
-  normal: "bg-slate-100 text-slate-600",
+  high: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
+  medium: "bg-boa-amber/20 text-amber-900 ring-1 ring-boa-amber/30",
+  low: "bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25",
+  normal: "bg-muted text-muted-foreground ring-1 ring-border/70",
 };
 
 const categoryIcons = {
