@@ -158,6 +158,7 @@ describe("Schedules - datetime and reminder persistence", () => {
     id: 77,
     userId: 4,
     teamId: null,
+    customerId: null,
     title: "보험 상담",
     description: null,
     type: "고객상담",
@@ -229,6 +230,59 @@ describe("Schedules - datetime and reminder persistence", () => {
     expect(formatKstLocalDateTime(endTime)).toBe("2026-05-22T10:00:00");
     expect(reminderSpy).toHaveBeenCalledWith(89, 4, startTime, "[TEST] 09 schedule", 30);
     expect(incompleteSpy).toHaveBeenCalledWith(89, 4, endTime, "[TEST] 09 schedule");
+  });
+
+  it("links schedules to accessible customers without changing reminder creation", async () => {
+    const startTime = kst("2026-05-22T11:00:00");
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 100, agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, isActive: true, deletedAt: null } as any);
+    const createSpy = vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule({ id: 90, title: "[TEST] linked customer", startTime, customerId: 100 })] as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).schedules.create({
+      title: "[TEST] linked customer",
+      type: "고객상담",
+      startTime: "2026-05-22T11:00:00",
+      reminderOffsetMinutes: 30,
+      customerId: 100,
+    });
+
+    expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({ customerId: 100 }));
+    expect(reminderSpy).toHaveBeenCalledWith(90, 4, startTime, "[TEST] linked customer", 30);
+  });
+
+  it("blocks linking schedules to customers outside the actor scope", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 101, agentId: 99, assignedTeamId: 11, subBranchAdminId: 3, isActive: true, deletedAt: null } as any);
+    const createSpy = vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).schedules.create({
+      title: "[TEST] blocked linked customer",
+      type: "고객상담",
+      startTime: "2026-05-22T11:00:00",
+      customerId: 101,
+    })).rejects.toThrow();
+
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it("updates and clears schedule customer context with existing schedule scope", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([baseSchedule()] as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({ id: 100, agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, isActive: true, deletedAt: null } as any);
+    const updateSpy = vi.spyOn(db, "updateSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleIncompleteNotification").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).schedules.update({ id: 77, customerId: 100 });
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).schedules.update({ id: 77, customerId: null });
+
+    expect(updateSpy.mock.calls[0][1]).toEqual(expect.objectContaining({ customerId: 100 }));
+    expect(updateSpy.mock.calls[1][1]).toEqual(expect.objectContaining({ customerId: null }));
   });
 
   it("updates start/end datetimes, persists reminderOffsetMinutes, and recalculates timing notifications", async () => {

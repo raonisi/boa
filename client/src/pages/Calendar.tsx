@@ -13,9 +13,10 @@ import {
   format, isSameDay, isSameMonth, startOfMonth, startOfWeek, subMonths, isWithinInterval,
 } from "date-fns";
 import { ko } from "date-fns/locale";
-import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2, BellRing, CheckCircle2, AlertTriangle } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2, BellRing, CheckCircle2, AlertTriangle, ExternalLink, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { useLocation } from "wouter";
 import {
   formatKstLocalDateTime,
   formatKstLocalDateTimeForInput,
@@ -25,6 +26,7 @@ import {
 
 type ViewMode = "month" | "week" | "day";
 type MobileRange = "today" | "week" | "month" | "all" | "custom";
+type CustomerOption = { id: number; name: string };
 
 const typeColors: Record<string, string> = {
   "고객상담": "bg-blue-500",
@@ -87,7 +89,17 @@ function ScheduleEmptyState({ title, description, onCreate }: { title: string; d
   );
 }
 
-function ScheduleWorkItem({ schedule, onClick }: { schedule: any; onClick: () => void }) {
+function ScheduleWorkItem({
+  schedule,
+  customerName,
+  onClick,
+  onCustomerClick,
+}: {
+  schedule: any;
+  customerName?: string;
+  onClick: () => void;
+  onCustomerClick?: () => void;
+}) {
   return (
     <button
       type="button"
@@ -103,6 +115,30 @@ function ScheduleWorkItem({ schedule, onClick }: { schedule: any; onClick: () =>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           <span>{schedule.type}</span>
           <StatusBadge status={schedule.status} />
+          {customerName ? (
+            <span
+              role={onCustomerClick ? "button" : undefined}
+              tabIndex={onCustomerClick ? 0 : undefined}
+              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700"
+              onClick={(e) => {
+                if (!onCustomerClick) return;
+                e.stopPropagation();
+                onCustomerClick();
+              }}
+              onKeyDown={(e) => {
+                if (!onCustomerClick || (e.key !== "Enter" && e.key !== " ")) return;
+                e.preventDefault();
+                e.stopPropagation();
+                onCustomerClick();
+              }}
+            >
+              <UserRound className="h-3 w-3" /> {customerName}
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-500">
+              <UserRound className="h-3 w-3" /> 연결 고객 없음
+            </span>
+          )}
           <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
             <BellRing className="h-3 w-3" /> {scheduleReminderText(schedule)}
           </span>
@@ -122,11 +158,33 @@ export default function Calendar() {
   const [mobileRange, setMobileRange] = useState<MobileRange>("today");
   const [customStartDate, setCustomStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [customEndDate, setCustomEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  const [location, setLocation] = useLocation();
+  const [initialCustomerApplied, setInitialCustomerApplied] = useState(false);
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
   const { data: schedules } = trpc.schedules.list.useQuery();
   const { data: users } = trpc.users.list.useQuery();
+  const { data: customers } = trpc.customers.list.useQuery({});
+  const customerOptions = (customers ?? []) as CustomerOption[];
+  const customerMap = new Map(customerOptions.map((customer) => [customer.id, customer]));
+  const browserSearch = typeof window !== "undefined" ? window.location.search : "";
+  const query = location.includes("?") ? location.slice(location.indexOf("?") + 1) : browserSearch.replace(/^\?/, "");
+  const queryParams = new URLSearchParams(query);
+  const queryAction = queryParams.get("action");
+  const queryCustomerId = Number(queryParams.get("customerId"));
+  const defaultCustomerId = Number.isFinite(queryCustomerId) && queryCustomerId > 0 ? queryCustomerId : undefined;
+  const getScheduleCustomer = (schedule: any) => schedule?.customerId ? customerMap.get(Number(schedule.customerId)) : undefined;
+  const openCustomerDetail = (customerId?: number | null) => {
+    if (customerId) setLocation(`/customers/${customerId}`);
+  };
+
+  useEffect(() => {
+    if (initialCustomerApplied || queryAction !== "create" || !defaultCustomerId) return;
+    setSelectedDate(new Date());
+    setShowModal(true);
+    setInitialCustomerApplied(true);
+  }, [defaultCustomerId, initialCustomerApplied, queryAction]);
 
   const createMutation = trpc.schedules.create.useMutation({
     onSuccess: () => { toast.success("일정이 저장되었습니다. 알림은 설정한 시간에 표시됩니다."); setShowModal(false); utils.schedules.list.invalidate(); utils.notifications.list.invalidate(); },
@@ -256,6 +314,7 @@ export default function Calendar() {
                     <div className="text-xs font-bold w-10 shrink-0">{formatScheduleTime(s.startTime)}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{s.title}</p>
+                      <p className="text-xs font-medium opacity-90">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
                       <p className="text-xs opacity-80">{s.type} · {getStatusLabel(s.status)} · 알림 {scheduleReminderText(s)}</p>
                     </div>
                   </div>
@@ -276,6 +335,7 @@ export default function Calendar() {
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="text-xs text-slate-500">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
                       <p className="text-xs text-orange-600">종료: {s.endTime ? format(scheduleDate(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
                     </div>
                     <span className="text-xs text-orange-600 font-medium">{getStatusLabel(s.status)}</span>
@@ -319,6 +379,7 @@ export default function Calendar() {
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="text-xs text-emerald-700">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(scheduleDate(s.startTime), "M/d (EEE) HH:mm", { locale: ko })}
                       </p>
@@ -332,9 +393,9 @@ export default function Calendar() {
         </div>
 
         {/* 모달들 */}
-        <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} />
+        <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} defaultCustomerId={defaultCustomerId} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} customers={customerOptions} />
         {selectedSchedule && (
-          <ScheduleDetailModal schedule={selectedSchedule} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
+          <ScheduleDetailModal schedule={selectedSchedule} customer={getScheduleCustomer(selectedSchedule)} customers={customerOptions} onViewCustomer={() => openCustomerDetail(selectedSchedule.customerId)} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
         )}
       </DashboardLayout>
     );
@@ -497,7 +558,7 @@ export default function Calendar() {
                   />
                 ) : (
                   getSchedulesForDay(currentDate).map((s) => (
-                    <ScheduleWorkItem key={s.id} schedule={s} onClick={() => setSelectedSchedule(s)} />
+                    <ScheduleWorkItem key={s.id} schedule={s} customerName={getScheduleCustomer(s)?.name} onCustomerClick={() => openCustomerDetail(s.customerId)} onClick={() => setSelectedSchedule(s)} />
                   ))
                 )}
               </div>
@@ -530,7 +591,7 @@ export default function Calendar() {
             ) : (
               <div className="space-y-2">
                 {selectedDaySchedules.map((s) => (
-                  <ScheduleWorkItem key={s.id} schedule={s} onClick={() => setSelectedSchedule(s)} />
+                  <ScheduleWorkItem key={s.id} schedule={s} customerName={getScheduleCustomer(s)?.name} onCustomerClick={() => openCustomerDetail(s.customerId)} onClick={() => setSelectedSchedule(s)} />
                 ))}
               </div>
             )}
@@ -539,24 +600,24 @@ export default function Calendar() {
         </div>
       </div>
 
-      <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} />
+      <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} defaultCustomerId={defaultCustomerId} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} customers={customerOptions} />
       {selectedSchedule && (
-        <ScheduleDetailModal schedule={selectedSchedule} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
+        <ScheduleDetailModal schedule={selectedSchedule} customer={getScheduleCustomer(selectedSchedule)} customers={customerOptions} onViewCustomer={() => openCustomerDetail(selectedSchedule.customerId)} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
       )}
     </DashboardLayout>
   );
 }
 
-function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }: {
-  open: boolean; onClose: () => void; defaultDate: Date | null;
-  onSubmit: (data: any) => void; loading: boolean; users: any[] | undefined;
+function ScheduleModal({ open, onClose, defaultDate, defaultCustomerId, onSubmit, loading, users, customers }: {
+  open: boolean; onClose: () => void; defaultDate: Date | null; defaultCustomerId?: number;
+  onSubmit: (data: any) => void; loading: boolean; users: any[] | undefined; customers: CustomerOption[];
 }) {
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({ category: "scheduleType" });
   const scheduleTypes = scheduleTypeOptions?.length ? scheduleTypeOptions.map((item) => item.value) : SCHEDULE_TYPES;
   const defaultStart = defaultDate ? format(defaultDate, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'09:00");
   const [form, setForm] = useState({
     title: "", type: "기타" as string, status: "예정" as string,
-    startTime: defaultStart, endTime: "", memo: "", targetUserId: "self", reminderOffsetMinutes: "30",
+    startTime: defaultStart, endTime: "", memo: "", targetUserId: "self", reminderOffsetMinutes: "30", customerId: defaultCustomerId ? String(defaultCustomerId) : "none",
   });
 
   useEffect(() => {
@@ -570,8 +631,9 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
       memo: "",
       targetUserId: "self",
       reminderOffsetMinutes: "30",
+      customerId: defaultCustomerId ? String(defaultCustomerId) : "none",
     });
-  }, [defaultStart, open]);
+  }, [defaultCustomerId, defaultStart, open]);
 
   const handleSubmit = () => {
     if (form.endTime && parseKstLocalDateTime(form.endTime).getTime() <= parseKstLocalDateTime(form.startTime).getTime()) {
@@ -587,6 +649,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
       memo: form.memo || undefined,
       reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
       targetUserId: form.targetUserId && form.targetUserId !== "self" ? Number(form.targetUserId) : undefined,
+      customerId: form.customerId !== "none" ? Number(form.customerId) : undefined,
     });
   };
 
@@ -642,6 +705,19 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
               </Select>
             </div>
           )}
+          <div>
+            <Label className="text-xs">연결 고객</Label>
+            <Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}>
+              <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="고객을 선택하세요" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">연결 고객 없음</SelectItem>
+                {customers.map((customer) => (
+                  <SelectItem key={customer.id} value={String(customer.id)}>{customer.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-[11px] text-muted-foreground">권한 범위 내 고객만 선택할 수 있습니다.</p>
+          </div>
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
@@ -655,8 +731,8 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
   );
 }
 
-function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }: {
-  schedule: any; onClose: () => void; onDelete: () => void; onUpdate: (data: any) => void; loading: boolean;
+function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, onClose, onDelete, onUpdate, loading }: {
+  schedule: any; customer?: CustomerOption; customers: CustomerOption[]; onViewCustomer: () => void; onClose: () => void; onDelete: () => void; onUpdate: (data: any) => void; loading: boolean;
 }) {
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({ category: "scheduleType" });
   const scheduleTypes = scheduleTypeOptions?.length ? scheduleTypeOptions.map((item) => item.value) : SCHEDULE_TYPES;
@@ -669,6 +745,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
     endTime: formatDateTimeLocal(schedule.endTime),
     memo: schedule.memo ?? "",
     reminderOffsetMinutes: scheduleDefaultReminderOffset(schedule),
+    customerId: schedule.customerId ? String(schedule.customerId) : "none",
   });
 
   useEffect(() => {
@@ -681,6 +758,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
       endTime: formatDateTimeLocal(schedule.endTime),
       memo: schedule.memo ?? "",
       reminderOffsetMinutes: scheduleDefaultReminderOffset(schedule),
+      customerId: schedule.customerId ? String(schedule.customerId) : "none",
     });
   }, [schedule]);
 
@@ -697,6 +775,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
       endTime: form.endTime || null,
       memo: form.memo,
       reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
+      customerId: form.customerId === "none" ? null : Number(form.customerId),
     });
   };
 
@@ -717,6 +796,19 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
             <p className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
               <BellRing className="h-3 w-3" /> {scheduleReminderText(schedule)}
             </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+            <p className="text-xs text-muted-foreground">연결 고객</p>
+            {customer ? (
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="min-w-0 truncate text-sm font-semibold text-slate-950">{customer.name}</p>
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={onViewCustomer}>
+                  <ExternalLink className="mr-1 h-3.5 w-3.5" /> 고객 상세 보기
+                </Button>
+              </div>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">연결된 고객이 없습니다</p>
+            )}
           </div>
           {editing ? (
             <>
@@ -759,6 +851,19 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-[11px] text-muted-foreground">저장 시 기존 알림 정책에 따라 설정한 시각에 알림이 표시됩니다.</p>
+              </div>
+              <div>
+                <Label className="text-xs">연결 고객</Label>
+                <Select value={form.customerId} onValueChange={(v) => setForm({ ...form, customerId: v })}>
+                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="고객을 선택하세요" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">연결 고객 없음</SelectItem>
+                    {customers.map((item) => (
+                      <SelectItem key={item.id} value={String(item.id)}>{item.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-[11px] text-muted-foreground">권한 범위 내 고객만 선택할 수 있습니다.</p>
               </div>
               <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
               <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-background pt-2">

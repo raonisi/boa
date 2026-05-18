@@ -533,6 +533,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                   <Button variant="outline" size="sm" className="bg-white" onClick={() => setShowFollowUpModal(true)}>
                     <CalendarPlus className="h-4 w-4 mr-1" /> 다음 연락일 설정
                   </Button>
+                  <Button variant="outline" size="sm" className="bg-white" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
+                    <CalendarPlus className="h-4 w-4 mr-1" /> 이 고객 일정 추가
+                  </Button>
                 </div>
               </div>
             </div>
@@ -549,12 +552,13 @@ export default function CustomerDetail({ id }: { id: number }) {
                   </span>
                 )}
               </div>
-              <div className="grid gap-2 md:grid-cols-4">
+              <div className="grid gap-2 md:grid-cols-5">
                 {[
                   { label: "1. 상담 준비", description: "추천 사유와 메시지 문구 확인", icon: Copy, action: () => setActiveTab("tools"), variant: "outline" as const },
                   { label: "2. 상담 기록", description: "통화/상담 결과 남기기", icon: MessageSquare, action: () => setShowConsultModal(true), variant: "default" as const },
                   { label: "3. 후속관리", description: "다음 연락일 또는 할 일 예약", icon: CalendarPlus, action: () => setShowFollowUpModal(true), variant: "secondary" as const },
                   { label: "4. 계약 검토", description: "계약 등록 또는 진행 상태 확인", icon: FilePlus2, action: () => setShowContractModal(true), variant: "outline" as const },
+                  { label: "5. 일정 추가", description: "이 고객과 연결된 일정 생성", icon: CalendarPlus, action: () => setLocation(`/calendar?customerId=${customer.id}&action=create`), variant: "outline" as const },
                 ].map((step) => {
                   const Icon = step.icon;
                   return (
@@ -580,7 +584,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
         <Card className="sticky top-[4.6rem] z-20 border-slate-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
           <CardContent className="space-y-3 p-3 sm:p-4">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
               {customer.phone ? (
                 <Button variant="outline" className="h-11 justify-start gap-2" asChild>
                   <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
@@ -593,6 +597,9 @@ export default function CustomerDetail({ id }: { id: number }) {
               </Button>
               <Button variant="secondary" className="h-11 justify-start gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
                 <CalendarPlus className="h-4 w-4" /> 다음 연락일
+              </Button>
+              <Button variant="outline" className="h-11 justify-start gap-2" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
+                <CalendarPlus className="h-4 w-4" /> 일정 추가
               </Button>
               <Button variant="secondary" className="h-11 justify-start gap-2 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
                 <FilePlus2 className="h-4 w-4" /> 계약 등록

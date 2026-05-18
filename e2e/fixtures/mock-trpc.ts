@@ -77,6 +77,25 @@ const todayWork = {
   longUnmanagedCustomers: [],
 };
 
+const schedules = [
+  {
+    id: 301,
+    userId: 4,
+    customerId: customer.id,
+    title: "[E2E] 고객 상담 일정",
+    type: "고객상담",
+    status: "예정",
+    startTime: now,
+    endTime: "2026-05-18T10:00:00.000Z",
+    memo: "[E2E] calendar customer context",
+    reminderOffsetMinutes: 30,
+    isActive: true,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  },
+];
+
 const salesReport = {
   period: { dateFrom: "2026-05-01", dateTo: "2026-05-18", label: "E2E 기간" },
   scope: { label: "전체 조직", ownershipScope: "managed", canViewRanking: true },
@@ -144,6 +163,7 @@ const defaults: Record<string, unknown> = {
   "performance.stats": { assigned: 1, contracts: 1, monthlyPremium: 120000 },
   "customers.list": [customer],
   "customers.get": customer,
+  "schedules.list": schedules,
   "customers.downloadImportTemplate": {
     headers: ["name", "birthDate", "phone", "gender", "region", "expectedPremium", "availableTime", "source", "consultStatus", "memo", "agent"],
     csvContent: "name,birthDate,phone,gender,region,expectedPremium,availableTime,source,consultStatus,memo,agent",

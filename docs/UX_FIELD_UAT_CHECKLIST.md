@@ -365,6 +365,14 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 4. Push reminder targets should exclude deleted or cancelled schedules.
 5. member cannot delete another user's schedule or clear another user's schedule reminders.
 
+## Calendar Customer Context UAT
+1. Calendar schedule create/edit forms can link a customer from the signed-in user's existing customer scope.
+2. Calendar list/card/detail views show linked customer context and provide a customer-detail navigation action.
+3. CustomerDetail provides a schedule-add action that opens Calendar with the current customer preselected.
+4. Unlinked schedules can still be created, edited, and displayed as before.
+5. member/team_leader/sub_branch_admin cannot link or view customers outside their existing customer scope.
+6. Existing reminderOffsetMinutes, dueAt, delete, cancel, and notification behavior remains unchanged.
+
 ## Phone Duplicate Scope UAT
 1. branch_admin 고객 등록/일괄 등록 중복 확인은 전체 active 고객 기준으로 동작한다.
 2. sub_branch_admin 중복 확인은 산하 고객 범위 안에서만 `duplicate=true`가 된다.
