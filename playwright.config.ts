@@ -1,34 +1,50 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const devCommand = process.platform === "win32" ? "pnpm.cmd dev" : "pnpm dev";
+const PORT = Number(process.env.E2E_PORT ?? 3187);
+const baseURL = `http://127.0.0.1:${PORT}`;
 
 export default defineConfig({
   testDir: "./e2e",
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
   timeout: 30_000,
+  workers: 1,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
+    baseURL,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   expect: {
-    toHaveScreenshot: {
-      maxDiffPixelRatio: 0.02,
-    },
+    timeout: 10_000,
   },
   webServer: {
-    command: devCommand,
-    url: "http://127.0.0.1:3000/api/health",
-    reuseExistingServer: !process.env.CI,
+    command: "node e2e/start-dev-server.mjs",
+    url: `${baseURL}/api/health`,
+    reuseExistingServer: false,
     timeout: 120_000,
+    stdout: "pipe",
+    stderr: "pipe",
+    env: {
+      ...process.env,
+      E2E_PORT: String(PORT),
+      PORT: String(PORT),
+      HOST: "127.0.0.1",
+      NODE_ENV: "development",
+      VITE_OAUTH_PORTAL_URL: "http://127.0.0.1:3187/__e2e__/oauth",
+      VITE_APP_ID: "boa-e2e",
+      VITE_MANUS_DEBUG_COLLECTOR: "0",
+    },
   },
   projects: [
     {
-      name: "chromium",
+      name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1000 } },
+    },
+    {
+      name: "mobile-chromium",
+      use: { ...devices["Pixel 5"] },
     },
   ],
 });
