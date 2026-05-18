@@ -33,6 +33,17 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+export const userPermissions = mysqlTable("user_permissions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  permission: varchar("permission", { length: 100 }).notNull(),
+  grantedBy: int("grantedBy"),
+  grantedAt: timestamp("grantedAt").defaultNow().notNull(),
+}, (table) => ({
+  uniqueUserPermission: unique("uq_user_permissions_user_permission").on(table.userId, table.permission),
+}));
+export type UserPermission = typeof userPermissions.$inferSelect;
+
 // ─── Teams ───────────────────────────────────────────────────────────────────
 export const teams = mysqlTable("teams", {
   id: int("id").autoincrement().primaryKey(),

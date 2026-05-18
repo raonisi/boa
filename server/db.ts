@@ -48,6 +48,7 @@ import {
   statusHistory,
   teams,
   userDeviceTokens,
+  userPermissions,
   Team,
   users,
   User,
@@ -182,6 +183,32 @@ export async function getUserByEmail(email: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+async function permissionsByUserIds(userIds: number[]) {
+  const db = await getDb();
+  if (!db || userIds.length === 0) return new Map<number, string[]>();
+  const rows = await db.select({
+    userId: userPermissions.userId,
+    permission: userPermissions.permission,
+  }).from(userPermissions).where(inArray(userPermissions.userId, userIds));
+  const map = new Map<number, string[]>();
+  for (const row of rows) {
+    const permissions = map.get(row.userId) ?? [];
+    permissions.push(row.permission);
+    map.set(row.userId, permissions);
+  }
+  return map;
+}
+
+async function attachPermissions<T extends { id: number }>(rows: T[]) {
+  const map = await permissionsByUserIds(rows.map((row) => row.id));
+  return rows.map((row) => ({ ...row, permissions: map.get(row.id) ?? [] }));
+}
+
+export async function getUserPermissions(userId: number) {
+  const map = await permissionsByUserIds([userId]);
+  return map.get(userId) ?? [];
+}
+
 export async function createUser(data: {
   name: string;
   email: string;
@@ -224,20 +251,35 @@ export async function getUserByOpenId(openId: string) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-  return result[0];
+  return (await attachPermissions(result))[0];
 }
 
 export async function getAllUsers() {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(users).orderBy(desc(users.createdAt));
+  const rows = await db.select().from(users).orderBy(desc(users.createdAt));
+  return attachPermissions(rows);
 }
 
 export async function getUserById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result[0];
+  return (await attachPermissions(result))[0];
+}
+
+export async function setUserPermission(userId: number, permission: string, enabled: boolean, grantedBy?: number) {
+  const db = await getDb();
+  if (!db) return;
+  if (!enabled) {
+    await db.delete(userPermissions).where(and(eq(userPermissions.userId, userId), eq(userPermissions.permission, permission)));
+    return;
+  }
+  await db.insert(userPermissions).values({
+    userId,
+    permission,
+    grantedBy: grantedBy ?? null,
+  }).onDuplicateKeyUpdate({ set: { grantedBy: grantedBy ?? null, grantedAt: new Date() } });
 }
 
 export async function updateUserRole(id: number, role: "branch_admin" | "sub_branch_admin" | "team_leader" | "member") {

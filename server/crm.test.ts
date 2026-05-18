@@ -609,6 +609,26 @@ describe("Bulk import branch-admin access policy", () => {
       expect.objectContaining({ name: "[TEST] Bulk Status", agentId: 4 }),
     ], {});
   });
+
+  it("lets branch_admin grant and revoke customers.bulk_import only for managers", async () => {
+    const setPermissionSpy = vi.spyOn(db, "setUserPermission").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "getUserById")
+      .mockResolvedValueOnce({ id: 3, role: "team_leader", accountStatus: "active" } as any)
+      .mockResolvedValueOnce({ id: 2, role: "sub_branch_admin", accountStatus: "active" } as any)
+      .mockResolvedValueOnce({ id: 4, role: "member", accountStatus: "active" } as any)
+      .mockResolvedValueOnce({ id: 5, role: "team_leader", accountStatus: "inactive" } as any);
+
+    const caller = appRouter.createCaller(createCtx("branch_admin", { userId: 1 }));
+
+    await expect(caller.users.updatePermission({ userId: 3, permission: CUSTOMER_BULK_IMPORT_PERMISSION, enabled: true })).resolves.toEqual({ success: true });
+    await expect(caller.users.updatePermission({ userId: 2, permission: CUSTOMER_BULK_IMPORT_PERMISSION, enabled: false })).resolves.toEqual({ success: true });
+    await expect(caller.users.updatePermission({ userId: 4, permission: CUSTOMER_BULK_IMPORT_PERMISSION, enabled: true })).rejects.toThrow();
+    await expect(caller.users.updatePermission({ userId: 5, permission: CUSTOMER_BULK_IMPORT_PERMISSION, enabled: true })).rejects.toThrow();
+
+    expect(setPermissionSpy).toHaveBeenNthCalledWith(1, 3, CUSTOMER_BULK_IMPORT_PERMISSION, true, 1);
+    expect(setPermissionSpy).toHaveBeenNthCalledWith(2, 2, CUSTOMER_BULK_IMPORT_PERMISSION, false, 1);
+  });
 });
 
 describe("PR19-2 - FCM device token registration", () => {
