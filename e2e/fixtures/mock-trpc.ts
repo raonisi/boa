@@ -138,6 +138,19 @@ const operationRisk = {
   guides: [{ title: "다운로드 사유 점검", description: "사유와 대상 범위를 확인하세요.", category: "download" }],
 };
 
+const scopedOperationRisk = {
+  scope: { role: "team_leader", label: "팀 리스크" },
+  period: { dateFrom: "2026-05-12T00:00:00.000Z", dateTo: "2026-05-18T23:59:59.999Z", label: "최근 7일" },
+  overall: { score: 16, level: "caution", message: "주의가 필요한 팀 리스크가 있습니다." },
+  cards: [
+    { category: "unresolved", title: "미처리 후속관리", count: 1, score: 8, level: "caution", description: "권한 범위 안의 예정/연기 후속관리 중 기한이 지난 항목입니다.", actionLabel: "알림에서 확인", href: "/notifications" },
+    { category: "unresolved", title: "오래된 미완료 일정", count: 1, score: 10, level: "caution", description: "완료 또는 취소되지 않은 오래된 일정입니다.", actionLabel: "캘린더 확인", href: "/calendar" },
+    { category: "unresolved", title: "장기 미관리 고객", count: 0, score: 0, level: "normal", description: "최근 관리 이력이 오래된 산하 고객입니다.", actionLabel: "고객 DB 확인", href: "/customers" },
+    { category: "unresolved", title: "미확인 알림", count: 1, score: 3, level: "normal", description: "읽지 않았거나 처리 완료되지 않은 산하 업무 알림입니다.", actionLabel: "알림센터 확인", href: "/notifications" },
+    { category: "handoff", title: "배정/인수인계 확인 필요", count: 0, score: 0, level: "normal", description: "권한 범위 안에서 담당자 배정 확인이 필요한 고객입니다.", actionLabel: "DB 배정 확인", href: "/customers/assign" },
+  ],
+};
+
 const downloadPreview = {
   customers: {
     rowCount: 1,
@@ -191,6 +204,7 @@ const defaults: Record<string, unknown> = {
   "salesReports.filterOptions": { subBranches: [{ id: 2, name: "[E2E] Sub" }], teams: [{ id: 10, name: "[E2E] Team" }], users },
   "salesReports.summary": salesReport,
   "operationRisk.summary": operationRisk,
+  "operationRisk.scopedSummary": scopedOperationRisk,
   "adminAudit.summary": { cards: { total: 1, risky: 1, downloads: 1, deletes: 0, users: 0, customers: 0 } },
   "adminAudit.logSearch": { items: [{ id: 701, action: "DATA_DOWNLOAD", actorName: "[E2E] Branch Admin", targetType: "customer", reason: "[E2E] audit reason", summary: "[E2E] safe summary", createdAt: now }], total: 1 },
   "download.preview": downloadPreview,
