@@ -188,7 +188,13 @@ import {
   createUncontactedReminder,
   refreshLongUnmanagedReminder,
 } from "./notifications";
-import { parseKstLocalDateTime } from "./scheduleDateTime";
+import {
+  formatKstLocalDate,
+  getKstDayRange,
+  getScheduleReminderDueAt,
+  isSameKstDate,
+  parseKstLocalDateTime,
+} from "@shared/timePolicy";
 import * as pushNotifications from "./pushNotifications";
 
 /**
@@ -1610,7 +1616,7 @@ async function getScopedDashboardData(user: { id: number; role: string; teamId: 
 }
 
 function isSameCalendarDay(a: Date, b: Date) {
-  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  return isSameKstDate(a, b);
 }
 
 function isFinishedScheduleStatus(status: string) {
@@ -1626,11 +1632,11 @@ function isOpenFollowUpStatus(status: string) {
 }
 
 function toDayStart(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return getKstDayRange(date).start;
 }
 
 function toDayEnd(date: Date) {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 23, 59, 59, 999);
+  return getKstDayRange(date).end;
 }
 
 async function getFollowUpScope(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
@@ -2716,8 +2722,8 @@ export const appRouter = router({
     sendTodayFollowUpReminders: branchAdminProcedure
       .input(z.object({ date: z.string().optional() }).optional())
       .mutation(async ({ input }) => {
-        const date = input?.date ? new Date(input.date) : new Date();
-        const dateKey = date.toISOString().slice(0, 10);
+        const date = input?.date ? parseKstLocalDateTime(input.date) : new Date();
+        const dateKey = formatKstLocalDate(date);
         const rows = await getFollowUps({ statuses: ["scheduled", "postponed"], dueFrom: toDayStart(date), dueTo: toDayEnd(date) });
         const results = [];
         for (const row of rows) {
@@ -2742,9 +2748,9 @@ export const appRouter = router({
     sendSchedule30MinuteReminders: branchAdminProcedure
       .input(z.object({ now: z.string().optional() }).optional())
       .mutation(async ({ input }) => {
-        const now = input?.now ? new Date(input.now) : new Date();
-        const windowStart = new Date(now.getTime() + 29 * 60 * 1000);
-        const windowEnd = new Date(now.getTime() + 31 * 60 * 1000);
+        const now = input?.now ? parseKstLocalDateTime(input.now) : new Date();
+        const windowStart = getScheduleReminderDueAt(now, -29);
+        const windowEnd = getScheduleReminderDueAt(now, -31);
         const rows = (await getSchedules({})).filter((schedule) => {
           const start = new Date(schedule.startTime);
           return start >= windowStart && start <= windowEnd && !isFinishedScheduleStatus(schedule.status);
@@ -2778,7 +2784,7 @@ export const appRouter = router({
         includeWarnings: z.boolean().optional(),
       }).optional())
       .query(async ({ ctx, input }) => {
-        const baseDate = input?.date ? new Date(input.date) : new Date();
+        const baseDate = input?.date ? parseKstLocalDateTime(input.date) : new Date();
         const items = await buildRecommendationItems(ctx.user, baseDate);
         return items
           .filter((item) => item.totalScore > 0)
@@ -2827,7 +2833,7 @@ export const appRouter = router({
     dashboardSummary: activeUserProcedure
       .input(z.object({ date: z.string().optional() }).optional())
       .query(async ({ ctx, input }) => {
-        const baseDate = input?.date ? new Date(input.date) : new Date();
+        const baseDate = input?.date ? parseKstLocalDateTime(input.date) : new Date();
         const items = await buildRecommendationItems(ctx.user, baseDate);
         const scored = items.filter((item) => item.totalScore > 0);
         return {
@@ -5693,7 +5699,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const customer = await verifyCustomerAccess(ctx.user, input.customerId);
         if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 후속관리를 등록할 수 없습니다." });
-        const nextContactDate = new Date(input.nextContactDate);
+        const nextContactDate = parseKstLocalDateTime(input.nextContactDate);
         if (Number.isNaN(nextContactDate.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "다음 연락일이 올바르지 않습니다." });
         await createFollowUp({
           customerId: customer.id,
@@ -5727,7 +5733,7 @@ export const appRouter = router({
     listToday: activeUserProcedure
       .input(z.object({ date: z.string().optional() }).optional())
       .query(async ({ ctx, input }) => {
-        const date = input?.date ? new Date(input.date) : new Date();
+        const date = input?.date ? parseKstLocalDateTime(input.date) : new Date();
         const scope = await getFollowUpScope(ctx.user);
         return getFollowUps({ ...scope, statuses: ["scheduled", "postponed"], dueTo: toDayEnd(date) });
       }),
@@ -5735,7 +5741,7 @@ export const appRouter = router({
     listOverdue: activeUserProcedure
       .input(z.object({ date: z.string().optional() }).optional())
       .query(async ({ ctx, input }) => {
-        const date = input?.date ? new Date(input.date) : new Date();
+        const date = input?.date ? parseKstLocalDateTime(input.date) : new Date();
         const scope = await getFollowUpScope(ctx.user);
         return getFollowUps({ ...scope, statuses: ["scheduled", "postponed"], dueTo: new Date(toDayStart(date).getTime() - 1) });
       }),
@@ -5762,7 +5768,7 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const followUp = await verifyFollowUpAccess(ctx.user, input.id);
         if (!isOpenFollowUpStatus(followUp.status)) throw new TRPCError({ code: "BAD_REQUEST", message: "연기 가능한 후속관리가 아닙니다." });
-        const nextContactDate = new Date(input.nextContactDate);
+        const nextContactDate = parseKstLocalDateTime(input.nextContactDate);
         if (Number.isNaN(nextContactDate.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "다음 연락일이 올바르지 않습니다." });
         await updateFollowUp(input.id, { status: "postponed", nextContactDate, reason: input.reason ?? followUp.reason });
         await log(ctx.user.id, "FOLLOW_UP_POSTPONED", "follow_up", input.id, logDetails({
@@ -5798,9 +5804,14 @@ export const appRouter = router({
     todayWork: activeUserProcedure
       .input(z.object({ date: z.string().optional() }).optional())
       .query(async ({ ctx, input }) => {
-        const baseDate = input?.date ? new Date(input.date) : new Date();
-        const monthStart = new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
-        const nextMonthStart = new Date(baseDate.getFullYear(), baseDate.getMonth() + 1, 1);
+        const baseDate = input?.date ? parseKstLocalDateTime(input.date) : new Date();
+        const baseRange = getKstDayRange(baseDate);
+        const monthYear = Number(baseRange.dateKey.slice(0, 4));
+        const monthNumber = Number(baseRange.dateKey.slice(5, 7));
+        const nextMonthYear = monthNumber === 12 ? monthYear + 1 : monthYear;
+        const nextMonthNumber = monthNumber === 12 ? 1 : monthNumber + 1;
+        const monthStart = parseKstLocalDateTime(`${baseRange.dateKey.slice(0, 7)}-01`);
+        const nextMonthStart = parseKstLocalDateTime(`${nextMonthYear}-${String(nextMonthNumber).padStart(2, "0")}-01`);
         const { customerList, contractList, scheduleList, notifications, followUpList } = await getScopedDashboardData(ctx.user);
         const customerMap = new Map(customerList.map((customer) => [customer.id, customer]));
         const todayEnd = toDayEnd(baseDate);

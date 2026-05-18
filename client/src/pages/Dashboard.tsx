@@ -32,6 +32,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { formatKstLocalDateTime, getKstLocalDateTimeAfter } from "@shared/timePolicy";
 
 function formatNumber(value: number | string | undefined) {
   if (value === undefined || value === null || value === "") return "0";
@@ -344,14 +345,10 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
     setConfirmAction(null);
   };
   const postponedDate = (days: number) => {
-    const next = new Date();
-    next.setDate(next.getDate() + days);
     if (days === 0) {
-      next.setHours(next.getHours() + 2, 0, 0, 0);
-    } else {
-      next.setHours(10, 0, 0, 0);
+      return getKstLocalDateTimeAfter(new Date(), { hours: 2 });
     }
-    return next.toISOString();
+    return getKstLocalDateTimeAfter(new Date(), { days, defaultHour: 10 });
   };
   const runTask = async (taskKey: string, work: () => Promise<unknown>, message: string) => {
     if (busyTaskKeyRef.current) return;
@@ -388,7 +385,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
     const description = task.taskType === "followUp"
       ? `${task.nextAction ?? "연락"} · ${task.reason ?? "후속관리"}`
       : task.taskType === "schedule"
-        ? `${new Date(task.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · ${task.type}`
+        ? `${formatKstLocalDateTime(task.startTime, { seconds: false }).slice(11, 16)} · ${task.type}`
         : task.taskType === "notification"
           ? `${task.type}${task.customerName ? ` · ${task.customerName}` : ""}`
           : `${task.consultStatus ?? "고객"} · 기존 기준 점검`;
@@ -990,7 +987,7 @@ function TodayWorkSection({ userName, role, roleTitle }: { userName?: string | n
                 <StatusBadge status={schedule.status} />
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {new Date(schedule.startTime).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })} · {schedule.type}
+                {formatKstLocalDateTime(schedule.startTime, { seconds: false }).slice(11, 16)} · {schedule.type}
               </p>
             </button>
           ))}

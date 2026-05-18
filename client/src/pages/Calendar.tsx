@@ -16,6 +16,12 @@ import { ko } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2, BellRing, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  formatKstLocalDateTime,
+  formatKstLocalDateTimeForInput,
+  isSameKstDate,
+  parseKstLocalDateTime,
+} from "@shared/timePolicy";
 
 type ViewMode = "month" | "week" | "day";
 type MobileRange = "today" | "week" | "month" | "all" | "custom";
@@ -44,7 +50,15 @@ const reminderOffsetLabels: Record<string, string> = {
 };
 
 function formatDateTimeLocal(value?: string | Date | null) {
-  return value ? format(new Date(value), "yyyy-MM-dd'T'HH:mm") : "";
+  return value ? formatKstLocalDateTimeForInput(value) : "";
+}
+
+function formatScheduleTime(value: string | Date) {
+  return formatKstLocalDateTime(value, { seconds: false }).slice(11, 16);
+}
+
+function scheduleDate(value: string | Date) {
+  return parseKstLocalDateTime(formatKstLocalDateTime(value, { seconds: false }));
 }
 
 function scheduleReminderOffset(schedule: any) {
@@ -84,7 +98,7 @@ function ScheduleWorkItem({ schedule, onClick }: { schedule: any; onClick: () =>
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-sm font-semibold text-slate-950">{schedule.title}</p>
-          <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-600">{format(new Date(schedule.startTime), "HH:mm")}</span>
+          <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-600">{formatScheduleTime(schedule.startTime)}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           <span>{schedule.type}</span>
@@ -126,7 +140,7 @@ export default function Calendar() {
   });
 
   const getSchedulesForDay = (day: Date) =>
-    (schedules ?? []).filter((s) => isSameDay(new Date(s.startTime), day));
+    (schedules ?? []).filter((s) => isSameKstDate(s.startTime, day));
 
   const navigate = (dir: 1 | -1) => {
     if (viewMode === "month") setCurrentDate(dir === 1 ? addMonths(currentDate, 1) : subMonths(currentDate, 1));
@@ -154,16 +168,16 @@ export default function Calendar() {
   const incompleteSchedules = (schedules ?? []).filter((s) => {
     if (s.status !== "예정" && s.status !== "보류") return false;
     if (!s.endTime) return false;
-    return new Date(s.endTime) < today;
+    return scheduleDate(s.endTime) < today;
   });
   const thisWeekSchedules = (schedules ?? []).filter((s) => {
-    const d = new Date(s.startTime);
+    const d = scheduleDate(s.startTime);
     const wStart = startOfWeek(today, { weekStartsOn: 1 });
     const wEnd = endOfWeek(today, { weekStartsOn: 1 });
     return d >= wStart && d <= wEnd;
   }).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
   const mobileList = (schedules ?? []).filter((s) => {
-    const d = new Date(s.startTime);
+    const d = scheduleDate(s.startTime);
     if (mobileRange === "all") return true;
     if (mobileRange === "today") return isSameDay(d, today);
     if (mobileRange === "week") return d >= startOfWeek(today, { weekStartsOn: 1 }) && d <= endOfWeek(today, { weekStartsOn: 1 });
@@ -177,7 +191,7 @@ export default function Calendar() {
   const reminderSchedules = (schedules ?? []).filter((s) => {
     if (!["예정", "변경", "보류"].includes(s.status)) return false;
     if ((s.reminderOffsetMinutes ?? 30) < 0) return false;
-    return new Date(s.startTime) >= today;
+    return scheduleDate(s.startTime) >= today;
   });
   const selectedDay = selectedDate ?? currentDate;
   const selectedDaySchedules = getSchedulesForDay(selectedDay).sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
@@ -239,7 +253,7 @@ export default function Calendar() {
                     className={`flex min-h-14 cursor-pointer items-start gap-2 rounded-2xl p-3 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
                     onClick={() => setSelectedSchedule(s)}
                   >
-                    <div className="text-xs font-bold w-10 shrink-0">{format(new Date(s.startTime), "HH:mm")}</div>
+                    <div className="text-xs font-bold w-10 shrink-0">{formatScheduleTime(s.startTime)}</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold truncate">{s.title}</p>
                       <p className="text-xs opacity-80">{s.type} · {getStatusLabel(s.status)} · 알림 {scheduleReminderText(s)}</p>
@@ -262,7 +276,7 @@ export default function Calendar() {
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{s.title}</p>
-                      <p className="text-xs text-orange-600">종료: {s.endTime ? format(new Date(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
+                      <p className="text-xs text-orange-600">종료: {s.endTime ? format(scheduleDate(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
                     </div>
                     <span className="text-xs text-orange-600 font-medium">{getStatusLabel(s.status)}</span>
                   </div>
@@ -306,7 +320,7 @@ export default function Calendar() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{s.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {format(new Date(s.startTime), "M/d (EEE) HH:mm", { locale: ko })}
+                        {format(scheduleDate(s.startTime), "M/d (EEE) HH:mm", { locale: ko })}
                       </p>
                     </div>
                     <StatusBadge status={s.status} />
@@ -417,7 +431,7 @@ export default function Calendar() {
                         <div className="space-y-0.5">
                           {daySchedules.slice(0, 3).map((s) => (
                             <div key={s.id} className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
-                              {format(new Date(s.startTime), "HH:mm")} {s.title}
+                              {formatScheduleTime(s.startTime)} {s.title}
                             </div>
                           ))}
                           {daySchedules.length > 3 && <div className="text-[10px] text-muted-foreground pl-1">+{daySchedules.length - 3}개</div>}
@@ -463,7 +477,7 @@ export default function Calendar() {
                         {daySchedules.map((s) => (
                           <div key={s.id} className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
                             <div className="font-medium truncate">{s.title}</div>
-                            <div className="opacity-80">{format(new Date(s.startTime), "HH:mm")}</div>
+                            <div className="opacity-80">{formatScheduleTime(s.startTime)}</div>
                           </div>
                         ))}
                       </div>
@@ -560,7 +574,7 @@ function ScheduleModal({ open, onClose, defaultDate, onSubmit, loading, users }:
   }, [defaultStart, open]);
 
   const handleSubmit = () => {
-    if (form.endTime && new Date(form.endTime).getTime() <= new Date(form.startTime).getTime()) {
+    if (form.endTime && parseKstLocalDateTime(form.endTime).getTime() <= parseKstLocalDateTime(form.startTime).getTime()) {
       toast.error("종료 시간은 시작 시간보다 늦어야 합니다.");
       return;
     }
@@ -671,7 +685,7 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
   }, [schedule]);
 
   const handleUpdate = () => {
-    if (form.endTime && new Date(form.endTime).getTime() <= new Date(form.startTime).getTime()) {
+    if (form.endTime && parseKstLocalDateTime(form.endTime).getTime() <= parseKstLocalDateTime(form.startTime).getTime()) {
       toast.error("종료 시간은 시작 시간보다 늦어야 합니다.");
       return;
     }
@@ -696,8 +710,8 @@ function ScheduleDetailModal({ schedule, onClose, onDelete, onUpdate, loading }:
             <span>{schedule.type}</span>
             <StatusBadge status={schedule.status} />
           </div>
-          <div><p className="text-xs text-muted-foreground">시작</p><p>{new Date(schedule.startTime).toLocaleString("ko-KR")}</p></div>
-          {schedule.endTime && <div><p className="text-xs text-muted-foreground">종료</p><p>{new Date(schedule.endTime).toLocaleString("ko-KR")}</p></div>}
+          <div><p className="text-xs text-muted-foreground">시작</p><p>{formatKstLocalDateTime(schedule.startTime, { seconds: false }).replace("T", " ")}</p></div>
+          {schedule.endTime && <div><p className="text-xs text-muted-foreground">종료</p><p>{formatKstLocalDateTime(schedule.endTime, { seconds: false }).replace("T", " ")}</p></div>}
           <div>
             <p className="text-xs text-muted-foreground">알림 설정</p>
             <p className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">

@@ -5,7 +5,7 @@ import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
 import * as db from "./db";
 import * as notifications from "./notifications";
 import * as pushNotifications from "./pushNotifications";
-import { formatKstLocalDateTime, parseKstLocalDateTime } from "./scheduleDateTime";
+import { formatKstLocalDateTime, parseKstLocalDateTime } from "@shared/timePolicy";
 import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
@@ -439,6 +439,58 @@ describe("Schedules - datetime and reminder persistence", () => {
     expect(execute).toHaveBeenCalledTimes(1);
     const dueAt = execute.mock.calls[0][1][6] as Date;
     expect(formatKstLocalDateTime(dueAt)).toBe("2026-05-22T11:30:00");
+  });
+});
+
+describe("Follow-ups - KST local date policy", () => {
+  const customer = {
+    id: 100,
+    agentId: 4,
+    assignedTeamId: 10,
+    subBranchAdminId: 2,
+    isActive: true,
+    deletedAt: null,
+  } as any;
+
+  it("preserves the selected next contact local datetime when creating follow-ups", async () => {
+    const createSpy = vi.spyOn(db, "createFollowUp").mockResolvedValue(undefined);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(customer);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.create({
+      customerId: 100,
+      nextContactDate: "2026-05-22T10:00:00",
+      reason: "[TEST] follow",
+      nextAction: "전화",
+    });
+
+    const nextContactDate = createSpy.mock.calls[0][0].nextContactDate as Date;
+    expect(formatKstLocalDateTime(nextContactDate)).toBe("2026-05-22T10:00:00");
+  });
+
+  it("preserves the selected next contact local datetime when postponing follow-ups", async () => {
+    vi.spyOn(db, "getFollowUpById").mockResolvedValue({
+      id: 77,
+      customerId: 100,
+      assignedAgentId: 4,
+      teamId: 10,
+      subBranchAdminId: 2,
+      status: "scheduled",
+      reason: "[TEST] follow",
+      nextContactDate: parseKstLocalDateTime("2026-05-22T10:00:00"),
+    } as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(customer);
+    const updateSpy = vi.spyOn(db, "updateFollowUp").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.postpone({
+      id: 77,
+      nextContactDate: "2026-05-23T14:30:00",
+      reason: "[TEST] postponed",
+    });
+
+    const nextContactDate = updateSpy.mock.calls[0][1].nextContactDate as Date;
+    expect(formatKstLocalDateTime(nextContactDate)).toBe("2026-05-23T14:30:00");
   });
 });
 
@@ -1117,6 +1169,58 @@ describe("PR19-3 - safe FCM work notifications", () => {
 
     expect(result.quietHoursSkippedCount).toBe(1);
     expect(result.statuses[4]).toBe("skipped_quiet_hours");
+  });
+
+  it("calculates quiet hours in Asia/Seoul by default boundaries", () => {
+    const preference = {
+      quietHoursEnabled: true,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    };
+
+    expect(pushNotifications.isInQuietHours(preference, parseKstLocalDateTime("2026-05-22T07:59:00"))).toBe(true);
+    expect(pushNotifications.isInQuietHours(preference, parseKstLocalDateTime("2026-05-22T08:00:00"))).toBe(false);
+    expect(pushNotifications.isInQuietHours(preference, parseKstLocalDateTime("2026-05-22T21:00:00"))).toBe(true);
+  });
+
+  it("selects schedule 30 minute push targets by KST local schedule time", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([
+      {
+        id: 501,
+        userId: 4,
+        status: "예정",
+        startTime: parseKstLocalDateTime("2026-05-22T12:00:00"),
+      },
+      {
+        id: 502,
+        userId: 4,
+        status: "예정",
+        startTime: parseKstLocalDateTime("2026-05-22T21:00:00"),
+      },
+    ] as any);
+    const sendSpy = vi.spyOn(pushNotifications, "sendPushToUsers").mockResolvedValue({
+      requestedUserIds: [4],
+      tokenCount: 1,
+      sentCount: 1,
+      failureCount: 0,
+      skippedCount: 0,
+      duplicateSkippedCount: 0,
+      disabledSkippedCount: 0,
+      quietHoursSkippedCount: 0,
+      invalidTokenDeactivatedCount: 0,
+      statuses: { 4: "sent" },
+    });
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).pushNotifications.sendSchedule30MinuteReminders({
+      now: "2026-05-22T11:30:00",
+    });
+
+    expect(result.targetCount).toBe(1);
+    expect(sendSpy).toHaveBeenCalledWith([4], pushNotifications.SAFE_PUSH_PAYLOADS.schedule30Minute, expect.objectContaining({
+      sourceId: 501,
+      dedupeKey: "schedule:501:30min",
+    }));
   });
 
   it("records skipped_no_token when no active device token exists", async () => {
@@ -3801,6 +3905,19 @@ describe("dashboard.todayWork", () => {
     expect(result.cards.overdueFollowUpCount).toBe(1);
     expect(JSON.stringify(result)).not.toContain("01012345678");
     expect(JSON.stringify(result)).not.toContain("private memo");
+  });
+
+  it("calculates today follow-ups by Asia/Seoul day boundaries", async () => {
+    mockTodayWorkData();
+    vi.spyOn(db, "getFollowUps").mockResolvedValue([
+      { id: 40, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: parseKstLocalDateTime("2026-05-13T00:30:00"), reason: "[TEST] Early", nextAction: "전화", status: "scheduled", createdBy: 4, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+      { id: 41, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, nextContactDate: parseKstLocalDateTime("2026-05-12T23:30:00"), reason: "[TEST] Overdue", nextAction: "전화", status: "scheduled", createdBy: 4, createdAt: new Date(), updatedAt: new Date(), deletedAt: null },
+    ] as any);
+
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).dashboard.todayWork({ date: "2026-05-13" });
+
+    expect(result.cards.todayFollowUpCount).toBe(2);
+    expect(result.cards.overdueFollowUpCount).toBe(1);
   });
 
   it("uses team scope for team_leader and prevents null-team widening", async () => {
