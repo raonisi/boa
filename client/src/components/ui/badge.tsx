@@ -21,6 +21,10 @@ const badgeVariants = cva(
           "border-transparent bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20 [a&]:hover:bg-boa-green/18",
         warning:
           "border-transparent bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25 [a&]:hover:bg-boa-amber/22 dark:text-amber-200",
+        info:
+          "border-transparent bg-primary/10 text-primary ring-1 ring-primary/15 [a&]:hover:bg-primary/15",
+        neutral:
+          "border-transparent bg-muted text-muted-foreground ring-1 ring-border/70 [a&]:hover:bg-muted/80",
         outline:
           "border-border/80 bg-background text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
       },

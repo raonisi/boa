@@ -107,6 +107,12 @@ Authenticated shell polish check:
 3. Confirm destructive confirmation dialogs keep confirm/cancel buttons at mobile-friendly height and spacing.
 4. Confirm Calendar, Notifications, and CustomerDetail dialogs do not overlap MobileNav or hide primary actions.
 
+## Badge / Table Pattern UAT Steps
+1. Confirm success, warning, danger, info, and neutral badges use the same semantic tones across CustomerList, ContractList, OperationRisk, ActivityLog, and UserManagement.
+2. Confirm table headers, row hover states, borders, and empty rows feel consistent in desktop management screens.
+3. Confirm risk badges in OperationRisk and role/status badges in UserManagement keep their meaning without introducing new permissions or data visibility.
+4. At 360px mobile width, confirm table overflow stays horizontal inside the table shell and does not break page layout.
+
 ## Customer Sales Workspace UAT Steps
 1. Open `/customers` and confirm the first visible section answers which customers to contact today.
 2. Confirm priority, warning, no-next-action, and uncontacted filters keep role scope unchanged.
