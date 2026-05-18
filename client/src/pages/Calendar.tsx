@@ -164,7 +164,7 @@ export default function Calendar() {
 
   const utils = trpc.useUtils();
   const { data: schedules } = trpc.schedules.list.useQuery();
-  const { data: users } = trpc.users.list.useQuery();
+  const { data: users } = trpc.users.list.useQuery({ activeOnly: true });
   const { data: customers } = trpc.customers.list.useQuery({});
   const customerOptions = (customers ?? []) as CustomerOption[];
   const customerMap = new Map(customerOptions.map((customer) => [customer.id, customer]));
@@ -698,7 +698,7 @@ function ScheduleModal({ open, onClose, defaultDate, defaultCustomerId, onSubmit
                 <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="본인 일정" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="self">본인 일정</SelectItem>
-                  {users.filter((u) => u.role !== "inactive").map((u) => (
+                  {users.filter((u) => u.accountStatus === "active").map((u) => (
                     <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
                   ))}
                 </SelectContent>
