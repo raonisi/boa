@@ -7,6 +7,7 @@ import { addDays, addYears, setMonth, setDate, startOfDay } from "date-fns";
 import { getDb } from "./db";
 import { notifications } from "../drizzle/schema";
 import { and, eq, isNull } from "drizzle-orm";
+import { getScheduleReminderDueAt } from "@shared/timePolicy";
 
 type NotifType = typeof notifications.$inferInsert["type"];
 
@@ -296,7 +297,7 @@ export async function createScheduleReminderByOffset(
   offsetMinutes: number
 ): Promise<void> {
   if (offsetMinutes < 0) return;
-  const dueAt = new Date(startTime.getTime() - offsetMinutes * 60 * 1000);
+  const dueAt = getScheduleReminderDueAt(startTime, offsetMinutes);
   if (dueAt > new Date()) {
     const label = offsetMinutes === 0 ? "일정 시각" : offsetMinutes >= 1440 ? `${offsetMinutes / 1440}일 전` : `${offsetMinutes >= 60 ? `${offsetMinutes / 60}시간` : `${offsetMinutes}분`} 전`;
     await createNotificationSafe({

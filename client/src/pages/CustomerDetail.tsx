@@ -29,6 +29,7 @@ import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History,
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
+import { formatKstLocalDateTime, getKstLocalDateTimeAfter } from "@shared/timePolicy";
 
 const followUpStatusLabels: Record<string, string> = {
   scheduled: "예정",
@@ -69,7 +70,7 @@ function priorityLabel(priority?: string | null) {
 }
 
 function formatDate(value?: string | Date | null) {
-  return value ? new Date(value).toLocaleDateString("ko-KR") : "-";
+  return value ? formatKstLocalDateTime(value, { seconds: false }).slice(0, 10) : "-";
 }
 
 function daysSince(value?: string | Date | null) {
@@ -1655,7 +1656,7 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
               <div key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <p className="text-sm font-medium">{new Date(item.nextContactDate).toLocaleString("ko-KR")} · {item.nextAction}</p>
+                    <p className="text-sm font-medium">{formatKstLocalDateTime(item.nextContactDate, { seconds: false }).replace("T", " ")} · {item.nextAction}</p>
                     <p className="text-xs text-muted-foreground mt-1">{item.reason}</p>
                   </div>
                   <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{followUpStatusLabels[item.status] ?? "기타 상태"}</span>
@@ -1681,7 +1682,7 @@ function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
   loading: boolean;
   mode?: "create" | "postpone";
 }) {
-  const defaultDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16);
+  const defaultDate = getKstLocalDateTimeAfter(new Date(), { days: 1, defaultHour: 10 });
   const [nextContactDate, setNextContactDate] = useState(defaultDate);
   const [reason, setReason] = useState("");
   const [nextAction, setNextAction] = useState<"전화" | "카톡" | "문자" | "방문" | "설계안 발송" | "계약 확인" | "보장분석" | "사후관리" | "기타">("전화");
@@ -1911,7 +1912,7 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
     nextAction: consult.nextAction ?? "재연락",
     summary: consult.summary ?? "",
     content: consult.content ?? "",
-    nextContactAt: consult.nextContactAt ? new Date(consult.nextContactAt).toISOString().slice(0, 16) : "",
+    nextContactAt: consult.nextContactAt ? formatKstLocalDateTime(consult.nextContactAt, { seconds: false }) : "",
   });
   return (
     <Dialog open={true} onOpenChange={onClose}>

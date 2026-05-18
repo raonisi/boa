@@ -9,6 +9,7 @@ import {
   getPushNotificationPreference,
   updatePushNotificationLog,
 } from "./db";
+import { isInQuietHoursByPolicy } from "@shared/timePolicy";
 
 export type PushNotificationType = "today_follow_up" | "schedule_30min" | "contract_delete_request" | "test";
 export type PushNotificationLogStatus =
@@ -133,33 +134,8 @@ export function sanitizePushPayload(payload: SafePushPayload): SafePushPayload {
   };
 }
 
-function toMinutes(value: string) {
-  const [hh, mm] = value.split(":").map((part) => Number(part));
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return null;
-  return hh * 60 + mm;
-}
-
-function getZonedMinutes(now: Date, timezone: string) {
-  const parts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: timezone || "Asia/Seoul",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(now);
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
-  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
-  return hour * 60 + minute;
-}
-
 export function isInQuietHours(preference: { quietHoursEnabled: boolean; quietHoursStart: string; quietHoursEnd: string; timezone: string }, now = new Date()) {
-  if (!preference.quietHoursEnabled) return false;
-  const start = toMinutes(preference.quietHoursStart);
-  const end = toMinutes(preference.quietHoursEnd);
-  if (start === null || end === null) return false;
-  const current = getZonedMinutes(now, preference.timezone);
-  if (start === end) return false;
-  if (start < end) return current >= start && current < end;
-  return current >= start || current < end;
+  return isInQuietHoursByPolicy(preference, now);
 }
 
 function isNotificationEnabled(preference: {
