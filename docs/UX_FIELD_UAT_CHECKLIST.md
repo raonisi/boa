@@ -65,6 +65,10 @@
 
 ## Branding / Login UAT Steps
 
+Authenticated shell polish check:
+- Verify the signed-in desktop sidebar and sticky header show a compact BOA mark without changing route/menu visibility.
+- Verify collapsed sidebar, 360px mobile viewport, and the mobile more sheet do not stretch or crowd the BOA logo.
+
 1. Open a signed-out browser session and verify the BOA Best of All logo appears on the login screen without a checkerboard background.
 2. Confirm the login copy reads as a premium internal financial CRM screen and the CTA remains the Google login entry point.
 3. Click the login CTA and confirm the existing Google OAuth flow starts.

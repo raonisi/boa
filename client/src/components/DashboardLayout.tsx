@@ -53,6 +53,7 @@ import {
   UserSquare2,
 } from "lucide-react";
 import { BrandedLogin } from "./BrandedLogin";
+import { BrandLogo } from "./BrandLogo";
 import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -244,16 +245,27 @@ function DashboardLayoutContent({
         <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
           <SidebarHeader className="h-16 justify-center border-b border-sidebar-border/80">
             {!isCollapsed ? (
-              <div className="min-w-0 px-2">
-                <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">
-                  BOA (Best of All) 지점
-                </p>
-                <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
+              <div className="flex min-w-0 items-center gap-2 px-2">
+                <BrandLogo
+                  mark
+                  className="h-10 w-10 shrink-0 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-sidebar-primary/25"
+                  imageClassName="drop-shadow-sm"
+                />
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">
+                    BOA CRM
+                  </p>
+                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
+                </div>
               </div>
             ) : (
-              <p className="truncate px-2 text-[11px] font-bold tracking-tight text-sidebar-foreground">
-                BOA (Best of All) 지점
-              </p>
+              <div className="flex justify-center px-2">
+                <BrandLogo
+                  mark
+                  className="h-9 w-9 rounded-xl bg-white p-1.5 shadow-sm ring-1 ring-sidebar-primary/25"
+                  imageClassName="drop-shadow-sm"
+                />
+              </div>
             )}
           </SidebarHeader>
 
@@ -353,6 +365,7 @@ function DashboardLayoutContent({
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/90 bg-background/92 px-4 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/78">
           <SidebarTrigger className="h-9 w-9 shrink-0 rounded-lg border border-transparent hover:bg-muted/70" />
+          <BrandLogo mark className="hidden h-8 w-8 shrink-0 rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border sm:flex" />
           <div className="min-w-0">
             <p className="truncate text-sm font-bold tracking-tight text-foreground">{getPageTitle(location)}</p>
             <p className="hidden text-xs text-muted-foreground tabular-nums sm:block">
