@@ -1001,6 +1001,109 @@ async function buildOperationRiskReport(input?: z.infer<typeof operationRiskPeri
   };
 }
 
+async function buildScopedOperationRiskSummary(
+  user: { id: number; role: string; teamId: number | null; accountStatus: string },
+  input?: z.infer<typeof operationRiskPeriodInput>
+) {
+  if (user.role !== "sub_branch_admin" && user.role !== "team_leader") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Scoped operation risk is available to managers only." });
+  }
+
+  const range = resolveOperationRiskRange(input);
+  const scoped = await getScopedDashboardData(user);
+  const now = new Date();
+  const staleCustomerDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const staleScheduleDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const activeCustomers = scoped.customerList.filter((customer: any) => customer.isActive !== false && !customer.deletedAt);
+  const overdueFollowUps = scoped.followUpList.filter((followUp: any) =>
+    isOpenFollowUpStatus(String(followUp.status)) &&
+    followUp.nextContactDate &&
+    new Date(followUp.nextContactDate).getTime() < now.getTime()
+  );
+  const staleSchedules = scoped.scheduleList.filter((schedule: any) =>
+    !isFinishedScheduleStatus(String(schedule.status)) &&
+    schedule.startTime &&
+    new Date(schedule.startTime).getTime() < staleScheduleDate.getTime()
+  );
+  const unreadNotifications = scoped.notifications.filter((notification: any) => isUnreadNotification(notification));
+  const longUnmanagedCustomers = activeCustomers.filter((customer: any) => {
+    const candidate = customer.lastContactDate ?? customer.updatedAt ?? customer.createdAt;
+    return candidate && new Date(candidate).getTime() < staleCustomerDate.getTime();
+  });
+  const assignmentNeeds = activeCustomers.filter((customer: any) =>
+    customer.assignmentStatus === "unassigned" || (!customer.agentId && !customer.subBranchAdminId)
+  );
+
+  const cards = [
+    compactRiskItem({
+      category: "unresolved",
+      title: "미처리 후속관리",
+      count: overdueFollowUps.length,
+      score: Math.min(100, overdueFollowUps.length * 8),
+      description: "권한 범위 안의 예정/연기 후속관리 중 기한이 지난 항목입니다.",
+      actionLabel: "알림에서 확인",
+      href: "/notifications",
+    }),
+    compactRiskItem({
+      category: "unresolved",
+      title: "오래된 미완료 일정",
+      count: staleSchedules.length,
+      score: Math.min(100, staleSchedules.length * 10),
+      description: "완료 또는 취소되지 않은 오래된 일정입니다.",
+      actionLabel: "캘린더 확인",
+      href: "/calendar",
+    }),
+    compactRiskItem({
+      category: "unresolved",
+      title: "장기 미관리 고객",
+      count: longUnmanagedCustomers.length,
+      score: Math.min(100, longUnmanagedCustomers.length * 5),
+      description: "최근 관리 이력이 오래된 산하 고객입니다.",
+      actionLabel: "고객 DB 확인",
+      href: "/customers",
+    }),
+    compactRiskItem({
+      category: "unresolved",
+      title: "미확인 알림",
+      count: unreadNotifications.length,
+      score: Math.min(100, unreadNotifications.length * 3),
+      description: "읽지 않았거나 처리 완료되지 않은 산하 업무 알림입니다.",
+      actionLabel: "알림센터 확인",
+      href: "/notifications",
+    }),
+    compactRiskItem({
+      category: "handoff",
+      title: "배정/인수인계 확인 필요",
+      count: assignmentNeeds.length,
+      score: Math.min(100, assignmentNeeds.length * 8),
+      description: "권한 범위 안에서 담당자 배정 확인이 필요한 고객입니다.",
+      actionLabel: "DB 배정 확인",
+      href: "/customers/assign",
+    }),
+  ];
+  const overallScore = Math.min(100, Math.round(cards.reduce((sum, card) => sum + card.score, 0) / 2));
+  const overallLevel = operationRiskLevel(overallScore);
+
+  return {
+    scope: {
+      role: user.role,
+      label: user.role === "sub_branch_admin" ? "산하 조직 리스크" : "팀 리스크",
+    },
+    period: {
+      preset: input?.period ?? "7d",
+      label: range.label,
+      dateFrom: range.dateFrom.toISOString(),
+      dateTo: range.dateTo.toISOString(),
+    },
+    overall: {
+      score: overallScore,
+      level: overallLevel,
+      message: operationRiskMessage(overallLevel),
+    },
+    cards,
+  };
+}
+
 function isWithinDateRange(date: Date, from?: Date, to?: Date) {
   const time = date.getTime();
   if (from && time < from.getTime()) return false;
@@ -3775,6 +3878,9 @@ export const appRouter = router({
     unresolvedWorkRisk: branchAdminProcedure
       .input(operationRiskPeriodInput)
       .query(async ({ input }) => (await buildOperationRiskReport(input)).unresolvedWorkRisk),
+    scopedSummary: activeUserProcedure
+      .input(operationRiskPeriodInput)
+      .query(async ({ ctx, input }) => buildScopedOperationRiskSummary(ctx.user, input)),
   }),
 
   customers: router({

@@ -274,9 +274,9 @@ function Router() {
       </Route>
       <Route path="/operation-risk">
         <AuthGuard>
-          <AdminGuard>
+          <ManagerGuard>
             <OperationRiskCenter />
-          </AdminGuard>
+          </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/download">
