@@ -140,6 +140,7 @@ const defaults: Record<string, unknown> = {
   "users.list": users,
   "settings.formOptions": [],
   "consultations.list": [{ id: 501, customerId: customer.id, content: "[E2E] 상담 메모", status: "진행", createdAt: now, consultationDate: now }],
+  "contracts.list": [],
   "contracts.listByCustomer": [],
   "customers.statusHistory": [],
   "customers.consentLogs": [],

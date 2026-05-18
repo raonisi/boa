@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,10 +12,32 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
-import { FileText, Search, WalletCards, XCircle } from "lucide-react";
+import { FileText, Plus, Search, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+
+type ContractListStatus = "loading" | "error" | "empty" | "no-result" | "ready";
+
+export function getContractListStatus({
+  isLoading,
+  isError,
+  totalCount,
+  filteredCount,
+  hasActiveFilters,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  totalCount: number;
+  filteredCount: number;
+  hasActiveFilters: boolean;
+}): ContractListStatus {
+  if (isLoading) return "loading";
+  if (isError) return "error";
+  if (totalCount === 0) return "empty";
+  if (filteredCount === 0 && hasActiveFilters) return "no-result";
+  return "ready";
+}
 
 export default function ContractList() {
   const { user } = useAuth();
@@ -29,7 +52,12 @@ export default function ContractList() {
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
-  const { data: contracts } = trpc.contracts.list.useQuery(user?.role === "branch_admin" ? { scope: scopeFilter } : undefined);
+  const {
+    data: contracts,
+    isLoading: isContractsLoading,
+    isError: isContractsError,
+    refetch: refetchContracts,
+  } = trpc.contracts.list.useQuery(user?.role === "branch_admin" ? { scope: scopeFilter } : undefined);
 
   const deactivateMutation = trpc.contracts.deactivate.useMutation({
     onSuccess: () => {
@@ -53,13 +81,60 @@ export default function ContractList() {
 
   const canDeactivate = user?.role === "branch_admin";
   const canRequestDelete = user?.role === "sub_branch_admin" || user?.role === "team_leader" || user?.role === "member";
+  const normalizedSearch = search.trim();
 
   const filtered = (contracts ?? []).filter((c) => {
-    const matchSearch = !search || (c.productName ?? "").includes(search) || (c.company ?? "").includes(search);
+    const matchSearch = !normalizedSearch || (c.productName ?? "").includes(normalizedSearch) || (c.company ?? "").includes(normalizedSearch);
     const matchStatus = statusFilter === "all" || c.contractStatus === statusFilter;
     const matchPayment = paymentFilter === "all" || c.paymentStatus === paymentFilter;
     return matchSearch && matchStatus && matchPayment;
   });
+
+  const hasActiveFilters = normalizedSearch.length > 0 || statusFilter !== "all" || paymentFilter !== "all";
+  const contractListStatus = getContractListStatus({
+    isLoading: isContractsLoading,
+    isError: isContractsError,
+    totalCount: contracts?.length ?? 0,
+    filteredCount: filtered.length,
+    hasActiveFilters,
+  });
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setPaymentFilter("all");
+  };
+
+  const stateContent = contractListStatus === "loading" ? (
+    <EmptyState
+      variant="loading"
+      title="계약 정보를 불러오는 중입니다."
+      description="권한 범위 안의 계약 데이터를 확인하고 있습니다."
+    />
+  ) : contractListStatus === "error" ? (
+    <ErrorState
+      title="계약 정보를 불러오지 못했습니다."
+      description="네트워크 또는 권한 상태를 확인한 뒤 다시 시도해 주세요."
+      retryLabel="다시 시도"
+      onRetry={() => refetchContracts()}
+    />
+  ) : contractListStatus === "empty" ? (
+    <EmptyState
+      icon={Plus}
+      title="등록된 계약이 없습니다."
+      description="고객 상세에서 계약을 등록하거나, 고객 DB에서 계약을 추가할 고객을 선택해 주세요."
+      actionLabel="계약 등록"
+      onAction={() => setLocation("/customers")}
+    />
+  ) : contractListStatus === "no-result" ? (
+    <EmptyState
+      icon={Search}
+      title="조건에 맞는 계약이 없습니다."
+      description="검색어와 필터를 조정하거나 초기화해 보세요."
+      actionLabel="필터 초기화"
+      onAction={resetFilters}
+    />
+  ) : null;
 
   const totalPremium = filtered
     .filter((c) => c.contractStatus === "유지")
@@ -134,12 +209,15 @@ export default function ContractList() {
           </CardContent>
         </Card>
 
-        {isMobile ? (
+        {stateContent ? (
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="px-4 py-8 sm:px-6">
+              <div className="mx-auto max-w-md">{stateContent}</div>
+            </CardContent>
+          </Card>
+        ) : isMobile ? (
           <div className="space-y-3">
-            {filtered.length === 0 ? (
-              <Card className="border-dashed border-slate-200 bg-white/90"><CardContent className="py-10 text-center text-sm text-slate-500">표시할 계약이 없습니다.</CardContent></Card>
-            ) : (
-              filtered.map((c) => (
+            {filtered.map((c) => (
                 <Card key={c.id} className="cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition active:bg-slate-50" onClick={() => setLocation(`/customers/${c.customerId}`)}>
                   <CardContent className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-2">
@@ -170,8 +248,7 @@ export default function ContractList() {
                     )}
                   </CardContent>
                 </Card>
-              ))
-            )}
+              ))}
           </div>
         ) : (
           <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
@@ -192,12 +269,7 @@ export default function ContractList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={canDeactivate || canRequestDelete ? 9 : 8} className="py-10 text-center text-sm text-slate-500">표시할 계약이 없습니다.</TableCell>
-                    </TableRow>
-                  ) : (
-                    filtered.map((c) => (
+                  {filtered.map((c) => (
                       <TableRow key={c.id} className="cursor-pointer transition-colors hover:bg-slate-50" onClick={() => setLocation(`/customers/${c.customerId}`)}>
                         <TableCell>{c.company ?? "-"}</TableCell>
                         <TableCell className="font-medium">{c.productName ?? "-"}</TableCell>
@@ -221,8 +293,7 @@ export default function ContractList() {
                           </TableCell>
                         )}
                       </TableRow>
-                    ))
-                  )}
+                    ))}
                 </TableBody>
               </Table>
               </div>

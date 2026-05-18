@@ -10,6 +10,7 @@ const smokeRoutes = [
   "/dashboard",
   "/customers",
   "/customers/bulk-import",
+  "/contracts",
   "/calendar",
   "/notifications",
   "/analytics",
