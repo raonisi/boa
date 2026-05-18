@@ -17,4 +17,3 @@ PREPARE schedule_customer_id_stmt FROM @schedule_customer_id_ddl;
 EXECUTE schedule_customer_id_stmt;
 --> statement-breakpoint
 DEALLOCATE PREPARE schedule_customer_id_stmt;
---> statement-breakpoint
