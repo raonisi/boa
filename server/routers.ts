@@ -114,6 +114,7 @@ import {
   updateUserParent,
   updateUserOrganization,
   updateUserRole,
+  setUserPermission,
   updateUserSubBranchAdmin,
   updateUserTeam,
   getSettings,
@@ -173,6 +174,7 @@ import {
   BulkImportRow,
   BulkImportValidationResult,
 } from "./db";
+import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
 import {
   cancelPendingNotifications,
   cancelScheduleIncompleteNotification,
@@ -3119,6 +3121,28 @@ export const appRouter = router({
         await updateUserAccountStatus(input.userId, input.accountStatus);
         const action = input.accountStatus !== "active" ? "USER_BLOCKED" : "USER_ACTIVATED";
         await log(ctx.user.id, action, "user", input.userId, `accountStatus=${input.accountStatus}`);
+        return { success: true };
+      }),
+
+    updatePermission: branchAdminProcedure
+      .input(z.object({
+        userId: z.number(),
+        permission: z.literal(CUSTOMER_BULK_IMPORT_PERMISSION),
+        enabled: z.boolean(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const target = await getUserById(input.userId);
+        if (!target) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
+        if (target.role !== "sub_branch_admin" && target.role !== "team_leader") {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "고객 일괄 등록 권한은 부지점장 또는 팀장에게만 부여할 수 있습니다." });
+        }
+        if (input.enabled && target.accountStatus !== "active") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "비활성/퇴사 계정에는 권한을 부여할 수 없습니다." });
+        }
+
+        await setUserPermission(input.userId, input.permission, input.enabled, ctx.user.id);
+        await log(ctx.user.id, input.enabled ? "USER_PERMISSION_GRANTED" : "USER_PERMISSION_REVOKED", "user", input.userId,
+          JSON.stringify({ actor: ctx.user.id, targetUserId: input.userId, permission: input.permission, enabled: input.enabled }));
         return { success: true };
       }),
 

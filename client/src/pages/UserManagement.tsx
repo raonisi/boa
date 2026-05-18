@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
+import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
 import { KeyRound, LogOut, Plus, ShieldCheck, ShieldX, UserCog } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -86,6 +87,20 @@ export default function UserManagement() {
     onSuccess: () => { toast.success("사용자가 추가되었습니다."); utils.users.list.invalidate(); setShowCreate(false); },
     onError: (err) => toast.error(err.message || "사용자 추가에 실패했습니다."),
   });
+
+  const updatePermissionMutation = trpc.users.updatePermission.useMutation({
+    onSuccess: () => { toast.success("세부 권한이 변경되었습니다."); utils.users.list.invalidate(); },
+    onError: (err) => toast.error(err.message || "세부 권한 변경에 실패했습니다."),
+  });
+
+  const toggleBulkImportPermission = (targetUser: any) => {
+    const enabled = !(targetUser.permissions ?? []).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
+    updatePermissionMutation.mutate({
+      userId: targetUser.id,
+      permission: CUSTOMER_BULK_IMPORT_PERMISSION,
+      enabled,
+    });
+  };
 
   const forceLogoutMutation = trpc.adminSecurity.forceLogoutUser.useMutation({
     onSuccess: () => {
@@ -168,6 +183,7 @@ export default function UserManagement() {
                     <TableHead>역할</TableHead>
                     <TableHead>계정 상태</TableHead>
                     <TableHead>로그인 상태</TableHead>
+                    <TableHead>일괄등록</TableHead>
                     <TableHead>팀</TableHead>
                     <TableHead>소속 부지점장</TableHead>
                     <TableHead>가입일</TableHead>
@@ -177,7 +193,7 @@ export default function UserManagement() {
                 <TableBody>
                   {(users ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center text-muted-foreground py-8">사용자가 없습니다.</TableCell>
+                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">사용자가 없습니다.</TableCell>
                     </TableRow>
                   ) : (
                     (users ?? []).map((u) => {
@@ -185,6 +201,8 @@ export default function UserManagement() {
                       const sba = (users ?? []).find((s) => s.id === (u as any).subBranchAdminId);
                       const isInactive = (u as any).accountStatus !== "active";
                       const canAssignSubBranch = u.role === "team_leader" || u.role === "member";
+                      const canManageBulkImport = u.role === "sub_branch_admin" || u.role === "team_leader";
+                      const hasBulkImportPermission = ((u as any).permissions ?? []).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
                       const loginStatus = (u as any).loginStatus ?? "linked";
                       return (
                         <TableRow key={u.id} className={isInactive ? "opacity-50" : ""}>
@@ -205,6 +223,23 @@ export default function UserManagement() {
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}>
                               {loginStatusLabels[loginStatus] ?? loginStatus}
                             </span>
+                          </TableCell>
+                          <TableCell>
+                            {u.role === "branch_admin" ? (
+                              <Badge variant="secondary" className="text-xs">기본 허용</Badge>
+                            ) : canManageBulkImport ? (
+                              <Button
+                                variant={hasBulkImportPermission ? "secondary" : "outline"}
+                                size="sm"
+                                className="h-7 px-2 text-xs"
+                                disabled={isInactive || updatePermissionMutation.isPending}
+                                onClick={() => toggleBulkImportPermission(u)}
+                              >
+                                {hasBulkImportPermission ? "허용" : "미허용"}
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">불가</span>
+                            )}
                           </TableCell>
                           <TableCell>
                             <Select
