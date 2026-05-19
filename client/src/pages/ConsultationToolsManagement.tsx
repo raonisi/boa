@@ -256,17 +256,17 @@ export default function ConsultationToolsManagement() {
         </Card>
 
         <Card className="border-amber-100 bg-amber-50/60 shadow-sm">
-          <CardContent className="flex items-start gap-3 p-4 text-sm text-amber-900">
+          <CardContent className="flex items-start gap-3 p-4 text-sm leading-6 text-amber-900">
             <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <p>사용 가능한 placeholder는 고객명, 담당자명, 다음연락일, 상담주제입니다. 템플릿 본문 전문은 활동 로그에 저장하지 않습니다.</p>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="checklists" className="space-y-4">
-          <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
-            <TabsTrigger value="checklists">상담 체크리스트</TabsTrigger>
-            <TabsTrigger value="templates">후속 문구 템플릿</TabsTrigger>
-            <TabsTrigger value="scripts">상담 스크립트</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-3">
+            <TabsTrigger value="checklists" className="min-h-12 whitespace-normal px-3 text-center leading-5 sm:min-h-9">상담 체크리스트</TabsTrigger>
+            <TabsTrigger value="templates" className="min-h-12 whitespace-normal px-3 text-center leading-5 sm:min-h-9">후속 문구 템플릿</TabsTrigger>
+            <TabsTrigger value="scripts" className="min-h-12 whitespace-normal px-3 text-center leading-5 sm:min-h-9">상담 스크립트</TabsTrigger>
           </TabsList>
 
           <TabsContent value="checklists" className="space-y-4">
@@ -275,15 +275,15 @@ export default function ConsultationToolsManagement() {
               <CardHeader><CardTitle className="text-base">체크리스트 항목 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-6">
                 <div className="md:col-span-6 flex justify-end">
-                  <Button variant="outline" className="rounded-xl" onClick={() => seedChecklists.mutate()} disabled={seedChecklists.isPending}><RefreshCw className="h-4 w-4 mr-1" />기본 체크리스트 확인</Button>
+                  <Button variant="outline" className="min-h-12 w-full rounded-xl md:w-auto md:min-h-10" onClick={() => seedChecklists.mutate()} disabled={seedChecklists.isPending}><RefreshCw className="h-4 w-4 mr-1" />기본 체크리스트 확인</Button>
                 </div>
-                <div className="md:col-span-2"><Label>제목</Label><Input className="rounded-xl bg-slate-50" value={checkTitle} onChange={(event) => setCheckTitle(event.target.value)} /></div>
-                <div><Label>단계</Label><Select value={checkPhase} onValueChange={(value) => setCheckPhase(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>카테고리</Label><Select value={checkCategory} onValueChange={(value) => setCheckCategory(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>정렬</Label><Input className="rounded-xl bg-slate-50" type="number" value={checkSort} onChange={(event) => setCheckSort(Number(event.target.value))} /></div>
-                <div className="flex items-end gap-2"><Checkbox checked={checkRequired} onCheckedChange={(checked) => setCheckRequired(checked === true)} /><span className="text-sm">필수</span></div>
-                <div className="md:col-span-6"><Label>설명</Label><Textarea className="rounded-xl bg-slate-50" value={checkDescription} onChange={(event) => setCheckDescription(event.target.value)} /></div>
-                <div className="md:col-span-6 flex justify-end"><Button onClick={() => createChecklist.mutate({ title: checkTitle, description: checkDescription || undefined, phase: checkPhase, category: checkCategory, sortOrder: checkSort, isRequired: checkRequired })}><Plus className="h-4 w-4 mr-1" />추가</Button></div>
+                <div className="md:col-span-2"><Label>제목</Label><Input className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" value={checkTitle} onChange={(event) => setCheckTitle(event.target.value)} /></div>
+                <div><Label>단계</Label><Select value={checkPhase} onValueChange={(value) => setCheckPhase(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>카테고리</Label><Select value={checkCategory} onValueChange={(value) => setCheckCategory(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>정렬</Label><Input className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" type="number" value={checkSort} onChange={(event) => setCheckSort(Number(event.target.value))} /></div>
+                <div className="flex min-h-12 items-center gap-2 md:min-h-9"><Checkbox checked={checkRequired} onCheckedChange={(checked) => setCheckRequired(checked === true)} /><span className="text-sm">필수</span></div>
+                <div className="md:col-span-6"><Label>설명</Label><Textarea className="min-h-24 rounded-xl bg-slate-50" value={checkDescription} onChange={(event) => setCheckDescription(event.target.value)} /></div>
+                <div className="md:col-span-6 flex justify-end"><Button className="min-h-12 w-full md:w-auto md:min-h-10" onClick={() => createChecklist.mutate({ title: checkTitle, description: checkDescription || undefined, phase: checkPhase, category: checkCategory, sortOrder: checkSort, isRequired: checkRequired })}><Plus className="h-4 w-4 mr-1" />추가</Button></div>
               </CardContent>
             </Card>
             ) : null}
@@ -294,20 +294,20 @@ export default function ConsultationToolsManagement() {
                     <CardTitle className="text-base">상담 체크리스트 수정</CardTitle>
                     <p className="mt-1 text-xs text-muted-foreground">체크리스트 상세 설명 전문은 활동 로그에 저장하지 않습니다.</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setEditingChecklist(null)} disabled={updateChecklist.isPending} aria-label="수정 취소">
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEditingChecklist(null)} disabled={updateChecklist.isPending} aria-label="수정 취소">
                     <X className="h-4 w-4" />
                   </Button>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-6">
-                  <div className="md:col-span-2"><Label>제목</Label><Input className="rounded-xl bg-white" value={editCheckTitle} onChange={(event) => setEditCheckTitle(event.target.value)} /></div>
-                  <div><Label>단계</Label><Select value={editCheckPhase} onValueChange={(value) => setEditCheckPhase(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
-                  <div><Label>카테고리</Label><Select value={editCheckCategory} onValueChange={(value) => setEditCheckCategory(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
-                  <div><Label>정렬</Label><Input className="rounded-xl bg-white" type="number" value={editCheckSort} onChange={(event) => setEditCheckSort(Number(event.target.value))} /></div>
-                  <div className="flex items-end gap-2"><Checkbox checked={editCheckRequired} onCheckedChange={(checked) => setEditCheckRequired(checked === true)} /><span className="text-sm">필수</span></div>
-                  <div className="md:col-span-6"><Label>설명</Label><Textarea className="rounded-xl bg-white" value={editCheckDescription} onChange={(event) => setEditCheckDescription(event.target.value)} /></div>
-                  <div className="md:col-span-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <Button variant="outline" onClick={() => setEditingChecklist(null)} disabled={updateChecklist.isPending}>취소</Button>
-                    <Button onClick={submitChecklistEdit} disabled={updateChecklist.isPending}>{updateChecklist.isPending ? "저장 중..." : "저장"}</Button>
+                  <div className="md:col-span-2"><Label>제목</Label><Input className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9" value={editCheckTitle} onChange={(event) => setEditCheckTitle(event.target.value)} /></div>
+                  <div><Label>단계</Label><Select value={editCheckPhase} onValueChange={(value) => setEditCheckPhase(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{phases.map((phase) => <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>)}</SelectContent></Select></div>
+                  <div><Label>카테고리</Label><Select value={editCheckCategory} onValueChange={(value) => setEditCheckCategory(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{categories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                  <div><Label>정렬</Label><Input className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9" type="number" value={editCheckSort} onChange={(event) => setEditCheckSort(Number(event.target.value))} /></div>
+                  <div className="flex min-h-12 items-center gap-2 md:min-h-9"><Checkbox checked={editCheckRequired} onCheckedChange={(checked) => setEditCheckRequired(checked === true)} /><span className="text-sm">필수</span></div>
+                  <div className="md:col-span-6"><Label>설명</Label><Textarea className="min-h-24 rounded-xl bg-white" value={editCheckDescription} onChange={(event) => setEditCheckDescription(event.target.value)} /></div>
+                  <div className="md:col-span-6 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                    <Button variant="outline" className="min-h-12 md:min-h-10" onClick={() => setEditingChecklist(null)} disabled={updateChecklist.isPending}>취소</Button>
+                    <Button className="min-h-12 md:min-h-10" onClick={submitChecklistEdit} disabled={updateChecklist.isPending}>{updateChecklist.isPending ? "저장 중..." : "저장"}</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -316,17 +316,17 @@ export default function ConsultationToolsManagement() {
               {(checklists ?? []).map((item: any) => (
                 <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <p className="font-medium">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 font-medium leading-6">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
                       <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {getActiveLabel(item.isActive)}</p>
-                      {item.description ? <p className="mt-1 text-sm text-muted-foreground">{item.description}</p> : null}
+                      {item.description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p> : null}
                     </div>
                     {isBranchAdmin ? (
-                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
-                        <Button size="sm" variant="outline" onClick={() => openChecklistEdit(item)} disabled={updateChecklist.isPending}>
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                        <Button size="sm" variant="outline" className="min-h-12 md:min-h-8" onClick={() => openChecklistEdit(item)} disabled={updateChecklist.isPending}>
                           <Edit3 className="mr-1 h-4 w-4" />수정
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => setDeleteChecklist(item)} disabled={updateChecklist.isPending}>
+                        <Button size="sm" variant="destructive" className="min-h-12 md:min-h-8" onClick={() => setDeleteChecklist(item)} disabled={updateChecklist.isPending}>
                           <Trash2 className="mr-1 h-4 w-4" />삭제
                         </Button>
                       </div>
@@ -342,13 +342,13 @@ export default function ConsultationToolsManagement() {
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">후속 문구 템플릿 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-4">
-                <div><Label>제목</Label><Input className="rounded-xl bg-slate-50" value={templateTitle} onChange={(event) => setTemplateTitle(event.target.value)} /></div>
-                <div><Label>상황</Label><Select value={templateSituation} onValueChange={(value) => setTemplateSituation(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>채널</Label><Select value={templateChannel} onValueChange={(value) => setTemplateChannel(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
-                <div className="flex items-end justify-end"><Button variant="outline" className="rounded-xl" onClick={() => seedTemplates.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
-                <div className="md:col-span-4"><Label>본문</Label><Textarea className="rounded-xl bg-slate-50" rows={7} value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
-                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="rounded-xl bg-slate-50" value={templateNote} onChange={(event) => setTemplateNote(event.target.value)} /></div>
-                <div className="md:col-span-4 flex justify-end"><Button onClick={() => createTemplate.mutate({ title: templateTitle, situation: templateSituation, channel: templateChannel, body: templateBody, complianceNote: templateNote || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />템플릿 추가</Button></div>
+                <div><Label>제목</Label><Input className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" value={templateTitle} onChange={(event) => setTemplateTitle(event.target.value)} /></div>
+                <div><Label>상황</Label><Select value={templateSituation} onValueChange={(value) => setTemplateSituation(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>채널</Label><Select value={templateChannel} onValueChange={(value) => setTemplateChannel(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
+                <div className="flex items-end justify-end"><Button variant="outline" className="min-h-12 w-full rounded-xl md:w-auto md:min-h-10" onClick={() => seedTemplates.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
+                <div className="md:col-span-4"><Label>본문</Label><Textarea className="min-h-40 rounded-xl bg-slate-50" rows={7} value={templateBody} onChange={(event) => setTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
+                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="min-h-24 rounded-xl bg-slate-50" value={templateNote} onChange={(event) => setTemplateNote(event.target.value)} /></div>
+                <div className="md:col-span-4 flex justify-end"><Button className="min-h-12 w-full md:w-auto md:min-h-10" onClick={() => createTemplate.mutate({ title: templateTitle, situation: templateSituation, channel: templateChannel, body: templateBody, complianceNote: templateNote || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />템플릿 추가</Button></div>
               </CardContent>
             </Card>
             ) : null}
@@ -359,19 +359,19 @@ export default function ConsultationToolsManagement() {
                     <CardTitle className="text-base">후속 문구 템플릿 수정</CardTitle>
                     <p className="mt-1 text-xs text-muted-foreground">템플릿 본문 전문은 활동 로그에 저장하지 않습니다.</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setEditingTemplate(null)} disabled={updateTemplate.isPending} aria-label="수정 취소">
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEditingTemplate(null)} disabled={updateTemplate.isPending} aria-label="수정 취소">
                     <X className="h-4 w-4" />
                   </Button>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-4">
-                  <div><Label>제목</Label><Input className="rounded-xl bg-white" value={editTemplateTitle} onChange={(event) => setEditTemplateTitle(event.target.value)} /></div>
-                  <div><Label>상황</Label><Select value={editTemplateSituation} onValueChange={(value) => setEditTemplateSituation(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
-                  <div><Label>채널</Label><Select value={editTemplateChannel} onValueChange={(value) => setEditTemplateChannel(value as any)}><SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
-                  <div className="md:col-span-4"><Label>본문</Label><Textarea className="rounded-xl bg-white" rows={7} value={editTemplateBody} onChange={(event) => setEditTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
-                  <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="rounded-xl bg-white" value={editTemplateNote} onChange={(event) => setEditTemplateNote(event.target.value)} /></div>
-                  <div className="md:col-span-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <Button variant="outline" onClick={() => setEditingTemplate(null)} disabled={updateTemplate.isPending}>취소</Button>
-                    <Button onClick={submitTemplateEdit} disabled={updateTemplate.isPending}>{updateTemplate.isPending ? "저장 중..." : "저장"}</Button>
+                  <div><Label>제목</Label><Input className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9" value={editTemplateTitle} onChange={(event) => setEditTemplateTitle(event.target.value)} /></div>
+                  <div><Label>상황</Label><Select value={editTemplateSituation} onValueChange={(value) => setEditTemplateSituation(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{situations.map((situation) => <SelectItem key={situation} value={situation}>{situation}</SelectItem>)}</SelectContent></Select></div>
+                  <div><Label>채널</Label><Select value={editTemplateChannel} onValueChange={(value) => setEditTemplateChannel(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{channels.map((channel) => <SelectItem key={channel} value={channel}>{channel}</SelectItem>)}</SelectContent></Select></div>
+                  <div className="md:col-span-4"><Label>본문</Label><Textarea className="min-h-40 rounded-xl bg-white" rows={7} value={editTemplateBody} onChange={(event) => setEditTemplateBody(event.target.value)} placeholder="{고객명}, {담당자명}, {다음연락일}, {상담주제}만 사용할 수 있습니다." /></div>
+                  <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="min-h-24 rounded-xl bg-white" value={editTemplateNote} onChange={(event) => setEditTemplateNote(event.target.value)} /></div>
+                  <div className="md:col-span-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                    <Button variant="outline" className="min-h-12 md:min-h-10" onClick={() => setEditingTemplate(null)} disabled={updateTemplate.isPending}>취소</Button>
+                    <Button className="min-h-12 md:min-h-10" onClick={submitTemplateEdit} disabled={updateTemplate.isPending}>{updateTemplate.isPending ? "저장 중..." : "저장"}</Button>
                   </div>
                 </CardContent>
               </Card>
@@ -381,16 +381,16 @@ export default function ConsultationToolsManagement() {
                 <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
-                      <p className="font-medium">{item.title}</p>
+                      <p className="line-clamp-2 font-medium leading-6">{item.title}</p>
                       <p className="text-xs text-muted-foreground">{item.situation} / {item.channel} / {getActiveLabel(item.isActive)}</p>
-                      <p className="mt-2 line-clamp-2 whitespace-pre-wrap text-sm text-muted-foreground">{item.body}</p>
+                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.body}</p>
                     </div>
                     {isBranchAdmin ? (
-                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
-                        <Button size="sm" variant="outline" onClick={() => openTemplateEdit(item)} disabled={updateTemplate.isPending}>
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                        <Button size="sm" variant="outline" className="min-h-12 md:min-h-8" onClick={() => openTemplateEdit(item)} disabled={updateTemplate.isPending}>
                           <Edit3 className="mr-1 h-4 w-4" />수정
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => setDeleteTemplate(item)} disabled={updateTemplate.isPending}>
+                        <Button size="sm" variant="destructive" className="min-h-12 md:min-h-8" onClick={() => setDeleteTemplate(item)} disabled={updateTemplate.isPending}>
                           <Trash2 className="mr-1 h-4 w-4" />삭제
                         </Button>
                       </div>
@@ -405,13 +405,13 @@ export default function ConsultationToolsManagement() {
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">상담 스크립트 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-4">
-                <div><Label>제목</Label><Input className="rounded-xl bg-slate-50" value={scriptTitle} onChange={(event) => setScriptTitle(event.target.value)} /></div>
-                <div><Label>카테고리</Label><Select value={scriptCategory} onValueChange={(value) => setScriptCategory(value as any)}><SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger><SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
-                <div><Label>태그</Label><Input className="rounded-xl bg-slate-50" value={scriptTags} onChange={(event) => setScriptTags(event.target.value)} placeholder="쉼표로 구분" /></div>
-                <div className="flex items-end justify-end"><Button variant="outline" className="rounded-xl" onClick={() => seedScripts.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
-                <div className="md:col-span-4"><Label>본문</Label><Textarea className="rounded-xl bg-slate-50" rows={8} value={scriptBody} onChange={(event) => setScriptBody(event.target.value)} placeholder="가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요." /></div>
-                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="rounded-xl bg-slate-50" value={scriptNote} onChange={(event) => setScriptNote(event.target.value)} /></div>
-                <div className="md:col-span-4 flex justify-end"><Button onClick={() => createScript.mutate({ title: scriptTitle, category: scriptCategory, scriptBody, complianceNote: scriptNote || undefined, tags: scriptTags || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />스크립트 추가</Button></div>
+                <div><Label>제목</Label><Input className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" value={scriptTitle} onChange={(event) => setScriptTitle(event.target.value)} /></div>
+                <div><Label>카테고리</Label><Select value={scriptCategory} onValueChange={(value) => setScriptCategory(value as any)}><SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger><SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent></Select></div>
+                <div><Label>태그</Label><Input className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" value={scriptTags} onChange={(event) => setScriptTags(event.target.value)} placeholder="쉼표로 구분" /></div>
+                <div className="flex items-end justify-end"><Button variant="outline" className="min-h-12 w-full rounded-xl md:w-auto md:min-h-10" onClick={() => seedScripts.mutate()}><RefreshCw className="h-4 w-4 mr-1" />기본 10개 확인</Button></div>
+                <div className="md:col-span-4"><Label>본문</Label><Textarea className="min-h-40 rounded-xl bg-slate-50" rows={8} value={scriptBody} onChange={(event) => setScriptBody(event.target.value)} placeholder="가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요." /></div>
+                <div className="md:col-span-4"><Label>준법/주의 메모</Label><Textarea className="min-h-24 rounded-xl bg-slate-50" value={scriptNote} onChange={(event) => setScriptNote(event.target.value)} /></div>
+                <div className="md:col-span-4 flex justify-end"><Button className="min-h-12 w-full md:w-auto md:min-h-10" onClick={() => createScript.mutate({ title: scriptTitle, category: scriptCategory, scriptBody, complianceNote: scriptNote || undefined, tags: scriptTags || undefined })}><MessageSquareText className="h-4 w-4 mr-1" />스크립트 추가</Button></div>
               </CardContent>
             </Card>
             {editingScript ? (
@@ -421,37 +421,37 @@ export default function ConsultationToolsManagement() {
                     <CardTitle className="text-base">상담 스크립트 수정</CardTitle>
                     <p className="mt-1 text-xs text-muted-foreground">수정한 본문 전문은 활동 로그에 저장하지 않습니다.</p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setEditingScript(null)} disabled={updateScript.isPending} aria-label="수정 취소">
+                  <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setEditingScript(null)} disabled={updateScript.isPending} aria-label="수정 취소">
                     <X className="h-4 w-4" />
                   </Button>
                 </CardHeader>
                 <CardContent className="grid gap-3 md:grid-cols-4">
                   <div>
                     <Label>제목</Label>
-                    <Input className="rounded-xl bg-white" value={editScriptTitle} onChange={(event) => setEditScriptTitle(event.target.value)} />
+                    <Input className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9" value={editScriptTitle} onChange={(event) => setEditScriptTitle(event.target.value)} />
                   </div>
                   <div>
                     <Label>카테고리</Label>
                     <Select value={editScriptCategory} onValueChange={(value) => setEditScriptCategory(value as any)}>
-                      <SelectTrigger className="rounded-xl bg-white"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>{scriptCategories.map((category) => <SelectItem key={category} value={category}>{category}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="md:col-span-2">
                     <Label>태그</Label>
-                    <Input className="rounded-xl bg-white" value={editScriptTags} onChange={(event) => setEditScriptTags(event.target.value)} />
+                    <Input className="min-h-12 rounded-xl bg-white md:h-9 md:min-h-9" value={editScriptTags} onChange={(event) => setEditScriptTags(event.target.value)} />
                   </div>
                   <div className="md:col-span-4">
                     <Label>본문</Label>
-                    <Textarea className="rounded-xl bg-white" rows={8} value={editScriptBody} onChange={(event) => setEditScriptBody(event.target.value)} />
+                    <Textarea className="min-h-40 rounded-xl bg-white" rows={8} value={editScriptBody} onChange={(event) => setEditScriptBody(event.target.value)} />
                   </div>
                   <div className="md:col-span-4">
                     <Label>준법 주의 메모</Label>
-                    <Textarea className="rounded-xl bg-white" value={editScriptNote} onChange={(event) => setEditScriptNote(event.target.value)} />
+                    <Textarea className="min-h-24 rounded-xl bg-white" value={editScriptNote} onChange={(event) => setEditScriptNote(event.target.value)} />
                   </div>
-                  <div className="md:col-span-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <Button variant="outline" onClick={() => setEditingScript(null)} disabled={updateScript.isPending}>취소</Button>
-                    <Button onClick={submitScriptEdit} disabled={updateScript.isPending}>
+                  <div className="md:col-span-4 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                    <Button variant="outline" className="min-h-12 md:min-h-10" onClick={() => setEditingScript(null)} disabled={updateScript.isPending}>취소</Button>
+                    <Button className="min-h-12 md:min-h-10" onClick={submitScriptEdit} disabled={updateScript.isPending}>
                       {updateScript.isPending ? "저장 중..." : "저장"}
                     </Button>
                   </div>
@@ -468,16 +468,16 @@ export default function ConsultationToolsManagement() {
                 <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
-                      <p className="font-medium">{item.title}</p>
+                      <p className="line-clamp-2 font-medium leading-6">{item.title}</p>
                       <p className="text-xs text-muted-foreground">{item.category} / {item.tags ?? "태그 없음"} / {getActiveLabel(item.isActive)}</p>
-                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">{item.scriptBody}</p>
+                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.scriptBody}</p>
                     </div>
                     {isBranchAdmin ? (
-                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col lg:flex-row">
-                        <Button size="sm" variant="outline" onClick={() => openScriptEdit(item)} disabled={updateScript.isPending}>
+                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                        <Button size="sm" variant="outline" className="min-h-12 md:min-h-8" onClick={() => openScriptEdit(item)} disabled={updateScript.isPending}>
                           <Edit3 className="mr-1 h-4 w-4" />수정
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => setDeleteScript(item)} disabled={updateScript.isPending}>
+                        <Button size="sm" variant="destructive" className="min-h-12 md:min-h-8" onClick={() => setDeleteScript(item)} disabled={updateScript.isPending}>
                           <Trash2 className="mr-1 h-4 w-4" />삭제
                         </Button>
                       </div>
@@ -489,7 +489,7 @@ export default function ConsultationToolsManagement() {
           </TabsContent>
         </Tabs>
         <AlertDialog open={!!deleteChecklist} onOpenChange={(open) => !open && setDeleteChecklist(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
             <AlertDialogHeader>
               <AlertDialogTitle>상담 체크리스트를 삭제하시겠습니까?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -497,9 +497,9 @@ export default function ConsultationToolsManagement() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={updateChecklist.isPending}>취소</AlertDialogCancel>
+              <AlertDialogCancel className="min-h-12 md:min-h-10" disabled={updateChecklist.isPending}>취소</AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="min-h-12 bg-destructive text-destructive-foreground hover:bg-destructive/90 md:min-h-10"
                 disabled={updateChecklist.isPending}
                 onClick={(event) => {
                   event.preventDefault();
@@ -513,7 +513,7 @@ export default function ConsultationToolsManagement() {
           </AlertDialogContent>
         </AlertDialog>
         <AlertDialog open={!!deleteTemplate} onOpenChange={(open) => !open && setDeleteTemplate(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
             <AlertDialogHeader>
               <AlertDialogTitle>후속 문구 템플릿을 삭제하시겠습니까?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -521,9 +521,9 @@ export default function ConsultationToolsManagement() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={updateTemplate.isPending}>취소</AlertDialogCancel>
+              <AlertDialogCancel className="min-h-12 md:min-h-10" disabled={updateTemplate.isPending}>취소</AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="min-h-12 bg-destructive text-destructive-foreground hover:bg-destructive/90 md:min-h-10"
                 disabled={updateTemplate.isPending}
                 onClick={(event) => {
                   event.preventDefault();
@@ -537,7 +537,7 @@ export default function ConsultationToolsManagement() {
           </AlertDialogContent>
         </AlertDialog>
         <AlertDialog open={!!deleteScript} onOpenChange={(open) => !open && setDeleteScript(null)}>
-          <AlertDialogContent>
+          <AlertDialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
             <AlertDialogHeader>
               <AlertDialogTitle>이 상담 스크립트를 삭제하시겠습니까?</AlertDialogTitle>
               <AlertDialogDescription>
@@ -545,9 +545,9 @@ export default function ConsultationToolsManagement() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel disabled={updateScript.isPending}>취소</AlertDialogCancel>
+              <AlertDialogCancel className="min-h-12 md:min-h-10" disabled={updateScript.isPending}>취소</AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                className="min-h-12 bg-destructive text-destructive-foreground hover:bg-destructive/90 md:min-h-10"
                 disabled={updateScript.isPending}
                 onClick={(event) => {
                   event.preventDefault();
