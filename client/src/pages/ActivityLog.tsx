@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { redactAuditDisplayText } from "@/lib/auditRedaction";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { getTargetTypeLabel, localizeKnownEnumText } from "@/lib/userRole";
 import { Activity, Search, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -128,23 +129,23 @@ export default function ActivityLog() {
             </div>
             <div className="grid gap-2 md:grid-cols-5">
               <div className="relative md:col-span-2">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute left-3 top-4 h-4 w-4 text-muted-foreground md:left-2.5 md:top-2.5" />
                 <Input
                   placeholder="작업, 사용자, 사유, 상세 검색"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="h-10 rounded-xl bg-slate-50 pl-8"
+                  className="min-h-12 rounded-xl bg-slate-50 pl-9 md:h-10 md:min-h-10 md:pl-8"
                 />
               </div>
               <Select value={userFilter} onValueChange={setUserFilter}>
-                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="사용자" /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10"><SelectValue placeholder="사용자" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 사용자</SelectItem>
                   {userOptions.map((userId) => <SelectItem key={userId} value={String(userId)}>{getUserName(userId)}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="작업 유형" /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10"><SelectValue placeholder="작업 유형" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 작업</SelectItem>
                   <SelectItem value="customer">고객</SelectItem>
@@ -156,7 +157,7 @@ export default function ActivityLog() {
                 </SelectContent>
               </Select>
               <Select value={riskFilter} onValueChange={setRiskFilter}>
-                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="위험도" /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10"><SelectValue placeholder="위험도" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 위험도</SelectItem>
                   <SelectItem value="risk">위험 작업</SelectItem>
@@ -164,7 +165,7 @@ export default function ActivityLog() {
                 </SelectContent>
               </Select>
               <Select value={periodFilter} onValueChange={setPeriodFilter}>
-                <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="기간" /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10"><SelectValue placeholder="기간" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="7">최근 7일</SelectItem>
                   <SelectItem value="30">최근 30일</SelectItem>
@@ -179,7 +180,7 @@ export default function ActivityLog() {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="h-8 justify-start px-0 text-xs sm:px-2"
+                className="min-h-12 justify-start px-0 text-xs sm:min-h-8 sm:px-2"
                 onClick={() => {
                   setSearch("");
                   setUserFilter("all");
@@ -196,7 +197,57 @@ export default function ActivityLog() {
 
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="space-y-3 p-4 md:hidden">
+              {isLogsLoading ? (
+                <EmptyState
+                  variant="loading"
+                  title="활동 로그를 불러오는 중입니다."
+                  description="권한 범위 안의 감사 기록을 확인하고 있습니다."
+                  className="border-0 bg-transparent py-6"
+                />
+              ) : isLogsError ? (
+                <ErrorState
+                  title="활동 로그를 불러오지 못했습니다."
+                  description="로그가 없는 상태와 구분해 표시하고 있습니다. 잠시 후 다시 시도해 주세요."
+                  retryLabel="다시 시도"
+                  onRetry={() => void refetchLogs()}
+                  className="border-0 bg-transparent py-6"
+                />
+              ) : filtered.length === 0 ? (
+                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-muted-foreground">
+                  <Activity className="h-8 w-8 opacity-30" />
+                  <p className="text-sm font-medium">조건에 맞는 활동 로그가 없습니다.</p>
+                  <p className="text-xs">필터를 초기화하거나 기간을 넓혀보세요.</p>
+                </div>
+              ) : (
+                filtered.map((log) => {
+                  const risky = isRiskAction(log.action);
+                  return (
+                    <div key={log.id} className={cn("rounded-2xl border border-slate-200 bg-white p-4 shadow-sm", risky && "border-red-100 bg-red-50/30")}>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{actionLabel(log.action)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleString("ko-KR")}</p>
+                        </div>
+                        {risky && <Badge className="shrink-0 bg-red-100 text-red-700"><ShieldAlert className="h-3 w-3" /> 위험</Badge>}
+                      </div>
+                      <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                        <div className="rounded-xl bg-slate-50 p-3">사용자: {getUserName(log.userId)}</div>
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          대상: {log.targetType ? `${getTargetTypeLabel(log.targetType)}${log.targetId ? ` #${log.targetId}` : ""}` : "-"}
+                        </div>
+                        <div className="rounded-xl bg-slate-50 p-3">
+                          <p className="font-medium text-slate-700">사유/요약</p>
+                          <p className="mt-1 line-clamp-3 leading-5">{safeLogSummary(log)}</p>
+                        </div>
+                      </div>
+                      <Button variant="outline" size="sm" className="mt-4 min-h-12 w-full" onClick={() => setSelectedLog(log)}>상세보기</Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-slate-50/80">
                   <TableRow>
