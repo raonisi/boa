@@ -1,69 +1,193 @@
-# 파일럿 전 보완 재검수 체크리스트
+# BOA CRM Pre-Pilot Real-Use Verification Checklist
 
-이 문서는 운영 파일럿 전 [TEST] 데이터로 다시 확인해야 할 항목을 정리합니다.
-실제 고객정보, 환경변수 값, DB 비밀번호, Google Client Secret, JWT_SECRET, API Key는 사용하거나 기록하지 않습니다.
+This checklist is the final operator-facing verification gate before controlled pilot usage.
 
-## 사전 준비
+Use only safe `[TEST]` data for write tests. Do not use real customer data for create, update, delete, merge, handoff, contract, consultation, follow-up, schedule, or notification tests.
 
-- [ ] 운영 DB reset/drop/hard delete를 실행하지 않는다.
-- [ ] activity_logs를 삭제하거나 수정하지 않는다.
-- [ ] 테스트 고객명은 `[TEST]`로 시작한다.
-- [ ] 테스트 연락처는 실제 고객 연락처가 아닌 더미 번호를 사용한다.
+Required test customer name:
 
-## 상담 도구 seed 확인
+```text
+[TEST] 파일럿 검수 고객
+```
 
-- [ ] `상담 도구 관리 > 상담 체크리스트`에서 `기본 체크리스트 확인`을 branch_admin이 실행한다.
-- [ ] active 상담 체크리스트 템플릿이 1건 이상 존재한다.
-- [ ] `상담 도구 관리 > 후속 문구 템플릿`에서 `기본 10개 확인`을 branch_admin이 실행한다.
-- [ ] active 문구 템플릿 10개가 존재한다.
-- [ ] 같은 title + situation + channel 조합의 문구 템플릿이 중복 생성되지 않는다.
-- [ ] 문구 본문 전문이 activity_logs에 저장되지 않는다.
+## Result Legend
 
-## member 테스트 계정 준비
+- `[ ]` Not checked
+- `[x]` Passed
+- `[!]` Needs follow-up
+- `[BLOCKED]` Pilot-blocking issue
 
-- [ ] 운영 계정과 구분되는 이름을 사용한다. 예: `[TEST] 팀원 검수`
-- [ ] role은 `member`, accountStatus는 `active`이다.
-- [ ] Google OAuth 기반 로그인 흐름으로 연결한다. 임의 비밀번호 방식은 사용하지 않는다.
-- [ ] 테스트 종료 후 계정을 삭제하지 않고 `inactive`로 전환한다.
+## A. Environment And Repository Safety
 
-## member 실사용 권한 확인
+- [ ] Repository is confirmed as `raonisi/boa`.
+- [ ] Any feature or QA edit is made on a non-`main` branch.
+- [ ] `git status --short` is checked before staging.
+- [ ] Unrelated dirty files are excluded from staging.
+- [ ] `git add .` is not used.
+- [ ] No `.env` or local secret files are staged.
+- [ ] No APK, AAB, JKS, keystore, `google-services.json`, Firebase Admin JSON, or `local.properties` files are staged.
+- [ ] No real customer data file, production CSV, token, credential, DB URL, OAuth secret, JWT/session data, or Firebase key is staged.
+- [ ] `pnpm.cmd check` completed.
+- [ ] `pnpm.cmd test` completed when runtime behavior changed.
+- [ ] `pnpm.cmd build` completed when runtime behavior changed.
+- [ ] `pnpm.cmd test:e2e` completed when routing, dev server, mobile smoke, or Playwright-covered behavior changed.
 
-- [ ] member가 로그인할 수 있다.
-- [ ] member가 본인 고객만 조회한다.
-- [ ] member에게 관리자 메뉴가 노출되지 않는다.
-- [ ] member가 본인 고객 상담기록을 입력할 수 있다.
-- [ ] member가 본인 고객 후속관리를 생성/처리할 수 있다.
-- [ ] member가 본인 고객 문구 템플릿을 조회/복사할 수 있다.
-- [ ] member가 복구, 완전삭제, batch 취소, 운영 점검, 데이터 다운로드, 고객 병합, 인수인계 관리를 실행할 수 없다.
+## B. Deployment Safety
 
-## 담당자 변경과 삭제 요청 흐름
+- [ ] Merge to `main` happens only after PR review and required checks pass.
+- [ ] Railway deploy uses the latest intended `main` commit.
+- [ ] Failed old commits are not redeployed.
+- [ ] Railway Build Command is verified if deployment is involved.
+- [ ] Railway Pre-Deploy Command is verified if deployment is involved.
+- [ ] Railway Start Command is verified if deployment is involved.
+- [ ] DB migration logs are checked only when a migration exists.
+- [ ] No production DB reset, drop, truncate, or manual hard delete is performed.
+- [ ] Production hard delete is not tested during pilot verification.
 
-- [ ] branch_admin이 담당자 변경 모달에서 새 담당자를 선택한다.
-- [ ] 담당자 변경은 선택 즉시 실행되지 않고 `변경 확정` 버튼으로 실행된다.
-- [ ] 담당자 옵션은 `이름(역할)` 형식으로 표시된다.
-- [ ] inactive/resigned 담당자는 선택 또는 저장이 차단된다.
-- [ ] member가 본인 계약에 삭제 요청을 생성할 수 있다.
-- [ ] member는 계약을 직접 삭제할 수 없다.
-- [ ] branch_admin이 삭제 요청을 승인 또는 반려할 수 있다.
-- [ ] 삭제 요청 승인 후 계약은 soft delete되고 실적에서 제외된다.
-- [ ] 삭제된 계약 탭에서 branch_admin이 계약을 복구할 수 있다.
-- [ ] 복구 후 계약관리와 실적에 다시 반영된다.
+## C. Role And RBAC Smoke
 
-## 정리 확인
+- [ ] `branch_admin` can access allowed admin functions.
+- [ ] `sub_branch_admin` sees only assigned subordinate scope.
+- [ ] `team_leader` sees only own team scope.
+- [ ] `member` sees only assigned customers and own-scope operational data.
+- [ ] `inactive` and `resigned` accounts are blocked from login and protected APIs.
+- [ ] Direct URL/API access outside role scope is blocked with `FORBIDDEN` or `BAD_REQUEST`.
+- [ ] Front-end hiding is not treated as the only authorization layer.
+- [ ] Branch-admin-only actions do not appear as usable controls for unauthorized roles.
 
-- [ ] 테스트 계약은 soft delete 또는 복구 검수 후 필요한 상태로 정리한다.
-- [ ] 테스트 고객은 soft delete 처리한다.
-- [ ] hard delete와 완전삭제는 운영 DB에서 실행하지 않는다.
-- [ ] 기본 고객/계약 목록에 `[TEST]` 데이터가 남아 노출되지 않는다.
+## D. Customer Workflow Smoke Using Test Data Only
 
-## 안전한 운영 실행 방식
+- [ ] Create `[TEST] 파일럿 검수 고객`.
+- [ ] Open the test customer detail page.
+- [ ] Edit consultation status for the test customer.
+- [ ] Add a consultation record for the test customer.
+- [ ] Update priority, tag, or next action if available.
+- [ ] Use a consultation checklist if available.
+- [ ] Copy a message template if available.
+- [ ] Create a follow-up for the test customer.
+- [ ] Complete or postpone the test follow-up.
+- [ ] Create a schedule for the test customer.
+- [ ] Complete the test schedule.
+- [ ] Create a test contract for the test customer.
+- [ ] Check branch_admin own DB, own contract, and own performance scope if applicable.
+- [ ] Clean up test data with soft delete or safe test-only cleanup.
+- [ ] Do not perform production hard delete.
 
-상담 도구 기본 seed는 branch_admin 전용 관리자 화면에서 실행하는 것을 권장합니다.
+## E. Contract Workflow Smoke
 
-1. branch_admin으로 로그인합니다.
-2. `상담 도구 관리` 메뉴로 이동합니다.
-3. `상담 체크리스트` 탭에서 `기본 체크리스트 확인`을 실행합니다.
-4. `후속 문구 템플릿` 탭에서 `기본 10개 확인`을 실행합니다.
-5. active 템플릿 수를 확인한 뒤 [TEST] 고객으로 실사용 검수를 진행합니다.
+- [ ] Create a test contract for `[TEST] 파일럿 검수 고객`.
+- [ ] Verify new contract count display.
+- [ ] Verify monthly premium display.
+- [ ] Request contract delete if the role flow requires it.
+- [ ] As branch_admin, approve or reject the delete request only when using test data.
+- [ ] Restore flow is checked only with test data if applicable.
+- [ ] No policy or certificate number is added.
+- [ ] No policy or certificate number is exposed.
 
-Railway 또는 로컬 서버에서 별도 명령으로 실행해야 한다면, 운영 비밀값을 출력하지 않는 환경에서 branch_admin 세션을 사용해 관리자 API를 호출해야 합니다. 임의 DB 수동 insert보다 관리자 API/화면 실행을 우선합니다.
+## F. Follow-Up And Schedule Workflow Smoke
+
+- [ ] Today follow-up appears where expected.
+- [ ] Overdue follow-up appears where expected.
+- [ ] Follow-up complete works.
+- [ ] Follow-up postpone works.
+- [ ] Schedule appears on calendar.
+- [ ] Schedule complete works.
+- [ ] Dashboard TodayWorkSection mobile quick tasks render if present.
+- [ ] MobileTaskSheet opens without overflow if present.
+- [ ] Complete, postpone, cancel, confirm, customer detail, and counseling navigation remain clear where available.
+
+## G. Notifications And Push Safety
+
+- [ ] Notification list is visible.
+- [ ] Mark read works if implemented.
+- [ ] Process complete works if implemented.
+- [ ] Push titles and bodies do not contain customer name, phone, illness, product name, premium, token, or credential.
+- [ ] Raw device token values are not visible in UI.
+- [ ] Raw device token values are not visible in logs shown to operators.
+- [ ] Branch-admin-only push operations remain protected if implemented.
+- [ ] Quiet hours and preferences are checked if implemented.
+
+## H. Admin Risk Workflows
+
+- [ ] DeletedDataManagement is visible only to allowed roles.
+- [ ] Restore action is protected and logged.
+- [ ] Permanent delete remains branch_admin-only.
+- [ ] Permanent delete requires reason and explicit confirmation.
+- [ ] Permanent delete is not tested on production data.
+- [ ] UserHandoffManagement source and target user flow is readable.
+- [ ] Handoff execution remains role-appropriate.
+- [ ] CustomerMergeManagement source and target distinction is clear.
+- [ ] Merge is tested only with safe test data if needed.
+- [ ] `activity_logs` are not deleted.
+- [ ] Activity log and audit policy are unchanged.
+
+## I. Performance And Goals Smoke
+
+- [ ] Performance summary is visible.
+- [ ] 신규 계약 is visible.
+- [ ] 월납보험료 실적 is visible.
+- [ ] Goal dashboard is visible.
+- [ ] Goal create role boundary is preserved.
+- [ ] Goal edit role boundary is preserved.
+- [ ] Goal deactivate role boundary is preserved.
+- [ ] Work rhythm summary is visible if implemented.
+- [ ] No 유지/미유지 metric is added unless already part of current policy.
+
+## J. Mobile Usability Smoke
+
+- [ ] Dashboard mobile has no horizontal scroll.
+- [ ] Customer list mobile cards are readable.
+- [ ] Customer detail mobile primary actions are reachable.
+- [ ] Contract list mobile cards are readable.
+- [ ] Calendar mobile controls are usable.
+- [ ] Notification mobile actions are tappable.
+- [ ] Consultation tools tabs, cards, and copy actions are usable.
+- [ ] Performance and goals cards are readable.
+- [ ] User management role/status cards are readable.
+- [ ] Deleted data, handoff, and merge high-risk actions are visually separated.
+- [ ] Activity/audit/operation risk mobile views keep masking and do not expose secrets.
+- [ ] Sheet and Dialog content does not overflow the viewport.
+- [ ] Primary mobile action buttons have safe tap targets where changed.
+- [ ] Bottom navigation does not hide submit or confirmation actions.
+
+## K. Final Pilot Readiness Decision
+
+Choose one:
+
+- [ ] PASS: pilot can proceed.
+- [ ] HOLD: blocking issue exists.
+- [ ] NEEDS FIX: non-blocking issue requires follow-up PR.
+
+Decision owner:
+
+```text
+Name:
+Role:
+Date:
+Decision:
+```
+
+## Issue Log
+
+| Severity | Issue | Owner | Due Date | Recommended Next Action | Status |
+| --- | --- | --- | --- | --- | --- |
+| P0 |  |  |  |  |  |
+| P1 |  |  |  |  |  |
+| P2 |  |  |  |  |  |
+| P3 |  |  |  |  |  |
+
+## Severity Definitions
+
+- P0: RBAC or customer-data exposure, production data risk, build failure, or core pilot route unusable.
+- P1: Primary pilot workflow blocked, destructive action too easy to trigger, major mobile overflow, or role smoke failure.
+- P2: Workflow is usable but confusing, hard to scan, or needs low-risk polish.
+- P3: Minor copy, spacing, or visual consistency issue.
+
+## Final Operator Notes
+
+- Use only `[TEST]` data for write tests.
+- Do not use real customer data for pilot verification writes.
+- Do not reset, drop, truncate, or manually hard delete production DB data.
+- Do not test production hard delete.
+- Do not delete `activity_logs`.
+- Do not export or store raw customer data outside authorized CRM workflows.
