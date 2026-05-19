@@ -191,7 +191,6 @@ import {
 import {
   formatKstLocalDate,
   getKstDayRange,
-  getScheduleReminderDueAt,
   isSameKstDate,
   parseKstLocalDateTime,
 } from "@shared/timePolicy";
@@ -2940,33 +2939,33 @@ export const appRouter = router({
         };
       }),
 
+    sendSchedulePushReminderEngine: branchAdminProcedure
+      .input(z.object({ now: z.string().optional() }).optional())
+      .mutation(async ({ input }) => {
+        const now = input?.now ? parseKstLocalDateTime(input.now) : new Date();
+        return pushNotifications.runSchedulePushReminderEngine({ now });
+      }),
+
+    /** @deprecated Use sendSchedulePushReminderEngine. */
     sendSchedule30MinuteReminders: branchAdminProcedure
       .input(z.object({ now: z.string().optional() }).optional())
       .mutation(async ({ input }) => {
         const now = input?.now ? parseKstLocalDateTime(input.now) : new Date();
-        const windowStart = getScheduleReminderDueAt(now, -29);
-        const windowEnd = getScheduleReminderDueAt(now, -31);
-        const rows = (await getSchedules({})).filter((schedule) => {
-          const start = new Date(schedule.startTime);
-          return start >= windowStart && start <= windowEnd && !isFinishedScheduleStatus(schedule.status);
-        });
-        const results = [];
-        for (const row of rows) {
-          results.push(await pushNotifications.sendPushToUsers([row.userId], pushNotifications.SAFE_PUSH_PAYLOADS.schedule30Minute, {
-            type: "schedule_30min",
-            sourceType: "schedule",
-            sourceId: row.id,
-            dedupeKey: `schedule:${row.id}:30min`,
-            now,
-          }));
+        return pushNotifications.runSchedulePushReminderEngine({ now });
+      }),
+
+    runSchedulePushReminderEngineInternal: publicProcedure
+      .input(z.object({
+        secret: z.string().min(12),
+        now: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const expectedSecret = process.env.PUSH_SCHEDULER_SECRET;
+        if (!expectedSecret || input.secret !== expectedSecret) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid scheduler secret." });
         }
-        return {
-          success: true,
-          targetCount: results.length,
-          sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),
-          skippedCount: results.reduce((sum, item) => sum + item.skippedCount + item.duplicateSkippedCount, 0),
-          failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
-        };
+        const now = input.now ? parseKstLocalDateTime(input.now) : new Date();
+        return pushNotifications.runSchedulePushReminderEngine({ now });
       }),
   }),
 
