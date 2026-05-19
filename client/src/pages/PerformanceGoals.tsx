@@ -139,8 +139,8 @@ export default function PerformanceGoals() {
               </div>
               {user?.role === "branch_admin" && (
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => setContractCountGoal(Math.max(contractCountGoal, 10))}>신규 계약 목표 설정</Button>
-                  <Button size="sm" variant="outline" onClick={() => setMonthlyPremiumGoal(Math.max(monthlyPremiumGoal, 1000000))}>월납보험료 목표 설정</Button>
+                  <Button size="sm" className="min-h-12 md:min-h-8" onClick={() => setContractCountGoal(Math.max(contractCountGoal, 10))}>신규 계약 목표 설정</Button>
+                  <Button size="sm" variant="outline" className="min-h-12 md:min-h-8" onClick={() => setMonthlyPremiumGoal(Math.max(monthlyPremiumGoal, 1000000))}>월납보험료 목표 설정</Button>
                 </div>
               )}
             </CardContent>
@@ -246,16 +246,16 @@ export default function PerformanceGoals() {
               </div>
               <div>
                 <Label className="text-xs">연도</Label>
-                <Input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
+                <Input type="number" value={year} onChange={(event) => setYear(Number(event.target.value))} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               <div>
                 <Label className="text-xs">월</Label>
-                <Input type="number" min={1} max={12} value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
+                <Input type="number" min={1} max={12} value={month} onChange={(event) => setMonth(Number(event.target.value))} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               <div>
                 <Label className="text-xs">대상 유형</Label>
                 <Select value={targetType} onValueChange={(value) => { setTargetType(value as any); setTargetId("none"); }}>
-                  <SelectTrigger className="mt-1 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="branch">지점</SelectItem>
                     <SelectItem value="sub_branch">부지점</SelectItem>
@@ -268,7 +268,7 @@ export default function PerformanceGoals() {
                 <div>
                   <Label className="text-xs">대상</Label>
                   <Select value={targetId} onValueChange={setTargetId}>
-                    <SelectTrigger className="mt-1 rounded-xl bg-slate-50"><SelectValue placeholder="대상 선택" /></SelectTrigger>
+                    <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="대상 선택" /></SelectTrigger>
                     <SelectContent>
                       {targetOptions.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.label}</SelectItem>)}
                     </SelectContent>
@@ -277,14 +277,15 @@ export default function PerformanceGoals() {
               )}
               <div>
                 <Label className="text-xs">신규 계약 목표</Label>
-                <Input type="number" min={0} value={contractCountGoal} onChange={(event) => setContractCountGoal(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
+                <Input type="number" min={0} value={contractCountGoal} onChange={(event) => setContractCountGoal(Number(event.target.value))} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               <div>
                 <Label className="text-xs">월납보험료 목표</Label>
-                <Input type="number" min={0} value={monthlyPremiumGoal} onChange={(event) => setMonthlyPremiumGoal(Number(event.target.value))} className="mt-1 rounded-xl bg-slate-50" />
+                <Input type="number" min={0} value={monthlyPremiumGoal} onChange={(event) => setMonthlyPremiumGoal(Number(event.target.value))} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               <div className="md:col-span-6 flex justify-end">
                 <Button
+                  className="min-h-12 w-full md:w-auto md:min-h-10"
                   disabled={createMutation.isPending || (targetType !== "branch" && targetId === "none")}
                   onClick={() => createMutation.mutate({
                     year,
@@ -308,7 +309,61 @@ export default function PerformanceGoals() {
               <Activity className="h-4 w-4 text-[#b99b5f]" /> {year}년 {month}월 목표 대비 실적
             </CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="space-y-3 p-4 md:hidden">
+            {items.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
+                조건에 맞는 목표가 없습니다. 목표를 설정하면 필요한 상담량과 계약량을 계산할 수 있습니다.
+              </div>
+            ) : items.map((item: any) => {
+              const status = goalStatus(item);
+              return (
+                <div key={item.goal.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">{item.targetLabel}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{targetTypeLabels[item.goal.targetType] ?? item.goal.targetType}</p>
+                    </div>
+                    <Badge className={`${status.className} shrink-0`}>{status.label}</Badge>
+                  </div>
+                  <div className="mt-4 grid gap-3 text-sm">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-xs text-muted-foreground">신규 계약 달성률</p>
+                      <p className="mt-1 font-semibold text-slate-950">{item.actual.contractCount} / {item.goal.contractCountGoal}건 · {item.achievementRate.contractCount ?? "-"}%</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 p-3">
+                      <p className="text-xs text-muted-foreground">월납보험료 달성률</p>
+                      <p className="mt-1 font-semibold text-slate-950">{formatWon(item.actual.monthlyPremium)} / {formatWon(item.goal.monthlyPremiumGoal)} · {item.achievementRate.monthlyPremium ?? "-"}%</p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-xl border border-slate-100 p-3">
+                        <p className="text-muted-foreground">부족 신규 계약</p>
+                        <p className="mt-1 font-semibold text-slate-950">{item.remaining.contractCount}건</p>
+                      </div>
+                      <div className="rounded-xl border border-slate-100 p-3">
+                        <p className="text-muted-foreground">남은 기간</p>
+                        <p className="mt-1 font-semibold text-slate-950">{item.remainingDays}일</p>
+                      </div>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 p-3 text-xs">
+                      <p className="text-muted-foreground">부족 월납보험료</p>
+                      <p className="mt-1 font-semibold text-slate-950">{formatWon(item.remaining.monthlyPremium)}</p>
+                    </div>
+                  </div>
+                  {user?.role === "branch_admin" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-4 min-h-12 w-full"
+                      onClick={() => deactivateMutation.mutate({ id: item.goal.id })}
+                    >
+                      비활성화
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+          <CardContent className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader className="bg-slate-50/80">
                 <TableRow>
