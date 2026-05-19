@@ -81,7 +81,7 @@ function ScheduleEmptyState({ title, description, onCreate }: { title: string; d
       <p className="text-sm font-semibold text-slate-900">{title}</p>
       <p className="mt-1 text-xs text-slate-500">{description}</p>
       <div className="mt-3 flex justify-center gap-2">
-        <Button size="sm" onClick={onCreate}>
+        <Button size="sm" className="min-h-12 md:min-h-8" onClick={onCreate}>
           <Plus className="h-4 w-4 mr-1" /> 일정 추가
         </Button>
       </div>
@@ -103,13 +103,13 @@ function ScheduleWorkItem({
   return (
     <button
       type="button"
-      className="flex w-full items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:bg-slate-50"
+      className="min-h-12 flex w-full items-start gap-3 rounded-lg border border-slate-200 bg-white p-3.5 text-left transition hover:bg-slate-50"
       onClick={onClick}
     >
       <div className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${typeColors[schedule.type] ?? "bg-slate-400"}`} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-semibold text-slate-950">{schedule.title}</p>
+        <div className="flex items-start justify-between gap-2">
+          <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-slate-950">{schedule.title}</p>
           <span className="shrink-0 text-xs font-semibold tabular-nums text-slate-600">{formatScheduleTime(schedule.startTime)}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
@@ -143,7 +143,7 @@ function ScheduleWorkItem({
             <BellRing className="h-3 w-3" /> {scheduleReminderText(schedule)}
           </span>
         </div>
-        {schedule.memo && <p className="mt-1 line-clamp-1 text-xs text-slate-500">{schedule.memo}</p>}
+        {schedule.memo && <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">{schedule.memo}</p>}
       </div>
     </button>
   );
@@ -271,7 +271,7 @@ export default function Calendar() {
                 <h1 className="mt-1 text-2xl font-bold text-slate-950">일정관리</h1>
                 <p className="mt-1 text-xs text-slate-500">오늘과 이번주 업무 흐름을 먼저 확인합니다.</p>
               </div>
-            <Button size="sm" className="min-h-11 shrink-0" onClick={() => { setSelectedDate(new Date()); setShowModal(true); }}>
+            <Button size="sm" className="min-h-12 shrink-0" onClick={() => { setSelectedDate(new Date()); setShowModal(true); }}>
               <Plus className="h-4 w-4 mr-1" /> 일정 추가
             </Button>
             </CardContent>
@@ -308,14 +308,14 @@ export default function Calendar() {
                 todaySchedules.map((s) => (
                   <div
                     key={s.id}
-                    className={`flex min-h-14 cursor-pointer items-start gap-2 rounded-2xl p-3 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
+                    className={`flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl p-3.5 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
                     onClick={() => setSelectedSchedule(s)}
                   >
                     <div className="text-xs font-bold w-10 shrink-0">{formatScheduleTime(s.startTime)}</div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold truncate">{s.title}</p>
+                      <p className="line-clamp-2 text-sm font-semibold leading-5">{s.title}</p>
                       <p className="text-xs font-medium opacity-90">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
-                      <p className="text-xs opacity-80">{s.type} · {getStatusLabel(s.status)} · 알림 {scheduleReminderText(s)}</p>
+                      <p className="mt-1 text-xs leading-5 opacity-80">{s.type} · {getStatusLabel(s.status)} · 알림 {scheduleReminderText(s)}</p>
                     </div>
                   </div>
                 ))
@@ -331,14 +331,14 @@ export default function Calendar() {
               </CardHeader>
               <CardContent className="space-y-2">
                 {incompleteSchedules.map((s) => (
-                  <div key={s.id} className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-orange-200 bg-white p-3 hover:bg-orange-50" onClick={() => setSelectedSchedule(s)}>
+                  <div key={s.id} className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-orange-200 bg-white p-3.5 hover:bg-orange-50" onClick={() => setSelectedSchedule(s)}>
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="line-clamp-2 text-sm font-medium leading-5">{s.title}</p>
                       <p className="text-xs text-slate-500">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
                       <p className="text-xs text-orange-600">종료: {s.endTime ? format(scheduleDate(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
                     </div>
-                    <span className="text-xs text-orange-600 font-medium">{getStatusLabel(s.status)}</span>
+                    <span className="shrink-0 text-xs font-medium text-orange-600">{getStatusLabel(s.status)}</span>
                   </div>
                 ))}
               </CardContent>
@@ -348,11 +348,11 @@ export default function Calendar() {
           {/* 이번 주 일정 */}
           <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap">
-              {["today","week","month","all","custom"].map((r) => <Button key={r} className="min-h-10" variant={mobileRange===r?"default":"outline"} size="sm" onClick={()=>setMobileRange(r as MobileRange)}>{r==="today"?"오늘":r==="week"?"이번주":r==="month"?"이번달":r==="all"?"전체":"직접선택"}</Button>)}
+              {["today","week","month","all","custom"].map((r) => <Button key={r} className="min-h-12" variant={mobileRange===r?"default":"outline"} size="sm" onClick={()=>setMobileRange(r as MobileRange)}>{r==="today"?"오늘":r==="week"?"이번주":r==="month"?"이번달":r==="all"?"전체":"직접선택"}</Button>)}
               {mobileRange === "custom" && (
                 <div className="grid grid-cols-2 gap-2 w-full">
-                  <Input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="h-9" />
-                  <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="h-9" />
+                  <Input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="min-h-12" />
+                  <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="min-h-12" />
                 </div>
               )}
             </CardContent>
@@ -373,18 +373,20 @@ export default function Calendar() {
                 mobileList.map((s) => (
                   <div
                     key={s.id}
-                    className="flex min-h-14 cursor-pointer items-center gap-3 rounded-2xl border border-slate-200 p-3 hover:bg-slate-50"
+                    className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-3.5 hover:bg-slate-50"
                     onClick={() => setSelectedSchedule(s)}
                   >
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{s.title}</p>
+                      <p className="line-clamp-2 text-sm font-medium leading-5">{s.title}</p>
                       <p className="text-xs text-emerald-700">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(scheduleDate(s.startTime), "M/d (EEE) HH:mm", { locale: ko })}
                       </p>
                     </div>
-                    <StatusBadge status={s.status} />
+                    <div className="shrink-0">
+                      <StatusBadge status={s.status} />
+                    </div>
                   </div>
                 ))
               )}
@@ -655,10 +657,10 @@ function ScheduleModal({ open, onClose, defaultDate, defaultCustomerId, onSubmit
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
+      <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
         <DialogHeader><DialogTitle>일정 추가</DialogTitle></DialogHeader>
         <div className="space-y-3">
-          <div><Label className="text-xs">제목 *</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="h-9 mt-1" /></div>
+          <div><Label className="text-xs">제목 *</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-1 min-h-12 md:min-h-9" /></div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label className="text-xs">유형</Label>
@@ -720,8 +722,8 @@ function ScheduleModal({ open, onClose, defaultDate, defaultCustomerId, onSubmit
           </div>
           <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
           <div className="flex justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading || !form.title || !form.startTime} onClick={handleSubmit}>
+            <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={onClose}>취소</Button>
+            <Button size="sm" className="min-h-12 md:min-h-8" disabled={loading || !form.title || !form.startTime} onClick={handleSubmit}>
               {loading ? "저장 중..." : "저장"}
             </Button>
           </div>
@@ -781,7 +783,7 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto rounded-2xl">
+      <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
         <DialogHeader><DialogTitle>{schedule.title}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
           <div className="flex items-center gap-2">
@@ -802,7 +804,7 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
             {customer ? (
               <div className="mt-1 flex items-center justify-between gap-2">
                 <p className="min-w-0 truncate text-sm font-semibold text-slate-950">{customer.name}</p>
-                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0" onClick={onViewCustomer}>
+                <Button type="button" variant="outline" size="sm" className="min-h-12 shrink-0 md:h-8 md:min-h-8" onClick={onViewCustomer}>
                   <ExternalLink className="mr-1 h-3.5 w-3.5" /> 고객 상세 보기
                 </Button>
               </div>
@@ -867,8 +869,8 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
               </div>
               <div><Label className="text-xs">메모</Label><textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16" /></div>
               <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-background pt-2">
-                <Button className="min-h-10" variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
-                <Button className="min-h-10" size="sm" disabled={loading || !form.title || !form.startTime} onClick={handleUpdate}>저장</Button>
+                <Button className="min-h-12 md:min-h-10" variant="outline" size="sm" onClick={() => setEditing(false)}>취소</Button>
+                <Button className="min-h-12 md:min-h-10" size="sm" disabled={loading || !form.title || !form.startTime} onClick={handleUpdate}>저장</Button>
               </div>
             </>
           ) : (
@@ -876,14 +878,14 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
               {schedule.memo && <p className="text-xs text-muted-foreground">{schedule.memo}</p>}
               <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
                 {schedule.status !== "완료" && (
-                  <Button size="sm" className="min-h-10" onClick={() => onUpdate({ status: "완료" })} disabled={loading}>
+                  <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => onUpdate({ status: "완료" })} disabled={loading}>
                     <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> 완료
                   </Button>
                 )}
-                <Button variant="outline" size="sm" className="min-h-10 text-destructive" onClick={onDelete} disabled={loading}>
+                <Button variant="outline" size="sm" className="min-h-12 text-destructive md:min-h-10" onClick={onDelete} disabled={loading}>
                   <Trash2 className="h-3.5 w-3.5 mr-1" /> 삭제
                 </Button>
-                <Button size="sm" className="min-h-10" onClick={() => setEditing(true)}>수정</Button>
+                <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => setEditing(true)}>수정</Button>
               </div>
             </>
           )}
