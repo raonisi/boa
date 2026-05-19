@@ -374,7 +374,7 @@ export default function CustomerList() {
                   key={item.key}
                   type="button"
                   onClick={() => setWorkspaceFilter(item.key)}
-                  className={`rounded-lg border p-3 text-left transition hover:shadow-sm ${workspaceFilter === item.key ? "ring-2 ring-primary/30" : ""} ${item.tone}`}
+                  className={`min-h-12 rounded-lg border p-3 text-left transition hover:shadow-sm ${workspaceFilter === item.key ? "ring-2 ring-primary/30" : ""} ${item.tone}`}
                 >
                   <span className="text-xs font-medium text-muted-foreground">{item.label}</span>
                   <span className="mt-1 block text-2xl font-bold tabular-nums text-slate-950">{item.value}</span>
@@ -393,22 +393,22 @@ export default function CustomerList() {
               </div>
               <div className="flex flex-wrap gap-2">
                 {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
-                  <Button variant="outline" size="sm" className="border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100" onClick={() => { setBulkAssigneeOpen(true); setBulkAssigneeId(""); setBulkAssigneeReason(""); }}>
+                  <Button variant="outline" size="sm" className="min-h-12 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 md:min-h-8" onClick={() => { setBulkAssigneeOpen(true); setBulkAssigneeId(""); setBulkAssigneeReason(""); }}>
                     <UserCog className="h-4 w-4 mr-1" /> 담당자 일괄 지정 {selectedAssignableIds.length}
                   </Button>
                 )}
                 {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
-                  <Button variant="outline" size="sm" className="border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100" onClick={() => { setReclaimCustomerId(null); setBulkReclaimOpen(true); setReclaimReason(""); }}>
+                  <Button variant="outline" size="sm" className="min-h-12 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 md:min-h-8" onClick={() => { setReclaimCustomerId(null); setBulkReclaimOpen(true); setReclaimReason(""); }}>
                     <Undo2 className="h-4 w-4 mr-1" /> 선택 DB 회수 {selectedReclaimableIds.length}
                   </Button>
                 )}
                 {user?.role === "branch_admin" && (
-                  <Button variant="outline" size="sm" onClick={() => setLocation("/customers/assign")}>
+                  <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={() => setLocation("/customers/assign")}>
                     <UserPlus className="h-4 w-4 mr-1" /> DB 배정
                   </Button>
                 )}
                 {canBulkImportCustomers && (
-                  <Button variant="outline" size="sm" onClick={() => setLocation("/customers/bulk-import")}>
+                  <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={() => setLocation("/customers/bulk-import")}>
                     <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
                   </Button>
                 )}
@@ -426,30 +426,30 @@ export default function CustomerList() {
                   placeholder="이름 또는 연락처로 검색"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="h-11 rounded-lg border-border bg-background pl-10 shadow-sm focus-visible:shadow-sm"
+                  className="min-h-12 rounded-lg border-border bg-background pl-10 shadow-sm focus-visible:shadow-sm md:h-11 md:min-h-11"
                 />
               </div>
               <Button
                 variant={hasActiveFilters ? "default" : "outline"}
                 size="sm"
-                className="h-11 shrink-0 rounded-lg"
+                className="min-h-12 shrink-0 rounded-lg md:h-11 md:min-h-11"
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="h-4 w-4 mr-1" />
                 필터{hasActiveFilters ? " ●" : ""}
               </Button>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" className="h-11 rounded-lg" onClick={clearFilters}>
+                <Button variant="ghost" size="sm" className="min-h-12 rounded-lg md:h-11 md:min-h-11" onClick={clearFilters}>
                   <X className="h-4 w-4" />
                 </Button>
               )}
             </div>
 
             {showFilters && (
-              <div className="grid grid-cols-2 gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 md:grid-cols-4">
+              <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-2 md:grid-cols-4">
                 {user?.role === "branch_admin" && (
                   <Select value={scopeFilter} onValueChange={(value) => setScopeFilter(value as "all" | "mine")}>
-                    <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="DB 범위" /></SelectTrigger>
+                    <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="DB 범위" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">전체 DB</SelectItem>
                       <SelectItem value="mine">내 DB</SelectItem>
@@ -457,37 +457,37 @@ export default function CustomerList() {
                   </Select>
                 )}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="상담상태" /></SelectTrigger>
+                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="상담상태" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 상태</SelectItem>
                     {CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="h-9 rounded-xl bg-white text-xs" />
-                <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="h-9 rounded-xl bg-white text-xs" />
+                <Input placeholder="지역 필터" value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9" />
+                <Input placeholder="유입경로 필터" value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9" />
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="우선순위" /></SelectTrigger>
+                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="우선순위" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 우선순위</SelectItem>
                     {CUSTOMER_PRIORITIES.map((p) => <SelectItem key={p} value={p}>{priorityLabel(p)}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={tagFilter} onValueChange={setTagFilter}>
-                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="성향 태그" /></SelectTrigger>
+                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="성향 태그" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 태그</SelectItem>
                     {CUSTOMER_TAGS.map((tag) => <SelectItem key={tag} value={tag}>{tag}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={nextActionFilter} onValueChange={setNextActionFilter}>
-                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="다음 액션" /></SelectTrigger>
+                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="다음 액션" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 액션</SelectItem>
                     {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={recommendationFilter} onValueChange={setRecommendationFilter}>
-                  <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="추천/경고" /></SelectTrigger>
+                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="추천/경고" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체 추천</SelectItem>
                     <SelectItem value="recommended">우선 연락 추천</SelectItem>
@@ -495,11 +495,11 @@ export default function CustomerList() {
                     <SelectItem value="high">긴급 추천</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="h-9 rounded-xl bg-white text-xs" title="배정일 시작" />
-                <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="h-9 rounded-xl bg-white text-xs" title="배정일 종료" />
+                <Input type="date" value={assignedDateFrom} onChange={(e) => setAssignedDateFrom(e.target.value)} className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9" title="배정일 시작" />
+                <Input type="date" value={assignedDateTo} onChange={(e) => setAssignedDateTo(e.target.value)} className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9" title="배정일 종료" />
                 {(user?.role === "branch_admin" || user?.role === "team_leader") && (
                   <Select value={agentFilter} onValueChange={setAgentFilter}>
-                    <SelectTrigger className="h-9 rounded-xl bg-white text-xs"><SelectValue placeholder="담당자" /></SelectTrigger>
+                    <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="담당자" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">전체 담당자</SelectItem>
                       {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{formatUserWithRole(a)}</SelectItem>)}
@@ -548,12 +548,12 @@ export default function CustomerList() {
                     action={
                       <div className="flex flex-wrap justify-center gap-2">
                         {hasActiveFilters ? (
-                          <Button type="button" variant="outline" size="sm" onClick={clearFilters}>
+                          <Button type="button" variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={clearFilters}>
                             필터 초기화
                           </Button>
                         ) : null}
                         {canCreateCustomer ? (
-                          <Button type="button" size="sm" onClick={() => setShowCreate(true)}>
+                          <Button type="button" size="sm" className="min-h-12 md:min-h-8" onClick={() => setShowCreate(true)}>
                             신규 고객 등록
                           </Button>
                         ) : null}
@@ -568,9 +568,9 @@ export default function CustomerList() {
                 const badges = executionBadges(c, recommendation);
                 const execution = buildListExecution(c, recommendation);
                 return (
-                <Card key={c.id} className="cursor-pointer border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
+                <Card key={c.id} className="cursor-pointer overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45" onClick={() => setLocation(`/customers/${c.id}`)}>
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start justify-between gap-3">
                       {(canReclaimCustomer || canBulkChangeAssignee) && (
                         <Checkbox
                           checked={selectedCustomerIds.includes(c.id)}
@@ -582,8 +582,8 @@ export default function CustomerList() {
                         />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-foreground">{c.name}</span>
+                        <div className="flex min-w-0 flex-wrap items-center gap-2">
+                          <span className="min-w-0 truncate text-base font-semibold text-foreground">{c.name}</span>
                           <StatusBadge status={c.consultStatus} />
                         </div>
                         <div className="mt-1 flex flex-wrap gap-1">
@@ -598,24 +598,26 @@ export default function CustomerList() {
                           ))}
                           {(c as any).nextAction && <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-0.5 text-[10px] text-[#7a5d1d]">다음: {(c as any).nextAction}</span>}
                         </div>
-                        <div className="flex items-center gap-3 mt-1">
+                        <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
                           {recommendation?.warnings?.slice(0, 1).map((warning) => (
-                            <span key={warning.warningType} className="text-xs text-red-600">{warning.message}</span>
+                            <span key={warning.warningType} className="font-medium text-red-600">{warning.message}</span>
                           ))}
-                          {c.phone && (
-                            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                              <Phone className="h-3 w-3" /> {maskPhone(c.phone)}
-                            </span>
-                          )}
-                          {c.region && <span className="text-xs text-muted-foreground">{c.region}</span>}
+                          <div className="flex flex-wrap items-center gap-2">
+                            {c.phone && (
+                              <span className="flex items-center gap-1 font-medium">
+                                <Phone className="h-3 w-3" /> {maskPhone(c.phone)}
+                              </span>
+                            )}
+                            {c.region && <span>{c.region}</span>}
+                          </div>
                         </div>
                         <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
                           <p className="text-xs text-muted-foreground">담당자 {formatUserWithRole(agentById.get(c.agentId ?? 0))}</p>
                           <p className="text-sm font-bold tabular-nums text-slate-950">{c.expectedPremium != null ? formatExpectedPremiumManwon(c.expectedPremium) : "보험료 -"}</p>
                         </div>
-                        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5">
+                        <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                           <p className="text-xs font-semibold text-slate-800">추천 행동: {execution.actionTitle}</p>
-                          <p className="mt-0.5 line-clamp-1 text-[11px] text-slate-500">
+                          <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
                             {execution.reasons.length > 0 ? execution.reasons.map((reason) => `${reason.label} +${reason.points}`).join(" · ") : "정기 관리 흐름 유지"}
                           </p>
                         </div>
@@ -626,7 +628,7 @@ export default function CustomerList() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
+                            className="h-12 min-h-12 w-12 shrink-0 text-muted-foreground hover:text-foreground"
                             onClick={(e) => e.stopPropagation()}
                             aria-label="고객 작업 메뉴"
                           >
@@ -653,9 +655,9 @@ export default function CustomerList() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <div className="flex gap-1 mt-2 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                    <div className="mt-3 grid grid-cols-2 gap-2" onClick={(e) => e.stopPropagation()}>
                       {c.phone ? (
-                        <Button variant="outline" size="sm" className="h-9 rounded-full px-3 text-[11px]" asChild>
+                        <Button variant="outline" size="sm" className="min-h-12 rounded-lg px-3 text-xs" asChild>
                           <a href={`tel:${c.phone}`} aria-label={`${c.name} 전화`}>
                             <Phone className="mr-1 h-3.5 w-3.5" /> 전화
                           </a>
@@ -666,7 +668,7 @@ export default function CustomerList() {
                         variant="outline"
                         size="sm"
                         onClick={() => setLocation(`/customers/${c.id}?action=consult`)}
-                        className="h-9 rounded-full px-3 text-[11px]"
+                        className="min-h-12 rounded-lg px-3 text-xs"
                       >
                         <MessageSquare className="mr-1 h-3.5 w-3.5" /> 상담기록
                       </Button>
@@ -675,7 +677,7 @@ export default function CustomerList() {
                         variant="outline"
                         size="sm"
                         onClick={() => setLocation(`/customers/${c.id}?action=followup`)}
-                        className="h-9 rounded-full px-3 text-[11px]"
+                        className="min-h-12 rounded-lg px-3 text-xs"
                       >
                         <CalendarPlus className="mr-1 h-3.5 w-3.5" /> 다음 연락일
                       </Button>
@@ -684,7 +686,7 @@ export default function CustomerList() {
                         variant="ghost"
                         size="sm"
                         onClick={() => setLocation(`/customers/${c.id}`)}
-                        className="h-9 rounded-full px-3 text-[11px]"
+                        className="min-h-12 rounded-lg px-3 text-xs"
                       >
                         <Eye className="mr-1 h-3.5 w-3.5" /> 상세
                       </Button>
