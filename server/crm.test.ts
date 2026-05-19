@@ -1066,6 +1066,11 @@ describe("PR19-3 - safe FCM work notifications", () => {
       title: "BOA 업무 알림",
       body: "010-1234-5678 고객 확인",
     } as any)).toThrow();
+    expect(() => pushNotifications.sanitizePushPayload({
+      title: "BOA 일정 알림",
+      body: "예정된 일정이 있습니다.",
+      data: { customerName: "고객명" },
+    })).toThrow();
   });
 
   it("deactivates invalid tokens after FCM failure", async () => {
@@ -1289,43 +1294,132 @@ describe("PR19-3 - safe FCM work notifications", () => {
     expect(pushNotifications.isInQuietHours(preference, parseKstLocalDateTime("2026-05-22T21:00:00"))).toBe(true);
   });
 
-  it("selects schedule 30 minute push targets by KST local schedule time", async () => {
-    vi.spyOn(db, "getSchedules").mockResolvedValue([
+  it("selects schedule push targets by reminderOffsetMinutes dueAt instead of fixed 30 minutes", () => {
+    const candidates = pushNotifications.getSchedulePushCandidates([
       {
         id: 501,
         userId: 4,
         status: "예정",
         startTime: parseKstLocalDateTime("2026-05-22T12:00:00"),
+        reminderOffsetMinutes: 120,
+        isActive: true,
       },
       {
         id: 502,
         userId: 4,
         status: "예정",
-        startTime: parseKstLocalDateTime("2026-05-22T21:00:00"),
+        startTime: parseKstLocalDateTime("2026-05-22T10:30:00"),
+        reminderOffsetMinutes: 60,
+        isActive: true,
       },
-    ] as any);
-    const sendSpy = vi.spyOn(pushNotifications, "sendPushToUsers").mockResolvedValue({
-      requestedUserIds: [4],
-      tokenCount: 1,
-      sentCount: 1,
-      failureCount: 0,
-      skippedCount: 0,
-      duplicateSkippedCount: 0,
-      disabledSkippedCount: 0,
-      quietHoursSkippedCount: 0,
-      invalidTokenDeactivatedCount: 0,
-      statuses: { 4: "sent" },
+    ] as any, {
+      now: parseKstLocalDateTime("2026-05-22T10:00:00"),
+      lookbackMinutes: 10,
     });
 
-    const result = await appRouter.createCaller(createCtx("branch_admin")).pushNotifications.sendSchedule30MinuteReminders({
-      now: "2026-05-22T11:30:00",
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({
+      kind: "reminder",
+      scheduleId: 501,
+      userId: 4,
+    });
+    expect(candidates[0].dedupeKey).toContain("reminder:120");
+  });
+
+  it("excludes deleted, cancelled, completed, no-show, and completedAt schedules from schedule push candidates", () => {
+    const dueStart = parseKstLocalDateTime("2026-05-22T10:05:00");
+    const candidates = pushNotifications.getSchedulePushCandidates([
+      { id: 601, userId: 4, status: "예정", startTime: dueStart, reminderOffsetMinutes: 0, isActive: false },
+      { id: 602, userId: 4, status: "취소", startTime: dueStart, reminderOffsetMinutes: 0, isActive: true },
+      { id: 603, userId: 4, status: "완료", startTime: dueStart, reminderOffsetMinutes: 0, isActive: true },
+      { id: 604, userId: 4, status: "노쇼", startTime: dueStart, reminderOffsetMinutes: 0, isActive: true },
+      { id: 605, userId: 4, status: "예정", startTime: dueStart, reminderOffsetMinutes: 0, isActive: true, deletedAt: new Date() },
+      { id: 606, userId: 4, status: "예정", startTime: dueStart, reminderOffsetMinutes: 0, isActive: true, completedAt: new Date() },
+    ] as any, {
+      now: parseKstLocalDateTime("2026-05-22T10:05:00"),
+      lookbackMinutes: 10,
+    });
+
+    expect(candidates).toEqual([]);
+  });
+
+  it("creates incomplete schedule push candidates without customer data", () => {
+    const candidates = pushNotifications.getSchedulePushCandidates([
+      {
+        id: 701,
+        userId: 4,
+        status: "예정",
+        startTime: parseKstLocalDateTime("2026-05-22T09:00:00"),
+        endTime: parseKstLocalDateTime("2026-05-22T10:00:00"),
+        reminderOffsetMinutes: -1,
+        isActive: true,
+      },
+    ] as any, {
+      now: parseKstLocalDateTime("2026-05-22T10:03:00"),
+      lookbackMinutes: 10,
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(candidates[0]).toMatchObject({ kind: "incomplete", scheduleId: 701, userId: 4 });
+    expect(pushNotifications.SAFE_PUSH_PAYLOADS.scheduleIncomplete.title).toBe("BOA 일정 알림");
+    expect(JSON.stringify(pushNotifications.SAFE_PUSH_PAYLOADS.scheduleIncomplete)).not.toMatch(/010|고객명|전화번호|생년월일|질병|상품명|보험료/);
+  });
+
+  it("runs the schedule push reminder engine through the branch-admin trigger", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([
+      {
+        id: 801,
+        userId: 4,
+        status: "예정",
+        startTime: parseKstLocalDateTime("2026-05-22T12:00:00"),
+        reminderOffsetMinutes: 120,
+        isActive: true,
+      },
+    ] as any);
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue(null);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 5, status: "skipped" } as any);
+    vi.spyOn(db, "updatePushNotificationLog").mockResolvedValue(undefined);
+    pushNotifications.setPushSenderForTests(async (tokens, payload) => {
+      expect(payload).toEqual(pushNotifications.SAFE_PUSH_PAYLOADS.scheduleReminder);
+      return tokens.map((item) => ({ token: item, success: true }));
+    });
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).pushNotifications.sendSchedulePushReminderEngine({
+      now: "2026-05-22T10:00:00",
     });
 
     expect(result.targetCount).toBe(1);
-    expect(sendSpy).toHaveBeenCalledWith([4], pushNotifications.SAFE_PUSH_PAYLOADS.schedule30Minute, expect.objectContaining({
-      sourceId: 501,
-      dedupeKey: "schedule:501:30min",
-    }));
+    expect(result.reminderTargetCount).toBe(1);
+    expect(result.sentCount).toBe(1);
+  });
+
+  it("allows a scheduler secret to trigger the schedule push reminder engine", async () => {
+    const previousSecret = process.env.PUSH_SCHEDULER_SECRET;
+    process.env.PUSH_SCHEDULER_SECRET = "test-scheduler-secret";
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+
+    await expect(appRouter.createCaller({ user: null, req: { protocol: "https", headers: {} }, res: { clearCookie: () => {} } } as any)
+      .pushNotifications.runSchedulePushReminderEngineInternal({
+        secret: "test-scheduler-secret",
+        now: "2026-05-22T10:00:00",
+      })).resolves.toMatchObject({ success: true, targetCount: 0 });
+    await expect(appRouter.createCaller({ user: null, req: { protocol: "https", headers: {} }, res: { clearCookie: () => {} } } as any)
+      .pushNotifications.runSchedulePushReminderEngineInternal({
+        secret: "wrong-scheduler-secret",
+      })).rejects.toThrow();
+
+    process.env.PUSH_SCHEDULER_SECRET = previousSecret;
   });
 
   it("records skipped_no_token when no active device token exists", async () => {

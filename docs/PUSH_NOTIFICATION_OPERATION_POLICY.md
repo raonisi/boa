@@ -46,6 +46,25 @@ Before sending, the server applies:
 5. Safe payload validation
 6. Firebase sending or missing-config skip
 
+## Schedule Push Automation
+
+The legacy fixed `schedule_30min` sender is deprecated. Schedule app push delivery is now driven by the schedule push reminder engine:
+
+- Reminder candidates use `schedules.reminderOffsetMinutes`, `startTime`, and computed `dueAt`.
+- Incomplete candidates use `endTime` for schedules that are still not completed.
+- Deleted, inactive, cancelled, completed, no-show, and `completedAt` schedules are excluded.
+- The same `scheduleReminderEnabled`, quiet-hours, dedupe, active Android token, and log policies apply.
+
+Available triggers:
+
+- Branch-admin manual operation: `pushNotifications.sendSchedulePushReminderEngine`
+- Backward-compatible deprecated wrapper: `pushNotifications.sendSchedule30MinuteReminders`
+- Scheduler/internal trigger: `pushNotifications.runSchedulePushReminderEngineInternal`
+
+The scheduler/internal trigger requires Railway or the scheduler caller to provide `PUSH_SCHEDULER_SECRET` and pass the same secret in the mutation input. This allows Railway Cron or another internal scheduler to call the engine without a human branch-admin click. The secret must be stored only in Railway Variables and must not be committed.
+
+Recommended Railway Cron cadence: every 5 minutes. The engine uses a short lookback window and dedupe keys to avoid duplicate sends when the trigger runs repeatedly.
+
 ## Log Status Values
 
 `push_notification_logs.status` can contain:
@@ -96,7 +115,6 @@ If Firebase Admin variables are missing, the server must not crash. Push sends a
 
 ## PR19-5 Candidates
 
-- Stable scheduler/cron orchestration
 - Retry policy for quiet-hours skips
 - User-facing delivery status
 - Admin retry action for safe failed sends
