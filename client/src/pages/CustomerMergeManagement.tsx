@@ -70,8 +70,8 @@ export default function CustomerMergeManagement() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input className="h-10 rounded-xl bg-slate-50 pl-8" placeholder="고객명 또는 연락처 검색" value={search} onChange={(event) => setSearch(event.target.value)} />
+              <Search className="absolute left-3 top-4 h-4 w-4 text-muted-foreground md:left-2 md:top-2.5" />
+              <Input className="min-h-12 rounded-xl bg-slate-50 pl-9 md:h-10 md:min-h-10 md:pl-8" placeholder="고객명 또는 연락처 검색" value={search} onChange={(event) => setSearch(event.target.value)} />
             </div>
 
             {isLoading ? (
@@ -88,7 +88,41 @@ export default function CustomerMergeManagement() {
                         중복 연락처 후보: {group.maskedPhone}
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="overflow-x-auto">
+                    <CardContent className="space-y-3 p-4 md:hidden">
+                      {group.candidates.map((customer: any) => (
+                        <div key={customer.id} className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-xs font-semibold text-[#b99b5f]">병합 후보 #{customer.id}</p>
+                              <p className="mt-1 line-clamp-2 text-base font-semibold leading-6 text-slate-950">{customer.name}</p>
+                              <p className="mt-1 text-sm text-muted-foreground">{customer.maskedPhone ?? "-"}</p>
+                            </div>
+                            <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                              {customer.consultStatus}
+                            </span>
+                          </div>
+                          <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                            <div className="rounded-xl bg-slate-50 p-3">우선순위: {customer.priority}</div>
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              상담/계약/후속: {customer.stats?.consultations ?? 0}/{customer.stats?.contracts ?? 0}/{customer.stats?.followUps ?? 0}
+                            </div>
+                            <div className="rounded-xl bg-slate-50 p-3">
+                              등록일: {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString("ko-KR") : "-"}
+                            </div>
+                          </div>
+                          <div className="mt-4 grid gap-2">
+                            <Button size="sm" variant="outline" className="min-h-12" onClick={() => setLocation(`/customers/${customer.id}`)}>상세</Button>
+                            {group.candidates.filter((item: any) => item.id !== customer.id).map((source: any) => (
+                              <Button key={source.id} size="sm" variant="outline" className="min-h-12 border-amber-200 text-amber-800 hover:bg-amber-50" onClick={() => selectMerge(customer.id, source.id)}>
+                                <GitMerge className="h-3.5 w-3.5 mr-1" />
+                                #{source.id} 병합
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                    <CardContent className="hidden overflow-x-auto md:block">
                       <Table>
                         <TableHeader className="bg-white/70">
                           <TableRow>
@@ -137,7 +171,7 @@ export default function CustomerMergeManagement() {
         </Card>
 
         <Dialog open={!!targetCustomerId && !!sourceCustomerId} onOpenChange={(open) => { if (!open) resetSelection(); }}>
-          <DialogContent className="max-w-3xl rounded-2xl">
+          <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-3xl">
             <DialogHeader>
               <DialogTitle>고객 병합 미리보기</DialogTitle>
             </DialogHeader>
@@ -168,7 +202,7 @@ export default function CustomerMergeManagement() {
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-sm">
                   <p className="font-medium mb-2">이관 예정 데이터</p>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
                     <span>상담 {preview.transferCounts.consultations}건</span>
                     <span>계약 {preview.transferCounts.contracts}건</span>
                     <span>후속관리 {preview.transferCounts.followUps}건</span>
@@ -193,15 +227,16 @@ export default function CustomerMergeManagement() {
 
                 <div className="space-y-2">
                   <Label>병합 사유</Label>
-                  <Textarea value={reason} onChange={(event) => setReason(event.target.value)} placeholder="예: 동일 고객 중복 등록 정리" />
+                  <Textarea className="min-h-24" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="예: 동일 고객 중복 등록 정리" />
                 </div>
                 <div className="space-y-2">
                   <Label>확인 문구</Label>
-                  <Input className="rounded-xl bg-slate-50" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="고객병합" />
+                  <Input className="min-h-12 rounded-xl bg-slate-50 md:min-h-9" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="고객병합" />
                 </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={resetSelection}>취소</Button>
+                <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                  <Button variant="outline" className="min-h-12 md:min-h-10" onClick={resetSelection}>취소</Button>
                   <Button
+                    className="min-h-12 md:min-h-10"
                     disabled={confirmText !== "고객병합" || executeMutation.isPending}
                     onClick={() => targetCustomerId && sourceCustomerId && executeMutation.mutate({ targetCustomerId, sourceCustomerId, confirmText, reason: reason || undefined })}
                   >

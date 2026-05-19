@@ -148,17 +148,58 @@ export default function DeletedDataManagement() {
         </Card>
 
         <Tabs defaultValue="requests" className="space-y-4">
-          <TabsList className="h-auto flex-wrap rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
-            <TabsTrigger value="requests">삭제 요청</TabsTrigger>
-            <TabsTrigger value="teams">삭제된 팀</TabsTrigger>
-            <TabsTrigger value="customers">삭제된 고객</TabsTrigger>
-            <TabsTrigger value="contracts">삭제된 계약</TabsTrigger>
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm md:inline-flex md:w-auto md:grid-cols-none">
+            <TabsTrigger value="requests" className="min-h-12 md:min-h-9">삭제 요청</TabsTrigger>
+            <TabsTrigger value="teams" className="min-h-12 md:min-h-9">삭제된 팀</TabsTrigger>
+            <TabsTrigger value="customers" className="min-h-12 md:min-h-9">삭제된 고객</TabsTrigger>
+            <TabsTrigger value="contracts" className="min-h-12 md:min-h-9">삭제된 계약</TabsTrigger>
           </TabsList>
 
           <TabsContent value="requests">
             <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">계약 삭제 요청</CardTitle></CardHeader>
-              <CardContent className="p-0">
+              <CardContent className="space-y-3 p-4 md:hidden">
+                {(requests ?? []).length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
+                    대기 중인 요청이 없습니다.
+                  </div>
+                ) : (requests ?? []).map((request) => (
+                  <div key={request.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-[#b99b5f]">계약 삭제 요청</p>
+                        <p className="mt-1 line-clamp-2 text-base font-semibold leading-6 text-slate-950">
+                          {request.customer?.name ?? request.customerId}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
+                          {request.contract?.productName ?? request.targetId}
+                        </p>
+                      </div>
+                      <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                        {deleteRequestStatusLabels[request.status] ?? "기타 상태"}
+                      </span>
+                    </div>
+                    <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                      <div className="rounded-xl bg-slate-50 p-3">요청일: {fmtDate(request.createdAt)}</div>
+                      <div className="rounded-xl bg-slate-50 p-3">요청자: {request.requester?.name ?? request.requestedBy}</div>
+                      <div className="rounded-xl bg-slate-50 p-3">월보험료: {request.contract?.monthlyPremium?.toLocaleString() ?? "-"}</div>
+                      <div className="rounded-xl bg-slate-50 p-3">
+                        <p className="font-medium text-slate-700">요청 사유</p>
+                        <p className="mt-1 line-clamp-3 leading-5">{request.requestReason}</p>
+                      </div>
+                    </div>
+                    <div className="mt-4 grid grid-cols-2 gap-2">
+                      <Button size="sm" variant="outline" className="min-h-12" onClick={() => setReviewTarget({ id: request.id, action: "approve" })}>
+                        <Check className="h-3.5 w-3.5 mr-1" />승인
+                      </Button>
+                      <Button size="sm" variant="outline" className="min-h-12 border-red-200 text-destructive hover:bg-red-50" onClick={() => setReviewTarget({ id: request.id, action: "reject" })}>
+                        <X className="h-3.5 w-3.5 mr-1" />반려
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+              <CardContent className="hidden overflow-x-auto p-0 md:block">
                 <Table>
                   <TableHeader className="bg-slate-50/80">
                     <TableRow>
@@ -278,7 +319,7 @@ export default function DeletedDataManagement() {
                 <Textarea
                   value={permanentReason}
                   onChange={(e) => setPermanentReason(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 min-h-24"
                   placeholder="운영 기준에 따라 완전삭제 사유를 입력하세요."
                   disabled={permanentPending}
                 />
@@ -286,11 +327,11 @@ export default function DeletedDataManagement() {
             )}
             <div>
               <Label>진행하려면 아래에 "완전삭제"를 입력하세요.</Label>
-              <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className="mt-1" disabled={permanentPending} />
+              <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className="mt-1 min-h-12 md:min-h-9" disabled={permanentPending} />
             </div>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="outline" onClick={closePermanent} disabled={permanentPending}>취소</Button>
-              <Button variant="destructive" disabled={!permanentCanSubmit} onClick={runPermanentDelete}>
+              <Button variant="outline" className="min-h-12 md:min-h-10" onClick={closePermanent} disabled={permanentPending}>취소</Button>
+              <Button variant="destructive" className="min-h-12 md:min-h-10" disabled={!permanentCanSubmit} onClick={runPermanentDelete}>
                 {permanentPending ? "완전삭제 중..." : "완전삭제"}
               </Button>
             </div>
@@ -299,7 +340,7 @@ export default function DeletedDataManagement() {
       </Dialog>
 
       <Dialog open={!!reviewTarget} onOpenChange={(open) => { if (!open) closeReview(); }}>
-          <DialogContent className="rounded-2xl">
+          <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl">
           <DialogHeader><DialogTitle>{reviewTarget?.action === "approve" ? "계약 삭제 요청 승인" : "계약 삭제 요청 반려"}</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -309,11 +350,11 @@ export default function DeletedDataManagement() {
             </p>
             <div>
               <Label>{reviewTarget?.action === "approve" ? "승인 메모" : "반려 사유 *"}</Label>
-              <Textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mt-1" />
+              <Textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mt-1 min-h-24" />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={closeReview}>취소</Button>
-              <Button onClick={runReview} disabled={reviewTarget?.action === "reject" && !reviewComment.trim()}>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button variant="outline" className="min-h-12 md:min-h-10" onClick={closeReview}>취소</Button>
+              <Button className="min-h-12 md:min-h-10" onClick={runReview} disabled={reviewTarget?.action === "reject" && !reviewComment.trim()}>
                 {reviewTarget?.action === "approve" ? "승인 후 비활성 처리" : "반려"}
               </Button>
             </div>
@@ -337,7 +378,33 @@ function DeletedTable({
 }) {
   return (
     <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
-      <CardContent className="p-0">
+      <CardContent className="space-y-3 p-4 md:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
+            {emptyText}
+          </div>
+        ) : rows.map((row) => (
+          <div key={row.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-[#b99b5f]">삭제 데이터 #{row.id}</p>
+              <p className="mt-1 line-clamp-2 text-base font-semibold leading-6 text-slate-950">{row.name}</p>
+            </div>
+            <div className="mt-3 grid gap-2 text-xs text-slate-600">
+              <div className="rounded-xl bg-slate-50 p-3">삭제일: {fmtDate(row.deletedAt)}</div>
+              <div className="rounded-xl bg-slate-50 p-3">생성일: {fmtDate(row.createdAt)}</div>
+            </div>
+            <div className="mt-4 grid gap-2">
+              <Button size="sm" variant="outline" className="min-h-12 border-green-200 text-green-700 hover:bg-green-50" onClick={() => onRestore(row.id)}>
+                <RotateCcw className="h-3.5 w-3.5 mr-1" />복구
+              </Button>
+              <Button size="sm" variant="outline" className="min-h-12 border-red-200 text-destructive hover:bg-red-50" onClick={() => onPermanent(row)}>
+                <Trash2 className="h-3.5 w-3.5 mr-1" />완전삭제
+              </Button>
+            </div>
+          </div>
+        ))}
+      </CardContent>
+      <CardContent className="hidden overflow-x-auto p-0 md:block">
         <Table>
           <TableHeader className="bg-slate-50/80">
             <TableRow>
