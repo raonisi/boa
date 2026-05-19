@@ -6,7 +6,9 @@ type MockOptions = {
   permissions?: string[];
 };
 
-const now = "2026-05-18T09:00:00.000Z";
+const fixtureToday = new Date();
+const now = new Date(fixtureToday.getFullYear(), fixtureToday.getMonth(), fixtureToday.getDate(), 9, 0, 0).toISOString();
+const oneHourAfterNow = new Date(fixtureToday.getFullYear(), fixtureToday.getMonth(), fixtureToday.getDate(), 10, 0, 0).toISOString();
 
 function userFor(role: Role, options?: MockOptions) {
   return {
@@ -68,7 +70,7 @@ const todayWork = {
   ],
   overdueFollowUps: [],
   todaySchedules: [
-    { id: 301, title: "[E2E] 상담 예약", startTime: now, endTime: "2026-05-18T10:00:00.000Z", status: "예정", customerId: customer.id, customerName: customer.name },
+    { id: 301, title: "[E2E] 상담 예약", startTime: now, endTime: oneHourAfterNow, status: "예정", customerId: customer.id, customerName: customer.name },
   ],
   incompleteSchedules: [],
   pendingNotifications: [
@@ -86,7 +88,7 @@ const schedules = [
     type: "고객상담",
     status: "예정",
     startTime: now,
-    endTime: "2026-05-18T10:00:00.000Z",
+    endTime: oneHourAfterNow,
     memo: "[E2E] calendar customer context",
     reminderOffsetMinutes: 30,
     isActive: true,
