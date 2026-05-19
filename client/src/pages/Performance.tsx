@@ -157,10 +157,10 @@ export default function Performance() {
                 <p className="text-sm font-semibold text-slate-900">아직 실적 데이터가 없습니다.</p>
                 <p className="mt-1 text-xs text-slate-500">신규 계약 또는 상담기록을 등록하면 실적 흐름이 표시됩니다.</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <Button size="sm" onClick={() => setLocation("/contracts")}>
+                  <Button size="sm" className="min-h-12 md:min-h-8" onClick={() => setLocation("/contracts")}>
                     <FilePlus2 className="h-4 w-4 mr-1" /> 계약 등록
                   </Button>
-                  <Button size="sm" variant="outline" onClick={() => setLocation("/customers")}>
+                  <Button size="sm" variant="outline" className="min-h-12 md:min-h-8" onClick={() => setLocation("/customers")}>
                     <MessageSquare className="h-4 w-4 mr-1" /> 상담 기록 확인
                   </Button>
                 </div>
@@ -175,18 +175,18 @@ export default function Performance() {
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-700">
               <Filter className="h-4 w-4 text-[#b99b5f]" /> 실적 필터
             </div>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
               <div>
                 <Label className="text-xs">월 선택</Label>
-                <Input type="month" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setDateFrom(""); setDateTo(""); }} className="mt-1 h-9 rounded-xl bg-slate-50" />
+                <Input type="month" value={monthFilter} onChange={(e) => { setMonthFilter(e.target.value); setDateFrom(""); setDateTo(""); }} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               <div>
                 <Label className="text-xs">시작일</Label>
-                <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setMonthFilter(""); }} className="mt-1 h-9 rounded-xl bg-slate-50" />
+                <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setMonthFilter(""); }} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               <div>
                 <Label className="text-xs">종료일</Label>
-                <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setMonthFilter(""); }} className="mt-1 h-9 rounded-xl bg-slate-50" />
+                <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setMonthFilter(""); }} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" />
               </div>
               {(user?.role === "branch_admin" || user?.role === "sub_branch_admin" || user?.role === "team_leader") && (
                 <>
@@ -194,7 +194,7 @@ export default function Performance() {
                     <div>
                       <Label className="text-xs">실적 범위</Label>
                       <Select value={scopeFilter} onValueChange={(value) => { setScopeFilter(value as "all" | "mine"); if (value === "mine") setAgentIdFilter("all"); }}>
-                        <SelectTrigger className="mt-1 h-9 rounded-xl bg-slate-50"><SelectValue placeholder="실적 범위" /></SelectTrigger>
+                        <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="실적 범위" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">전체 실적</SelectItem>
                           <SelectItem value="mine">내 실적</SelectItem>
@@ -206,7 +206,7 @@ export default function Performance() {
                     <div>
                       <Label className="text-xs">팀</Label>
                       <Select value={teamIdFilter} onValueChange={setTeamIdFilter}>
-                        <SelectTrigger className="mt-1 h-9 rounded-xl bg-slate-50"><SelectValue placeholder="전체 팀" /></SelectTrigger>
+                        <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="전체 팀" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">전체 팀</SelectItem>
                           {(teams ?? []).map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
@@ -217,7 +217,7 @@ export default function Performance() {
                   <div>
                     <Label className="text-xs">팀원</Label>
                     <Select value={agentIdFilter} onValueChange={setAgentIdFilter}>
-                      <SelectTrigger className="mt-1 h-9 rounded-xl bg-slate-50"><SelectValue placeholder="전체 팀원" /></SelectTrigger>
+                      <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="전체 팀원" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">전체 팀원</SelectItem>
                         {agents.map((u) => <SelectItem key={u.id} value={String(u.id)}>{formatUserWithRole(u)}</SelectItem>)}
@@ -226,30 +226,30 @@ export default function Performance() {
                   </div>
                 </>
               )}
-              <div><Label className="text-xs">상품군</Label><Input value={productGroupFilter} onChange={(e) => setProductGroupFilter(e.target.value)} className="mt-1 h-9 rounded-xl bg-slate-50" placeholder="예: 종신, 실손" /></div>
-              <div><Label className="text-xs">보험사</Label><Input value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="mt-1 h-9 rounded-xl bg-slate-50" placeholder="예: 삼성생명" /></div>
-              <div><Label className="text-xs">지역</Label><Input value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="mt-1 h-9 rounded-xl bg-slate-50" placeholder="예: 서울" /></div>
-              <div><Label className="text-xs">유입경로</Label><Input value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="mt-1 h-9 rounded-xl bg-slate-50" placeholder="예: 지인소개" /></div>
+              <div><Label className="text-xs">상품군</Label><Input value={productGroupFilter} onChange={(e) => setProductGroupFilter(e.target.value)} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" placeholder="예: 종신, 실손" /></div>
+              <div><Label className="text-xs">보험사</Label><Input value={companyFilter} onChange={(e) => setCompanyFilter(e.target.value)} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" placeholder="예: 삼성생명" /></div>
+              <div><Label className="text-xs">지역</Label><Input value={regionFilter} onChange={(e) => setRegionFilter(e.target.value)} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" placeholder="예: 서울" /></div>
+              <div><Label className="text-xs">유입경로</Label><Input value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)} className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" placeholder="예: 지인소개" /></div>
             </div>
           </CardContent>
         </Card>
 
         {/* 핵심 지표 */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           <StatCard title="배정 DB" value={stats?.assigned} highlight icon={Users} />
           <StatCard title="신규 계약" value={newContracts} highlight icon={Target} helper="신규 영업 성과 기준" />
           <StatCard title="월납보험료 실적" value={monthlyPremium.toLocaleString()} suffix="원" highlight icon={WalletCards} />
           <StatCard title="신규 계약률" value={stats?.contractRate} suffix="%" highlight icon={TrendingUp} />
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           <StatCard title="미상담 수" value={stats?.uncontacted} />
           <StatCard title="부재 수" value={stats?.absent} />
           <StatCard title="통화완료 수" value={stats?.called} />
           <StatCard title="상담예정 수" value={stats?.scheduled} />
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-4">
           <StatCard title="설계중 수" value={stats?.designing} />
           <StatCard title="계약 유지 기준" value="GA 본사 전산 확인" />
           <StatCard title="상담률" value={stats?.consultRate} suffix="%" />
