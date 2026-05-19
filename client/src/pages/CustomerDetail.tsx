@@ -456,6 +456,19 @@ export default function CustomerDetail({ id }: { id: number }) {
                     <span>상담상태 · {customer.consultStatus}</span>
                     <span>담당자 · {agentName}</span>
                   </div>
+                  <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:hidden">
+                    {[
+                      { label: "연락처", value: customer.phone ?? "-" },
+                      { label: "생년월일", value: customer.birthDate ? new Date(customer.birthDate).toLocaleDateString("ko-KR") : "-" },
+                      { label: "담당자", value: agentName },
+                      { label: "다음 연락", value: nextFollowUp ? formatDate(nextFollowUp.nextContactDate) : "설정 없음" },
+                    ].map((item) => (
+                      <div key={item.label} className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2">
+                        <span className="shrink-0 font-medium text-slate-500">{item.label}</span>
+                        <span className="min-w-0 truncate font-semibold text-slate-900">{item.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               <DropdownMenu>
@@ -566,7 +579,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                       key={step.label}
                       type="button"
                       variant={step.variant}
-                      className="h-auto justify-start gap-2 whitespace-normal rounded-lg px-3 py-3 text-left"
+                      className="min-h-12 justify-start gap-2 whitespace-normal rounded-lg px-3 py-3 text-left"
                       onClick={step.action}
                     >
                       <Icon className="h-4 w-4 shrink-0" />
@@ -586,25 +599,25 @@ export default function CustomerDetail({ id }: { id: number }) {
           <CardContent className="space-y-3 p-3 sm:p-4">
             <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
               {customer.phone ? (
-                <Button variant="outline" className="h-11 justify-start gap-2" asChild>
+                <Button variant="outline" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" asChild>
                   <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
                 </Button>
               ) : (
-                <Button variant="outline" className="h-11 justify-start gap-2" disabled><Phone className="h-4 w-4" /> 전화</Button>
+                <Button variant="outline" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" disabled><Phone className="h-4 w-4" /> 전화</Button>
               )}
-              <Button className="h-11 justify-start gap-2" onClick={() => setShowConsultModal(true)}>
+              <Button className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" onClick={() => setShowConsultModal(true)}>
                 <MessageSquare className="h-4 w-4" /> 상담기록 추가
               </Button>
-              <Button variant="secondary" className="h-11 justify-start gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
+              <Button variant="secondary" className="min-h-12 justify-start gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11" onClick={() => setShowFollowUpModal(true)}>
                 <CalendarPlus className="h-4 w-4" /> 다음 연락일
               </Button>
-              <Button variant="outline" className="h-11 justify-start gap-2" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
+              <Button variant="outline" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
                 <CalendarPlus className="h-4 w-4" /> 일정 추가
               </Button>
-              <Button variant="secondary" className="h-11 justify-start gap-2 bg-emerald-700 text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
+              <Button variant="secondary" className="min-h-12 justify-start gap-2 bg-emerald-700 text-white hover:bg-emerald-800 md:h-11 md:min-h-11" onClick={() => setShowContractModal(true)}>
                 <FilePlus2 className="h-4 w-4" /> 계약 등록
               </Button>
-              <Button variant="ghost" className="h-11 justify-start gap-2" onClick={() => setActiveTab("tools")}>
+              <Button variant="ghost" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" onClick={() => setActiveTab("tools")}>
                 <Copy className="h-4 w-4" /> 메시지 문구
               </Button>
             </div>
@@ -614,19 +627,19 @@ export default function CustomerDetail({ id }: { id: number }) {
         <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 border-t border-slate-200 bg-white/95 px-2 pb-2 pt-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
           <div className="mx-auto grid max-w-md grid-cols-4 gap-1.5">
             {customer.phone ? (
-              <Button variant="outline" size="sm" className="h-12 flex-col gap-0.5 px-1 text-[11px]" asChild>
+              <Button variant="outline" size="sm" className="h-12 min-h-12 flex-col gap-0.5 px-1 text-[11px]" asChild>
                 <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
               </Button>
             ) : (
-              <Button variant="outline" size="sm" className="h-12 flex-col gap-0.5 px-1 text-[11px]" disabled><Phone className="h-4 w-4" /> 전화</Button>
+              <Button variant="outline" size="sm" className="h-12 min-h-12 flex-col gap-0.5 px-1 text-[11px]" disabled><Phone className="h-4 w-4" /> 전화</Button>
             )}
-            <Button size="sm" className="h-12 flex-col gap-0.5 px-1 text-[11px]" onClick={() => setShowConsultModal(true)}>
+            <Button size="sm" className="h-12 min-h-12 flex-col gap-0.5 px-1 text-[11px]" onClick={() => setShowConsultModal(true)}>
               <MessageSquare className="h-4 w-4" /> 상담
             </Button>
-            <Button variant="secondary" size="sm" className="h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
+            <Button variant="secondary" size="sm" className="h-12 min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
               <CalendarPlus className="h-4 w-4" /> 후속
             </Button>
-            <Button variant="secondary" size="sm" className="h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
+            <Button variant="secondary" size="sm" className="h-12 min-h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
               <FilePlus2 className="h-4 w-4" /> 계약
             </Button>
           </div>
@@ -653,7 +666,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                   value={(customer as any).priority ?? "unclassified"}
                   onValueChange={(priority) => updateMetaMutation.mutate({ customerId: id, priority: priority as any })}
                 >
-                  <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {CUSTOMER_PRIORITIES.map((priority) => <SelectItem key={priority} value={priority}>{priorityLabel(priority)}</SelectItem>)}
                   </SelectContent>
@@ -665,7 +678,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                   value={(customer as any).nextAction ?? "none"}
                   onValueChange={(nextAction) => updateMetaMutation.mutate({ customerId: id, nextAction: nextAction === "none" ? null as any : nextAction as any })}
                 >
-                  <SelectTrigger className="h-9 mt-1"><SelectValue placeholder="선택" /></SelectTrigger>
+                  <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue placeholder="선택" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">선택 안 함 · 설정 필요</SelectItem>
                     {CUSTOMER_NEXT_ACTIONS.map((action) => <SelectItem key={action} value={action}>{action}</SelectItem>)}
@@ -689,7 +702,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                       type="button"
                       variant={selected ? "default" : "outline"}
                       size="sm"
-                      className="h-7 text-xs"
+                      className="min-h-12 text-xs md:h-7 md:min-h-7"
                       disabled={updateMetaMutation.isPending}
                       onClick={() => updateMetaMutation.mutate({ customerId: id, customerTags: nextTags as any })}
                     >
@@ -1647,14 +1660,14 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
             <p className="text-sm font-semibold">다음 연락일 / 후속관리</p>
             <p className="text-xs text-muted-foreground">민감정보는 후속관리 메모에 입력하지 마세요.</p>
           </div>
-          <Button size="sm" className="rounded-xl" onClick={onCreate}>다음 연락일 설정</Button>
+          <Button size="sm" className="min-h-12 rounded-xl md:min-h-8" onClick={onCreate}>다음 연락일 설정</Button>
         </div>
         {openItems.length === 0 ? (
           <EmptyState
             icon={CalendarPlus}
             title="등록된 다음 연락일이 없습니다."
             description="다음 연락일을 정하면 모바일 대시보드와 알림 흐름에서 바로 확인할 수 있습니다."
-            action={<Button type="button" size="sm" onClick={onCreate}>후속관리 등록</Button>}
+            action={<Button type="button" size="sm" className="min-h-12 md:min-h-8" onClick={onCreate}>후속관리 등록</Button>}
             className="py-6"
           />
         ) : (
@@ -1669,9 +1682,9 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
                   <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">{followUpStatusLabels[item.status] ?? "기타 상태"}</span>
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                  <Button size="sm" className="min-h-10" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>
-                  <Button size="sm" className="min-h-10" variant="outline" disabled={loading} onClick={() => onPostpone(item.id)}>연락일 연기</Button>
-                  <Button size="sm" className="min-h-10" variant="outline" disabled={loading} onClick={() => onCancel(item.id)}>후속관리 취소</Button>
+                  <Button size="sm" className="min-h-12 md:min-h-10" variant="outline" disabled={loading} onClick={() => onComplete(item.id)}>후속관리 완료</Button>
+                  <Button size="sm" className="min-h-12 md:min-h-10" variant="outline" disabled={loading} onClick={() => onPostpone(item.id)}>연락일 연기</Button>
+                  <Button size="sm" className="min-h-12 md:min-h-10" variant="outline" disabled={loading} onClick={() => onCancel(item.id)}>후속관리 취소</Button>
                 </div>
               </div>
             ))}
@@ -1725,8 +1738,8 @@ function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
             <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} className="mt-1" placeholder="민감정보 입력 금지" />
           </div>
           <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-background pt-2">
-            <Button className="min-h-11" variant="outline" onClick={onClose}>취소</Button>
-            <Button className="min-h-11" disabled={!nextContactDate || !reason || loading} onClick={() => onSubmit({ nextContactDate, reason, nextAction, memo: memo || undefined })}>
+            <Button className="min-h-12 md:min-h-11" variant="outline" onClick={onClose}>취소</Button>
+            <Button className="min-h-12 md:min-h-11" disabled={!nextContactDate || !reason || loading} onClick={() => onSubmit({ nextContactDate, reason, nextAction, memo: memo || undefined })}>
               {mode === "postpone" ? "연기" : "저장"}
             </Button>
           </div>
@@ -1858,7 +1871,7 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
           <div>
             <Label className="text-xs">상담상태</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>{consultStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -1866,14 +1879,14 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
             <div>
               <Label className="text-xs">상담유형</Label>
               <Select value={form.consultationType} onValueChange={(v) => setForm({ ...form, consultationType: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>{CONSULTATION_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">고객 니즈</Label>
               <Select value={form.customerNeed} onValueChange={(v) => setForm({ ...form, customerNeed: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>{CUSTOMER_NEEDS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -1881,22 +1894,22 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
           <div>
             <Label className="text-xs">다음 액션</Label>
             <Select value={form.nextAction} onValueChange={(v) => setForm({ ...form, nextAction: v })}>
-              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
               <SelectContent>{CUSTOMER_NEXT_ACTIONS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label className="text-xs">상담 요약</Label>
-            <Input value={form.summary} maxLength={200} onChange={(e) => setForm({ ...form, summary: e.target.value })} className="h-9 mt-1" placeholder="한 줄 요약" />
+            <Input value={form.summary} maxLength={200} onChange={(e) => setForm({ ...form, summary: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" placeholder="한 줄 요약" />
           </div>
           <div>
             <Label className="text-xs">상세 메모</Label>
-            <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24" placeholder="상담 내용을 입력하세요..." />
+            <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="mt-1 min-h-28 w-full resize-none rounded-md border border-input bg-background px-3 py-3 text-sm leading-6" placeholder="상담 내용을 입력하세요..." />
             <p className="text-[11px] text-muted-foreground mt-1">주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.</p>
           </div>
           <div>
             <Label className="text-xs">재상담 예정일</Label>
-            <Input type="datetime-local" value={form.nextContactAt} onChange={(e) => setForm({ ...form, nextContactAt: e.target.value })} className="h-9 mt-1" />
+            <Input type="datetime-local" value={form.nextContactAt} onChange={(e) => setForm({ ...form, nextContactAt: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" />
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
@@ -1929,7 +1942,7 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
           <div>
             <Label className="text-xs">상담상태</Label>
             <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
-              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
               <SelectContent>{CONSULT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
             </Select>
           </div>
@@ -1937,14 +1950,14 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
             <div>
               <Label className="text-xs">상담유형</Label>
               <Select value={form.consultationType} onValueChange={(v) => setForm({ ...form, consultationType: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>{CONSULTATION_TYPES.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
               </Select>
             </div>
             <div>
               <Label className="text-xs">고객 니즈</Label>
               <Select value={form.customerNeed} onValueChange={(v) => setForm({ ...form, customerNeed: v })}>
-                <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>{CUSTOMER_NEEDS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
               </Select>
             </div>
@@ -1952,22 +1965,22 @@ function EditConsultModal({ consult, onClose, onSubmit, loading }: {
           <div>
             <Label className="text-xs">다음 액션</Label>
             <Select value={form.nextAction} onValueChange={(v) => setForm({ ...form, nextAction: v })}>
-              <SelectTrigger className="h-9 mt-1"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
               <SelectContent>{CUSTOMER_NEXT_ACTIONS.map((item) => <SelectItem key={item} value={item}>{item}</SelectItem>)}</SelectContent>
             </Select>
           </div>
           <div>
             <Label className="text-xs">상담 요약</Label>
-            <Input value={form.summary} maxLength={200} onChange={(e) => setForm({ ...form, summary: e.target.value })} className="h-9 mt-1" />
+            <Input value={form.summary} maxLength={200} onChange={(e) => setForm({ ...form, summary: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" />
           </div>
           <div>
             <Label className="text-xs">상세 메모</Label>
-            <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-24" />
+            <textarea value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} className="mt-1 min-h-28 w-full resize-none rounded-md border border-input bg-background px-3 py-3 text-sm leading-6" />
             <p className="text-[11px] text-muted-foreground mt-1">주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.</p>
           </div>
           <div>
             <Label className="text-xs">재상담 예정일</Label>
-            <Input type="datetime-local" value={form.nextContactAt} onChange={(e) => setForm({ ...form, nextContactAt: e.target.value })} className="h-9 mt-1" />
+            <Input type="datetime-local" value={form.nextContactAt} onChange={(e) => setForm({ ...form, nextContactAt: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" />
           </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
