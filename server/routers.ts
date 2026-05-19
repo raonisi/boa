@@ -2946,6 +2946,13 @@ export const appRouter = router({
         return pushNotifications.runSchedulePushReminderEngine({ now });
       }),
 
+    sendBusinessPushReminderEngine: branchAdminProcedure
+      .input(z.object({ now: z.string().optional() }).optional())
+      .mutation(async ({ input }) => {
+        const now = input?.now ? parseKstLocalDateTime(input.now) : new Date();
+        return pushNotifications.runBusinessPushReminderEngine({ now });
+      }),
+
     /** @deprecated Use sendSchedulePushReminderEngine. */
     sendSchedule30MinuteReminders: branchAdminProcedure
       .input(z.object({ now: z.string().optional() }).optional())
@@ -2965,7 +2972,21 @@ export const appRouter = router({
           throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid scheduler secret." });
         }
         const now = input.now ? parseKstLocalDateTime(input.now) : new Date();
-        return pushNotifications.runSchedulePushReminderEngine({ now });
+        return pushNotifications.runPushReminderEngines({ now });
+      }),
+
+    runPushReminderEnginesInternal: publicProcedure
+      .input(z.object({
+        secret: z.string().min(12),
+        now: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const expectedSecret = process.env.PUSH_SCHEDULER_SECRET;
+        if (!expectedSecret || input.secret !== expectedSecret) {
+          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid scheduler secret." });
+        }
+        const now = input.now ? parseKstLocalDateTime(input.now) : new Date();
+        return pushNotifications.runPushReminderEngines({ now });
       }),
   }),
 

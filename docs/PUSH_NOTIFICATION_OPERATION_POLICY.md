@@ -65,6 +65,38 @@ The scheduler/internal trigger requires Railway or the scheduler caller to provi
 
 Recommended Railway Cron cadence: every 5 minutes. The engine uses a short lookback window and dedupe keys to avoid duplicate sends when the trigger runs repeatedly.
 
+## Customer and Contract Business Push Automation
+
+The business reminder engine extends Android FCM delivery to:
+
+- Customer birthday reminders
+- Contract 90-day reminders
+- Contract 365-day reminders
+- Long-unmanaged customer reminders
+
+Contract 180-day push delivery is intentionally not implemented. The engine calculates candidates in `Asia/Seoul`, sends only to the assigned owner, and skips unassigned, inactive, or deleted customers/contracts. Inactive and resigned users are excluded before delivery.
+
+Preference mapping:
+
+- Business reminders reuse `followUpTodayEnabled`.
+- No new preference column or DB migration is required.
+- Existing quiet-hours, active Android token, dedupe, invalid-token, and logging rules still apply through `sendPushToUsers`.
+
+Dedupe basis:
+
+- notification type
+- assigned target user
+- basis date in `Asia/Seoul`
+- customer or contract id
+
+Available triggers:
+
+- Branch-admin manual operation: `pushNotifications.sendBusinessPushReminderEngine`
+- Scheduler/internal combined operation: `pushNotifications.runPushReminderEnginesInternal`
+- Backward-compatible scheduler operation: `pushNotifications.runSchedulePushReminderEngineInternal`
+
+The internal scheduler route now runs both the PR120 schedule engine and the business reminder engine so Railway Cron does not leave business reminders dependent on a manual branch-admin click.
+
 ## Log Status Values
 
 `push_notification_logs.status` can contain:

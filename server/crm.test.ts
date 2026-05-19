@@ -1408,17 +1408,229 @@ describe("PR19-3 - safe FCM work notifications", () => {
     const previousSecret = process.env.PUSH_SCHEDULER_SECRET;
     process.env.PUSH_SCHEDULER_SECRET = "test-scheduler-secret";
     vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue([] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([] as any);
 
     await expect(appRouter.createCaller({ user: null, req: { protocol: "https", headers: {} }, res: { clearCookie: () => {} } } as any)
       .pushNotifications.runSchedulePushReminderEngineInternal({
         secret: "test-scheduler-secret",
         now: "2026-05-22T10:00:00",
-      })).resolves.toMatchObject({ success: true, targetCount: 0 });
+      })).resolves.toMatchObject({ success: true, targetCount: 0, schedule: { targetCount: 0 }, business: { targetCount: 0 } });
     await expect(appRouter.createCaller({ user: null, req: { protocol: "https", headers: {} }, res: { clearCookie: () => {} } } as any)
       .pushNotifications.runSchedulePushReminderEngineInternal({
         secret: "wrong-scheduler-secret",
       })).rejects.toThrow();
 
+    process.env.PUSH_SCHEDULER_SECRET = previousSecret;
+  });
+
+  it("creates birthday, contract 90, contract 365, and long-unmanaged business push candidates without customer data", () => {
+    const candidates = pushNotifications.getBusinessPushCandidates({
+      customers: [
+        { id: 100, agentId: 4, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true, deletedAt: null },
+        { id: 101, agentId: 4, birthDate: "1980-05-21", assignedAt: "2026-02-20", isActive: true, deletedAt: null },
+      ],
+      contracts: [
+        { id: 200, agentId: 4, contractDate: "2026-02-21", isActive: true, deletedAt: null },
+        { id: 201, agentId: 4, contractDate: "2025-05-22", isActive: true, deletedAt: null },
+        { id: 202, agentId: 4, contractDate: "2025-11-23", isActive: true, deletedAt: null },
+      ],
+      consultationsByCustomer: {
+        100: [{ customerId: 100, createdAt: "2026-02-21", isActive: true, deletedAt: null }],
+      },
+    }, { now: parseKstLocalDateTime("2026-05-22T09:00:00") });
+
+    expect(candidates.map((candidate) => candidate.type).sort()).toEqual([
+      "contract_365",
+      "contract_90",
+      "customer_birthday",
+      "long_unmanaged_90",
+    ]);
+    expect(candidates.find((candidate) => candidate.type === "contract_90")?.dedupeKey).toBe("business:contract_90:contract:200:2026-05-22");
+    expect(candidates.some((candidate) => candidate.type === "contract_180")).toBe(false);
+    expect(JSON.stringify([
+      pushNotifications.SAFE_PUSH_PAYLOADS.customerBirthday,
+      pushNotifications.SAFE_PUSH_PAYLOADS.contract90,
+      pushNotifications.SAFE_PUSH_PAYLOADS.contract365,
+      pushNotifications.SAFE_PUSH_PAYLOADS.longUnmanaged90,
+    ])).not.toMatch(/010|1980|birthDate|customerName|phone|productName|monthlyPremium|disease|premium/);
+  });
+
+  it("skips unassigned, deleted, and inactive customer or contract business push candidates", () => {
+    const candidates = pushNotifications.getBusinessPushCandidates({
+      customers: [
+        { id: 110, agentId: null, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true },
+        { id: 111, agentId: 4, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: false },
+        { id: 112, agentId: 4, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true, deletedAt: new Date() },
+      ],
+      contracts: [
+        { id: 210, agentId: null, contractDate: "2026-02-21", isActive: true },
+        { id: 211, agentId: 4, contractDate: "2026-02-21", isActive: false },
+        { id: 212, agentId: 4, contractDate: "2026-02-21", isActive: true, deletedAt: new Date() },
+      ],
+      consultationsByCustomer: {},
+    }, { now: parseKstLocalDateTime("2026-05-22T09:00:00") });
+
+    expect(candidates).toEqual([]);
+  });
+
+  it("runs the business push reminder engine for active owners only", async () => {
+    vi.spyOn(db, "getCustomers").mockResolvedValue([
+      { id: 100, agentId: 4, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true, deletedAt: null },
+      { id: 101, agentId: 5, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true, deletedAt: null },
+    ] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([
+      { id: 200, agentId: 4, contractDate: "2026-02-21", isActive: true, deletedAt: null },
+    ] as any);
+    vi.spyOn(db, "getLatestConsultationDatesByCustomerIds").mockResolvedValue([
+      { customerId: 100, latestCreatedAt: "2026-02-21" },
+    ] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 4, accountStatus: "active" },
+      { id: 5, accountStatus: "resigned" },
+    ] as any);
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue(null);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 10, status: "skipped" } as any);
+    vi.spyOn(db, "updatePushNotificationLog").mockResolvedValue(undefined);
+    pushNotifications.setPushSenderForTests(async (tokens, payload) => {
+      expect(tokens).toEqual([token]);
+      expect(JSON.stringify(payload)).not.toMatch(/010|1980|customerName|phone|productName|monthlyPremium/);
+      return tokens.map((item) => ({ token: item, success: true }));
+    });
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).pushNotifications.sendBusinessPushReminderEngine({
+      now: "2026-05-22T09:00:00",
+    });
+
+    expect(result.targetCount).toBe(3);
+    expect(result.birthdayTargetCount).toBe(1);
+    expect(result.contract90TargetCount).toBe(1);
+    expect(result.longUnmanagedTargetCount).toBe(1);
+    expect(result.sentCount).toBe(3);
+  });
+
+  it("applies no-token, preference, quiet-hours, and duplicate gates to business push types", async () => {
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([]);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue(null);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 20, status: "skipped_no_token" } as any);
+    expect((await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.customerBirthday, {
+      type: "customer_birthday",
+      dedupeKey: "business:customer_birthday:customer:100:2026-05-22",
+    })).statuses[4]).toBe("skipped_no_token");
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: false,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 21, status: "skipped_disabled" } as any);
+    expect((await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.contract90, {
+      type: "contract_90",
+      dedupeKey: "business:contract_90:contract:200:2026-05-22",
+    })).statuses[4]).toBe("skipped_disabled");
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: true,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 22, status: "skipped_quiet_hours" } as any);
+    expect((await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.contract365, {
+      type: "contract_365",
+      dedupeKey: "business:contract_365:contract:201:2026-05-22",
+      now: parseKstLocalDateTime("2026-05-22T21:30:00"),
+    })).statuses[4]).toBe("skipped_quiet_hours");
+
+    vi.restoreAllMocks();
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue({ id: 30, status: "sent" } as any);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 23, status: "duplicate_skipped" } as any);
+    expect((await pushNotifications.sendPushToUsers([4], pushNotifications.SAFE_PUSH_PAYLOADS.longUnmanaged90, {
+      type: "long_unmanaged_90",
+      dedupeKey: "business:long_unmanaged_90:customer:100:2026-05-22",
+    })).statuses[4]).toBe("duplicate_skipped");
+  });
+
+  it("allows the internal scheduler secret to trigger schedule and business engines together", async () => {
+    const previousSecret = process.env.PUSH_SCHEDULER_SECRET;
+    process.env.PUSH_SCHEDULER_SECRET = "test-scheduler-secret";
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue([
+      { id: 100, agentId: 4, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true, deletedAt: null },
+    ] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([] as any);
+    vi.spyOn(db, "getLatestConsultationDatesByCustomerIds").mockResolvedValue([] as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([{ id: 4, accountStatus: "active" }] as any);
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "getPushNotificationLogByDedupeKey").mockResolvedValue(null);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 40, status: "skipped_no_token" } as any);
+
+    const result = await appRouter.createCaller({ user: null, req: { protocol: "https", headers: {} }, res: { clearCookie: () => {} } } as any)
+      .pushNotifications.runPushReminderEnginesInternal({
+        secret: "test-scheduler-secret",
+        now: "2026-05-22T09:00:00",
+      });
+
+    expect(result.schedule.targetCount).toBe(0);
+    expect(result.business.birthdayTargetCount).toBe(1);
+    expect(result.business.longUnmanagedTargetCount).toBe(1);
+    expect(result.targetCount).toBe(2);
     process.env.PUSH_SCHEDULER_SECRET = previousSecret;
   });
 

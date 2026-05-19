@@ -4,13 +4,16 @@ import {
   createPushNotificationLog,
   deactivateDeviceTokenByToken,
   getActiveDeviceTokensForUsers,
+  getAllContracts,
   getAllUsers,
+  getCustomers,
+  getLatestConsultationDatesByCustomerIds,
   getSchedules,
   getPushNotificationLogByDedupeKey,
   getPushNotificationPreference,
   updatePushNotificationLog,
 } from "./db";
-import { addMinutes, getScheduleReminderDueAt, isInQuietHoursByPolicy } from "@shared/timePolicy";
+import { addMinutes, formatKstLocalDate, getScheduleReminderDueAt, isInQuietHoursByPolicy } from "@shared/timePolicy";
 
 export type PushNotificationType =
   | "today_follow_up"
@@ -18,6 +21,10 @@ export type PushNotificationType =
   | "schedule_30min"
   | "schedule_reminder"
   | "schedule_incomplete"
+  | "customer_birthday"
+  | "contract_90"
+  | "contract_365"
+  | "long_unmanaged_90"
   | "contract_delete_request"
   | "test";
 export type PushNotificationLogStatus =
@@ -85,6 +92,26 @@ export const SAFE_PUSH_PAYLOADS = {
     title: "BOA \uC77C\uC815 \uC54C\uB9BC",
     body: "\uC544\uC9C1 \uC644\uB8CC\uB418\uC9C0 \uC54A\uC740 \uC77C\uC815\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
     data: { type: "schedule_incomplete" },
+  },
+  customerBirthday: {
+    title: "BOA \uACE0\uAC1D\uAD00\uB9AC \uC54C\uB9BC",
+    body: "\uC624\uB298 \uD655\uC778\uD560 \uACE0\uAC1D \uAE30\uB150\uC77C\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
+    data: { type: "customer_birthday" },
+  },
+  contract90: {
+    title: "BOA \uACC4\uC57D\uAD00\uB9AC \uC54C\uB9BC",
+    body: "\uC810\uAC80\uD560 \uACC4\uC57D \uAD00\uB9AC \uC77C\uC815\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
+    data: { type: "contract_90" },
+  },
+  contract365: {
+    title: "BOA \uACC4\uC57D\uAD00\uB9AC \uC54C\uB9BC",
+    body: "\uAC31\uC2E0 \uB610\uB294 \uC810\uAC80\uD560 \uACC4\uC57D \uAD00\uB9AC \uC77C\uC815\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
+    data: { type: "contract_365" },
+  },
+  longUnmanaged90: {
+    title: "BOA \uACE0\uAC1D\uAD00\uB9AC \uC54C\uB9BC",
+    body: "\uC7A5\uAE30 \uBBF8\uAD00\uB9AC \uACE0\uAC1D\uC744 \uD655\uC778\uD574 \uC8FC\uC138\uC694.",
+    data: { type: "long_unmanaged_90" },
   },
   /** @deprecated Fixed 30-minute schedule pushes are kept only for legacy compatibility. */
   schedule30Minute: {
@@ -164,6 +191,7 @@ function isNotificationEnabled(preference: {
   testNotificationEnabled: boolean;
 }, type: PushNotificationType) {
   if (type === "today_follow_up") return preference.followUpTodayEnabled;
+  if (type === "customer_birthday" || type === "contract_90" || type === "contract_365" || type === "long_unmanaged_90") return preference.followUpTodayEnabled;
   if (type === "schedule_30min" || type === "schedule_reminder" || type === "schedule_incomplete") return preference.scheduleReminderEnabled;
   if (type === "contract_delete_request") return preference.deleteRequestEnabled;
   return preference.testNotificationEnabled;
@@ -461,5 +489,250 @@ export async function runSchedulePushReminderEngine(
     failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
     duplicateSkippedCount: results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
     results,
+  };
+}
+
+type BusinessPushType = Extract<PushNotificationType, "customer_birthday" | "contract_90" | "contract_365" | "long_unmanaged_90">;
+
+type BusinessPushCustomer = {
+  id: number;
+  agentId?: number | null;
+  birthDate?: Date | string | null;
+  assignedAt?: Date | string | null;
+  createdAt?: Date | string | null;
+  isActive?: boolean | null;
+  deletedAt?: Date | string | null;
+};
+
+type BusinessPushContract = {
+  id: number;
+  agentId?: number | null;
+  contractDate?: Date | string | null;
+  isActive?: boolean | null;
+  deletedAt?: Date | string | null;
+};
+
+type BusinessPushConsultation = {
+  customerId?: number | null;
+  createdAt?: Date | string | null;
+  updatedAt?: Date | string | null;
+  isActive?: boolean | null;
+  deletedAt?: Date | string | null;
+};
+
+export type BusinessPushCandidate = {
+  type: BusinessPushType;
+  sourceType: "customer" | "contract";
+  sourceId: number;
+  userId: number;
+  dueDateKey: string;
+  dedupeKey: string;
+};
+
+export type BusinessPushReminderEngineOptions = {
+  now?: Date;
+};
+
+export type BusinessPushReminderEngineResult = {
+  success: true;
+  targetCount: number;
+  birthdayTargetCount: number;
+  contract90TargetCount: number;
+  contract365TargetCount: number;
+  longUnmanagedTargetCount: number;
+  sentCount: number;
+  skippedCount: number;
+  failureCount: number;
+  duplicateSkippedCount: number;
+  results: PushSendResult[];
+};
+
+type BusinessPushCandidateInput = {
+  customers: BusinessPushCustomer[];
+  contracts: BusinessPushContract[];
+  consultationsByCustomer?: Record<number, BusinessPushConsultation[]>;
+};
+
+const BUSINESS_PUSH_PAYLOADS: Record<BusinessPushType, SafePushPayload> = {
+  customer_birthday: SAFE_PUSH_PAYLOADS.customerBirthday,
+  contract_90: SAFE_PUSH_PAYLOADS.contract90,
+  contract_365: SAFE_PUSH_PAYLOADS.contract365,
+  long_unmanaged_90: SAFE_PUSH_PAYLOADS.longUnmanaged90,
+};
+
+function isActiveBusinessRow(row: { isActive?: boolean | null; deletedAt?: Date | string | null }) {
+  return row.isActive !== false && !row.deletedAt;
+}
+
+function hasFiniteId(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function toKstDateKey(value: Date | string | null | undefined) {
+  if (!value) return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return formatKstLocalDate(date);
+}
+
+function addDaysToDateKey(dateKey: string, days: number) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}`;
+}
+
+function latestConsultationDateKey(consultations: BusinessPushConsultation[]) {
+  let latest: string | null = null;
+  for (const consultation of consultations) {
+    if (consultation.isActive === false || consultation.deletedAt) continue;
+    const dateKey = toKstDateKey(consultation.createdAt ?? consultation.updatedAt);
+    if (!dateKey) continue;
+    if (!latest || dateKey > latest) latest = dateKey;
+  }
+  return latest;
+}
+
+function businessDedupeKey(type: BusinessPushType, sourceType: "customer" | "contract", sourceId: number, dueDateKey: string) {
+  return `business:${type}:${sourceType}:${sourceId}:${dueDateKey}`;
+}
+
+export function getBusinessPushCandidates(
+  input: BusinessPushCandidateInput,
+  options: Required<Pick<BusinessPushReminderEngineOptions, "now">>,
+): BusinessPushCandidate[] {
+  const todayKey = formatKstLocalDate(options.now);
+  const todayMonthDay = todayKey.slice(5);
+  const candidates: BusinessPushCandidate[] = [];
+  const seen = new Set<string>();
+
+  const pushCandidate = (candidate: BusinessPushCandidate) => {
+    const key = `${candidate.type}:${candidate.sourceType}:${candidate.sourceId}:${candidate.userId}:${candidate.dueDateKey}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    candidates.push(candidate);
+  };
+
+  for (const customer of input.customers) {
+    if (!hasFiniteId(customer.id) || !hasFiniteId(customer.agentId)) continue;
+    if (!isActiveBusinessRow(customer)) continue;
+
+    const birthDateKey = toKstDateKey(customer.birthDate);
+    if (birthDateKey && birthDateKey.slice(5) === todayMonthDay) {
+      pushCandidate({
+        type: "customer_birthday",
+        sourceType: "customer",
+        sourceId: customer.id,
+        userId: customer.agentId,
+        dueDateKey: todayKey,
+        dedupeKey: businessDedupeKey("customer_birthday", "customer", customer.id, todayKey),
+      });
+    }
+
+    const consultationDateKey = latestConsultationDateKey(input.consultationsByCustomer?.[customer.id] ?? []);
+    const longUnmanagedBaseDateKey = consultationDateKey ?? toKstDateKey(customer.assignedAt ?? customer.createdAt);
+    if (longUnmanagedBaseDateKey && addDaysToDateKey(longUnmanagedBaseDateKey, 90) === todayKey) {
+      pushCandidate({
+        type: "long_unmanaged_90",
+        sourceType: "customer",
+        sourceId: customer.id,
+        userId: customer.agentId,
+        dueDateKey: todayKey,
+        dedupeKey: businessDedupeKey("long_unmanaged_90", "customer", customer.id, todayKey),
+      });
+    }
+  }
+
+  for (const contract of input.contracts) {
+    if (!hasFiniteId(contract.id) || !hasFiniteId(contract.agentId)) continue;
+    if (!isActiveBusinessRow(contract)) continue;
+
+    const contractDateKey = toKstDateKey(contract.contractDate);
+    if (!contractDateKey) continue;
+
+    const milestones: Array<{ type: BusinessPushType; days: number }> = [
+      { type: "contract_90", days: 90 },
+      { type: "contract_365", days: 365 },
+    ];
+    for (const milestone of milestones) {
+      if (addDaysToDateKey(contractDateKey, milestone.days) !== todayKey) continue;
+      pushCandidate({
+        type: milestone.type,
+        sourceType: "contract",
+        sourceId: contract.id,
+        userId: contract.agentId,
+        dueDateKey: todayKey,
+        dedupeKey: businessDedupeKey(milestone.type, "contract", contract.id, todayKey),
+      });
+    }
+  }
+
+  return candidates;
+}
+
+export async function runBusinessPushReminderEngine(
+  options: BusinessPushReminderEngineOptions = {},
+): Promise<BusinessPushReminderEngineResult> {
+  const now = options.now ?? new Date();
+  const customers = await getCustomers({});
+  const contracts = await getAllContracts({});
+  const activeUserIds = new Set((await getAllUsers())
+    .filter((user) => user.accountStatus === "active")
+    .map((user) => user.id));
+  const customerIds = (customers as BusinessPushCustomer[])
+    .map((customer) => customer.id)
+    .filter((id) => hasFiniteId(id));
+  const latestConsultations = await getLatestConsultationDatesByCustomerIds(customerIds);
+  const consultationsByCustomer = Object.fromEntries(latestConsultations.map((row) => [
+    row.customerId,
+    [{ customerId: row.customerId, createdAt: row.latestCreatedAt, isActive: true, deletedAt: null }],
+  ])) as Record<number, BusinessPushConsultation[]>;
+
+  const candidates = getBusinessPushCandidates({
+    customers: customers as BusinessPushCustomer[],
+    contracts: contracts as BusinessPushContract[],
+    consultationsByCustomer,
+  }, { now }).filter((candidate) => activeUserIds.has(candidate.userId));
+  const results: PushSendResult[] = [];
+
+  for (const candidate of candidates) {
+    results.push(await sendPushToUsers([candidate.userId], BUSINESS_PUSH_PAYLOADS[candidate.type], {
+      type: candidate.type,
+      sourceType: candidate.sourceType,
+      sourceId: candidate.sourceId,
+      dedupeKey: candidate.dedupeKey,
+      now,
+    }));
+  }
+
+  return {
+    success: true,
+    targetCount: candidates.length,
+    birthdayTargetCount: candidates.filter((candidate) => candidate.type === "customer_birthday").length,
+    contract90TargetCount: candidates.filter((candidate) => candidate.type === "contract_90").length,
+    contract365TargetCount: candidates.filter((candidate) => candidate.type === "contract_365").length,
+    longUnmanagedTargetCount: candidates.filter((candidate) => candidate.type === "long_unmanaged_90").length,
+    sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),
+    skippedCount: results.reduce((sum, item) => sum + item.skippedCount, 0),
+    failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
+    duplicateSkippedCount: results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
+    results,
+  };
+}
+
+export async function runPushReminderEngines(options: { now?: Date } = {}) {
+  const now = options.now ?? new Date();
+  const schedule = await runSchedulePushReminderEngine({ now });
+  const business = await runBusinessPushReminderEngine({ now });
+  return {
+    success: true,
+    schedule,
+    business,
+    targetCount: schedule.targetCount + business.targetCount,
+    sentCount: schedule.sentCount + business.sentCount,
+    skippedCount: schedule.skippedCount + business.skippedCount,
+    failureCount: schedule.failureCount + business.failureCount,
+    duplicateSkippedCount: schedule.duplicateSkippedCount + business.duplicateSkippedCount,
   };
 }

@@ -19,6 +19,22 @@ Implemented safe notification types:
   - Title: `BOA 일정 알림`
   - Body: `아직 완료되지 않은 일정이 있습니다.`
   - Basis: schedule `endTime`
+- Customer birthday reminder
+  - Title: `BOA 고객관리 알림`
+  - Body: `오늘 확인할 고객 기념일이 있습니다.`
+  - Basis: `customers.birthDate` month/day in `Asia/Seoul`
+- Contract 90-day reminder
+  - Title: `BOA 계약관리 알림`
+  - Body: `점검할 계약 관리 일정이 있습니다.`
+  - Basis: `contracts.contractDate + 90 days` in `Asia/Seoul`
+- Contract 365-day reminder
+  - Title: `BOA 계약관리 알림`
+  - Body: `갱신 또는 점검할 계약 관리 일정이 있습니다.`
+  - Basis: `contracts.contractDate + 365 days` in `Asia/Seoul`
+- Long-unmanaged customer reminder
+  - Title: `BOA 고객관리 알림`
+  - Body: `장기 미관리 고객을 확인해 주세요.`
+  - Basis: existing long-unmanaged 90-day customer management rule and consultation history
 - Contract delete request
   - Title: `BOA 처리 요청`
   - Body: `처리할 계약 삭제 요청이 있습니다.`
@@ -83,6 +99,10 @@ Examples:
 - `follow_up:{id}:{date}:today:user:{userId}`
 - `schedule:{id}:reminder:{offset}:{dueAt}:user:{userId}`
 - `schedule:{id}:incomplete:{endTime}:user:{userId}`
+- `business:customer_birthday:customer:{customerId}:{date}:user:{userId}`
+- `business:contract_90:contract:{contractId}:{date}:user:{userId}`
+- `business:contract_365:contract:{contractId}:{date}:user:{userId}`
+- `business:long_unmanaged_90:customer:{customerId}:{date}:user:{userId}`
 
 The log stores type, source, user, status, error code, and sent time. It does not store customer details or token plaintext.
 
@@ -99,6 +119,24 @@ Deleted, inactive, cancelled, completed, no-show, and already completed schedule
 
 The engine is implemented as a reusable server function so both admin-triggered runs and scheduler-triggered runs use the same candidate calculation and delivery safeguards.
 
+## Customer and Contract Business Push Engine
+
+The customer/contract business push engine adds Android FCM delivery for:
+
+- `customer_birthday`
+- `contract_90`
+- `contract_365`
+- `long_unmanaged_90`
+
+It does not add contract 180-day push delivery. The engine sends only to the assigned owner:
+
+- `customers.agentId` for birthday and long-unmanaged customer reminders
+- `contracts.agentId` for contract 90-day and 365-day reminders
+
+Customers and contracts with no owner, inactive rows, or deleted rows are skipped. Inactive and resigned users are excluded before delivery. Business reminders reuse the existing `followUpTodayEnabled` work-notification preference to avoid a schema migration. Quiet hours, active Android token lookup, dedupe keys, invalid-token handling, and `push_notification_logs` are reused through `sendPushToUsers`.
+
+Business reminder candidate dates are calculated in `Asia/Seoul`. Birthday matching uses month/day so a stored birth year does not cause annual reminders to be missed. Contract milestones use `contracts.contractDate`. Long-unmanaged reminders reuse the existing 90-day customer management rule: latest active consultation date when present, otherwise the assignment/creation baseline.
+
 ## Invalid Token Handling
 
 When Firebase reports an invalid or unregistered token, the token is marked inactive and revoked so future sends exclude it.
@@ -107,7 +145,6 @@ When Firebase reports an invalid or unregistered token, the token is marked inac
 
 Future work:
 
-- Additional business reminder types such as customer birthdays, contract 90/365 day checks, and long-unmanaged customer reminders
 - Delivery retry policy
 - Push notification management UI
 
