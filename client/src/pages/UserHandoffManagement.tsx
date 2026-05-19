@@ -85,7 +85,7 @@ export default function UserHandoffManagement() {
                 <div className="space-y-2">
                   <Label>대상 사용자</Label>
                   <Select value={sourceUserId ? String(sourceUserId) : ""} onValueChange={(value) => { setSourceUserId(Number(value)); setTargetUserId(null); }}>
-                    <SelectTrigger className="rounded-xl bg-slate-50"><SelectValue placeholder="이관할 사용자를 선택" /></SelectTrigger>
+                    <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="이관할 사용자를 선택" /></SelectTrigger>
                     <SelectContent>
                       {sourceUsers.map((user: any) => (
                         <SelectItem key={user.id} value={String(user.id)}>
@@ -98,7 +98,7 @@ export default function UserHandoffManagement() {
                 <div className="space-y-2">
                   <Label>새 담당자</Label>
                   <Select value={targetUserId ? String(targetUserId) : ""} onValueChange={(value) => setTargetUserId(Number(value))}>
-                    <SelectTrigger className="rounded-xl bg-slate-50"><SelectValue placeholder="활성 팀장/팀원 선택" /></SelectTrigger>
+                    <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="활성 팀장/팀원 선택" /></SelectTrigger>
                     <SelectContent>
                       {targetUsers.map((user: any) => (
                         <SelectItem key={user.id} value={String(user.id)}>
@@ -141,7 +141,7 @@ export default function UserHandoffManagement() {
                     [transferSchedules, setTransferSchedules, "미완료 일정"],
                     [transferNotifications, setTransferNotifications, "미확인 알림"],
                   ].map(([checked, setter, label]) => (
-                    <label key={String(label)} className="flex items-center gap-2 text-sm">
+                    <label key={String(label)} className="flex min-h-12 items-center gap-2 rounded-xl bg-white/70 px-3 text-sm">
                       <Checkbox checked={Boolean(checked)} onCheckedChange={(value) => (setter as (next: boolean) => void)(Boolean(value))} />
                       {label as string}
                     </label>
@@ -153,7 +153,7 @@ export default function UserHandoffManagement() {
                 <div className="space-y-2">
                   <Label>대상 계정 처리</Label>
                   <Select value={updateSourceAccountStatus} onValueChange={(value) => setUpdateSourceAccountStatus(value as any)}>
-                    <SelectTrigger className="rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="keep">상태 유지</SelectItem>
                       <SelectItem value="inactive">비활성 전환</SelectItem>
@@ -161,11 +161,11 @@ export default function UserHandoffManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-                <label className="flex items-end gap-2 pb-2 text-sm">
+                <label className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-sm">
                   <Checkbox checked={forceLogoutSource} onCheckedChange={(value) => setForceLogoutSource(Boolean(value))} />
                   강제 로그아웃
                 </label>
-                <label className="flex items-end gap-2 pb-2 text-sm">
+                <label className="flex min-h-12 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 text-sm">
                   <Checkbox checked={resetOAuthSource} onCheckedChange={(value) => setResetOAuthSource(Boolean(value))} />
                   OAuth 초기화
                 </label>
@@ -174,7 +174,7 @@ export default function UserHandoffManagement() {
               <div className="space-y-2">
                 <Label>인수인계 사유</Label>
                 <Textarea
-                  className="rounded-xl bg-slate-50"
+                  className="min-h-24 rounded-xl bg-slate-50"
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   placeholder="예: 퇴사 처리로 인한 담당 고객 및 미완료 업무 이관"
@@ -187,7 +187,7 @@ export default function UserHandoffManagement() {
               </div>
 
               <div className="flex justify-end">
-                <Button disabled={!canSubmit} onClick={() => setConfirmOpen(true)}>
+                <Button className="min-h-12 w-full md:w-auto md:min-h-10" disabled={!canSubmit} onClick={() => setConfirmOpen(true)}>
                   인수인계 실행
                 </Button>
               </div>
@@ -221,7 +221,35 @@ export default function UserHandoffManagement() {
           <CardHeader>
             <CardTitle className="text-base">최근 인수인계 이력</CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="space-y-3 p-4 md:hidden">
+            {(histories ?? []).length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
+                인수인계 이력이 없습니다.
+              </div>
+            ) : histories?.map((item: any) => (
+              <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[#b99b5f]">인수인계 이력</p>
+                    <p className="mt-1 text-base font-semibold text-slate-950">#{item.sourceUserId} → #{item.targetUserId}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
+                    {new Date(item.createdAt).toLocaleDateString("ko-KR")}
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 text-xs text-slate-600">
+                  <div className="rounded-xl bg-slate-50 p-3">일시: {new Date(item.createdAt).toLocaleString("ko-KR")}</div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    고객/후속/일정/알림: {item.transferredCustomerCount}/{item.transferredFollowUpCount}/{item.transferredScheduleCount}/{item.transferredNotificationCount}
+                  </div>
+                  <div className="rounded-xl bg-slate-50 p-3">
+                    상태 변경: {getUserStatusLabel(item.sourceAccountStatusBefore)} → {getUserStatusLabel(item.sourceAccountStatusAfter)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+          <CardContent className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader className="bg-slate-50/80">
                 <TableRow>
@@ -250,7 +278,7 @@ export default function UserHandoffManagement() {
         </Card>
 
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogContent className="rounded-2xl">
+          <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4 text-amber-600" /> 인수인계 최종 확인
@@ -259,10 +287,11 @@ export default function UserHandoffManagement() {
             <div className="space-y-4 text-sm">
               <p>이 작업은 고객 담당자와 미완료 업무 담당자를 변경합니다. 기존 상담기록과 활동 로그는 변경하지 않습니다.</p>
               <p className="text-muted-foreground">진행하려면 아래 입력창에 “인수인계”를 입력하세요.</p>
-              <Input value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="인수인계" />
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setConfirmOpen(false)}>취소</Button>
+              <Input className="min-h-12 md:min-h-9" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="인수인계" />
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" className="min-h-12 md:min-h-10" onClick={() => setConfirmOpen(false)}>취소</Button>
                 <Button
+                  className="min-h-12 md:min-h-10"
                   disabled={confirmText !== "인수인계" || executeMutation.isPending || !sourceUserId || !targetUserId}
                   onClick={() => sourceUserId && targetUserId && executeMutation.mutate({
                     sourceUserId,
