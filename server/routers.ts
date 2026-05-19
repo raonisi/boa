@@ -2764,6 +2764,16 @@ function assertDownloadMode(input: z.infer<typeof downloadRequestSchema>) {
   }
 }
 
+function assertPushSchedulerSecret(inputSecret: string) {
+  const expectedSecret = process.env.PUSH_SCHEDULER_SECRET;
+  if (!expectedSecret || inputSecret !== expectedSecret) {
+    console.warn("[push-scheduler] internal trigger unauthorized", {
+      reason: expectedSecret ? "secret_mismatch" : "secret_missing",
+    });
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid scheduler secret." });
+  }
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -2940,10 +2950,10 @@ export const appRouter = router({
       }),
 
     sendSchedulePushReminderEngine: branchAdminProcedure
-      .input(z.object({ now: z.string().optional() }).optional())
+      .input(z.object({ now: z.string().optional(), lookbackMinutes: z.number().int().min(1).max(30).optional() }).optional())
       .mutation(async ({ input }) => {
         const now = input?.now ? parseKstLocalDateTime(input.now) : new Date();
-        return pushNotifications.runSchedulePushReminderEngine({ now });
+        return pushNotifications.runSchedulePushReminderEngine({ now, lookbackMinutes: input?.lookbackMinutes });
       }),
 
     sendBusinessPushReminderEngine: branchAdminProcedure
@@ -2955,38 +2965,34 @@ export const appRouter = router({
 
     /** @deprecated Use sendSchedulePushReminderEngine. */
     sendSchedule30MinuteReminders: branchAdminProcedure
-      .input(z.object({ now: z.string().optional() }).optional())
+      .input(z.object({ now: z.string().optional(), lookbackMinutes: z.number().int().min(1).max(30).optional() }).optional())
       .mutation(async ({ input }) => {
         const now = input?.now ? parseKstLocalDateTime(input.now) : new Date();
-        return pushNotifications.runSchedulePushReminderEngine({ now });
+        return pushNotifications.runSchedulePushReminderEngine({ now, lookbackMinutes: input?.lookbackMinutes });
       }),
 
     runSchedulePushReminderEngineInternal: publicProcedure
       .input(z.object({
         secret: z.string().min(12),
         now: z.string().optional(),
+        lookbackMinutes: z.number().int().min(1).max(30).optional(),
       }))
       .mutation(async ({ input }) => {
-        const expectedSecret = process.env.PUSH_SCHEDULER_SECRET;
-        if (!expectedSecret || input.secret !== expectedSecret) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid scheduler secret." });
-        }
+        assertPushSchedulerSecret(input.secret);
         const now = input.now ? parseKstLocalDateTime(input.now) : new Date();
-        return pushNotifications.runPushReminderEngines({ now });
+        return pushNotifications.runPushReminderEngines({ now, lookbackMinutes: input.lookbackMinutes });
       }),
 
     runPushReminderEnginesInternal: publicProcedure
       .input(z.object({
         secret: z.string().min(12),
         now: z.string().optional(),
+        lookbackMinutes: z.number().int().min(1).max(30).optional(),
       }))
       .mutation(async ({ input }) => {
-        const expectedSecret = process.env.PUSH_SCHEDULER_SECRET;
-        if (!expectedSecret || input.secret !== expectedSecret) {
-          throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid scheduler secret." });
-        }
+        assertPushSchedulerSecret(input.secret);
         const now = input.now ? parseKstLocalDateTime(input.now) : new Date();
-        return pushNotifications.runPushReminderEngines({ now });
+        return pushNotifications.runPushReminderEngines({ now, lookbackMinutes: input.lookbackMinutes });
       }),
   }),
 

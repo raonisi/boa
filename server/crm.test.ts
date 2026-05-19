@@ -1326,6 +1326,46 @@ describe("PR19-3 - safe FCM work notifications", () => {
     expect(candidates[0].dedupeKey).toContain("reminder:120");
   });
 
+  it("calculates a 07:13 schedule with a 60 minute reminder as a 06:13 dueAt", () => {
+    const candidates = pushNotifications.getSchedulePushCandidates([
+      {
+        id: 503,
+        userId: 4,
+        status: "예정",
+        startTime: parseKstLocalDateTime("2026-05-22T07:13:00"),
+        reminderOffsetMinutes: 60,
+        isActive: true,
+      },
+    ] as any, {
+      now: parseKstLocalDateTime("2026-05-22T06:13:00"),
+      lookbackMinutes: 30,
+    });
+
+    expect(candidates).toHaveLength(1);
+    expect(formatKstLocalDateTime(candidates[0].dueAt, { seconds: false })).toBe("2026-05-22T06:13");
+    expect(candidates[0].dedupeKey).toContain("reminder:60");
+  });
+
+  it("uses the lookback window to distinguish missed schedule reminder candidates", () => {
+    const schedule = {
+      id: 504,
+      userId: 4,
+      status: "예정",
+      startTime: parseKstLocalDateTime("2026-05-22T07:13:00"),
+      reminderOffsetMinutes: 60,
+      isActive: true,
+    };
+
+    expect(pushNotifications.getSchedulePushCandidates([schedule] as any, {
+      now: parseKstLocalDateTime("2026-05-22T06:42:00"),
+      lookbackMinutes: 30,
+    })).toHaveLength(1);
+    expect(pushNotifications.getSchedulePushCandidates([schedule] as any, {
+      now: parseKstLocalDateTime("2026-05-22T06:44:00"),
+      lookbackMinutes: 30,
+    })).toHaveLength(0);
+  });
+
   it("excludes deleted, cancelled, completed, no-show, and completedAt schedules from schedule push candidates", () => {
     const dueStart = parseKstLocalDateTime("2026-05-22T10:05:00");
     const candidates = pushNotifications.getSchedulePushCandidates([
@@ -1402,6 +1442,69 @@ describe("PR19-3 - safe FCM work notifications", () => {
     expect(result.targetCount).toBe(1);
     expect(result.reminderTargetCount).toBe(1);
     expect(result.sentCount).toBe(1);
+    expect(result.summary).toMatchObject({
+      candidateCount: 1,
+      sendAttemptCount: 1,
+      logExpectation: "send_attempts_create_push_logs",
+      lookbackMinutes: 10,
+    });
+  });
+
+  it("allows an explicit bounded lookback for controlled scheduler catch-up", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([
+      {
+        id: 802,
+        userId: 4,
+        status: "예정",
+        startTime: parseKstLocalDateTime("2026-05-22T07:13:00"),
+        reminderOffsetMinutes: 60,
+        isActive: true,
+      },
+    ] as any);
+    vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([] as any);
+    vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
+      followUpTodayEnabled: true,
+      scheduleReminderEnabled: true,
+      deleteRequestEnabled: true,
+      testNotificationEnabled: true,
+      quietHoursEnabled: false,
+      quietHoursStart: "21:00",
+      quietHoursEnd: "08:00",
+      timezone: "Asia/Seoul",
+    } as any);
+    vi.spyOn(db, "createPushNotificationLog").mockResolvedValue({ id: 6, status: "skipped_no_token" } as any);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).pushNotifications.sendSchedulePushReminderEngine({
+      now: "2026-05-22T06:42:00",
+      lookbackMinutes: 30,
+    });
+
+    expect(result.targetCount).toBe(1);
+    expect(result.summary).toMatchObject({
+      candidateCount: 1,
+      sendAttemptCount: 1,
+      noTokenSkippedCount: 1,
+      logExpectation: "send_attempts_create_push_logs",
+      lookbackMinutes: 30,
+    });
+  });
+
+  it("returns a safe no-candidate summary when the schedule engine has nothing to send", async () => {
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+    const createLogSpy = vi.spyOn(db, "createPushNotificationLog");
+
+    const result = await appRouter.createCaller(createCtx("branch_admin")).pushNotifications.sendSchedulePushReminderEngine({
+      now: "2026-05-22T10:00:00",
+    });
+
+    expect(result.targetCount).toBe(0);
+    expect(result.summary).toMatchObject({
+      candidateCount: 0,
+      sendAttemptCount: 0,
+      logExpectation: "no_candidates_no_push_logs",
+      lookbackMinutes: 10,
+    });
+    expect(createLogSpy).not.toHaveBeenCalled();
   });
 
   it("allows a scheduler secret to trigger the schedule push reminder engine", async () => {
@@ -1421,6 +1524,20 @@ describe("PR19-3 - safe FCM work notifications", () => {
       .pushNotifications.runSchedulePushReminderEngineInternal({
         secret: "wrong-scheduler-secret",
       })).rejects.toThrow();
+
+    process.env.PUSH_SCHEDULER_SECRET = previousSecret;
+  });
+
+  it("rejects internal scheduler calls when the scheduler secret is not configured", async () => {
+    const previousSecret = process.env.PUSH_SCHEDULER_SECRET;
+    delete process.env.PUSH_SCHEDULER_SECRET;
+    vi.spyOn(db, "createPushNotificationLog");
+
+    await expect(appRouter.createCaller({ user: null, req: { protocol: "https", headers: {} }, res: { clearCookie: () => {} } } as any)
+      .pushNotifications.runSchedulePushReminderEngineInternal({
+        secret: "test-scheduler-secret",
+      })).rejects.toThrow();
+    expect(db.createPushNotificationLog).not.toHaveBeenCalled();
 
     process.env.PUSH_SCHEDULER_SECRET = previousSecret;
   });

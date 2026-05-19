@@ -392,6 +392,25 @@ export type SchedulePushReminderEngineOptions = {
   lookbackMinutes?: number;
 };
 
+export type PushEngineOperationalSummary = {
+  checkedAt: string;
+  candidateCount: number;
+  sendAttemptCount: number;
+  sentCount: number;
+  skippedCount: number;
+  failureCount: number;
+  duplicateSkippedCount: number;
+  quietHoursSkippedCount: number;
+  disabledSkippedCount: number;
+  noTokenSkippedCount: number;
+  missingConfigSkippedCount: number;
+  invalidTokenDeactivatedCount: number;
+  logExpectation: "no_candidates_no_push_logs" | "send_attempts_create_push_logs";
+  windowStart?: string;
+  windowEnd?: string;
+  lookbackMinutes?: number;
+};
+
 export type SchedulePushReminderEngineResult = {
   success: true;
   targetCount: number;
@@ -402,6 +421,7 @@ export type SchedulePushReminderEngineResult = {
   failureCount: number;
   duplicateSkippedCount: number;
   results: PushSendResult[];
+  summary: PushEngineOperationalSummary;
 };
 
 function isFinishedScheduleForPush(schedule: SchedulePushSchedule) {
@@ -414,6 +434,61 @@ function isFinishedScheduleForPush(schedule: SchedulePushSchedule) {
 function isInDueWindow(dueAt: Date, now: Date, lookbackMinutes: number) {
   const windowStart = addMinutes(now, -lookbackMinutes);
   return dueAt > windowStart && dueAt <= now;
+}
+
+function countStatus(results: PushSendResult[], status: string) {
+  return results.reduce((sum, result) => sum + Object.values(result.statuses).filter((item) => item === status).length, 0);
+}
+
+function buildOperationalSummary(input: {
+  checkedAt: Date;
+  candidateCount: number;
+  results: PushSendResult[];
+  lookbackMinutes?: number;
+  windowStart?: Date;
+  windowEnd?: Date;
+}): PushEngineOperationalSummary {
+  const sendAttemptCount = input.results.reduce((sum, item) => sum + item.requestedUserIds.length, 0);
+  const skippedCount = input.results.reduce((sum, item) => sum + item.skippedCount, 0);
+  return {
+    checkedAt: input.checkedAt.toISOString(),
+    candidateCount: input.candidateCount,
+    sendAttemptCount,
+    sentCount: input.results.reduce((sum, item) => sum + item.sentCount, 0),
+    skippedCount,
+    failureCount: input.results.reduce((sum, item) => sum + item.failureCount, 0),
+    duplicateSkippedCount: input.results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
+    quietHoursSkippedCount: input.results.reduce((sum, item) => sum + item.quietHoursSkippedCount, 0),
+    disabledSkippedCount: input.results.reduce((sum, item) => sum + item.disabledSkippedCount, 0),
+    noTokenSkippedCount: countStatus(input.results, "skipped_no_token"),
+    missingConfigSkippedCount: countStatus(input.results, "skipped_missing_config"),
+    invalidTokenDeactivatedCount: input.results.reduce((sum, item) => sum + item.invalidTokenDeactivatedCount, 0),
+    logExpectation: sendAttemptCount > 0 ? "send_attempts_create_push_logs" : "no_candidates_no_push_logs",
+    windowStart: input.windowStart?.toISOString(),
+    windowEnd: input.windowEnd?.toISOString(),
+    lookbackMinutes: input.lookbackMinutes,
+  };
+}
+
+function logOperationalSummary(engine: string, summary: PushEngineOperationalSummary) {
+  console.info("[push-scheduler] engine summary", {
+    engine,
+    checkedAt: summary.checkedAt,
+    candidateCount: summary.candidateCount,
+    sendAttemptCount: summary.sendAttemptCount,
+    sentCount: summary.sentCount,
+    skippedCount: summary.skippedCount,
+    failureCount: summary.failureCount,
+    duplicateSkippedCount: summary.duplicateSkippedCount,
+    quietHoursSkippedCount: summary.quietHoursSkippedCount,
+    disabledSkippedCount: summary.disabledSkippedCount,
+    noTokenSkippedCount: summary.noTokenSkippedCount,
+    missingConfigSkippedCount: summary.missingConfigSkippedCount,
+    logExpectation: summary.logExpectation,
+    windowStart: summary.windowStart,
+    windowEnd: summary.windowEnd,
+    lookbackMinutes: summary.lookbackMinutes,
+  });
 }
 
 export function getSchedulePushCandidates(
@@ -463,6 +538,7 @@ export async function runSchedulePushReminderEngine(
 ): Promise<SchedulePushReminderEngineResult> {
   const now = options.now ?? new Date();
   const lookbackMinutes = options.lookbackMinutes ?? 10;
+  const windowStart = addMinutes(now, -lookbackMinutes);
   const candidates = getSchedulePushCandidates(await getSchedules({}) as SchedulePushSchedule[], { now, lookbackMinutes });
   const results: PushSendResult[] = [];
 
@@ -479,6 +555,16 @@ export async function runSchedulePushReminderEngine(
     }));
   }
 
+  const summary = buildOperationalSummary({
+    checkedAt: now,
+    candidateCount: candidates.length,
+    results,
+    lookbackMinutes,
+    windowStart,
+    windowEnd: now,
+  });
+  logOperationalSummary("schedule", summary);
+
   return {
     success: true,
     targetCount: candidates.length,
@@ -489,6 +575,7 @@ export async function runSchedulePushReminderEngine(
     failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
     duplicateSkippedCount: results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
     results,
+    summary,
   };
 }
 
@@ -545,6 +632,7 @@ export type BusinessPushReminderEngineResult = {
   failureCount: number;
   duplicateSkippedCount: number;
   results: PushSendResult[];
+  summary: PushEngineOperationalSummary;
 };
 
 type BusinessPushCandidateInput = {
@@ -706,6 +794,13 @@ export async function runBusinessPushReminderEngine(
     }));
   }
 
+  const summary = buildOperationalSummary({
+    checkedAt: now,
+    candidateCount: candidates.length,
+    results,
+  });
+  logOperationalSummary("business", summary);
+
   return {
     success: true,
     targetCount: candidates.length,
@@ -718,13 +813,20 @@ export async function runBusinessPushReminderEngine(
     failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
     duplicateSkippedCount: results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
     results,
+    summary,
   };
 }
 
-export async function runPushReminderEngines(options: { now?: Date } = {}) {
+export async function runPushReminderEngines(options: { now?: Date; lookbackMinutes?: number } = {}) {
   const now = options.now ?? new Date();
-  const schedule = await runSchedulePushReminderEngine({ now });
+  const schedule = await runSchedulePushReminderEngine({ now, lookbackMinutes: options.lookbackMinutes });
   const business = await runBusinessPushReminderEngine({ now });
+  const summary = buildOperationalSummary({
+    checkedAt: now,
+    candidateCount: schedule.targetCount + business.targetCount,
+    results: [...schedule.results, ...business.results],
+  });
+  logOperationalSummary("combined", summary);
   return {
     success: true,
     schedule,
@@ -734,5 +836,6 @@ export async function runPushReminderEngines(options: { now?: Date } = {}) {
     skippedCount: schedule.skippedCount + business.skippedCount,
     failureCount: schedule.failureCount + business.failureCount,
     duplicateSkippedCount: schedule.duplicateSkippedCount + business.duplicateSkippedCount,
+    summary,
   };
 }
