@@ -60,10 +60,23 @@ Available triggers:
 - Branch-admin manual operation: `pushNotifications.sendSchedulePushReminderEngine`
 - Backward-compatible deprecated wrapper: `pushNotifications.sendSchedule30MinuteReminders`
 - Scheduler/internal trigger: `pushNotifications.runSchedulePushReminderEngineInternal`
+- Railway-friendly HTTP trigger: `POST /api/internal/push-reminders/run`
 
 The scheduler/internal trigger requires Railway or the scheduler caller to provide `PUSH_SCHEDULER_SECRET` and pass the same secret in the mutation input. This allows Railway Cron or another internal scheduler to call the engine without a human branch-admin click. The secret must be stored only in Railway Variables and must not be committed.
 
 Recommended Railway Cron cadence: every 5 minutes. The schedule engine defaults to a 10 minute lookback window and dedupe keys to avoid duplicate sends when the trigger runs repeatedly. For a controlled catch-up after a delayed Cron run, branch-admin or internal scheduler calls may pass `lookbackMinutes` from 1 to 30. Do not run a wider catch-up by default because it can send reminders noticeably late.
+
+Railway Cron HTTP call:
+
+- Method: `POST`
+- URL: `https://<service-domain>/api/internal/push-reminders/run`
+- Headers:
+  - `Content-Type: application/json`
+  - `X-Push-Scheduler-Secret: ${PUSH_SCHEDULER_SECRET}`
+- Body for normal operation: `{}`
+- Optional controlled catch-up body: `{ "lookbackMinutes": 30 }`
+- Optional timestamp test body: `{ "now": "2026-05-22T09:00:00", "lookbackMinutes": 10 }`
+- The response is a safe operational summary only. It omits raw tokens, customer names, phone numbers, birth dates, illness details, product names, premiums, and per-token send payloads.
 
 Operational diagnosis when an app push log is missing:
 

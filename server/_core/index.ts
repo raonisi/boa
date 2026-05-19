@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
+import { registerInternalPushSchedulerRoutes } from "../internalPushSchedulerRoutes";
 import { registerMobileRoutes } from "../mobileRoutes";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
@@ -72,6 +73,7 @@ async function startServer() {
   app.use(express.urlencoded({ limit: DEFAULT_JSON_LIMIT, extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+  registerInternalPushSchedulerRoutes(app);
   registerMobileRoutes(app);
   // development mode uses Vite, production mode uses static files
   if (process.env.NODE_ENV === "development") {

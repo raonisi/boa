@@ -37,6 +37,12 @@ const statusClasses: Record<string, string> = {
 const typeLabels: Record<string, string> = {
   today_follow_up: "오늘 연락 대상",
   schedule_30min: "일정 30분 전",
+  schedule_reminder: "일정 알림",
+  schedule_incomplete: "일정 미완료",
+  customer_birthday: "고객 기념일",
+  contract_90: "계약 90일 점검",
+  contract_365: "계약 365일 점검",
+  long_unmanaged_90: "장기 미관리 고객",
   contract_delete_request: "계약 삭제 요청",
   test: "테스트",
 };
@@ -127,6 +133,12 @@ export default function PushNotificationOperations() {
                   <SelectItem value="all">전체 유형</SelectItem>
                   <SelectItem value="today_follow_up">오늘 연락 대상</SelectItem>
                   <SelectItem value="schedule_30min">일정 30분 전</SelectItem>
+                  <SelectItem value="schedule_reminder">일정 알림</SelectItem>
+                  <SelectItem value="schedule_incomplete">일정 미완료</SelectItem>
+                  <SelectItem value="customer_birthday">고객 기념일</SelectItem>
+                  <SelectItem value="contract_90">계약 90일 점검</SelectItem>
+                  <SelectItem value="contract_365">계약 365일 점검</SelectItem>
+                  <SelectItem value="long_unmanaged_90">장기 미관리 고객</SelectItem>
                   <SelectItem value="contract_delete_request">계약 삭제 요청</SelectItem>
                   <SelectItem value="test">테스트</SelectItem>
                 </SelectContent>
