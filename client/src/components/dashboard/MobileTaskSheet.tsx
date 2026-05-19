@@ -62,8 +62,8 @@ export function MobileTaskSheet({
   return (
 <Sheet open={Boolean(selectedTask)} onOpenChange={(open) => { if (!open) onClose(); }}>
         <SheetContent side="bottom" className="max-h-[min(90vh,42rem)] overflow-y-auto overscroll-contain rounded-t-2xl pb-[max(1.25rem,env(safe-area-inset-bottom))] md:hidden">
-          <SheetHeader className="text-left">
-            <SheetTitle className="text-base">{taskTitle}</SheetTitle>
+          <SheetHeader className="space-y-1 text-left">
+            <SheetTitle className="break-words text-base leading-6">{taskTitle}</SheetTitle>
             <SheetDescription>
               카드 선택 → 빠른 처리 → 저장 흐름으로 고객 상세 이동 없이 업무를 마칩니다.
             </SheetDescription>
@@ -73,16 +73,16 @@ export function MobileTaskSheet({
               {selectedTask.taskType === "followUp" && (
                 <>
                   {confirmAction === "cancelFollowUp" && (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
                       <p className="font-semibold">후속관리를 취소할까요?</p>
-                      <p className="mt-1 text-xs">취소된 후속관리는 오늘 할 일에서 제외됩니다.</p>
+                      <p className="mt-1 text-xs leading-5">취소된 후속관리는 오늘 할 일에서 제외됩니다.</p>
                       <div className="mt-3 grid grid-cols-2 gap-2">
                         <Button type="button" variant="outline" className="min-h-12 bg-white" onClick={() => onConfirmActionChange(null)} disabled={isTaskBusy}>
                           돌아가기
                         </Button>
                         <Button
                           type="button"
-                          className="min-h-12 bg-red-700 text-white hover:bg-red-800"
+                          className="min-h-12 bg-red-700 font-semibold text-white hover:bg-red-800"
                           disabled={isTaskBusy}
                           onClick={() => onFollowUpCancel(selectedTask)}
                         >
@@ -94,7 +94,7 @@ export function MobileTaskSheet({
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
-                      className="min-h-12"
+                      className="min-h-12 font-semibold"
                       disabled={isTaskBusy}
                       onClick={() => onFollowUpComplete(selectedTask)}
                     >

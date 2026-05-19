@@ -307,6 +307,28 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
           : selectedTask.name
     : "";
 
+  const mobileTaskPriorityTone = (task: any) => {
+    if (task.taskType === "followUp" && task.priorityLabel === "기한 경과") {
+      return "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200";
+    }
+    if (task.taskType === "followUp") {
+      return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200";
+    }
+    if (task.taskType === "schedule" && task.priorityLabel === "미완료") {
+      return "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-200";
+    }
+    if (task.taskType === "schedule") {
+      return "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200";
+    }
+    if (task.taskType === "notification") {
+      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200";
+    }
+    if (task.taskType === "customer") {
+      return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-200";
+    }
+    return "border-border bg-muted text-muted-foreground";
+  };
+
   const renderMobileTaskButton = (task: any) => {
     const title = task.taskType === "followUp"
       ? task.customerName ?? `고객 #${task.customerId}`
@@ -327,11 +349,11 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
         key={`${task.taskType}-${task.id}`}
         type="button"
         onClick={() => setSelectedTask(task)}
-        className="min-h-12 w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm active:bg-muted/50"
+        className="min-h-12 w-full rounded-lg border border-border bg-card p-3.5 text-left shadow-sm active:bg-muted/50"
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{title}</span>
-          <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{task.priorityLabel}</span>
+        <div className="flex min-w-0 items-start justify-between gap-3">
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{title}</span>
+          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${mobileTaskPriorityTone(task)}`}>{task.priorityLabel}</span>
         </div>
         <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">{description}</p>
       </button>
