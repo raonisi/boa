@@ -1240,6 +1240,22 @@ export async function getConsultationsByCustomer(customerId: number) {
     .orderBy(desc(consultations.createdAt));
 }
 
+export async function getLatestConsultationDatesByCustomerIds(customerIds: number[]) {
+  const db = await getDb();
+  const uniqueIds = Array.from(new Set(customerIds.filter((id) => Number.isFinite(id))));
+  if (!db || uniqueIds.length === 0) return [];
+  return db.select({
+    customerId: consultations.customerId,
+    latestCreatedAt: sql<Date>`max(${consultations.createdAt})`,
+  }).from(consultations)
+    .where(and(
+      inArray(consultations.customerId, uniqueIds),
+      eq(consultations.isActive, true),
+      isNull(consultations.deletedAt),
+    ))
+    .groupBy(consultations.customerId);
+}
+
 export async function getConsultationById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
