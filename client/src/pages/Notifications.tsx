@@ -151,7 +151,7 @@ export default function Notifications() {
             </div>
             <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <Button className="min-h-10 w-full sm:w-auto" variant="outline" size="sm" onClick={handleMarkAllRead} disabled={markAllReadMutation.isPending}>
+              <Button className="min-h-12 w-full sm:min-h-8 sm:w-auto" variant="outline" size="sm" onClick={handleMarkAllRead} disabled={markAllReadMutation.isPending}>
                 <CheckCheck className="h-4 w-4 mr-1" /> 내 알림 모두 읽음
               </Button>
             )}
@@ -191,7 +191,7 @@ export default function Notifications() {
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
           <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}>
-            <SelectTrigger className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-32"><SelectValue placeholder="우선순위" /></SelectTrigger>
+            <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-32"><SelectValue placeholder="우선순위" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 우선순위</SelectItem>
               <SelectItem value="urgent">긴급</SelectItem>
@@ -200,7 +200,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={processStatusFilter} onValueChange={handleFilterChange(setProcessStatusFilter)}>
-            <SelectTrigger className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
+            <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-28"><SelectValue placeholder="처리상태" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 상태</SelectItem>
               <SelectItem value="미확인">미확인</SelectItem>
@@ -210,7 +210,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={isReadFilter} onValueChange={handleFilterChange(setIsReadFilter)}>
-            <SelectTrigger className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-24"><SelectValue placeholder="읽음" /></SelectTrigger>
+            <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-24"><SelectValue placeholder="읽음" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체</SelectItem>
               <SelectItem value="unread">미읽음</SelectItem>
@@ -218,7 +218,7 @@ export default function Notifications() {
             </SelectContent>
           </Select>
           <Select value={typeFilter} onValueChange={handleFilterChange(setTypeFilter)}>
-            <SelectTrigger className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-36"><SelectValue placeholder="알림 유형" /></SelectTrigger>
+            <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"><SelectValue placeholder="알림 유형" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 유형</SelectItem>
               {Object.entries(typeLabels).map(([k, v]) => (
@@ -230,13 +230,13 @@ export default function Notifications() {
             type="date"
             value={dateFrom}
             onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }}
-            className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-36"
+            className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
           />
           <Input
             type="date"
             value={dateTo}
             onChange={(e) => { setDateTo(e.target.value); setOffset(0); }}
-            className="h-9 w-full rounded-xl bg-muted/40 text-xs sm:w-36"
+            className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
           />
             </div>
           </CardContent>
@@ -246,7 +246,7 @@ export default function Notifications() {
           <button
             type="button"
             aria-pressed={priorityFilter === "urgent"}
-            className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
+            className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
             onClick={() => setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent")}
           >
             <p className="text-[11px] font-semibold">긴급</p>
@@ -256,7 +256,7 @@ export default function Notifications() {
           <button
             type="button"
             aria-pressed={priorityFilter === "today"}
-            className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
+            className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
             onClick={() => setPriorityFilter(priorityFilter === "today" ? "all" : "today")}
           >
             <p className="text-[11px] font-semibold">오늘 처리</p>
@@ -266,7 +266,7 @@ export default function Notifications() {
           <button
             type="button"
             aria-pressed={priorityFilter === "general"}
-            className={`rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
+            className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
             onClick={() => setPriorityFilter(priorityFilter === "general" ? "all" : "general")}
           >
             <p className="text-[11px] font-semibold">일반</p>
@@ -282,7 +282,7 @@ export default function Notifications() {
             title="현재 확인할 알림이 없습니다."
             description="일정 알림은 설정한 시각에 표시됩니다. 조건을 넓히거나 알림 설정을 확인하세요."
             action={
-              <Button size="sm" variant="outline" onClick={() => setLocation("/notification-preferences")}>
+              <Button size="sm" variant="outline" className="min-h-12 sm:min-h-8" onClick={() => setLocation("/notification-preferences")}>
                 <Settings className="h-4 w-4 mr-1" /> 알림 설정 보기
               </Button>
             }
@@ -294,11 +294,11 @@ export default function Notifications() {
               const colorClass = processStatusColors[processStatus] ?? processStatusColors["미확인"];
               const priority = classifyNotificationPriority(n);
               return (
-                <Card key={n.id} className={`crm-elevated-card border-l-4 transition-colors ${colorClass}`}>
+                <Card key={n.id} className={`crm-elevated-card overflow-hidden border-l-4 transition-colors ${colorClass}`}>
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <div className="mb-2 flex flex-wrap items-start gap-2">
                           <Bell className="h-3.5 w-3.5 shrink-0 text-ring" />
                           <span className="rounded-full bg-muted/60 px-2 py-0.5 text-xs font-semibold text-foreground">{typeLabels[n.type] ?? "기타 알림"}</span>
                           <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -314,8 +314,8 @@ export default function Notifications() {
                           {!n.isRead && <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">미읽음</span>}
                           <span className="text-xs text-muted-foreground sm:ml-auto">{new Date(n.createdAt).toLocaleString("ko-KR")}</span>
                         </div>
-                        <p className="text-sm font-medium">{n.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{n.message}</p>
+                        <p className="line-clamp-2 text-sm font-medium leading-5">{n.title}</p>
+                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">{n.message}</p>
                         {n.dueAt && (
                           <div className="mt-2 flex flex-wrap gap-2 text-xs">
                             <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">예정일: {new Date(n.dueAt).toLocaleDateString("ko-KR")}</span>
@@ -328,12 +328,12 @@ export default function Notifications() {
                           </p>
                         )}
                       </div>
-                      <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex sm:flex-col sm:gap-1">
+                      <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-col sm:gap-1">
                         <Select
                           value={processStatus}
                           onValueChange={(v) => updateStatusMutation.mutate({ id: n.id, processStatus: v as ProcessStatus })}
                         >
-                          <SelectTrigger className="h-10 w-full text-xs sm:h-7 sm:w-24"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="min-h-12 w-full text-xs sm:h-7 sm:min-h-7 sm:w-24"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="미확인">미확인</SelectItem>
                             <SelectItem value="확인">확인</SelectItem>
@@ -342,12 +342,12 @@ export default function Notifications() {
                           </SelectContent>
                         </Select>
                         {!n.isRead && (
-                          <Button variant="ghost" size="sm" className="h-10 text-xs sm:h-7" onClick={() => markReadMutation.mutate({ id: n.id })}>
+                          <Button variant="ghost" size="sm" className="min-h-12 text-xs sm:h-7 sm:min-h-7" onClick={() => markReadMutation.mutate({ id: n.id })}>
                             읽음
                           </Button>
                         )}
                         {processStatus !== "처리완료" && (
-                          <Button variant="outline" size="sm" className="h-10 text-xs sm:h-7" onClick={() => updateStatusMutation.mutate({ id: n.id, processStatus: "처리완료" })}>
+                          <Button variant="outline" size="sm" className="min-h-12 text-xs sm:h-7 sm:min-h-7" onClick={() => updateStatusMutation.mutate({ id: n.id, processStatus: "처리완료" })}>
                             처리완료
                           </Button>
                         )}
@@ -370,6 +370,7 @@ export default function Notifications() {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-12 sm:min-h-8"
                 disabled={offset === 0}
                 onClick={() => setOffset(Math.max(0, offset - LIMIT))}
               >
@@ -378,6 +379,7 @@ export default function Notifications() {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-12 sm:min-h-8"
                 disabled={!hasMore}
                 onClick={() => setOffset(offset + LIMIT)}
               >
@@ -389,7 +391,7 @@ export default function Notifications() {
       </div>
 
       <Dialog open={showMarkAllReadDialog} onOpenChange={setShowMarkAllReadDialog}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
+        <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <CheckCheck className="h-5 w-5 text-emerald-700" /> 알림 읽음 처리
@@ -404,10 +406,10 @@ export default function Notifications() {
             읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 dueAt 알림 노출 정책은 변경하지 않습니다.
           </div>
           <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-            <Button className="min-h-11" variant="outline" onClick={() => setShowMarkAllReadDialog(false)}>
+            <Button className="min-h-12 sm:min-h-10" variant="outline" onClick={() => setShowMarkAllReadDialog(false)}>
               취소
             </Button>
-            <Button className="min-h-11" disabled={markAllReadMutation.isPending} onClick={() => markAllReadMutation.mutate()}>
+            <Button className="min-h-12 sm:min-h-10" disabled={markAllReadMutation.isPending} onClick={() => markAllReadMutation.mutate()}>
               모두 읽음 처리
             </Button>
           </DialogFooter>

@@ -148,7 +148,7 @@ export default function AdminAuditDashboard() {
                     <p className="mt-3 text-xs text-slate-500">{card.label}</p>
                     <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
                     <p className="mt-1 min-h-8 text-xs text-slate-500">{card.helper}</p>
-                    <Button type="button" size="sm" variant="outline" className="mt-3 h-8 w-full" onClick={card.onClick}>
+                    <Button type="button" size="sm" variant="outline" className="mt-3 min-h-12 w-full md:h-8 md:min-h-8" onClick={card.onClick}>
                       관련 화면
                     </Button>
                   </div>
@@ -209,7 +209,32 @@ export default function AdminAuditDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="space-y-2 px-4 pb-4 md:hidden">
+              {(summary?.recentRiskEvents ?? []).length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-center text-sm text-muted-foreground">
+                  최근 위험 작업이 없습니다. 다운로드, 삭제, 복구, 보안 조치가 발생하면 이곳에 표시합니다.
+                </div>
+              ) : (
+                summary?.recentRiskEvents.map((entry) => (
+                  <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{actionLabel(entry.action)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleString("ko-KR")}</p>
+                      </div>
+                      <Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}
+                    </p>
+                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted-foreground">
+                      {redactAuditDisplayText(entry.reason ?? entry.summary ?? "-", 160)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-slate-50/80">
                   <TableRow>
@@ -263,7 +288,7 @@ export default function AdminAuditDashboard() {
           <CardContent className="space-y-3">
             <div className="grid gap-2 md:grid-cols-6">
               <Select value={datePreset} onValueChange={(value) => setDatePreset(value as any)}>
-                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="today">오늘</SelectItem>
                   <SelectItem value="7d">최근 7일</SelectItem>
@@ -271,7 +296,7 @@ export default function AdminAuditDashboard() {
                 </SelectContent>
               </Select>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="분류" /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="분류" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 분류</SelectItem>
                   <SelectItem value="download">다운로드</SelectItem>
@@ -283,7 +308,7 @@ export default function AdminAuditDashboard() {
                 </SelectContent>
               </Select>
               <Select value={targetType} onValueChange={setTargetType}>
-                <SelectTrigger className="h-9 rounded-xl bg-slate-50"><SelectValue placeholder="대상 유형" /></SelectTrigger>
+                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="대상 유형" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 대상</SelectItem>
                   <SelectItem value="user">사용자</SelectItem>
@@ -294,13 +319,39 @@ export default function AdminAuditDashboard() {
                   <SelectItem value="contracts">계약</SelectItem>
                 </SelectContent>
               </Select>
-              <Input value={action} onChange={(e) => setAction(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="작업 코드" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 rounded-xl bg-slate-50" placeholder="검색어" />
-              <Button variant={riskOnly ? "default" : "outline"} onClick={() => setRiskOnly((value) => !value)} className="h-9">
+              <Input value={action} onChange={(e) => setAction(e.target.value)} className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" placeholder="작업 코드" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9" placeholder="검색어" />
+              <Button variant={riskOnly ? "default" : "outline"} onClick={() => setRiskOnly((value) => !value)} className="min-h-12 md:h-9 md:min-h-9">
                 위험 작업만
               </Button>
             </div>
-            <div className="overflow-x-auto">
+            <div className="space-y-2 md:hidden">
+              {(logs?.items ?? []).length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4 text-center text-sm text-muted-foreground">
+                  조건에 맞는 활동 로그가 없습니다. 필터를 초기화하거나 기간을 넓혀보세요.
+                </div>
+              ) : (
+                logs?.items.map((entry) => (
+                  <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{actionLabel(entry.action)}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{new Date(entry.createdAt).toLocaleString("ko-KR")}</p>
+                      </div>
+                      <Badge className={riskClasses[entry.riskLevel] ?? riskClasses.normal}>{riskLabels[entry.riskLevel] ?? riskLabels.normal}</Badge>
+                    </div>
+                    <div className="mt-2 grid gap-1 text-xs text-muted-foreground">
+                      <p>{entry.actor?.name ?? "-"} · {entry.actor?.email ?? "-"}</p>
+                      <p>{getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}</p>
+                    </div>
+                    <p className="mt-2 line-clamp-3 text-xs leading-5 text-muted-foreground">
+                      {redactAuditDisplayText(entry.reason ?? entry.summary ?? "-", 160)}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-slate-50/80">
                   <TableRow>
