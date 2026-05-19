@@ -319,7 +319,7 @@ export default function ConsultationToolsManagement() {
                     <div className="min-w-0">
                       <p className="line-clamp-2 font-medium leading-6">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
                       <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {getActiveLabel(item.isActive)}</p>
-                      {item.description ? <p className="mt-1 line-clamp-3 text-sm leading-6 text-muted-foreground">{item.description}</p> : null}
+                      {item.description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p> : null}
                     </div>
                     {isBranchAdmin ? (
                       <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
