@@ -63,7 +63,16 @@ Available triggers:
 
 The scheduler/internal trigger requires Railway or the scheduler caller to provide `PUSH_SCHEDULER_SECRET` and pass the same secret in the mutation input. This allows Railway Cron or another internal scheduler to call the engine without a human branch-admin click. The secret must be stored only in Railway Variables and must not be committed.
 
-Recommended Railway Cron cadence: every 5 minutes. The engine uses a short lookback window and dedupe keys to avoid duplicate sends when the trigger runs repeatedly.
+Recommended Railway Cron cadence: every 5 minutes. The schedule engine defaults to a 10 minute lookback window and dedupe keys to avoid duplicate sends when the trigger runs repeatedly. For a controlled catch-up after a delayed Cron run, branch-admin or internal scheduler calls may pass `lookbackMinutes` from 1 to 30. Do not run a wider catch-up by default because it can send reminders noticeably late.
+
+Operational diagnosis when an app push log is missing:
+
+- If `push_notification_logs` has no `sent`, `skipped_*`, `duplicate_skipped`, or `failed` row for a schedule reminder, the request did not reach `sendPushToUsers`.
+- The most likely causes are: Railway Cron was not configured or did not run, `PUSH_SCHEDULER_SECRET` was missing or mismatched, the reminder `dueAt` was outside the active lookback window, or the schedule was excluded as deleted, inactive, cancelled, completed, no-show, or `completedAt`.
+- Missing or mismatched `PUSH_SCHEDULER_SECRET` returns `UNAUTHORIZED` before push log creation. Confirm this in Railway/server logs; do not expect a `push_notification_logs` row for unauthorized scheduler calls.
+- A successful internal trigger returns a safe summary with `candidateCount`, `sendAttemptCount`, `sentCount`, `skippedCount`, and `logExpectation`. `candidateCount=0` with `logExpectation=no_candidates_no_push_logs` means the trigger ran but had no due candidates.
+- `sendAttemptCount>0` with `logExpectation=send_attempts_create_push_logs` means the engine entered the send path, so `sent` or `skipped_*` rows should be visible in the push operation logs.
+- The summary and server logs must never include customer names, phone numbers, birth dates, illness details, product names, premiums, or raw FCM tokens.
 
 ## Customer and Contract Business Push Automation
 
