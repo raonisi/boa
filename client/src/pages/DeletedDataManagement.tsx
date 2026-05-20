@@ -1,7 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -267,9 +267,9 @@ export default function DeletedDataManagement() {
       </div>
 
       <Dialog open={!!permanentTarget} onOpenChange={(open) => { if (!open && !permanentPending) closePermanent(); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl sm:max-w-lg">
-          <DialogHeader><DialogTitle>완전삭제 최종 확인</DialogTitle></DialogHeader>
-          <div className="space-y-4">
+        <DialogContent className="flex max-h-[min(85dvh,42rem)] flex-col overflow-hidden rounded-2xl p-0 sm:max-w-lg">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6"><DialogTitle>완전삭제 최종 확인</DialogTitle></DialogHeader>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
               <p className="font-semibold">이 작업은 되돌릴 수 없습니다.</p>
               <p className="mt-1">완전삭제 후에는 복구할 수 없습니다. 활동 로그는 감사 목적으로 보존됩니다.</p>
@@ -329,20 +329,20 @@ export default function DeletedDataManagement() {
               <Label>진행하려면 아래에 "완전삭제"를 입력하세요.</Label>
               <Input value={confirmText} onChange={(e) => setConfirmText(e.target.value)} className="mt-1 min-h-12 md:min-h-9" disabled={permanentPending} />
             </div>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="outline" className="min-h-12 md:min-h-10" onClick={closePermanent} disabled={permanentPending}>취소</Button>
-              <Button variant="destructive" className="min-h-12 md:min-h-10" disabled={!permanentCanSubmit} onClick={runPermanentDelete}>
-                {permanentPending ? "완전삭제 중..." : "완전삭제"}
-              </Button>
-            </div>
           </div>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+            <Button variant="outline" className="min-h-12 md:min-h-10" onClick={closePermanent} disabled={permanentPending}>취소</Button>
+            <Button variant="destructive" className="min-h-12 md:min-h-10" disabled={!permanentCanSubmit} onClick={runPermanentDelete}>
+              {permanentPending ? "완전삭제 중..." : "완전삭제"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={!!reviewTarget} onOpenChange={(open) => { if (!open) closeReview(); }}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl">
-          <DialogHeader><DialogTitle>{reviewTarget?.action === "approve" ? "계약 삭제 요청 승인" : "계약 삭제 요청 반려"}</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+          <DialogContent className="flex max-h-[min(85dvh,38rem)] flex-col overflow-hidden rounded-2xl p-0 sm:max-w-lg">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6"><DialogTitle>{reviewTarget?.action === "approve" ? "계약 삭제 요청 승인" : "계약 삭제 요청 반려"}</DialogTitle></DialogHeader>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-6">
             <p className="text-sm text-muted-foreground">
               {reviewTarget?.action === "approve"
                 ? "승인 시 해당 계약은 비활성 처리되며, 계약 목록과 실적 집계에서 제외됩니다."
@@ -352,13 +352,13 @@ export default function DeletedDataManagement() {
               <Label>{reviewTarget?.action === "approve" ? "승인 메모" : "반려 사유 *"}</Label>
               <Textarea value={reviewComment} onChange={(e) => setReviewComment(e.target.value)} className="mt-1 min-h-24" />
             </div>
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="outline" className="min-h-12 md:min-h-10" onClick={closeReview}>취소</Button>
-              <Button className="min-h-12 md:min-h-10" onClick={runReview} disabled={reviewTarget?.action === "reject" && !reviewComment.trim()}>
-                {reviewTarget?.action === "approve" ? "승인 후 비활성 처리" : "반려"}
-              </Button>
-            </div>
           </div>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+            <Button variant="outline" className="min-h-12 md:min-h-10" onClick={closeReview}>취소</Button>
+            <Button className="min-h-12 md:min-h-10" onClick={runReview} disabled={reviewTarget?.action === "reject" && !reviewComment.trim()}>
+              {reviewTarget?.action === "approve" ? "승인 후 비활성 처리" : "반려"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

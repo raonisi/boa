@@ -285,6 +285,19 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(page.getByText("다운로드 범위를 확인해 주세요.")).toBeVisible();
     await expect(page.getByText(/총 1건이 다운로드됩니다/)).toBeVisible();
     await expect(page.getByText(/연락처 · 민감/)).toBeVisible();
+    const dialogMetrics = await page.locator('[data-slot="dialog-content"]').first().evaluate((dialog) => {
+      const footer = dialog.querySelector('[data-slot="dialog-footer"]');
+      const dialogRect = dialog.getBoundingClientRect();
+      const footerRect = footer?.getBoundingClientRect();
+      return {
+        dialogWithinViewport: dialogRect.top >= 0 && dialogRect.bottom <= window.innerHeight,
+        footerVisible: Boolean(footerRect && footerRect.top < window.innerHeight && footerRect.bottom <= window.innerHeight),
+        footerWidth: footerRect?.width ?? 0,
+      };
+    });
+    expect(dialogMetrics.dialogWithinViewport).toBe(true);
+    expect(dialogMetrics.footerVisible).toBe(true);
+    expect(dialogMetrics.footerWidth).toBeGreaterThan(240);
 
     const execute = page.getByRole("button", { name: "다운로드 실행" });
     await expect(execute).toBeDisabled();

@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -308,9 +308,9 @@ export default function ContractList() {
       </div>
 
       <Dialog open={requestContractId !== null} onOpenChange={(open) => { if (!open) setRequestContractId(null); }}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">
-          <DialogHeader><DialogTitle>계약 삭제 요청</DialogTitle></DialogHeader>
-          <div className="space-y-3">
+        <DialogContent className="flex max-h-[min(85dvh,40rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden p-0 sm:max-w-lg">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6"><DialogTitle>계약 삭제 요청</DialogTitle></DialogHeader>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-6">
             <p className="text-sm text-muted-foreground">
               이 계약의 삭제를 관리자에게 요청합니다. 승인되면 해당 계약은 비활성 처리되며, 실적 집계에서 제외됩니다.
             </p>
@@ -329,13 +329,13 @@ export default function ContractList() {
               <Label>상세 메모</Label>
               <Textarea value={requestMemo} onChange={(e) => setRequestMemo(e.target.value)} className="mt-1" />
             </div>
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setRequestContractId(null)}>취소</Button>
-              <Button disabled={!requestReason || requestDeleteMutation.isPending} onClick={() => requestContractId && requestDeleteMutation.mutate({ contractId: requestContractId, requestReason, requestMemo: requestMemo || undefined })}>
-                삭제 요청 보내기
-              </Button>
-            </div>
           </div>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+            <Button variant="outline" className="min-h-11 sm:min-h-9" onClick={() => setRequestContractId(null)}>취소</Button>
+            <Button className="min-h-11 sm:min-h-9" disabled={!requestReason || requestDeleteMutation.isPending} onClick={() => requestContractId && requestDeleteMutation.mutate({ contractId: requestContractId, requestReason, requestMemo: requestMemo || undefined })}>
+              삭제 요청 보내기
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

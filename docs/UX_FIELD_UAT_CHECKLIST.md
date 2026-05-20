@@ -119,6 +119,8 @@ Authenticated shell polish check:
 2. Confirm Sheet/Drawer content respects the bottom safe-area and keeps the close button easy to tap.
 3. Confirm destructive confirmation dialogs keep confirm/cancel buttons at mobile-friendly height and spacing.
 4. Confirm Calendar, Notifications, and CustomerDetail dialogs do not overlap MobileNav or hide primary actions.
+5. Open `/download`, start a CSV download, type in the reason field, and confirm the header plus cancel/download buttons remain visible while only the dialog body scrolls.
+6. Open customer delete, contract delete request, deleted-data permanent delete, and delete-request review dialogs at 360px width and confirm warning text, reason/confirmation inputs, and footer actions remain reachable without page-level horizontal overflow.
 
 ## Badge / Table Pattern UAT Steps
 1. Confirm success, warning, danger, info, and neutral badges use the same semantic tones across CustomerList, ContractList, OperationRisk, ActivityLog, and UserManagement.

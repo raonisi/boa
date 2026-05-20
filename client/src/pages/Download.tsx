@@ -2,7 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
@@ -193,11 +193,11 @@ export default function Download() {
       </div>
 
       <Dialog open={pendingType !== null} onOpenChange={(open) => !open && setPendingType(null)}>
-        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(85dvh,42rem)] w-[calc(100vw-1.5rem)] flex-col overflow-hidden p-0 sm:max-w-lg">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle>다운로드 범위를 확인해 주세요.</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-2 sm:px-6">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
               <p className="font-semibold text-slate-950">{pendingMeta?.label ?? "데이터"} 다운로드</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -279,18 +279,18 @@ export default function Download() {
               />
               <span>다운로드 범위와 외부 파일 생성 주의사항을 확인했습니다.</span>
             </label>
-
-            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button variant="outline" size="sm" onClick={() => setPendingType(null)}>취소</Button>
-              <Button
-                size="sm"
-                disabled={!canExecute}
-                onClick={() => pendingType && handleDownload(pendingType, downloadReason.trim(), maskedDownload, rawExportConfirmed)}
-              >
-                다운로드 실행
-              </Button>
-            </div>
           </div>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
+            <Button variant="outline" size="sm" className="min-h-11 sm:min-h-9" onClick={() => setPendingType(null)}>취소</Button>
+            <Button
+              size="sm"
+              className="min-h-11 sm:min-h-9"
+              disabled={!canExecute}
+              onClick={() => pendingType && handleDownload(pendingType, downloadReason.trim(), maskedDownload, rawExportConfirmed)}
+            >
+              다운로드 실행
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>
