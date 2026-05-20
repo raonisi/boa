@@ -120,8 +120,25 @@ test.describe("BOA CRM e2e smoke", () => {
     await expectStablePageShell(page, errors);
 
     await mobileNavButtons.nth(4).click();
-    await expect(page.locator('[role="dialog"]')).toBeVisible();
-    await page.locator('[role="dialog"] button').first().click();
+    const moreDialog = page.locator('[role="dialog"]');
+    await expect(moreDialog).toBeVisible();
+    await expect(moreDialog.getByRole("button", { name: "세일즈 파이프라인" })).toBeVisible();
+    await expect(moreDialog.getByRole("button", { name: "고객 일괄 등록" })).toBeVisible();
+    await expect(moreDialog.getByRole("button", { name: "데이터 다운로드" })).toBeVisible();
+    const moreSheetMetrics = await moreDialog.getByTestId("mobile-more-menu-item").evaluateAll((buttons) =>
+      buttons.map((button) => {
+        const label = button.querySelector("span:last-child");
+        const labelStyle = label ? window.getComputedStyle(label) : null;
+        return {
+          height: Math.round(button.getBoundingClientRect().height),
+          textOverflow: labelStyle?.textOverflow ?? "",
+          whiteSpace: labelStyle?.whiteSpace ?? "",
+        };
+      })
+    );
+    expect(Math.min(...moreSheetMetrics.map((item) => item.height))).toBeGreaterThanOrEqual(44);
+    expect(moreSheetMetrics.every((item) => item.textOverflow !== "ellipsis" && item.whiteSpace !== "nowrap")).toBe(true);
+    await moreDialog.getByRole("button", { name: "영업 분석" }).click();
     await expect(page).toHaveURL(/\/analytics$/);
     await expectStablePageShell(page, errors);
   });

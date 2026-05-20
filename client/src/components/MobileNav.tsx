@@ -152,36 +152,38 @@ export function MobileNav() {
               <span>더보기</span>
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-4 grid max-h-[calc(86vh-7rem)] grid-cols-2 gap-2 overflow-y-auto overscroll-contain pb-4">
+          <div className="mt-4 grid max-h-[calc(86vh-7rem)] grid-cols-1 gap-2 overflow-y-auto overscroll-contain pb-4">
             {visibleMoreItems.map((item) => {
               const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
               return (
                 <SheetClose asChild key={item.path}>
                   <button
                     type="button"
+                    data-testid="mobile-more-menu-item"
                     onClick={() => goTo(item.path)}
-                    className={`flex min-h-[52px] items-center gap-3 rounded-lg border px-3 text-left text-sm font-medium transition-colors ${
+                    className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
                       isActive
                         ? "border-sidebar-primary/50 bg-sidebar-primary/10 text-foreground"
                         : "border-border bg-muted/30 text-foreground hover:bg-muted/50"
                     }`}
                   >
                     <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="truncate">{item.label}</span>
+                    <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
                   </button>
                 </SheetClose>
               );
             })}
             <button
               type="button"
+              data-testid="mobile-more-menu-item"
               onClick={() => {
                 setMoreOpen(false);
                 logout();
               }}
-              className="flex min-h-[52px] items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 text-left text-sm font-medium text-destructive"
+              className="flex min-h-14 items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-left text-sm font-medium text-destructive"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              <span>로그아웃</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">로그아웃</span>
             </button>
           </div>
         </SheetContent>

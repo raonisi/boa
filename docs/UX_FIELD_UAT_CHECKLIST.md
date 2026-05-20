@@ -78,10 +78,12 @@ Authenticated shell polish check:
 2. Confirm the login copy reads as a premium internal financial CRM screen and the CTA remains the Google login entry point.
 3. Click the login CTA and confirm the existing Google OAuth flow starts.
 4. In a signed-in desktop session, verify the sidebar top logo is visible, not stretched, and still works in collapsed mode.
-5. In mobile web, open the bottom "더보기" sheet and verify the BOA logo is visible without crowding menu actions.
-6. Confirm route/menu visibility by role is unchanged.
-7. Confirm Android app icon was not changed in this PR.
-8. Confirm no `.env`, `google-services.json`, APK/AAB/JKS/keystore, or `local.properties` files are included.
+5. In mobile web at 360px width, open the bottom "더보기" sheet and verify the BOA logo is visible without crowding menu actions.
+6. Confirm long menu names such as "세일즈 파이프라인", "고객 일괄 등록", "업로드 이력 관리", and "데이터 다운로드" are readable without truncation.
+7. Confirm the more sheet scrolls vertically inside the sheet, keeps 44px+ touch targets, and does not create page-level horizontal overflow.
+8. Confirm route/menu visibility by role is unchanged.
+9. Confirm Android app icon was not changed in this PR.
+10. Confirm no `.env`, `google-services.json`, APK/AAB/JKS/keystore, or `local.properties` files are included.
 
 ## Mobile UAT Steps
 1. Open home tab and verify:
