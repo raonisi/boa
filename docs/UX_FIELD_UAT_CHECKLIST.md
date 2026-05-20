@@ -67,6 +67,8 @@
    - "선택 읽음" marks only selected items read,
    - "선택 처리완료" marks only selected items complete,
    - "오늘 처리 대상 일괄 완료" completes visible today-priority work only.
+7. Apply notification filters for unread/status/type/priority/date and verify each active filter appears as a readable chip.
+8. Remove one notification filter chip with its `x` control and confirm only that filter is cleared; then use "필터 전체 해제" and confirm all filters reset.
 
 ## Branding / Login UAT Steps
 
@@ -394,7 +396,10 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 3. member search does not reveal customers assigned to another member, team, sub-branch, or branch.
 4. team_leader search does not reveal customers outside the leader's team scope.
 5. Search result zero state uses EmptyState and API failure uses ErrorState.
-6. Authorized customer phone and birth-date display policy remains unchanged in mobile customer cards and details.
+6. Active CustomerList filters, including search/status/assignee/tag/unassigned/workspace/date filters, appear as readable chips below the filter controls.
+7. Remove one CustomerList filter chip with its `x` control and confirm only that filter is cleared; then use "필터 전체 해제" and confirm all filters reset.
+8. At 360px mobile width, active filter chips wrap naturally without page-level horizontal overflow.
+9. Authorized customer phone and birth-date display policy remains unchanged in mobile customer cards and details.
 
 ## Schedule Reminder Cancellation UAT
 1. Create a schedule with a future reminder, then delete it; pending timing and incomplete schedule notifications should be marked processed/read.

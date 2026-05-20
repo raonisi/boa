@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { classifyNotificationPriority, sortNotificationsForQueue } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight, Filter, Settings, ShieldAlert } from "lucide-react";
+import { Bell, BellOff, CheckCheck, ChevronLeft, ChevronRight, Filter, Settings, ShieldAlert, X } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -187,6 +187,25 @@ export default function Notifications() {
     }
   };
 
+  const activeFilterChips = [
+    priorityFilter !== "all" ? { key: "priority", label: `우선순위: ${priorityLabel(priorityFilter)}`, clear: () => setPriorityFilter("all") } : null,
+    processStatusFilter !== "all" ? { key: "processStatus", label: `처리상태: ${processStatusFilter}`, clear: () => { setProcessStatusFilter("all"); setOffset(0); } } : null,
+    isReadFilter !== "all" ? { key: "isRead", label: isReadFilter === "unread" ? "읽음: 미읽음" : "읽음: 읽음", clear: () => { setIsReadFilter("all"); setOffset(0); } } : null,
+    typeFilter !== "all" ? { key: "type", label: `알림 유형: ${typeLabels[typeFilter] ?? typeFilter}`, clear: () => { setTypeFilter("all"); setOffset(0); } } : null,
+    dateFrom ? { key: "dateFrom", label: `시작일: ${dateFrom}`, clear: () => { setDateFrom(""); setOffset(0); } } : null,
+    dateTo ? { key: "dateTo", label: `종료일: ${dateTo}`, clear: () => { setDateTo(""); setOffset(0); } } : null,
+  ].filter((chip): chip is { key: string; label: string; clear: () => void } => Boolean(chip));
+  const hasActiveFilters = activeFilterChips.length > 0;
+  const clearFilters = () => {
+    setPriorityFilter("all");
+    setProcessStatusFilter("all");
+    setIsReadFilter("all");
+    setTypeFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setOffset(0);
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-5 pb-[max(5rem,env(safe-area-inset-bottom))]">
@@ -293,6 +312,30 @@ export default function Notifications() {
             className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
           />
             </div>
+            {hasActiveFilters && (
+              <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-600">적용된 필터</p>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
+                    필터 전체 해제
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeFilterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={chip.clear}
+                      className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      aria-label={`${chip.label} 필터 해제`}
+                    >
+                      <span className="min-w-0 whitespace-normal break-words leading-snug">{chip.label}</span>
+                      <X className="h-3 w-3 shrink-0" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

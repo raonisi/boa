@@ -252,7 +252,30 @@ export default function CustomerList() {
   });
   const selectedBulkAssignee = bulkAssignableUsers.find((agent) => String(agent.id) === bulkAssigneeId);
 
-  const hasActiveFilters = Boolean(search.trim()) || statusFilter !== "all" || regionFilter || sourceFilter || priorityFilter !== "all" || tagFilter !== "all" || nextActionFilter !== "all" || agentFilter !== "all" || recommendationFilter !== "all" || workspaceFilter !== "all" || (user?.role === "branch_admin" && scopeFilter !== "all");
+  const activeFilterChips = [
+    search.trim() ? { key: "search", label: `검색어: ${search.trim()}`, clear: () => setSearch("") } : null,
+    user?.role === "branch_admin" && scopeFilter !== "all" ? { key: "scope", label: "DB 범위: 내 DB", clear: () => setScopeFilter("all") } : null,
+    statusFilter !== "all" ? { key: "status", label: `상담상태: ${statusFilter}`, clear: () => setStatusFilter("all") } : null,
+    regionFilter ? { key: "region", label: `지역: ${regionFilter}`, clear: () => setRegionFilter("") } : null,
+    sourceFilter ? { key: "source", label: `유입경로: ${sourceFilter}`, clear: () => setSourceFilter("") } : null,
+    priorityFilter !== "all" ? { key: "priority", label: `우선순위: ${priorityLabel(priorityFilter)}`, clear: () => setPriorityFilter("all") } : null,
+    tagFilter !== "all" ? { key: "tag", label: `성향 태그: ${tagFilter}`, clear: () => setTagFilter("all") } : null,
+    nextActionFilter !== "all" ? { key: "nextAction", label: `다음 액션: ${nextActionFilter}`, clear: () => setNextActionFilter("all") } : null,
+    recommendationFilter !== "all" ? {
+      key: "recommendation",
+      label: `추천/경고: ${recommendationFilter === "recommended" ? "우선 연락 추천" : recommendationFilter === "warning" ? "경고 있음" : "긴급 추천"}`,
+      clear: () => setRecommendationFilter("all"),
+    } : null,
+    workspaceFilter !== "all" ? {
+      key: "workspace",
+      label: `작업공간: ${workspaceFilter === "priority" ? "우선 연락" : workspaceFilter === "warning" ? "경고" : workspaceFilter === "no_next_action" ? "다음 액션 없음" : "미상담"}`,
+      clear: () => setWorkspaceFilter("all"),
+    } : null,
+    assignedDateFrom ? { key: "assignedDateFrom", label: `배정 시작: ${assignedDateFrom}`, clear: () => setAssignedDateFrom("") } : null,
+    assignedDateTo ? { key: "assignedDateTo", label: `배정 종료: ${assignedDateTo}`, clear: () => setAssignedDateTo("") } : null,
+    agentFilter !== "all" ? { key: "agent", label: `담당자: ${formatUserWithRole(agentById.get(Number(agentFilter)))}`, clear: () => setAgentFilter("all") } : null,
+  ].filter((chip): chip is { key: string; label: string; clear: () => void } => Boolean(chip));
+  const hasActiveFilters = activeFilterChips.length > 0;
 
   const clearFilters = () => {
     setSearch("");
@@ -506,6 +529,31 @@ export default function CustomerList() {
                     </SelectContent>
                   </Select>
                 )}
+              </div>
+            )}
+
+            {hasActiveFilters && (
+              <div className="rounded-2xl border border-slate-100 bg-white p-3">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-xs font-semibold text-slate-600">적용된 필터</p>
+                  <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
+                    필터 전체 해제
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {activeFilterChips.map((chip) => (
+                    <button
+                      key={chip.key}
+                      type="button"
+                      onClick={chip.clear}
+                      className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      aria-label={`${chip.label} 필터 해제`}
+                    >
+                      <span className="min-w-0 whitespace-normal break-words leading-snug">{chip.label}</span>
+                      <X className="h-3 w-3 shrink-0" />
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>
