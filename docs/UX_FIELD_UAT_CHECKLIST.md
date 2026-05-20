@@ -62,6 +62,11 @@
    - priority cards count correctly,
    - filter + sort behavior matches dashboard,
    - unread badge changes after mark-read.
+6. Select multiple notifications and verify:
+   - selected count updates,
+   - "선택 읽음" marks only selected items read,
+   - "선택 처리완료" marks only selected items complete,
+   - "오늘 처리 대상 일괄 완료" completes visible today-priority work only.
 
 ## Branding / Login UAT Steps
 
@@ -90,6 +95,7 @@ Authenticated shell polish check:
 3. Tap notification item to mark read and verify:
    - unread count decreases,
    - dashboard and notifications tab remain in sync after refresh.
+4. On a 360px viewport, select notifications and confirm the bulk action panel wraps inside the page without horizontal overflow or MobileNav overlap.
 
 ## Customer Detail UAT Steps
 1. Open customer detail and confirm sticky quick action bar appears.

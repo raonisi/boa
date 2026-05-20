@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -73,6 +74,8 @@ export default function Notifications() {
   const [dateTo, setDateTo] = useState("");
   const [offset, setOffset] = useState(0);
   const [showMarkAllReadDialog, setShowMarkAllReadDialog] = useState(false);
+  const [selectedNotificationIds, setSelectedNotificationIds] = useState<number[]>([]);
+  const [bulkAction, setBulkAction] = useState<"read" | "complete" | "todayComplete" | null>(null);
 
   const queryInput = {
     processStatus: processStatusFilter !== "all" ? processStatusFilter : undefined,
@@ -100,7 +103,10 @@ export default function Notifications() {
   const pageVisibleCount = notifications.length;
 
   const markReadMutation = trpc.notifications.markRead.useMutation({
-    onSuccess: () => utils.notifications.list.invalidate(),
+    onSuccess: () => {
+      utils.notifications.list.invalidate();
+      utils.notifications.unreadCount.invalidate();
+    },
   });
 
   const markAllReadMutation = trpc.notifications.markAllRead.useMutation({
@@ -123,6 +129,12 @@ export default function Notifications() {
   const unreadCount = filteredNotifications.filter((n) => !n.isRead).length;
   const actionQueueCount = priorityCounts.urgent + priorityCounts.today;
   const completedCount = notifications.filter((n) => n.processStatus === "처리완료").length;
+  const visibleNotificationIds = sortedNotifications.map((n) => n.id);
+  const selectedVisibleIds = selectedNotificationIds.filter((id) => visibleNotificationIds.includes(id));
+  const selectedCount = selectedVisibleIds.length;
+  const allVisibleSelected = visibleNotificationIds.length > 0 && visibleNotificationIds.every((id) => selectedNotificationIds.includes(id));
+  const todayProcessingTargets = sortedNotifications.filter((n) => classifyNotificationPriority(n) === "today" && n.processStatus !== "처리완료");
+  const isBulkPending = bulkAction !== null || markReadMutation.isPending || updateStatusMutation.isPending;
 
   const handleMarkAllRead = () => {
     setShowMarkAllReadDialog(true);
@@ -131,6 +143,48 @@ export default function Notifications() {
   const handleFilterChange = (setter: (v: string) => void) => (v: string) => {
     setter(v);
     setOffset(0); // 필터 변경 시 첫 페이지로
+    setSelectedNotificationIds([]);
+  };
+
+  const toggleNotificationSelection = (id: number, checked: boolean) => {
+    setSelectedNotificationIds((current) => checked ? Array.from(new Set([...current, id])) : current.filter((selectedId) => selectedId !== id));
+  };
+
+  const toggleVisibleSelection = (checked: boolean) => {
+    setSelectedNotificationIds((current) => {
+      const hiddenSelection = current.filter((id) => !visibleNotificationIds.includes(id));
+      return checked ? [...hiddenSelection, ...visibleNotificationIds] : hiddenSelection;
+    });
+  };
+
+  const handleBulkMarkRead = async () => {
+    if (selectedVisibleIds.length === 0) return;
+    setBulkAction("read");
+    try {
+      await Promise.all(selectedVisibleIds.map((id) => markReadMutation.mutateAsync({ id })));
+      setSelectedNotificationIds([]);
+      await Promise.all([utils.notifications.list.invalidate(), utils.notifications.unreadCount.invalidate()]);
+      toast.success(`${selectedVisibleIds.length}개 알림을 읽음 처리했습니다.`);
+    } catch {
+      toast.error("선택 알림 읽음 처리에 실패했습니다.");
+    } finally {
+      setBulkAction(null);
+    }
+  };
+
+  const handleBulkComplete = async (ids: number[], action: "complete" | "todayComplete" = "complete") => {
+    if (ids.length === 0) return;
+    setBulkAction(action);
+    try {
+      await Promise.all(ids.map((id) => updateStatusMutation.mutateAsync({ id, processStatus: "처리완료" })));
+      setSelectedNotificationIds([]);
+      await Promise.all([utils.notifications.list.invalidate(), utils.notifications.unreadCount.invalidate()]);
+      toast.success(`${ids.length}개 알림을 처리완료했습니다.`);
+    } catch {
+      toast.error("선택 알림 처리완료에 실패했습니다.");
+    } finally {
+      setBulkAction(null);
+    }
   };
 
   return (
@@ -190,7 +244,7 @@ export default function Notifications() {
               <Filter className="h-4 w-4 text-ring" /> 알림 필터
             </div>
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-          <Select value={priorityFilter} onValueChange={(v) => setPriorityFilter(v as PriorityFilter)}>
+          <Select value={priorityFilter} onValueChange={(v) => { setPriorityFilter(v as PriorityFilter); setSelectedNotificationIds([]); }}>
             <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-32"><SelectValue placeholder="우선순위" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">전체 우선순위</SelectItem>
@@ -229,13 +283,13 @@ export default function Notifications() {
           <Input
             type="date"
             value={dateFrom}
-            onChange={(e) => { setDateFrom(e.target.value); setOffset(0); }}
+            onChange={(e) => { setDateFrom(e.target.value); setOffset(0); setSelectedNotificationIds([]); }}
             className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
           />
           <Input
             type="date"
             value={dateTo}
-            onChange={(e) => { setDateTo(e.target.value); setOffset(0); }}
+            onChange={(e) => { setDateTo(e.target.value); setOffset(0); setSelectedNotificationIds([]); }}
             className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
           />
             </div>
@@ -247,7 +301,7 @@ export default function Notifications() {
             type="button"
             aria-pressed={priorityFilter === "urgent"}
             className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
-            onClick={() => setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent")}
+            onClick={() => { setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent"); setSelectedNotificationIds([]); }}
           >
             <p className="text-[11px] font-semibold">긴급</p>
             <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.urgent}</p>
@@ -257,7 +311,7 @@ export default function Notifications() {
             type="button"
             aria-pressed={priorityFilter === "today"}
             className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
-            onClick={() => setPriorityFilter(priorityFilter === "today" ? "all" : "today")}
+            onClick={() => { setPriorityFilter(priorityFilter === "today" ? "all" : "today"); setSelectedNotificationIds([]); }}
           >
             <p className="text-[11px] font-semibold">오늘 처리</p>
             <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.today}</p>
@@ -267,7 +321,7 @@ export default function Notifications() {
             type="button"
             aria-pressed={priorityFilter === "general"}
             className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
-            onClick={() => setPriorityFilter(priorityFilter === "general" ? "all" : "general")}
+            onClick={() => { setPriorityFilter(priorityFilter === "general" ? "all" : "general"); setSelectedNotificationIds([]); }}
           >
             <p className="text-[11px] font-semibold">일반</p>
             <p className="text-lg font-bold tabular-nums text-foreground">{priorityCounts.general}</p>
@@ -289,14 +343,79 @@ export default function Notifications() {
           />
         ) : (
           <div className="space-y-3">
+            <Card className="border-slate-200 bg-white shadow-sm" data-testid="notifications-bulk-actions">
+              <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-foreground">
+                  <Checkbox
+                    checked={allVisibleSelected}
+                    disabled={visibleNotificationIds.length === 0 || isBulkPending}
+                    aria-label="현재 목록 전체 선택"
+                    onCheckedChange={(checked) => toggleVisibleSelection(checked === true)}
+                  />
+                  현재 목록 전체 선택
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <span className="text-xs font-medium text-muted-foreground">{selectedCount}개 선택됨</span>
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                    <Button
+                      data-testid="bulk-mark-read"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 text-xs sm:min-h-8"
+                      disabled={selectedCount === 0 || isBulkPending}
+                      onClick={handleBulkMarkRead}
+                    >
+                      선택 읽음
+                    </Button>
+                    <Button
+                      data-testid="bulk-complete"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 text-xs sm:min-h-8"
+                      disabled={selectedCount === 0 || isBulkPending}
+                      onClick={() => handleBulkComplete(selectedVisibleIds)}
+                    >
+                      선택 처리완료
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-11 text-xs sm:min-h-8"
+                      disabled={selectedCount === 0 || isBulkPending}
+                      onClick={() => setSelectedNotificationIds([])}
+                    >
+                      선택 해제
+                    </Button>
+                    <Button
+                      data-testid="bulk-today-complete"
+                      variant="secondary"
+                      size="sm"
+                      className="min-h-11 text-xs sm:min-h-8"
+                      disabled={todayProcessingTargets.length === 0 || isBulkPending}
+                      onClick={() => handleBulkComplete(todayProcessingTargets.map((n) => n.id), "todayComplete")}
+                    >
+                      오늘 처리 대상 일괄 완료
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
             {sortedNotifications.map((n) => {
               const processStatus = (n.processStatus as ProcessStatus) ?? "미확인";
               const colorClass = processStatusColors[processStatus] ?? processStatusColors["미확인"];
               const priority = classifyNotificationPriority(n);
+              const isSelected = selectedNotificationIds.includes(n.id);
               return (
                 <Card key={n.id} className={`crm-elevated-card overflow-hidden border-l-4 transition-colors ${colorClass}`}>
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={isBulkPending}
+                        className="mt-0.5 size-5"
+                        aria-label={`${n.title} 선택`}
+                        onCheckedChange={(checked) => toggleNotificationSelection(n.id, checked === true)}
+                      />
                       <div className="flex-1 min-w-0">
                         <div className="mb-2 flex flex-wrap items-start gap-2">
                           <Bell className="h-3.5 w-3.5 shrink-0 text-ring" />
@@ -372,7 +491,7 @@ export default function Notifications() {
                 size="sm"
                 className="min-h-12 sm:min-h-8"
                 disabled={offset === 0}
-                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                onClick={() => { setOffset(Math.max(0, offset - LIMIT)); setSelectedNotificationIds([]); }}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -381,7 +500,7 @@ export default function Notifications() {
                 size="sm"
                 className="min-h-12 sm:min-h-8"
                 disabled={!hasMore}
-                onClick={() => setOffset(offset + LIMIT)}
+                onClick={() => { setOffset(offset + LIMIT); setSelectedNotificationIds([]); }}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

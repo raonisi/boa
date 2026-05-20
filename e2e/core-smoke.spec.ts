@@ -113,6 +113,10 @@ test.describe("BOA CRM e2e smoke", () => {
 
     await mobileNavButtons.nth(3).click();
     await expect(page).toHaveURL(/\/notifications$/);
+    await expect(page.getByTestId("notifications-bulk-actions")).toBeVisible();
+    await page.getByLabel("[E2E] Today notification 선택").click();
+    await expect(page.getByTestId("bulk-mark-read")).toBeEnabled();
+    await expect(page.getByTestId("bulk-complete")).toBeEnabled();
     await expectStablePageShell(page, errors);
 
     await mobileNavButtons.nth(4).click();

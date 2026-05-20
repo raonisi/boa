@@ -79,6 +79,39 @@ const todayWork = {
   longUnmanagedCustomers: [],
 };
 
+const notificationsList = {
+  items: [
+    {
+      id: 401,
+      userId: 1,
+      type: "schedule_today",
+      title: "[E2E] Today notification",
+      message: "[E2E] Bulk action target",
+      isRead: false,
+      processStatus: "미확인",
+      dueAt: now,
+      createdAt: now,
+      relatedType: "schedule",
+      relatedId: 301,
+    },
+    {
+      id: 402,
+      userId: 1,
+      type: "general",
+      title: "[E2E] General notification",
+      message: "[E2E] Secondary bulk target",
+      isRead: true,
+      processStatus: "확인",
+      dueAt: null,
+      createdAt: oneHourAfterNow,
+      relatedType: "customer",
+      relatedId: customer.id,
+    },
+  ],
+  totalCount: 2,
+  hasMore: false,
+};
+
 const schedules = [
   {
     id: 301,
@@ -171,6 +204,7 @@ const downloadPreview = {
 const defaults: Record<string, unknown> = {
   "auth.me": userFor("branch_admin"),
   "notifications.unreadCount": 1,
+  "notifications.list": notificationsList,
   "dashboard.todayWork": todayWork,
   "recommendations.dashboardSummary": { priorityContactCount: 1, highUrgencyCount: 0, warningCount: 1, topContacts: [] },
   "performanceGoals.dashboard": { items: [] },
