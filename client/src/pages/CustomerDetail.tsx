@@ -424,7 +424,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] md:pb-0">
+      <div className="space-y-5 pb-[max(5.5rem,env(safe-area-inset-bottom))] md:pb-0">
         {/* Customer execution summary */}
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="space-y-5 p-4 sm:p-5">
@@ -536,114 +536,50 @@ export default function CustomerDetail({ id }: { id: number }) {
                     ))}
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" className="bg-white" onClick={() => setActiveTab("tools")}>
-                    <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
-                  </Button>
-                  <Button size="sm" onClick={() => setShowConsultModal(true)}>
-                    <MessageSquare className="h-4 w-4 mr-1" /> 상담기록에 추가
-                  </Button>
-                  <Button variant="outline" size="sm" className="bg-white" onClick={() => setShowFollowUpModal(true)}>
-                    <CalendarPlus className="h-4 w-4 mr-1" /> 다음 연락일 설정
-                  </Button>
-                  <Button variant="outline" size="sm" className="bg-white" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
-                    <CalendarPlus className="h-4 w-4 mr-1" /> 이 고객 일정 추가
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-4">
-              <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-950">상담 실행 흐름</p>
-                  <p className="text-xs text-muted-foreground">준비, 기록, 후속관리, 계약 검토를 한 화면에서 이어갑니다.</p>
-                </div>
-                {nextFollowUp && (
-                  <span className="w-fit rounded-full border border-amber-200 bg-white px-2 py-1 text-xs font-medium text-amber-800">
-                    다음 연락 {formatDate(nextFollowUp.nextContactDate)}
-                  </span>
-                )}
-              </div>
-              <div className="grid gap-2 md:grid-cols-5">
-                {[
-                  { label: "1. 상담 준비", description: "추천 사유와 메시지 문구 확인", icon: Copy, action: () => setActiveTab("tools"), variant: "outline" as const },
-                  { label: "2. 상담 기록", description: "통화/상담 결과 남기기", icon: MessageSquare, action: () => setShowConsultModal(true), variant: "default" as const },
-                  { label: "3. 후속관리", description: "다음 연락일 또는 할 일 예약", icon: CalendarPlus, action: () => setShowFollowUpModal(true), variant: "secondary" as const },
-                  { label: "4. 계약 검토", description: "계약 등록 또는 진행 상태 확인", icon: FilePlus2, action: () => setShowContractModal(true), variant: "outline" as const },
-                  { label: "5. 일정 추가", description: "이 고객과 연결된 일정 생성", icon: CalendarPlus, action: () => setLocation(`/calendar?customerId=${customer.id}&action=create`), variant: "outline" as const },
-                ].map((step) => {
-                  const Icon = step.icon;
-                  return (
-                    <Button
-                      key={step.label}
-                      type="button"
-                      variant={step.variant}
-                      className="min-h-12 justify-start gap-2 whitespace-normal rounded-lg px-3 py-3 text-left"
-                      onClick={step.action}
-                    >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold">{step.label}</span>
-                        <span className="block text-xs font-normal opacity-75">{step.description}</span>
-                      </span>
-                    </Button>
-                  );
-                })}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="sticky top-[4.6rem] z-20 border-slate-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90">
+        <Card className="border-slate-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 lg:sticky lg:top-[4.6rem] lg:z-20">
           <CardContent className="space-y-3 p-3 sm:p-4">
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-6">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-slate-950">고객 실행 패널</p>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{recommendedAction.next}</p>
+              </div>
+              {nextFollowUp && (
+                <span className="w-fit rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                  다음 연락 {formatDate(nextFollowUp.nextContactDate)}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
               {customer.phone ? (
-                <Button variant="outline" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" asChild>
+                <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" asChild>
                   <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
                 </Button>
               ) : (
-                <Button variant="outline" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" disabled><Phone className="h-4 w-4" /> 전화</Button>
+                <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" disabled><Phone className="h-4 w-4" /> 전화</Button>
               )}
-              <Button className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" onClick={() => setShowConsultModal(true)}>
-                <MessageSquare className="h-4 w-4" /> 상담기록 추가
+              <Button className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowConsultModal(true)}>
+                <MessageSquare className="h-4 w-4" /> 상담기록
               </Button>
-              <Button variant="secondary" className="min-h-12 justify-start gap-2 bg-amber-100 text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11" onClick={() => setShowFollowUpModal(true)}>
-                <CalendarPlus className="h-4 w-4" /> 다음 연락일
+              <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowFollowUpModal(true)}>
+                <CalendarPlus className="h-4 w-4" /> 후속관리
               </Button>
-              <Button variant="outline" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
+              <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
                 <CalendarPlus className="h-4 w-4" /> 일정 추가
               </Button>
-              <Button variant="secondary" className="min-h-12 justify-start gap-2 bg-emerald-700 text-white hover:bg-emerald-800 md:h-11 md:min-h-11" onClick={() => setShowContractModal(true)}>
+              <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-emerald-700 px-2 text-xs text-white hover:bg-emerald-800 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowContractModal(true)}>
                 <FilePlus2 className="h-4 w-4" /> 계약 등록
               </Button>
-              <Button variant="ghost" className="min-h-12 justify-start gap-2 md:h-11 md:min-h-11" onClick={() => setActiveTab("tools")}>
+              <Button variant="ghost" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setActiveTab("tools")}>
                 <Copy className="h-4 w-4" /> 메시지 문구
               </Button>
             </div>
           </CardContent>
         </Card>
-
-        <div className="fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-40 border-t border-slate-200 bg-white/95 px-2 pb-2 pt-2 shadow-[0_-8px_20px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-          <div className="mx-auto grid max-w-md grid-cols-4 gap-1.5">
-            {customer.phone ? (
-              <Button variant="outline" size="sm" className="h-12 min-h-12 flex-col gap-0.5 px-1 text-[11px]" asChild>
-                <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" className="h-12 min-h-12 flex-col gap-0.5 px-1 text-[11px]" disabled><Phone className="h-4 w-4" /> 전화</Button>
-            )}
-            <Button size="sm" className="h-12 min-h-12 flex-col gap-0.5 px-1 text-[11px]" onClick={() => setShowConsultModal(true)}>
-              <MessageSquare className="h-4 w-4" /> 상담
-            </Button>
-            <Button variant="secondary" size="sm" className="h-12 min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200" onClick={() => setShowFollowUpModal(true)}>
-              <CalendarPlus className="h-4 w-4" /> 후속
-            </Button>
-            <Button variant="secondary" size="sm" className="h-12 min-h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800" onClick={() => setShowContractModal(true)}>
-              <FilePlus2 className="h-4 w-4" /> 계약
-            </Button>
-          </div>
-        </div>
 
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-4 space-y-4">

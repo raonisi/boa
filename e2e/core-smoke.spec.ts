@@ -133,8 +133,13 @@ test.describe("BOA CRM e2e smoke", () => {
 
     await page.goto("/customers/101", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    await expect(page.getByText("고객 실행 패널").first()).toBeVisible();
     await expect(page.locator('a[href^="tel:"]').first()).toBeVisible();
-    await expect(page.locator("div.fixed button").first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /상담기록/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /후속관리/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /일정 추가/ }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /계약 등록/ }).first()).toBeVisible();
+    await expect(page.locator('div.fixed button:has-text("상담")')).toHaveCount(0);
     await expectStablePageShell(page, errors);
   });
 
