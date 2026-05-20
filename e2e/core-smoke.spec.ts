@@ -105,6 +105,10 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(page).toHaveURL(/\/customers$/);
     await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
     await expect(page.locator('a[href^="tel:"]').first()).toBeVisible();
+    await page.locator('input[type="text"], input[type="search"], input:not([type])').first().fill("[E2E]");
+    await expect(page.getByText("검색어: [E2E]").first()).toBeVisible();
+    await page.getByRole("button", { name: /검색어: \[E2E\] 필터 해제/ }).click();
+    await expect(page.getByText("검색어: [E2E]")).toHaveCount(0);
     await expectStablePageShell(page, errors);
 
     await mobileNavButtons.nth(2).click();
@@ -117,6 +121,10 @@ test.describe("BOA CRM e2e smoke", () => {
     await page.getByLabel("[E2E] Today notification 선택").click();
     await expect(page.getByTestId("bulk-mark-read")).toBeEnabled();
     await expect(page.getByTestId("bulk-complete")).toBeEnabled();
+    await page.getByRole("button", { name: /긴급/ }).first().click();
+    await expect(page.getByText("우선순위: 긴급").first()).toBeVisible();
+    await page.getByRole("button", { name: /우선순위: 긴급 필터 해제/ }).click();
+    await expect(page.getByText("우선순위: 긴급")).toHaveCount(0);
     await expectStablePageShell(page, errors);
 
     await mobileNavButtons.nth(4).click();
