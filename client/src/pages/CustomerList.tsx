@@ -979,8 +979,8 @@ export default function CustomerList() {
       />
 
       <Dialog open={deleteCustomerId !== null} onOpenChange={(open) => { if (!open) setDeleteCustomerId(null); }}>
-        <DialogContent className="max-w-md rounded-2xl border-red-100">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(85dvh,38rem)] max-w-md flex-col overflow-hidden rounded-2xl border-red-100 p-0">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle className="flex items-center gap-2 text-red-700">
               <AlertTriangle className="h-5 w-5" /> 고객 삭제 확인
             </DialogTitle>
@@ -988,10 +988,12 @@ export default function CustomerList() {
               {deleteTargetCustomer ? `${deleteTargetCustomer.name} 고객을 비활성 처리합니다.` : "선택한 고객을 비활성 처리합니다."}
             </DialogDescription>
           </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-6">
           <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
             완전 삭제가 아니며 활성 계약이나 진행 중 일정이 있으면 삭제할 수 없습니다. 이 작업은 활동 로그에 기록됩니다.
           </div>
-          <DialogFooter className="gap-2 sm:justify-end">
+          </div>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:justify-end">
             <Button variant="outline" onClick={() => setDeleteCustomerId(null)}>
               취소
             </Button>
@@ -1007,8 +1009,8 @@ export default function CustomerList() {
       </Dialog>
 
       <Dialog open={bulkAssigneeOpen} onOpenChange={(open) => { setBulkAssigneeOpen(open); if (!open) { setBulkAssigneeId(""); setBulkAssigneeReason(""); } }}>
-        <DialogContent className="max-w-lg rounded-2xl border-emerald-100">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(85dvh,42rem)] max-w-lg flex-col overflow-hidden rounded-2xl border-emerald-100 p-0">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle className="flex items-center gap-2 text-emerald-800">
               <UserCog className="h-5 w-5" /> 담당자 일괄 지정
             </DialogTitle>
@@ -1016,7 +1018,7 @@ export default function CustomerList() {
               선택한 고객의 담당자를 한 번에 변경합니다. 권한 범위 밖 고객은 서버에서 제외됩니다.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
               <div className="rounded-xl border bg-slate-50 p-3">
                 <p className="text-xs text-muted-foreground">선택 고객</p>
@@ -1068,7 +1070,7 @@ export default function CustomerList() {
               <p className="mt-1 text-right text-[11px] text-muted-foreground">{bulkAssigneeReason.length}/300</p>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:justify-end">
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:justify-end">
             <Button variant="outline" onClick={() => { setBulkAssigneeOpen(false); setBulkAssigneeId(""); setBulkAssigneeReason(""); }} disabled={isBulkChangingAssignee}>
               취소
             </Button>
@@ -1084,8 +1086,8 @@ export default function CustomerList() {
       </Dialog>
 
       <Dialog open={reclaimDialogOpen} onOpenChange={(open) => { if (!open) closeReclaimDialog(); }}>
-        <DialogContent className="max-w-md rounded-2xl border-amber-100">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(85dvh,40rem)] max-w-md flex-col overflow-hidden rounded-2xl border-amber-100 p-0">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle className="flex items-center gap-2 text-amber-800">
               <Undo2 className="h-5 w-5" /> DB 회수 확인
             </DialogTitle>
@@ -1095,7 +1097,7 @@ export default function CustomerList() {
                 : `선택한 ${selectedReclaimableIds.length}건의 고객 DB를 미배정 상태로 회수합니다.`}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-6">
             <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
               고객, 상담기록, 계약, 후속관리, 일정은 삭제하지 않습니다. 담당자 배정만 해제되며 회수 기록은 배정이력과 활동 로그에 남습니다.
             </div>
@@ -1111,7 +1113,7 @@ export default function CustomerList() {
               <p className="mt-1 text-right text-[11px] text-muted-foreground">{reclaimReason.length}/300</p>
             </div>
           </div>
-          <DialogFooter className="gap-2 sm:justify-end">
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:justify-end">
             <Button variant="outline" onClick={closeReclaimDialog} disabled={isReclaiming}>
               취소
             </Button>
