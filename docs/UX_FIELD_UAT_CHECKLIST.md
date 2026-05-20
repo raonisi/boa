@@ -92,14 +92,17 @@ Authenticated shell polish check:
    - dashboard and notifications tab remain in sync after refresh.
 
 ## Customer Detail UAT Steps
-1. Open customer detail and confirm sticky quick action bar appears.
+1. Open customer detail and confirm one consolidated "고객 실행 패널" appears.
 2. Validate quick actions:
+   - call customer,
    - add consultation record,
    - set next follow-up date,
+   - add linked schedule,
    - add contract,
    - open message template tools.
-3. Scroll long page and verify sticky behavior remains usable.
-4. At 360px mobile width, confirm the sticky quick action bar stays above MobileNav, keeps 44px touch targets, and does not create horizontal scroll.
+3. Confirm Next Best Action remains visible near the top and its next action is connected to the execution panel.
+4. Scroll long desktop page and verify the execution panel remains usable.
+5. At 360px mobile width, confirm there is no separate fixed bottom customer CTA above MobileNav, the MobileNav safe-area stays clear, touch targets remain 44px+, and the page does not create horizontal scroll.
 
 ## Mobile Dialog / Touch Target UAT Steps
 1. At 360px mobile width, open a long dialog and confirm content scrolls inside the dialog without leaving the viewport.
@@ -119,7 +122,7 @@ Authenticated shell polish check:
 3. Confirm sales actions are visually separated from DB assignment, bulk reassignment, reclaim, and import actions.
 4. Open customer detail and confirm Next Best Action appears before history-heavy sections.
 5. Complete the flow from consultation preparation to consultation record, follow-up, and contract entry without leaving the workspace.
-6. In mobile width, confirm the bottom customer CTA does not overlap MobileNav and all dialogs stay within the viewport.
+6. In mobile width, confirm customer quick actions live in the consolidated execution panel, no bottom fixed customer CTA overlaps MobileNav, and all dialogs stay within the viewport.
 
 ## Deleted Data Permanent Delete Safeguard UAT
 
