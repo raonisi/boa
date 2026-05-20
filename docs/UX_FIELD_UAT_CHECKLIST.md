@@ -277,8 +277,10 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 ### Mobile Web
 1. Open `/operation-risk` in a narrow viewport.
 2. Confirm risk cards stack vertically without horizontal scroll.
-3. Confirm long action names, team/user labels, and empty states do not break the layout.
-4. Confirm branch_admin can navigate from the mobile more menu to "운영 리스크 센터".
+3. At 360px width, confirm the top OperationRisk tabs stay on one row and scroll horizontally inside the tab area.
+4. Confirm the tab buttons do not shrink below readable/tappable width and the page itself does not gain horizontal overflow.
+5. Confirm long action names, team/user labels, and empty states do not break the layout.
+6. Confirm branch_admin can navigate from the mobile more menu to "운영 리스크 센터".
 
 ### Android APK
 1. Open the Android internal build and navigate to `/operation-risk`.

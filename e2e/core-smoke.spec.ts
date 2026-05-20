@@ -143,11 +143,53 @@ test.describe("BOA CRM e2e smoke", () => {
     await expectStablePageShell(page, errors);
   });
 
+  test("mobile operation risk tabs stay on one scrollable row at 360px", async ({ page }, testInfo) => {
+    test.skip(!testInfo.project.name.includes("mobile"), "mobile-only operation risk tab smoke");
+    await page.setViewportSize({ width: 360, height: 760 });
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+
+    await page.goto("/operation-risk", { waitUntil: "domcontentloaded" });
+    const tabScroll = page.getByTestId("operation-risk-tab-scroll");
+    const operationRiskTabs = tabScroll.locator('[data-slot="tabs-list"]').first();
+    const tabMetrics = await tabScroll.evaluate((container) => {
+      const list = container.querySelector('[data-slot="tabs-list"]');
+      const children = list ? Array.from(list.children) : [];
+      const topValues = new Set(children.map((child) => Math.round(child.getBoundingClientRect().top)));
+      return {
+        topCount: topValues.size,
+        containerScrollWidth: container.scrollWidth,
+        containerClientWidth: container.clientWidth,
+        childWidths: children.map((child) => Math.round(child.getBoundingClientRect().width)),
+      };
+    });
+
+    await expect(operationRiskTabs).toBeVisible();
+    expect(tabMetrics.topCount).toBe(1);
+    expect(tabMetrics.containerScrollWidth).toBeGreaterThan(tabMetrics.containerClientWidth);
+    expect(Math.min(...tabMetrics.childWidths)).toBeGreaterThanOrEqual(44);
+    await expectStablePageShell(page, errors);
+  });
+
   test("operation risk and analytics visual shells do not leak customer contact data", async ({ page }) => {
     await mockBoaTrpc(page, "branch_admin");
     const errors = collectPageErrors(page);
 
     await page.goto("/operation-risk", { waitUntil: "domcontentloaded" });
+    const operationRiskTabs = page.locator('[data-slot="tabs-list"]').first();
+    const tabMetrics = await operationRiskTabs.evaluate((element) => {
+      const children = Array.from(element.children);
+      const topValues = new Set(children.map((child) => Math.round(child.getBoundingClientRect().top)));
+      return {
+        topCount: topValues.size,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+        childWidths: children.map((child) => Math.round(child.getBoundingClientRect().width)),
+      };
+    });
+    expect(tabMetrics.topCount).toBe(1);
+    expect(tabMetrics.scrollWidth).toBeGreaterThanOrEqual(tabMetrics.clientWidth);
+    expect(Math.min(...tabMetrics.childWidths)).toBeGreaterThanOrEqual(44);
     await expect(page.getByText("010-1000-2000")).toHaveCount(0);
     await expectStablePageShell(page, errors);
 

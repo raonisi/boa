@@ -419,12 +419,14 @@ export default function OperationRiskCenter() {
         ) : null}
 
         <Tabs value={activeTab} onValueChange={(value) => setLocation(`/operation-risk?tab=${value}`)} className="space-y-4">
-          <TabsList className="h-auto w-full flex-wrap justify-start gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
-            <TabsTrigger value="summary">요약</TabsTrigger>
-            <TabsTrigger value="actions">조치 필요</TabsTrigger>
-            <TabsTrigger value="logs">상세 운영 로그</TabsTrigger>
-            <TabsTrigger value="status">운영 상태</TabsTrigger>
-          </TabsList>
+          <div data-testid="operation-risk-tab-scroll" className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 pb-1 sm:mx-0 sm:max-w-full sm:px-0">
+            <TabsList className="h-auto min-w-max flex-nowrap justify-start gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-full sm:min-w-0 sm:flex-wrap">
+              <TabsTrigger value="summary" className="flex-none shrink-0 px-3">요약</TabsTrigger>
+              <TabsTrigger value="actions" className="flex-none shrink-0 px-3">조치 필요</TabsTrigger>
+              <TabsTrigger value="logs" className="flex-none shrink-0 px-3">상세 운영 로그</TabsTrigger>
+              <TabsTrigger value="status" className="flex-none shrink-0 px-3">운영 상태</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="summary" className="space-y-4">
             <SummaryTab data={data} isLoading={isLoading} overallLevel={overallLevel} setLocation={setLocation} />
