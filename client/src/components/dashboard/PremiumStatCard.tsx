@@ -36,7 +36,7 @@ export function PremiumStatCard({
   }[tone];
 
   return (
-    <Card className="overflow-hidden">
+    <Card className="crm-dashboard-card overflow-hidden">
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

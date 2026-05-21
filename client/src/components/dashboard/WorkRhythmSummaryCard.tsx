@@ -12,7 +12,7 @@ export function WorkRhythmSummaryCard() {
   const { data, isLoading } = trpc.workRhythm.summary.useQuery({ period: "week" });
 
   return (
-    <Card className="shadow-sm">
+    <Card className="crm-dashboard-card">
       <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
@@ -26,33 +26,33 @@ export function WorkRhythmSummaryCard() {
       </CardHeader>
       <CardContent className="space-y-3 px-5 pb-5">
         <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-          <div className="boa-soft-card p-3">
+          <div className="boa-soft-card crm-dashboard-action p-3">
             <p className="text-xs text-muted-foreground">이번 주 상담기록</p>
             <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : data?.consultationCount ?? 0}</p>
           </div>
-          <div className="boa-soft-card p-3">
+          <div className="boa-soft-card crm-dashboard-action p-3">
             <p className="text-xs text-muted-foreground">후속관리 완료율</p>
             <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{data?.followUpCompletionRate ?? "-"}%</p>
           </div>
-          <div className="boa-soft-card p-3">
+          <div className="boa-soft-card crm-dashboard-action p-3">
             <p className="text-xs text-muted-foreground">미처리 후속관리</p>
             <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : data?.overdueFollowUpCount ?? 0}</p>
           </div>
-          <div className="boa-soft-card p-3">
+          <div className="boa-soft-card crm-dashboard-action p-3">
             <p className="text-xs text-muted-foreground">오늘 필요 상담</p>
             <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">{isLoading ? "-" : data?.recommendedTodayActions?.suggestedConsultationCount ?? 0}</p>
           </div>
         </div>
         <div className="grid gap-2 text-xs md:grid-cols-3">
-          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+          <div className="crm-dashboard-action rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">목표까지 부족 신규 계약</p>
             <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{data?.remaining?.contractCount ?? 0}건</p>
           </div>
-          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+          <div className="crm-dashboard-action rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">목표까지 부족 월납보험료</p>
             <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{formatWon(data?.remaining?.monthlyPremium)}</p>
           </div>
-          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+          <div className="crm-dashboard-action rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">일평균 필요 신규 계약</p>
             <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{data?.dailyRequired?.contractCount ?? 0}건</p>
           </div>

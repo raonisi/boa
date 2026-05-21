@@ -393,6 +393,7 @@ This PR6 means the new roadmap "Operation Risk Center", not the older mobile qui
 5. ActivityLog `logs.list` loading, empty, and error states are visually distinct.
 6. ActivityLog query failure shows retry guidance and does not show "no logs" messaging.
 7. Error states do not render raw API errors, stack traces, tokens, secrets, or customer details.
+8. Dashboard desktop cards use subtle hover/focus lift, border, and shadow changes without layout shift; 360px mobile keeps tap states without horizontal overflow.
 
 ## Mobile Customer Search UAT
 1. Mobile CustomerList search input sends the search term to `customers.list` and refreshes results while typing.

@@ -312,6 +312,41 @@
     transform: translateY(-1px);
   }
 
+  .crm-dashboard-card {
+    @apply border-border/80 bg-card shadow-sm transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out;
+    box-shadow: var(--boa-shadow-card);
+  }
+
+  .crm-dashboard-card:focus-within {
+    border-color: hsl(var(--ring) / 0.42);
+    box-shadow: var(--boa-shadow-card-hover);
+  }
+
+  .crm-dashboard-action {
+    @apply transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 active:bg-muted/45;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .crm-dashboard-card:hover,
+    .crm-dashboard-action:hover {
+      border-color: hsl(var(--ring) / 0.42);
+      box-shadow: var(--boa-shadow-card-hover);
+      transform: translateY(-1px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .crm-dashboard-card,
+    .crm-dashboard-action {
+      transition: none;
+    }
+
+    .crm-dashboard-card:hover,
+    .crm-dashboard-action:hover {
+      transform: none;
+    }
+  }
+
   .crm-priority-chip {
     @apply rounded-full px-2 py-1 text-[11px] font-semibold transition;
   }
