@@ -7,6 +7,7 @@ import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerInternalPushSchedulerRoutes } from "../internalPushSchedulerRoutes";
 import { registerMobileRoutes } from "../mobileRoutes";
+import { startPushReminderScheduler } from "../pushReminderScheduler";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
@@ -108,6 +109,7 @@ async function startServer() {
     console.log(`Server running on http://127.0.0.1:${port}/`);
     console.log(`Server running on http://localhost:${port}/`);
     console.log(`Health check: http://127.0.0.1:${port}/api/health`);
+    startPushReminderScheduler();
   });
 }
 

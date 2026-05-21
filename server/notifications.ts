@@ -8,8 +8,50 @@ import { getDb } from "./db";
 import { notifications } from "../drizzle/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getScheduleReminderDueAt } from "@shared/timePolicy";
+import { SAFE_PUSH_PAYLOADS, sendPushToUsers, type PushNotificationType, type SafePushPayload } from "./pushNotifications";
 
 type NotifType = typeof notifications.$inferInsert["type"];
+
+type PushBridgeConfig = {
+  pushType: PushNotificationType;
+  payload: SafePushPayload;
+  sourceType: "customer" | "contract" | "schedule";
+};
+
+function getPushBridgeConfig(data: { type: NotifType; relatedType?: string }): PushBridgeConfig | null {
+  if (data.type === "birthday") return { pushType: "customer_birthday", payload: SAFE_PUSH_PAYLOADS.customerBirthday, sourceType: "customer" };
+  if (data.type === "contract_90") return { pushType: "contract_90", payload: SAFE_PUSH_PAYLOADS.contract90, sourceType: "contract" };
+  if (data.type === "contract_180") return { pushType: "contract_180", payload: SAFE_PUSH_PAYLOADS.contract180, sourceType: "contract" };
+  if (data.type === "contract_365") return { pushType: "contract_365", payload: SAFE_PUSH_PAYLOADS.contract365, sourceType: "contract" };
+  if (data.type === "long_unmanaged_90") return { pushType: "long_unmanaged_90", payload: SAFE_PUSH_PAYLOADS.longUnmanaged90, sourceType: "customer" };
+  if (data.type === "schedule_incomplete") return { pushType: "schedule_incomplete", payload: SAFE_PUSH_PAYLOADS.scheduleIncomplete, sourceType: "schedule" };
+  if (data.relatedType === "schedule" && ["schedule_1day", "schedule_today", "schedule_1hour", "general"].includes(data.type)) {
+    return { pushType: "schedule_reminder", payload: SAFE_PUSH_PAYLOADS.scheduleReminder, sourceType: "schedule" };
+  }
+  return null;
+}
+
+async function sendDuePushForNotification(data: {
+  userId: number;
+  type: NotifType;
+  relatedType?: string;
+  relatedId?: number;
+  dueAt?: Date;
+}) {
+  const bridge = getPushBridgeConfig(data);
+  if (!bridge || !data.relatedId) return;
+
+  const dueAt = data.dueAt ?? new Date();
+  if (dueAt.getTime() > Date.now()) return;
+
+  await sendPushToUsers([data.userId], bridge.payload, {
+    type: bridge.pushType,
+    sourceType: bridge.sourceType,
+    sourceId: data.relatedId,
+    dedupeKey: `notification:${bridge.pushType}:${bridge.sourceType}:${data.relatedId}:${dueAt.toISOString()}`,
+    now: dueAt,
+  });
+}
 
 /**
  * 알림을 중복 없이 생성한다.
@@ -28,9 +70,10 @@ export async function createNotificationSafe(data: {
   if (!db) return false;
 
   try {
+    let created = true;
     const conn = (db as any).session?.client ?? (db as any)._client;
     if (conn) {
-      await conn.execute(
+      const [result] = await conn.execute(
         `INSERT IGNORE INTO notifications (userId, type, title, message, relatedType, relatedId, dueAt, isRead, processStatus, createdAt)
          VALUES (?, ?, ?, ?, ?, ?, ?, false, '미확인', NOW())`,
         [
@@ -43,6 +86,7 @@ export async function createNotificationSafe(data: {
           data.dueAt ?? null,
         ]
       );
+      created = Number((result as any)?.affectedRows ?? 0) > 0;
     } else {
       await db.insert(notifications).values({
         userId: data.userId,
@@ -54,7 +98,10 @@ export async function createNotificationSafe(data: {
         dueAt: data.dueAt,
       });
     }
-    return true;
+    if (created) {
+      await sendDuePushForNotification(data);
+    }
+    return created;
   } catch (err: any) {
     if (err?.code === "ER_DUP_ENTRY" || err?.errno === 1062) return false;
     console.error("[Notification] Failed to create:", err);

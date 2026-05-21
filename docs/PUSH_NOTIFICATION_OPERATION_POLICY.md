@@ -61,10 +61,13 @@ Available triggers:
 - Backward-compatible deprecated wrapper: `pushNotifications.sendSchedule30MinuteReminders`
 - Scheduler/internal trigger: `pushNotifications.runSchedulePushReminderEngineInternal`
 - Railway-friendly HTTP trigger: `POST /api/internal/push-reminders/run`
+- In-process fallback scheduler: enabled by default outside tests, every 5 minutes.
 
 The scheduler/internal trigger requires Railway or the scheduler caller to provide `PUSH_SCHEDULER_SECRET` and pass the same secret in the mutation input. This allows Railway Cron or another internal scheduler to call the engine without a human branch-admin click. The secret must be stored only in Railway Variables and must not be committed.
 
 Recommended Railway Cron cadence: every 5 minutes. The schedule engine defaults to a 10 minute lookback window and dedupe keys to avoid duplicate sends when the trigger runs repeatedly. For a controlled catch-up after a delayed Cron run, branch-admin or internal scheduler calls may pass `lookbackMinutes` from 1 to 30. Do not run a wider catch-up by default because it can send reminders noticeably late.
+
+If Railway Cron is not configured, the server starts an in-process fallback scheduler after boot. It uses the same `runPushReminderEngines` path, the same 10 minute default lookback, and the same dedupe keys as manual or HTTP-triggered runs. Operators may disable it with `PUSH_REMINDER_SCHEDULER_ENABLED=false`, tune the cadence with `PUSH_REMINDER_SCHEDULER_INTERVAL_MS`, and tune the catch-up window with `PUSH_REMINDER_LOOKBACK_MINUTES` from 1 to 30. Railway Cron is still preferred when an external schedule is available because it is easier to observe independently of web server restarts.
 
 Railway Cron HTTP call:
 
@@ -93,10 +96,11 @@ The business reminder engine extends Android FCM delivery to:
 
 - Customer birthday reminders
 - Contract 90-day reminders
+- Contract 180-day reminders
 - Contract 365-day reminders
 - Long-unmanaged customer reminders
 
-Contract 180-day push delivery is intentionally not implemented. The engine calculates candidates in `Asia/Seoul`, sends only to the assigned owner, and skips unassigned, inactive, or deleted customers/contracts. Inactive and resigned users are excluded before delivery.
+The engine calculates candidates in `Asia/Seoul`, sends only to the assigned owner, and skips unassigned, inactive, or deleted customers/contracts. Inactive and resigned users are excluded before delivery.
 
 Preference mapping:
 

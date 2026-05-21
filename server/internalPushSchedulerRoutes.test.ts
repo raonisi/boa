@@ -85,6 +85,7 @@ describe("internal push scheduler HTTP route", () => {
         targetCount: 0,
         birthdayTargetCount: 0,
         contract90TargetCount: 0,
+        contract180TargetCount: 0,
         contract365TargetCount: 0,
         longUnmanagedTargetCount: 0,
         sentCount: 0,
