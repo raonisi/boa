@@ -1192,6 +1192,45 @@ describe("PR19-3 - safe FCM work notifications", () => {
     expect(updateSpy).toHaveBeenCalledWith(4, expect.objectContaining({ followUpTodayEnabled: false }));
   });
 
+  it("bridges due notification-center events into safe FCM push attempts", async () => {
+    vi.spyOn(db, "getDb").mockResolvedValue({
+      session: {
+        client: {
+          execute: vi.fn().mockResolvedValue([{ affectedRows: 1 }]),
+        },
+      },
+    } as any);
+    const sendSpy = vi.spyOn(pushNotifications, "sendPushToUsers").mockResolvedValue({
+      requestedUserIds: [4],
+      tokenCount: 0,
+      sentCount: 0,
+      failureCount: 0,
+      skippedCount: 1,
+      duplicateSkippedCount: 0,
+      disabledSkippedCount: 0,
+      quietHoursSkippedCount: 0,
+      invalidTokenDeactivatedCount: 0,
+      statuses: { 4: "skipped_no_token" },
+    });
+
+    await notifications.createNotificationSafe({
+      userId: 4,
+      type: "contract_180",
+      title: "[TEST] contract milestone",
+      message: "[TEST] contract milestone",
+      relatedType: "contract",
+      relatedId: 200,
+      dueAt: parseKstLocalDateTime("2026-05-20T09:00:00"),
+    });
+
+    expect(sendSpy).toHaveBeenCalledWith([4], pushNotifications.SAFE_PUSH_PAYLOADS.contract180, expect.objectContaining({
+      type: "contract_180",
+      sourceType: "contract",
+      sourceId: 200,
+      dedupeKey: expect.stringContaining("notification:contract_180:contract:200"),
+    }));
+  });
+
   it("skips today follow-up push when the user's preference is disabled", async () => {
     vi.spyOn(db, "getActiveDeviceTokensForUsers").mockResolvedValue([{ id: 1, userId: 4, platform: "android", token }] as any);
     vi.spyOn(db, "getPushNotificationPreference").mockResolvedValue({
@@ -1542,7 +1581,7 @@ describe("PR19-3 - safe FCM work notifications", () => {
     process.env.PUSH_SCHEDULER_SECRET = previousSecret;
   });
 
-  it("creates birthday, contract 90, contract 365, and long-unmanaged business push candidates without customer data", () => {
+  it("creates birthday, contract 90, contract 180, contract 365, and long-unmanaged business push candidates without customer data", () => {
     const candidates = pushNotifications.getBusinessPushCandidates({
       customers: [
         { id: 100, agentId: 4, birthDate: "1980-05-22", assignedAt: "2026-02-21", isActive: true, deletedAt: null },
@@ -1559,16 +1598,18 @@ describe("PR19-3 - safe FCM work notifications", () => {
     }, { now: parseKstLocalDateTime("2026-05-22T09:00:00") });
 
     expect(candidates.map((candidate) => candidate.type).sort()).toEqual([
+      "contract_180",
       "contract_365",
       "contract_90",
       "customer_birthday",
       "long_unmanaged_90",
     ]);
     expect(candidates.find((candidate) => candidate.type === "contract_90")?.dedupeKey).toBe("business:contract_90:contract:200:2026-05-22");
-    expect(candidates.some((candidate) => candidate.type === "contract_180")).toBe(false);
+    expect(candidates.find((candidate) => candidate.type === "contract_180")?.dedupeKey).toBe("business:contract_180:contract:202:2026-05-22");
     expect(JSON.stringify([
       pushNotifications.SAFE_PUSH_PAYLOADS.customerBirthday,
       pushNotifications.SAFE_PUSH_PAYLOADS.contract90,
+      pushNotifications.SAFE_PUSH_PAYLOADS.contract180,
       pushNotifications.SAFE_PUSH_PAYLOADS.contract365,
       pushNotifications.SAFE_PUSH_PAYLOADS.longUnmanaged90,
     ])).not.toMatch(/010|1980|birthDate|customerName|phone|productName|monthlyPremium|disease|premium/);
@@ -1599,6 +1640,7 @@ describe("PR19-3 - safe FCM work notifications", () => {
     ] as any);
     vi.spyOn(db, "getAllContracts").mockResolvedValue([
       { id: 200, agentId: 4, contractDate: "2026-02-21", isActive: true, deletedAt: null },
+      { id: 201, agentId: 4, contractDate: "2025-11-23", isActive: true, deletedAt: null },
     ] as any);
     vi.spyOn(db, "getLatestConsultationDatesByCustomerIds").mockResolvedValue([
       { customerId: 100, latestCreatedAt: "2026-02-21" },
@@ -1631,11 +1673,12 @@ describe("PR19-3 - safe FCM work notifications", () => {
       now: "2026-05-22T09:00:00",
     });
 
-    expect(result.targetCount).toBe(3);
+    expect(result.targetCount).toBe(4);
     expect(result.birthdayTargetCount).toBe(1);
     expect(result.contract90TargetCount).toBe(1);
+    expect(result.contract180TargetCount).toBe(1);
     expect(result.longUnmanagedTargetCount).toBe(1);
-    expect(result.sentCount).toBe(3);
+    expect(result.sentCount).toBe(4);
   });
 
   it("applies no-token, preference, quiet-hours, and duplicate gates to business push types", async () => {

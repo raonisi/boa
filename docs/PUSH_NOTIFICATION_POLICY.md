@@ -101,6 +101,7 @@ Examples:
 - `schedule:{id}:incomplete:{endTime}:user:{userId}`
 - `business:customer_birthday:customer:{customerId}:{date}:user:{userId}`
 - `business:contract_90:contract:{contractId}:{date}:user:{userId}`
+- `business:contract_180:contract:{contractId}:{date}:user:{userId}`
 - `business:contract_365:contract:{contractId}:{date}:user:{userId}`
 - `business:long_unmanaged_90:customer:{customerId}:{date}:user:{userId}`
 
@@ -125,13 +126,14 @@ The customer/contract business push engine adds Android FCM delivery for:
 
 - `customer_birthday`
 - `contract_90`
+- `contract_180`
 - `contract_365`
 - `long_unmanaged_90`
 
-It does not add contract 180-day push delivery. The engine sends only to the assigned owner:
+The engine sends only to the assigned owner:
 
 - `customers.agentId` for birthday and long-unmanaged customer reminders
-- `contracts.agentId` for contract 90-day and 365-day reminders
+- `contracts.agentId` for contract 90-day, 180-day, and 365-day reminders
 
 Customers and contracts with no owner, inactive rows, or deleted rows are skipped. Inactive and resigned users are excluded before delivery. Business reminders reuse the existing `followUpTodayEnabled` work-notification preference to avoid a schema migration. Quiet hours, active Android token lookup, dedupe keys, invalid-token handling, and `push_notification_logs` are reused through `sendPushToUsers`.
 

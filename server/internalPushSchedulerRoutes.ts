@@ -43,6 +43,7 @@ function safeEngineResult(result: Awaited<ReturnType<typeof pushNotifications.ru
       targetCount: result.business.targetCount,
       birthdayTargetCount: result.business.birthdayTargetCount,
       contract90TargetCount: result.business.contract90TargetCount,
+      contract180TargetCount: result.business.contract180TargetCount,
       contract365TargetCount: result.business.contract365TargetCount,
       longUnmanagedTargetCount: result.business.longUnmanagedTargetCount,
       sentCount: result.business.sentCount,

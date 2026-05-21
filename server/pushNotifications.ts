@@ -23,6 +23,7 @@ export type PushNotificationType =
   | "schedule_incomplete"
   | "customer_birthday"
   | "contract_90"
+  | "contract_180"
   | "contract_365"
   | "long_unmanaged_90"
   | "contract_delete_request"
@@ -102,6 +103,11 @@ export const SAFE_PUSH_PAYLOADS = {
     title: "BOA \uACC4\uC57D\uAD00\uB9AC \uC54C\uB9BC",
     body: "\uC810\uAC80\uD560 \uACC4\uC57D \uAD00\uB9AC \uC77C\uC815\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
     data: { type: "contract_90" },
+  },
+  contract180: {
+    title: "BOA \uACC4\uC57D\uAD00\uB9AC \uC54C\uB9BC",
+    body: "\uC911\uAC04 \uC810\uAC80\uD560 \uACC4\uC57D \uAD00\uB9AC \uC77C\uC815\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
+    data: { type: "contract_180" },
   },
   contract365: {
     title: "BOA \uACC4\uC57D\uAD00\uB9AC \uC54C\uB9BC",
@@ -191,7 +197,7 @@ function isNotificationEnabled(preference: {
   testNotificationEnabled: boolean;
 }, type: PushNotificationType) {
   if (type === "today_follow_up") return preference.followUpTodayEnabled;
-  if (type === "customer_birthday" || type === "contract_90" || type === "contract_365" || type === "long_unmanaged_90") return preference.followUpTodayEnabled;
+  if (type === "customer_birthday" || type === "contract_90" || type === "contract_180" || type === "contract_365" || type === "long_unmanaged_90") return preference.followUpTodayEnabled;
   if (type === "schedule_30min" || type === "schedule_reminder" || type === "schedule_incomplete") return preference.scheduleReminderEnabled;
   if (type === "contract_delete_request") return preference.deleteRequestEnabled;
   return preference.testNotificationEnabled;
@@ -579,7 +585,7 @@ export async function runSchedulePushReminderEngine(
   };
 }
 
-type BusinessPushType = Extract<PushNotificationType, "customer_birthday" | "contract_90" | "contract_365" | "long_unmanaged_90">;
+type BusinessPushType = Extract<PushNotificationType, "customer_birthday" | "contract_90" | "contract_180" | "contract_365" | "long_unmanaged_90">;
 
 type BusinessPushCustomer = {
   id: number;
@@ -625,6 +631,7 @@ export type BusinessPushReminderEngineResult = {
   targetCount: number;
   birthdayTargetCount: number;
   contract90TargetCount: number;
+  contract180TargetCount: number;
   contract365TargetCount: number;
   longUnmanagedTargetCount: number;
   sentCount: number;
@@ -644,6 +651,7 @@ type BusinessPushCandidateInput = {
 const BUSINESS_PUSH_PAYLOADS: Record<BusinessPushType, SafePushPayload> = {
   customer_birthday: SAFE_PUSH_PAYLOADS.customerBirthday,
   contract_90: SAFE_PUSH_PAYLOADS.contract90,
+  contract_180: SAFE_PUSH_PAYLOADS.contract180,
   contract_365: SAFE_PUSH_PAYLOADS.contract365,
   long_unmanaged_90: SAFE_PUSH_PAYLOADS.longUnmanaged90,
 };
@@ -741,6 +749,7 @@ export function getBusinessPushCandidates(
 
     const milestones: Array<{ type: BusinessPushType; days: number }> = [
       { type: "contract_90", days: 90 },
+      { type: "contract_180", days: 180 },
       { type: "contract_365", days: 365 },
     ];
     for (const milestone of milestones) {
@@ -806,6 +815,7 @@ export async function runBusinessPushReminderEngine(
     targetCount: candidates.length,
     birthdayTargetCount: candidates.filter((candidate) => candidate.type === "customer_birthday").length,
     contract90TargetCount: candidates.filter((candidate) => candidate.type === "contract_90").length,
+    contract180TargetCount: candidates.filter((candidate) => candidate.type === "contract_180").length,
     contract365TargetCount: candidates.filter((candidate) => candidate.type === "contract_365").length,
     longUnmanagedTargetCount: candidates.filter((candidate) => candidate.type === "long_unmanaged_90").length,
     sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),

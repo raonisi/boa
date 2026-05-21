@@ -17,7 +17,7 @@ type PreferenceKey =
 
 const notificationRows: Array<{ key: PreferenceKey; title: string; description: string }> = [
   { key: "followUpTodayEnabled", title: "오늘 연락 대상 알림", description: "오늘 확인해야 할 후속관리 알림을 받습니다." },
-  { key: "scheduleReminderEnabled", title: "일정 알림", description: "일정 30분 전 업무 알림을 받습니다." },
+  { key: "scheduleReminderEnabled", title: "일정 알림", description: "일정별 알림 시간과 미완료 일정 알림을 받습니다." },
   { key: "deleteRequestEnabled", title: "계약 삭제 요청 알림", description: "처리할 계약 삭제 요청 알림을 받습니다." },
   { key: "testNotificationEnabled", title: "테스트 알림", description: "기기 등록 상태 확인용 테스트 알림을 받습니다." },
 ];
