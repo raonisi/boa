@@ -10,8 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import { getActiveLabel } from "@/lib/userRole";
-import { ClipboardCheck, Edit3, MessageSquareText, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { ClipboardCheck, Copy, Edit3, Eye, MessageSquareText, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -50,6 +51,68 @@ const scriptCategories = [
 ] as const;
 
 const channels = ["kakao", "sms", "both"] as const;
+
+function ToolPreviewPanel({
+  eyebrow,
+  title,
+  meta,
+  body,
+  note,
+  emptyText,
+  onCopy,
+}: {
+  eyebrow: string;
+  title?: string | null;
+  meta?: string | null;
+  body?: string | null;
+  note?: string | null;
+  emptyText: string;
+  onCopy?: () => void;
+}) {
+  const hasContent = Boolean(title || body || note);
+
+  return (
+    <Card className="flex max-h-[calc(100dvh-6rem)] min-h-[22rem] flex-col overflow-hidden border-slate-200/80 bg-white/95 shadow-sm xl:sticky xl:top-20">
+      <CardHeader className="shrink-0 border-b border-slate-100 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#b99b5f]">{eyebrow}</p>
+            <CardTitle className="mt-1 line-clamp-2 text-base">{title || "미리보기"}</CardTitle>
+            {meta ? <p className="mt-1 text-xs text-muted-foreground">{meta}</p> : null}
+          </div>
+          <Eye className="mt-1 h-4 w-4 shrink-0 text-muted-foreground" />
+        </div>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col p-0">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3">
+          {hasContent ? (
+            <div className="space-y-3">
+              {body ? (
+                <div className="whitespace-pre-wrap break-words rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+                  {body}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-3 text-sm text-muted-foreground">{emptyText}</p>
+              )}
+              {note ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+                  {note}
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-muted-foreground">{emptyText}</p>
+          )}
+        </div>
+        <div className="shrink-0 border-t bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+          <Button className="min-h-12 w-full md:min-h-10" variant="outline" disabled={!body} onClick={onCopy}>
+            <Copy className="mr-2 h-4 w-4" /> 미리보기 복사
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function ConsultationToolsManagement() {
   const { user } = useAuth();
@@ -93,10 +156,29 @@ export default function ConsultationToolsManagement() {
   const [editTemplateBody, setEditTemplateBody] = useState("");
   const [editTemplateNote, setEditTemplateNote] = useState("");
   const [deleteTemplate, setDeleteTemplate] = useState<any | null>(null);
+  const [selectedChecklistId, setSelectedChecklistId] = useState<number | null>(null);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
+  const [selectedScriptId, setSelectedScriptId] = useState<number | null>(null);
 
   const { data: checklists } = trpc.consultationTools.listChecklists.useQuery({ includeInactive: false });
   const { data: templates } = trpc.consultationTools.listMessageTemplates.useQuery({ includeInactive: false });
   const { data: scripts } = trpc.consultationScripts.list.useQuery({ includeInactive: false });
+  const checklistItems = checklists ?? [];
+  const templateItems = templates ?? [];
+  const scriptItems = scripts ?? [];
+  const selectedChecklist = checklistItems.find((item: any) => item.id === selectedChecklistId) ?? checklistItems[0];
+  const selectedTemplate = templateItems.find((item: any) => item.id === selectedTemplateId) ?? templateItems[0];
+  const selectedScript = scriptItems.find((item: any) => item.id === selectedScriptId) ?? scriptItems[0];
+
+  const copyPreviewText = async (text?: string | null) => {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("미리보기를 복사했습니다.");
+    } catch {
+      toast.error("복사에 실패했습니다.");
+    }
+  };
 
   const createChecklist = trpc.consultationTools.createChecklist.useMutation({
     onSuccess: () => {
@@ -270,6 +352,8 @@ export default function ConsultationToolsManagement() {
           </TabsList>
 
           <TabsContent value="checklists" className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+              <div className="min-w-0 space-y-4">
             {isBranchAdmin ? (
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">체크리스트 항목 추가</CardTitle></CardHeader>
@@ -313,8 +397,15 @@ export default function ConsultationToolsManagement() {
               </Card>
             ) : null}
             <div className="grid gap-3">
-              {(checklists ?? []).map((item: any) => (
-                <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
+              {checklistItems.map((item: any) => (
+                <Card
+                  key={item.id}
+                  className={cn(
+                    "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
+                    selectedChecklist?.id === item.id && "border-primary/40 ring-1 ring-primary/20"
+                  )}
+                  onClick={() => setSelectedChecklistId(item.id)}
+                >
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
                     <div className="min-w-0">
                       <p className="line-clamp-2 font-medium leading-6">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
@@ -335,9 +426,23 @@ export default function ConsultationToolsManagement() {
                 </Card>
               ))}
             </div>
+              </div>
+              <div className="min-w-0">
+                <ToolPreviewPanel
+                  eyebrow="체크리스트 미리보기"
+                  title={selectedChecklist?.title}
+                  meta={selectedChecklist ? `${selectedChecklist.phase} / ${selectedChecklist.category} / ${getActiveLabel(selectedChecklist.isActive)}` : null}
+                  body={selectedChecklist?.description}
+                  emptyText="체크리스트를 선택하면 긴 설명과 복사 버튼을 가까이에서 확인할 수 있습니다."
+                  onCopy={() => copyPreviewText(selectedChecklist?.description)}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="templates" className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+              <div className="min-w-0 space-y-4">
             {isBranchAdmin ? (
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">후속 문구 템플릿 추가</CardTitle></CardHeader>
@@ -377,8 +482,15 @@ export default function ConsultationToolsManagement() {
               </Card>
             ) : null}
             <div className="grid gap-3">
-              {(templates ?? []).map((item: any) => (
-                <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
+              {templateItems.map((item: any) => (
+                <Card
+                  key={item.id}
+                  className={cn(
+                    "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
+                    selectedTemplate?.id === item.id && "border-primary/40 ring-1 ring-primary/20"
+                  )}
+                  onClick={() => setSelectedTemplateId(item.id)}
+                >
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <p className="line-clamp-2 font-medium leading-6">{item.title}</p>
@@ -399,9 +511,24 @@ export default function ConsultationToolsManagement() {
                 </Card>
               ))}
             </div>
+              </div>
+              <div className="min-w-0">
+                <ToolPreviewPanel
+                  eyebrow="문구 미리보기"
+                  title={selectedTemplate?.title}
+                  meta={selectedTemplate ? `${selectedTemplate.situation} / ${selectedTemplate.channel} / ${getActiveLabel(selectedTemplate.isActive)}` : null}
+                  body={selectedTemplate?.body}
+                  note={selectedTemplate?.complianceNote}
+                  emptyText="문구 템플릿을 선택하면 긴 본문만 내부에서 스크롤됩니다."
+                  onCopy={() => copyPreviewText(selectedTemplate?.body)}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="scripts" className="space-y-4">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
+              <div className="min-w-0 space-y-4">
             <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader><CardTitle className="text-base">상담 스크립트 추가</CardTitle></CardHeader>
               <CardContent className="grid gap-3 md:grid-cols-4">
@@ -459,13 +586,20 @@ export default function ConsultationToolsManagement() {
               </Card>
             ) : null}
             <div className="grid gap-3">
-              {(scripts ?? []).length === 0 ? (
+              {scriptItems.length === 0 ? (
                 <Card className="border-dashed border-slate-200 bg-white/80">
                   <CardContent className="p-6 text-sm text-muted-foreground">등록된 상담 스크립트가 없습니다.</CardContent>
                 </Card>
               ) : null}
-              {(scripts ?? []).map((item: any) => (
-                <Card key={item.id} className="border-slate-200/80 bg-white/95 shadow-sm">
+              {scriptItems.map((item: any) => (
+                <Card
+                  key={item.id}
+                  className={cn(
+                    "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
+                    selectedScript?.id === item.id && "border-primary/40 ring-1 ring-primary/20"
+                  )}
+                  onClick={() => setSelectedScriptId(item.id)}
+                >
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
                     <div className="min-w-0">
                       <p className="line-clamp-2 font-medium leading-6">{item.title}</p>
@@ -485,6 +619,19 @@ export default function ConsultationToolsManagement() {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+              </div>
+              <div className="min-w-0">
+                <ToolPreviewPanel
+                  eyebrow="스크립트 미리보기"
+                  title={selectedScript?.title}
+                  meta={selectedScript ? `${selectedScript.category} / ${selectedScript.tags ?? "태그 없음"} / ${getActiveLabel(selectedScript.isActive)}` : null}
+                  body={selectedScript?.scriptBody}
+                  note={selectedScript?.complianceNote}
+                  emptyText="상담 스크립트를 선택하면 긴 본문만 미리보기 안에서 스크롤됩니다."
+                  onCopy={() => copyPreviewText(selectedScript?.scriptBody)}
+                />
+              </div>
             </div>
           </TabsContent>
         </Tabs>
