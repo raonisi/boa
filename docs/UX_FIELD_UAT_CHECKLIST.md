@@ -165,6 +165,8 @@ This hotfix is separate from PR5 `/analytics`, PR6 `/operation-risk`, and PR19-4
 8. Confirm inactive/resigned accounts cannot call consultation script mutations.
 9. Confirm activity logs do not store full consultation script body text.
 10. Confirm PR5 `/analytics` and PR6 `/operation-risk` screens are unchanged.
+11. On desktop, select a long script/template/checklist and verify the right-side preview panel stays sticky while only the preview body scrolls.
+12. On 360px mobile, verify the preview panel stacks without horizontal overflow and its copy button remains reachable.
 
 ## Consultation Checklist / Message Template CRUD Hotfix UAT
 
