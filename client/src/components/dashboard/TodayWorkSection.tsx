@@ -76,7 +76,7 @@ function SectionCard({
   action?: ReactNode;
 }) {
   return (
-    <Card>
+    <Card className="crm-dashboard-card">
       <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
@@ -349,7 +349,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
         key={`${task.taskType}-${task.id}`}
         type="button"
         onClick={() => setSelectedTask(task)}
-        className="min-h-12 w-full rounded-lg border border-border bg-card p-3.5 text-left shadow-sm active:bg-muted/50"
+        className="crm-dashboard-action min-h-12 w-full rounded-lg border border-border bg-card p-3.5 text-left shadow-sm active:bg-muted/50"
       >
         <div className="flex min-w-0 items-start justify-between gap-3">
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{title}</span>
@@ -362,7 +362,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
 
   return (
     <section className="space-y-5">
-      <Card className="overflow-hidden border-primary/15 shadow-sm">
+      <Card className="crm-dashboard-card overflow-hidden border-primary/15">
         <div className="crm-masthead-rule" />
         <CardContent className="p-4 sm:p-6">
           <div className="grid gap-4 xl:grid-cols-[1.15fr_1.6fr_auto] xl:items-center">
@@ -383,7 +383,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
                   key={item.label}
                   type="button"
                   onClick={() => setLocation(item.path)}
-                  className="min-h-12 rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/45"
+                  className="crm-dashboard-action min-h-12 rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm"
                 >
                   <p className="text-[11px] font-medium text-muted-foreground">{item.label}</p>
                   <p className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${item.tone}`}>{isLoading || isError ? "-" : item.value}</p>
@@ -406,7 +406,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
                   key={item.label}
                   type="button"
                   onClick={() => setLocation(item.path)}
-                  className={`min-h-12 rounded-lg border p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.tone}`}
+                  className={`crm-dashboard-action min-h-12 rounded-lg border p-3 text-left shadow-sm ${item.tone}`}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -432,7 +432,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
         <PremiumStatCard title="월납보험료 실적" value={isLoading || isError ? "-" : formatWon(cards?.monthlyPremiumSum)} icon={TrendingUp} tone="navy" helper="입력 계약 기준" />
       </div>
 
-      <Card className="md:hidden shadow-sm">
+      <Card className="crm-dashboard-card md:hidden">
         <CardHeader className="flex-row items-center justify-between gap-2 border-b border-border/60 pb-3">
           <CardTitle className="text-sm font-semibold tracking-tight">오늘 업무 요약</CardTitle>
           <button type="button" onClick={() => setLocation("/notifications")} className="text-xs font-semibold text-primary hover:underline">
@@ -461,7 +461,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
         </CardContent>
       </Card>
 
-      <Card className="md:hidden shadow-sm">
+      <Card className="crm-dashboard-card md:hidden">
         <CardHeader className="border-b border-border/60 pb-3">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
             <CheckCircle2 className="h-4 w-4 text-emerald-700" />
@@ -545,7 +545,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
         onCustomerAbsent={(task) => runTask(`customer-absent-${task.id}`, () => customerUpdateMutation.mutateAsync({ id: task.id, consultStatus: "부재" }), "처리했습니다.")}
       />
 
-      <Card className="shadow-sm">
+      <Card className="crm-dashboard-card">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
           <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
@@ -570,7 +570,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
                 />
               </div>
             ) : fieldQueue.map((item) => (
-              <div key={item.title} className={`rounded-lg border p-3 shadow-sm ${item.tone}`}>
+              <div key={item.title} className={`crm-dashboard-action rounded-lg border p-3 shadow-sm ${item.tone}`}>
                 <p className="text-xs text-muted-foreground">{item.title}</p>
                 <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">{item.count}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{item.hint}</p>
@@ -652,7 +652,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
             sortedPendingNotifications.slice(0, 3).map((notification) => {
               const priority = classifyNotificationPriority(notification);
               return (
-                <div key={notification.id} className="crm-elevated-card p-3">
+                <div key={notification.id} className="crm-dashboard-card rounded-xl p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="truncate text-sm font-semibold text-foreground">{notification.title}</p>
                     <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
@@ -697,7 +697,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
         </CardContent>
       </Card>
 
-      <Card className="overflow-hidden border-l-[3px] border-l-sidebar-primary shadow-sm">
+      <Card className="crm-dashboard-card overflow-hidden border-l-[3px] border-l-sidebar-primary">
         <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/60 pb-3">
           <div>
             <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
@@ -745,7 +745,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
               {topContacts.slice(0, 5).map((contact) => (
-                <div key={contact.customerId} className="rounded-lg border border-border bg-card p-3 shadow-sm transition hover:border-sidebar-primary/40 hover:bg-muted/35">
+                <div key={contact.customerId} className="crm-dashboard-action rounded-lg border border-border bg-card p-3 shadow-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-bold text-foreground">{contact.customerName}</span>
                     <Badge className={contact.urgency === "high" ? "border-0 bg-red-100 text-red-700" : contact.urgency === "medium" ? "border-0 bg-amber-100 text-amber-700" : "border-0 bg-slate-100 text-slate-600"}>
@@ -792,7 +792,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
               오늘 예정된 일정이 없습니다. 상담 예약이나 후속관리 일정을 등록해보세요.
             </EmptyState>
           ) : data?.todaySchedules.slice(0, 5).map((schedule) => (
-            <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
+            <button key={schedule.id} type="button" onClick={() => setLocation("/calendar")} className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-foreground">{schedule.title}</span>
                 <StatusBadge status={schedule.status} />
@@ -824,7 +824,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
               미확인 알림이 없습니다. 일정 알림은 설정한 시각에 표시됩니다.
             </EmptyState>
           ) : data?.pendingNotifications.slice(0, 5).map((notification) => (
-            <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
+            <button key={notification.id} type="button" onClick={() => setLocation("/notifications")} className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-foreground">{notification.title}</span>
                 <span className="text-[11px] text-muted-foreground">{getStatusLabel(notification.processStatus)}</span>
@@ -856,7 +856,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
               장기 미관리 고객이 없습니다.
             </EmptyState>
           ) : data?.longUnmanagedCustomers.filter(Boolean).slice(0, 5).map((customer) => (
-            <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
+            <button key={customer.id} type="button" onClick={() => setLocation(`/customers/${customer.id}`)} className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-foreground">{customer.name}</span>
                 <StatusBadge status={customer.consultStatus} />
@@ -886,7 +886,7 @@ export function TodayWorkSection({ userName, role, roleTitle }: TodayWorkSection
               오늘 연락할 고객이 없습니다.
             </EmptyState>
           ) : data?.todayFollowUps.slice(0, 5).map((followUp) => (
-            <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm transition hover:bg-muted/40">
+            <button key={followUp.id} type="button" onClick={() => setLocation(`/customers/${followUp.customerId}`)} className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="truncate text-sm font-semibold text-foreground">{followUp.customerName ?? `고객 #${followUp.customerId}`}</span>
                 <span className="text-[11px] text-muted-foreground">{followUp.nextAction}</span>

@@ -10,7 +10,7 @@ export function PerformanceGoalSummaryCard() {
 
   if (!firstGoal) {
     return (
-      <Card>
+      <Card className="crm-dashboard-card">
         <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-sm font-bold text-foreground">이번 달 목표</p>
@@ -25,7 +25,7 @@ export function PerformanceGoalSummaryCard() {
   }
 
   return (
-    <Card className="border-primary/12 shadow-sm">
+    <Card className="crm-dashboard-card border-primary/12">
       <CardContent className="p-5">
         <div className="grid gap-4 lg:grid-cols-[1.2fr_2fr_auto] lg:items-center">
           <div className="flex items-center gap-3">
@@ -38,19 +38,19 @@ export function PerformanceGoalSummaryCard() {
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <div className="boa-soft-card p-3">
+            <div className="boa-soft-card crm-dashboard-action p-3">
               <p className="text-xs text-muted-foreground">신규 계약 달성률</p>
               <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.achievementRate.contractCount ?? "-"}%</p>
             </div>
-            <div className="boa-soft-card p-3">
+            <div className="boa-soft-card crm-dashboard-action p-3">
               <p className="text-xs text-muted-foreground">월납 달성률</p>
               <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.achievementRate.monthlyPremium ?? "-"}%</p>
             </div>
-            <div className="boa-soft-card p-3">
+            <div className="boa-soft-card crm-dashboard-action p-3">
               <p className="text-xs text-muted-foreground">부족 신규 계약</p>
               <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.remaining.contractCount}건</p>
             </div>
-            <div className="boa-soft-card p-3">
+            <div className="boa-soft-card crm-dashboard-action p-3">
               <p className="text-xs text-muted-foreground">남은 기간</p>
               <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">{firstGoal.remainingDays}일</p>
             </div>
