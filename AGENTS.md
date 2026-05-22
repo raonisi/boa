@@ -37,7 +37,27 @@ Classify the task before editing and use the relevant `docs/ops` checklist.
 
 See [Codex Workflow Standard](docs/ops/codex-workflow.md) and [Codex Agent Roles](docs/ops/codex-agent-roles.md).
 
-## 4. Editing Rules
+## 4. CodeGraph
+
+If `.codegraph/` is available, use CodeGraph only as a structural exploration aid before broad file reads.
+
+Prefer CodeGraph for:
+- symbol lookup
+- caller/callee tracing
+- impact analysis
+- architecture and workflow discovery
+
+Use native grep/read for exact text, logs, comments, config values, and already-identified files.
+
+CodeGraph never overrides BOA CRM rules:
+- follow `docs/ops/*`
+- preserve RBAC and customer data isolation
+- avoid destructive DB actions
+- verify with tests and evidence before declaring success
+
+The goal is fewer unnecessary reads, not weaker review.
+
+## 5. Editing Rules
 
 - Do not change product code, DB, API, RBAC, UI, tests, package scripts, or dependencies unless the current task explicitly asks for it.
 - Preserve existing project structure and local patterns.
@@ -48,7 +68,7 @@ See [Codex Workflow Standard](docs/ops/codex-workflow.md) and [Codex Agent Roles
 
 For schema work, use [Database Migration Safety](docs/ops/database-migration-safety.md).
 
-## 5. Testing and Evidence Rules
+## 6. Testing and Evidence Rules
 
 Run checks appropriate to the change and do not skip required verification to save tokens.
 
@@ -62,7 +82,7 @@ For docs-only changes, `pnpm.cmd check` is normally enough. If test/build is ski
 
 Use [Evidence-Based QA Standard](docs/ops/evidence-based-qa-standard.md). For UI work, also use [UI/UX Premium SaaS Checklist](docs/ops/ui-ux-premium-saas-checklist.md) and [E2E and Playwright Standard](docs/ops/e2e-playwright-standard.md).
 
-## 6. Review and Report Rules
+## 7. Review and Report Rules
 
 Keep reports concise and evidence-based.
 
@@ -72,7 +92,7 @@ Keep reports concise and evidence-based.
 
 Use [BOA CRM Review Standard](docs/ops/boa-crm-review-standard.md), [PR Final Report Template](docs/ops/pr-final-report-template.md), or the short legacy [PR Report Template](docs/ops/pr-report-template.md).
 
-## 7. Parallel Agents
+## 8. Parallel Agents
 
 Default to single-agent work.
 
@@ -82,7 +102,7 @@ Parallel agents must have bounded responsibilities and must not edit the same fi
 
 See [Parallel Agent Policy](docs/ops/parallel-agent-policy.md).
 
-## 8. Do Not Touch Unless Requested
+## 9. Do Not Touch Unless Requested
 
 - product runtime behavior
 - DB schema, migrations, or production data
