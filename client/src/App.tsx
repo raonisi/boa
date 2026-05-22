@@ -9,36 +9,65 @@ import { getLoginUrlResult } from "./const";
 import { Loader2 } from "lucide-react";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { ForbiddenState } from "./components/ForbiddenState";
+import { lazy, Suspense } from "react";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
 import CustomerList from "./pages/CustomerList";
 import CustomerDetail from "./pages/CustomerDetail";
-import CustomerAssign from "./pages/CustomerAssign";
-import CustomerBulkImport from "./pages/CustomerBulkImport";
-import CustomerMergeManagement from "./pages/CustomerMergeManagement";
-import ImportBatchManagement from "./pages/ImportBatchManagement";
 import ContractList from "./pages/ContractList";
 import Performance from "./pages/Performance";
-import PerformanceGoals from "./pages/PerformanceGoals";
 import Notifications from "./pages/Notifications";
 import Calendar from "./pages/Calendar";
-import UserManagement from "./pages/UserManagement";
-import OrganizationManagement from "./pages/OrganizationManagement";
-import UserHandoffManagement from "./pages/UserHandoffManagement";
-import TeamManagement from "./pages/TeamManagement";
-import ActivityLog from "./pages/ActivityLog";
-import Download from "./pages/Download";
-import Settings from "./pages/Settings";
-import PushNotificationPreferences from "./pages/PushNotificationPreferences";
-import PushNotificationOperations from "./pages/PushNotificationOperations";
-import ConsultationToolsManagement from "./pages/ConsultationToolsManagement";
-import DeletedDataManagement from "./pages/DeletedDataManagement";
 import Blocked from "./pages/Blocked";
 import NotFound from "./pages/NotFound";
 import SalesPipeline from "./pages/SalesPipeline";
 import SalesFunnelAnalytics from "./pages/SalesFunnelAnalytics";
-import OperationRiskCenter from "./pages/OperationRiskCenter";
+
+const CustomerAssign = lazy(() => import("./pages/CustomerAssign"));
+const CustomerBulkImport = lazy(() => import("./pages/CustomerBulkImport"));
+const CustomerMergeManagement = lazy(() => import("./pages/CustomerMergeManagement"));
+const ImportBatchManagement = lazy(() => import("./pages/ImportBatchManagement"));
+const PerformanceGoals = lazy(() => import("./pages/PerformanceGoals"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const OrganizationManagement = lazy(() => import("./pages/OrganizationManagement"));
+const UserHandoffManagement = lazy(() => import("./pages/UserHandoffManagement"));
+const TeamManagement = lazy(() => import("./pages/TeamManagement"));
+const ActivityLog = lazy(() => import("./pages/ActivityLog"));
+const Download = lazy(() => import("./pages/Download"));
+const Settings = lazy(() => import("./pages/Settings"));
+const PushNotificationPreferences = lazy(() => import("./pages/PushNotificationPreferences"));
+const PushNotificationOperations = lazy(() => import("./pages/PushNotificationOperations"));
+const ConsultationToolsManagement = lazy(() => import("./pages/ConsultationToolsManagement"));
+const DeletedDataManagement = lazy(() => import("./pages/DeletedDataManagement"));
+const OperationRiskCenter = lazy(() => import("./pages/OperationRiskCenter"));
+
+function RouteFallback() {
+  return (
+    <div className="min-h-screen bg-slate-50/70 px-4 py-6 md:px-6">
+      <div className="mx-auto max-w-6xl space-y-4">
+        <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <Loader2 className="h-5 w-5 animate-spin text-[#b99b5f]" />
+            <div>
+              <p className="text-sm font-semibold text-slate-950">화면을 준비하고 있습니다</p>
+              <p className="mt-1 text-xs text-slate-500">권한 확인 후 필요한 관리 화면만 불러옵니다.</p>
+            </div>
+          </div>
+        </div>
+        <div className="grid gap-3 md:grid-cols-3">
+          {[0, 1, 2].map((item) => (
+            <div key={item} className="h-24 animate-pulse rounded-2xl border border-slate-200/80 bg-white/80 shadow-sm" />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LazyRoute({ children }: { children: React.ReactNode }) {
+  return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
+}
 
 function LoginConfigurationNotice({ message }: { message: string }) {
   return (
@@ -161,28 +190,36 @@ function Router() {
       <Route path="/customers/assign">
         <AuthGuard>
           <ManagerGuard>
-            <CustomerAssign />
+            <LazyRoute>
+              <CustomerAssign />
+            </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/bulk-import">
         <AuthGuard>
           <BulkImportGuard>
-            <CustomerBulkImport />
+            <LazyRoute>
+              <CustomerBulkImport />
+            </LazyRoute>
           </BulkImportGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/import-batches">
         <AuthGuard>
           <AdminGuard>
-            <ImportBatchManagement />
+            <LazyRoute>
+              <ImportBatchManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/merge">
         <AuthGuard>
           <AdminGuard>
-            <CustomerMergeManagement />
+            <LazyRoute>
+              <CustomerMergeManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
@@ -200,7 +237,9 @@ function Router() {
       </Route>
       <Route path="/performance/goals">
         <AuthGuard>
-          <PerformanceGoals />
+          <LazyRoute>
+            <PerformanceGoals />
+          </LazyRoute>
         </AuthGuard>
       </Route>
       <Route path="/performance">
@@ -215,13 +254,17 @@ function Router() {
       </Route>
       <Route path="/notification-preferences">
         <AuthGuard>
-          <PushNotificationPreferences />
+          <LazyRoute>
+            <PushNotificationPreferences />
+          </LazyRoute>
         </AuthGuard>
       </Route>
       <Route path="/push-notifications">
         <AuthGuard>
           <AdminGuard>
-            <PushNotificationOperations />
+            <LazyRoute>
+              <PushNotificationOperations />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
@@ -233,35 +276,45 @@ function Router() {
       <Route path="/users/handoff">
         <AuthGuard>
           <AdminGuard>
-            <UserHandoffManagement />
+            <LazyRoute>
+              <UserHandoffManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/organization">
         <AuthGuard>
           <ManagerGuard>
-            <OrganizationManagement />
+            <LazyRoute>
+              <OrganizationManagement />
+            </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/users">
         <AuthGuard>
           <AdminGuard>
-            <UserManagement />
+            <LazyRoute>
+              <UserManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/teams">
         <AuthGuard>
           <AdminGuard>
-            <TeamManagement />
+            <LazyRoute>
+              <TeamManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/logs">
         <AuthGuard>
           <ManagerGuard>
-            <ActivityLog />
+            <LazyRoute>
+              <ActivityLog />
+            </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
       </Route>
@@ -275,35 +328,45 @@ function Router() {
       <Route path="/operation-risk">
         <AuthGuard>
           <ManagerGuard>
-            <OperationRiskCenter />
+            <LazyRoute>
+              <OperationRiskCenter />
+            </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/download">
         <AuthGuard>
           <AdminGuard>
-            <Download />
+            <LazyRoute>
+              <Download />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/settings">
         <AuthGuard>
           <AdminGuard>
-            <Settings />
+            <LazyRoute>
+              <Settings />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/consultation-tools">
         <AuthGuard>
           <AdminGuard>
-            <ConsultationToolsManagement />
+            <LazyRoute>
+              <ConsultationToolsManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
       <Route path="/deleted-data">
         <AuthGuard>
           <AdminGuard>
-            <DeletedDataManagement />
+            <LazyRoute>
+              <DeletedDataManagement />
+            </LazyRoute>
           </AdminGuard>
         </AuthGuard>
       </Route>
