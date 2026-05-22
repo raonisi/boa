@@ -876,16 +876,20 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
           ) : (
             <>
               {schedule.memo && <p className="text-xs text-muted-foreground">{schedule.memo}</p>}
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-                {schedule.status !== "완료" && (
-                  <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => onUpdate({ status: "완료" })} disabled={loading}>
-                    <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> 완료
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+                  {schedule.status !== "완료" && (
+                    <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => onUpdate({ status: "완료" })} disabled={loading}>
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> 완료
+                    </Button>
+                  )}
+                  <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => setEditing(true)}>수정</Button>
+                </div>
+                <div className="rounded-xl border border-red-100 bg-red-50/70 p-2 sm:flex sm:justify-end">
+                  <Button variant="outline" size="sm" className="min-h-12 w-full border-red-200 bg-white text-destructive hover:bg-red-50 md:min-h-10 sm:w-auto" onClick={onDelete} disabled={loading}>
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> 삭제
                   </Button>
-                )}
-                <Button variant="outline" size="sm" className="min-h-12 text-destructive md:min-h-10" onClick={onDelete} disabled={loading}>
-                  <Trash2 className="h-3.5 w-3.5 mr-1" /> 삭제
-                </Button>
-                <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => setEditing(true)}>수정</Button>
+                </div>
               </div>
             </>
           )}

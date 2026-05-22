@@ -110,14 +110,19 @@ export default function CustomerMergeManagement() {
                               등록일: {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString("ko-KR") : "-"}
                             </div>
                           </div>
-                          <div className="mt-4 grid gap-2">
+                          <div className="mt-4 space-y-3">
                             <Button size="sm" variant="outline" className="min-h-12" onClick={() => setLocation(`/customers/${customer.id}`)}>상세</Button>
-                            {group.candidates.filter((item: any) => item.id !== customer.id).map((source: any) => (
-                              <Button key={source.id} size="sm" variant="outline" className="min-h-12 border-amber-200 text-amber-800 hover:bg-amber-50" onClick={() => selectMerge(customer.id, source.id)}>
-                                <GitMerge className="h-3.5 w-3.5 mr-1" />
-                                #{source.id} 병합
-                              </Button>
-                            ))}
+                            <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-2">
+                              <p className="mb-2 text-[11px] font-semibold text-amber-800">병합 실행 후보</p>
+                              <div className="grid gap-2">
+                                {group.candidates.filter((item: any) => item.id !== customer.id).map((source: any) => (
+                                  <Button key={source.id} size="sm" variant="outline" className="min-h-12 w-full border-amber-200 bg-white text-amber-800 hover:bg-amber-50" onClick={() => selectMerge(customer.id, source.id)}>
+                                    <GitMerge className="h-3.5 w-3.5 mr-1" />
+                                    #{source.id} 병합
+                                  </Button>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -233,15 +238,17 @@ export default function CustomerMergeManagement() {
                   <Label>확인 문구</Label>
                   <Input className="min-h-12 rounded-xl bg-slate-50 md:min-h-9" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="고객병합" />
                 </div>
+                <div className="rounded-2xl border border-red-100 bg-red-50/60 p-3">
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <Button variant="outline" className="min-h-12 md:min-h-10" onClick={resetSelection}>취소</Button>
                   <Button
-                    className="min-h-12 md:min-h-10"
+                    className="min-h-12 bg-red-700 hover:bg-red-800 md:min-h-10"
                     disabled={confirmText !== "고객병합" || executeMutation.isPending}
                     onClick={() => targetCustomerId && sourceCustomerId && executeMutation.mutate({ targetCustomerId, sourceCustomerId, confirmText, reason: reason || undefined })}
                   >
                     병합 실행
                   </Button>
+                </div>
                 </div>
               </div>
             )}

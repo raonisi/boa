@@ -81,32 +81,35 @@ export default function UserHandoffManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>대상 사용자</Label>
-                  <Select value={sourceUserId ? String(sourceUserId) : ""} onValueChange={(value) => { setSourceUserId(Number(value)); setTargetUserId(null); }}>
-                    <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="이관할 사용자를 선택" /></SelectTrigger>
-                    <SelectContent>
-                      {sourceUsers.map((user: any) => (
-                        <SelectItem key={user.id} value={String(user.id)}>
-                          {formatUserWithRole(user)} · {getUserStatusLabel(user.accountStatus)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>새 담당자</Label>
-                  <Select value={targetUserId ? String(targetUserId) : ""} onValueChange={(value) => setTargetUserId(Number(value))}>
-                    <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="활성 팀장/팀원 선택" /></SelectTrigger>
-                    <SelectContent>
-                      {targetUsers.map((user: any) => (
-                        <SelectItem key={user.id} value={String(user.id)}>
-                          {formatUserWithRole(user)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <p className="mb-3 text-xs font-semibold text-slate-500">1. 인수인계 대상 선택</p>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>대상 사용자</Label>
+                    <Select value={sourceUserId ? String(sourceUserId) : ""} onValueChange={(value) => { setSourceUserId(Number(value)); setTargetUserId(null); }}>
+                      <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="이관할 사용자를 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {sourceUsers.map((user: any) => (
+                          <SelectItem key={user.id} value={String(user.id)}>
+                            {formatUserWithRole(user)} · {getUserStatusLabel(user.accountStatus)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>새 담당자</Label>
+                    <Select value={targetUserId ? String(targetUserId) : ""} onValueChange={(value) => setTargetUserId(Number(value))}>
+                      <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="활성 팀장/팀원 선택" /></SelectTrigger>
+                      <SelectContent>
+                        {targetUsers.map((user: any) => (
+                          <SelectItem key={user.id} value={String(user.id)}>
+                            {formatUserWithRole(user)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
@@ -133,7 +136,7 @@ export default function UserHandoffManagement() {
               )}
 
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-                <p className="mb-3 text-sm font-medium">이관 범위</p>
+                <p className="mb-3 text-xs font-semibold text-slate-500">2. 이관 범위 선택</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[
                     [transferCustomers, setTransferCustomers, "고객 및 활성 계약 담당자"],
@@ -149,47 +152,53 @@ export default function UserHandoffManagement() {
                 </div>
               </div>
 
-              <div className="grid gap-3 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label>대상 계정 처리</Label>
-                  <Select value={updateSourceAccountStatus} onValueChange={(value) => setUpdateSourceAccountStatus(value as any)}>
-                    <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="keep">상태 유지</SelectItem>
-                      <SelectItem value="inactive">비활성 전환</SelectItem>
-                      <SelectItem value="resigned">퇴사자 전환</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
+                <p className="mb-3 text-xs font-semibold text-amber-800">3. 실행 후 보안 조치</p>
+                <div className="grid gap-3 md:grid-cols-3">
+                  <div className="space-y-2">
+                    <Label>대상 계정 처리</Label>
+                    <Select value={updateSourceAccountStatus} onValueChange={(value) => setUpdateSourceAccountStatus(value as any)}>
+                      <SelectTrigger className="min-h-12 rounded-xl bg-white md:min-h-9"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="keep">상태 유지</SelectItem>
+                        <SelectItem value="inactive">비활성 전환</SelectItem>
+                        <SelectItem value="resigned">퇴사자 전환</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <label className="flex min-h-12 items-center gap-2 rounded-xl border border-amber-200 bg-white/80 px-3 text-sm">
+                    <Checkbox checked={forceLogoutSource} onCheckedChange={(value) => setForceLogoutSource(Boolean(value))} />
+                    강제 로그아웃
+                  </label>
+                  <label className="flex min-h-12 items-center gap-2 rounded-xl border border-amber-200 bg-white/80 px-3 text-sm">
+                    <Checkbox checked={resetOAuthSource} onCheckedChange={(value) => setResetOAuthSource(Boolean(value))} />
+                    OAuth 초기화
+                  </label>
                 </div>
-                <label className="flex min-h-12 items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/70 px-3 text-sm">
-                  <Checkbox checked={forceLogoutSource} onCheckedChange={(value) => setForceLogoutSource(Boolean(value))} />
-                  강제 로그아웃
-                </label>
-                <label className="flex min-h-12 items-center gap-2 rounded-xl border border-amber-200 bg-amber-50/70 px-3 text-sm">
-                  <Checkbox checked={resetOAuthSource} onCheckedChange={(value) => setResetOAuthSource(Boolean(value))} />
-                  OAuth 초기화
-                </label>
               </div>
 
-              <div className="space-y-2">
-                <Label>인수인계 사유</Label>
-                <Textarea
-                  className="min-h-24 rounded-xl bg-slate-50"
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  placeholder="예: 퇴사 처리로 인한 담당 고객 및 미완료 업무 이관"
-                  rows={3}
-                />
-              </div>
+              <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-slate-500">4. 최종 확인</p>
+                  <Label>인수인계 사유</Label>
+                  <Textarea
+                    className="min-h-24 rounded-xl bg-slate-50"
+                    value={reason}
+                    onChange={(event) => setReason(event.target.value)}
+                    placeholder="예: 퇴사 처리로 인한 담당 고객 및 미완료 업무 이관"
+                    rows={3}
+                  />
+                </div>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                기존 상담기록과 활동 로그는 감사 추적을 위해 변경하지 않습니다. 실행 후 되돌리려면 별도 재이관이 필요합니다.
-              </div>
+                <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                  기존 상담기록과 활동 로그는 감사 추적을 위해 변경하지 않습니다. 실행 후 되돌리려면 별도 재이관이 필요합니다.
+                </div>
 
-              <div className="flex justify-end">
-                <Button className="min-h-12 w-full md:w-auto md:min-h-10" disabled={!canSubmit} onClick={() => setConfirmOpen(true)}>
-                  인수인계 실행
-                </Button>
+                <div className="mt-3 flex justify-end">
+                  <Button className="min-h-12 w-full md:w-auto md:min-h-10" disabled={!canSubmit} onClick={() => setConfirmOpen(true)}>
+                    인수인계 실행
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>

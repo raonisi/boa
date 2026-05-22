@@ -316,7 +316,7 @@ export default function Notifications() {
               <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-slate-600">적용된 필터</p>
-                  <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={clearFilters}>
+                  <Button type="button" variant="ghost" size="sm" className="min-h-10 px-3 text-xs" onClick={clearFilters}>
                     필터 전체 해제
                   </Button>
                 </div>
@@ -326,7 +326,7 @@ export default function Notifications() {
                       key={chip.key}
                       type="button"
                       onClick={chip.clear}
-                      className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      className="inline-flex min-h-10 max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       aria-label={`${chip.label} 필터 해제`}
                     >
                       <span className="min-w-0 whitespace-normal break-words leading-snug">{chip.label}</span>
@@ -399,7 +399,30 @@ export default function Notifications() {
                 </label>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <span className="text-xs font-medium text-muted-foreground">{selectedCount}개 선택됨</span>
-                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+                      <Button
+                        data-testid="bulk-complete"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11 border-blue-200 text-xs text-blue-700 hover:bg-blue-50 sm:min-h-8"
+                        disabled={selectedCount === 0 || isBulkPending}
+                        onClick={() => handleBulkComplete(selectedVisibleIds)}
+                      >
+                        선택 처리완료
+                      </Button>
+                      <Button
+                        data-testid="bulk-today-complete"
+                        variant="secondary"
+                        size="sm"
+                        className="min-h-11 text-xs sm:min-h-8"
+                        disabled={todayProcessingTargets.length === 0 || isBulkPending}
+                        onClick={() => handleBulkComplete(todayProcessingTargets.map((n) => n.id), "todayComplete")}
+                      >
+                        오늘 처리 대상 일괄 완료
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
                     <Button
                       data-testid="bulk-mark-read"
                       variant="outline"
@@ -411,16 +434,6 @@ export default function Notifications() {
                       선택 읽음
                     </Button>
                     <Button
-                      data-testid="bulk-complete"
-                      variant="outline"
-                      size="sm"
-                      className="min-h-11 text-xs sm:min-h-8"
-                      disabled={selectedCount === 0 || isBulkPending}
-                      onClick={() => handleBulkComplete(selectedVisibleIds)}
-                    >
-                      선택 처리완료
-                    </Button>
-                    <Button
                       variant="ghost"
                       size="sm"
                       className="min-h-11 text-xs sm:min-h-8"
@@ -429,16 +442,7 @@ export default function Notifications() {
                     >
                       선택 해제
                     </Button>
-                    <Button
-                      data-testid="bulk-today-complete"
-                      variant="secondary"
-                      size="sm"
-                      className="min-h-11 text-xs sm:min-h-8"
-                      disabled={todayProcessingTargets.length === 0 || isBulkPending}
-                      onClick={() => handleBulkComplete(todayProcessingTargets.map((n) => n.id), "todayComplete")}
-                    >
-                      오늘 처리 대상 일괄 완료
-                    </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
