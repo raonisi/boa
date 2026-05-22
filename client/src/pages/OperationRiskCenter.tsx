@@ -536,7 +536,7 @@ function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
                     </div>
                     <p className="mt-2 leading-relaxed">{actionMeta.nextAction}</p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="mt-auto" onClick={() => setLocation(card.href)}>
+                  <Button type="button" variant="outline" size="sm" className="mt-auto min-h-10" onClick={() => setLocation(card.href)}>
                     조치하기: {card.actionLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -618,7 +618,7 @@ function ActionsTab({ data, setLocation }: { data: any; setLocation: (path: stri
                   </div>
                 </div>
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">{meta.nextAction}</p>
-                <Button type="button" variant="ghost" className="mt-auto justify-start px-0 text-slate-900" onClick={() => setLocation(guide.href)}>
+                <Button type="button" variant="ghost" className="mt-auto min-h-10 justify-start px-0 text-slate-900" onClick={() => setLocation(guide.href)}>
                   조치 화면 열기
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -843,7 +843,7 @@ function StatusTab({ metric, cautionCount, riskCount, setLocation }: {
                   <p className="mt-3 text-xs text-slate-500">{card.label}</p>
                   <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
                   <p className="mt-1 min-h-8 text-xs text-slate-500">{card.helper}</p>
-                  <Button type="button" size="sm" variant="outline" className="mt-3 h-8 w-full" onClick={() => setLocation(card.href)}>
+                  <Button type="button" size="sm" variant="outline" className="mt-3 min-h-10 w-full" onClick={() => setLocation(card.href)}>
                     관련 화면
                   </Button>
                 </div>

@@ -554,7 +554,24 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-3 gap-2 md:grid-cols-6">
+            <div className="space-y-2 md:grid md:grid-cols-6 md:gap-2 md:space-y-0">
+              <div className="grid grid-cols-2 gap-2 md:contents">
+              <Button className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowConsultModal(true)}>
+                <MessageSquare className="h-4 w-4" /> 상담기록
+              </Button>
+              <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowFollowUpModal(true)}>
+                <CalendarPlus className="h-4 w-4" /> 후속관리
+              </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:contents">
+              <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-emerald-700 px-2 text-xs text-white hover:bg-emerald-800 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowContractModal(true)}>
+                <FilePlus2 className="h-4 w-4" /> 계약 등록
+              </Button>
+              <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
+                <CalendarPlus className="h-4 w-4" /> 일정 추가
+              </Button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-2 md:contents md:border-t-0 md:pt-0">
               {customer.phone ? (
                 <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" asChild>
                   <a href={`tel:${customer.phone}`}><Phone className="h-4 w-4" /> 전화</a>
@@ -562,21 +579,10 @@ export default function CustomerDetail({ id }: { id: number }) {
               ) : (
                 <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" disabled><Phone className="h-4 w-4" /> 전화</Button>
               )}
-              <Button className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowConsultModal(true)}>
-                <MessageSquare className="h-4 w-4" /> 상담기록
-              </Button>
-              <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowFollowUpModal(true)}>
-                <CalendarPlus className="h-4 w-4" /> 후속관리
-              </Button>
-              <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setLocation(`/calendar?customerId=${customer.id}&action=create`)}>
-                <CalendarPlus className="h-4 w-4" /> 일정 추가
-              </Button>
-              <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-emerald-700 px-2 text-xs text-white hover:bg-emerald-800 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowContractModal(true)}>
-                <FilePlus2 className="h-4 w-4" /> 계약 등록
-              </Button>
               <Button variant="ghost" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setActiveTab("tools")}>
                 <Copy className="h-4 w-4" /> 메시지 문구
               </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

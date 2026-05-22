@@ -273,21 +273,26 @@ export default function UserManagement() {
                         ) : null}
                       </div>
 
-                      <div className="mt-4 grid grid-cols-2 gap-2">
-                        <Button variant="outline" size="sm" className="min-h-12 rounded-xl text-xs" onClick={() => setEditUser(u)}>
+                      <div className="mt-4 space-y-3">
+                        <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl text-xs" onClick={() => setEditUser(u)}>
                           <UserCog className="h-4 w-4" /> 권한/상태
                         </Button>
-                        {(u as any).accountStatus === "active" && (
-                          <Button variant="outline" size="sm" className="min-h-12 rounded-xl text-xs text-destructive hover:text-destructive" onClick={() => handleBlock(u.id)}>
-                            <ShieldX className="h-4 w-4" /> 퇴사 처리
-                          </Button>
-                        )}
-                        <Button variant="outline" size="sm" className="min-h-12 rounded-xl text-xs" onClick={() => setForceLogoutUser(u)}>
-                          <LogOut className="h-4 w-4" /> 로그아웃
-                        </Button>
-                        <Button variant="outline" size="sm" className="min-h-12 rounded-xl text-xs" onClick={() => setOauthResetUser(u)}>
-                          <KeyRound className="h-4 w-4" /> OAuth 초기화
-                        </Button>
+                        <div className="rounded-2xl border border-red-100 bg-red-50/70 p-3">
+                          <p className="text-[11px] font-semibold text-red-700">보안/접근 차단</p>
+                          <div className="mt-3 grid gap-2">
+                            {(u as any).accountStatus === "active" && (
+                              <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl border-red-200 bg-white text-xs text-destructive hover:bg-red-50 hover:text-destructive" onClick={() => handleBlock(u.id)}>
+                                <ShieldX className="h-4 w-4" /> 퇴사 처리
+                              </Button>
+                            )}
+                            <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50" onClick={() => setForceLogoutUser(u)}>
+                              <LogOut className="h-4 w-4" /> 로그아웃
+                            </Button>
+                            <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50" onClick={() => setOauthResetUser(u)}>
+                              <KeyRound className="h-4 w-4" /> OAuth 초기화
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );

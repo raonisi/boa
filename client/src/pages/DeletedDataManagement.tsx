@@ -188,13 +188,15 @@ export default function DeletedDataManagement() {
                         <p className="mt-1 line-clamp-3 leading-5">{request.requestReason}</p>
                       </div>
                     </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <Button size="sm" variant="outline" className="min-h-12" onClick={() => setReviewTarget({ id: request.id, action: "approve" })}>
+                    <div className="mt-4 space-y-3">
+                      <Button size="sm" variant="outline" className="min-h-12 w-full border-green-200 text-green-700 hover:bg-green-50" onClick={() => setReviewTarget({ id: request.id, action: "approve" })}>
                         <Check className="h-3.5 w-3.5 mr-1" />승인
                       </Button>
-                      <Button size="sm" variant="outline" className="min-h-12 border-red-200 text-destructive hover:bg-red-50" onClick={() => setReviewTarget({ id: request.id, action: "reject" })}>
-                        <X className="h-3.5 w-3.5 mr-1" />반려
-                      </Button>
+                      <div className="rounded-xl border border-red-100 bg-red-50/70 p-2">
+                        <Button size="sm" variant="outline" className="min-h-12 w-full border-red-200 bg-white text-destructive hover:bg-red-50" onClick={() => setReviewTarget({ id: request.id, action: "reject" })}>
+                          <X className="h-3.5 w-3.5 mr-1" />반려
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -393,13 +395,15 @@ function DeletedTable({
               <div className="rounded-xl bg-slate-50 p-3">삭제일: {fmtDate(row.deletedAt)}</div>
               <div className="rounded-xl bg-slate-50 p-3">생성일: {fmtDate(row.createdAt)}</div>
             </div>
-            <div className="mt-4 grid gap-2">
-              <Button size="sm" variant="outline" className="min-h-12 border-green-200 text-green-700 hover:bg-green-50" onClick={() => onRestore(row.id)}>
+            <div className="mt-4 space-y-3">
+              <Button size="sm" variant="outline" className="min-h-12 w-full border-green-200 text-green-700 hover:bg-green-50" onClick={() => onRestore(row.id)}>
                 <RotateCcw className="h-3.5 w-3.5 mr-1" />복구
               </Button>
-              <Button size="sm" variant="outline" className="min-h-12 border-red-200 text-destructive hover:bg-red-50" onClick={() => onPermanent(row)}>
-                <Trash2 className="h-3.5 w-3.5 mr-1" />완전삭제
-              </Button>
+              <div className="rounded-xl border border-red-100 bg-red-50/70 p-2">
+                <Button size="sm" variant="outline" className="min-h-12 w-full border-red-200 bg-white text-destructive hover:bg-red-50" onClick={() => onPermanent(row)}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" />완전삭제
+                </Button>
+              </div>
             </div>
           </div>
         ))}
