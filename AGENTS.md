@@ -18,16 +18,14 @@ Security, RBAC correctness, and customer-data protection come first.
 - Do not add resident registration numbers, policy/certificate numbers, ID-card upload, detailed illness history, or plaintext password storage.
 - Phone numbers and birthdates may remain visible in authorized operational work screens when required.
 - Masking may be used in activity logs, audit logs, exports, operation-risk logs, DATA_DOWNLOAD metadata, push payloads, and non-operational views.
-- Push titles/bodies must not include customer names, phone numbers, illness details, product names, premiums, tokens, or credentials.
+- Push titles/bodies/data/log metadata must not include customer names, phone numbers, birthdates, illness details, product names, premiums, raw tokens, credentials, or secrets.
 - Customer/contract permanent delete is a controlled `branch_admin` feature. Do not remove it, convert it to archive-only, or delete `activity_logs` unless explicitly requested.
 
-See [RBAC and Customer Data Safety Standard](docs/ops/rbac-safety.md).
+See [RBAC and Customer Data Safety Standard](docs/ops/rbac-safety.md) and [RBAC Safety Checklist](docs/ops/rbac-safety-checklist.md).
 
 ## 3. Task Planning Rules
 
-Reduce waste, not quality.
-
-Token savings may remove duplicated exploration, broad scans, and long logs. It must never reduce correctness, security, RBAC validation, customer-data protection, required testing, or final verification.
+Classify the task before editing and use the relevant `docs/ops` checklist.
 
 - Use a single-agent workflow by default.
 - Before editing, list likely affected files first.
@@ -37,7 +35,7 @@ Token savings may remove duplicated exploration, broad scans, and long logs. It 
 - Keep changes small and reviewable.
 - Do not perform full-codebase audits unless the task explicitly requires one.
 
-See [Codex Workflow Standard](docs/ops/codex-workflow.md).
+See [Codex Workflow Standard](docs/ops/codex-workflow.md) and [Codex Agent Roles](docs/ops/codex-agent-roles.md).
 
 ## 4. Editing Rules
 
@@ -48,28 +46,33 @@ See [Codex Workflow Standard](docs/ops/codex-workflow.md).
 - Do not commit secrets, `.env`, real customer data, API keys, database passwords, Firebase keys, production CSVs, APK/AAB files, JKS/keystores, `google-services.json`, Firebase Admin SDK JSON, or `local.properties`.
 - Never directly mutate production DB state, reset/drop/truncate production DB, or perform manual production hard deletes.
 
-## 5. Testing Rules
+For schema work, use [Database Migration Safety](docs/ops/database-migration-safety.md).
+
+## 5. Testing and Evidence Rules
 
 Run checks appropriate to the change and do not skip required verification to save tokens.
 
 Preferred baseline:
-
 - `pnpm.cmd check`
 - `pnpm.cmd test`
 - `pnpm.cmd build`
 - `pnpm.cmd test:e2e` when e2e, routing, dev server, or smoke behavior is touched
 
-For docs-only changes, `pnpm.cmd check` is normally enough. If test/build is skipped, state why in the final report.
+For docs-only changes, `pnpm.cmd check` is normally enough. If test/build is skipped, state why.
 
-See [E2E and Playwright Standard](docs/ops/e2e-playwright-standard.md).
+Use [Evidence-Based QA Standard](docs/ops/evidence-based-qa-standard.md). For UI work, also use [UI/UX Premium SaaS Checklist](docs/ops/ui-ux-premium-saas-checklist.md) and [E2E and Playwright Standard](docs/ops/e2e-playwright-standard.md).
 
-## 6. PR Report Rules
+## 6. Review and Report Rules
 
-Keep reports concise and evidence-based. Mention changed files, runtime behavior, DB/API/RBAC impact, tests run, failed tests, known limits, rollback, and the next recommended task when useful.
+Keep reports concise and evidence-based.
 
-Use [PR Report Template](docs/ops/pr-report-template.md) for handoff summaries.
+- Reviews must lead with P0/P1/P2/P3 findings.
+- Implementation reports must include changed files, runtime behavior, DB/API/RBAC impact, tests, risks, rollback, and remaining work when relevant.
+- Separate local validation from GitHub merge status, Railway live deployment status, Firebase state, and real-device proof.
 
-## 7. When to Use Parallel Agents
+Use [BOA CRM Review Standard](docs/ops/boa-crm-review-standard.md), [PR Final Report Template](docs/ops/pr-final-report-template.md), or the short legacy [PR Report Template](docs/ops/pr-report-template.md).
+
+## 7. Parallel Agents
 
 Default to single-agent work.
 
@@ -79,9 +82,7 @@ Parallel agents must have bounded responsibilities and must not edit the same fi
 
 See [Parallel Agent Policy](docs/ops/parallel-agent-policy.md).
 
-## 8. Do Not Touch
-
-Unless explicitly requested, do not change:
+## 8. Do Not Touch Unless Requested
 
 - product runtime behavior
 - DB schema, migrations, or production data
@@ -90,38 +91,3 @@ Unless explicitly requested, do not change:
 - test logic unrelated to the task
 - `package.json`, lockfiles, or dependencies
 - generated, build, cache, APK/AAB, keystore, or local config files
-
-## 9. Required Final Report
-
-For implementation or docs cleanup:
-
-```text
-Scope:
-Changed files:
-Summary:
-Tests:
-Manual verification:
-Notes:
-PR 제목/URL:
-```
-
-For review or audit:
-
-```text
-Scope:
-P0:
-P1:
-P2:
-P3:
-Tests / checks:
-Recommended next action:
-```
-
-## 10. Reference Docs
-
-- [Codex Workflow Standard](docs/ops/codex-workflow.md)
-- [RBAC and Customer Data Safety Standard](docs/ops/rbac-safety.md)
-- [UI/UX Review Standard](docs/ops/ui-ux-review-standard.md)
-- [E2E and Playwright Standard](docs/ops/e2e-playwright-standard.md)
-- [PR Report Template](docs/ops/pr-report-template.md)
-- [Parallel Agent Policy](docs/ops/parallel-agent-policy.md)
