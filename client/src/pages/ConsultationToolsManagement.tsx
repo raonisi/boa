@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { getActiveLabel } from "@/lib/userRole";
-import { ClipboardCheck, Copy, Edit3, Eye, MessageSquareText, Plus, RefreshCw, Trash2, X } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, Copy, Edit3, Eye, MessageSquareText, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -118,6 +118,7 @@ export default function ConsultationToolsManagement() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const isBranchAdmin = user?.role === "branch_admin";
+  const [activeTab, setActiveTab] = useState("checklists");
   const [checkTitle, setCheckTitle] = useState("");
   const [checkDescription, setCheckDescription] = useState("");
   const [checkPhase, setCheckPhase] = useState<(typeof phases)[number]["value"]>("before");
@@ -170,11 +171,11 @@ export default function ConsultationToolsManagement() {
   const selectedTemplate = templateItems.find((item: any) => item.id === selectedTemplateId) ?? templateItems[0];
   const selectedScript = scriptItems.find((item: any) => item.id === selectedScriptId) ?? scriptItems[0];
 
-  const copyPreviewText = async (text?: string | null) => {
+  const copyPreviewText = async (text?: string | null, label = "미리보기") => {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("미리보기를 복사했습니다.");
+      toast.success(`${label}를 복사했습니다.`);
     } catch {
       toast.error("복사에 실패했습니다.");
     }
@@ -328,28 +329,46 @@ export default function ConsultationToolsManagement() {
     <DashboardLayout>
       <div className="space-y-5 p-4 md:p-6">
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Consultation Tools</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">상담 도구 관리</h1>
-            <p className="mt-1 text-sm text-slate-500">
-              상담 체크리스트, 후속 문구, 상담 스크립트를 관리합니다. 민감정보, 가입 강요, 공포마케팅, 확정 표현은 입력하지 마세요.
-            </p>
+          <CardContent className="space-y-3 p-4 sm:p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Consultation Tools</p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">상담 도구 관리</h1>
+              <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
+                체크리스트, 후속 문구, 상담 스크립트를 빠르게 찾고 복사합니다. 민감정보와 확정 표현은 입력하지 마세요.
+              </p>
+            </div>
+            <div className="grid grid-cols-3 gap-2 text-center text-xs font-semibold text-slate-700">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">상담 전</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">상담 중</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">상담 후</div>
+            </div>
           </CardContent>
         </Card>
 
         <Card className="border-amber-100 bg-amber-50/60 shadow-sm">
-          <CardContent className="flex items-start gap-3 p-4 text-sm leading-6 text-amber-900">
+          <CardContent className="flex items-start gap-3 p-3 text-xs leading-5 text-amber-900 sm:p-4 sm:text-sm sm:leading-6">
             <ClipboardCheck className="mt-0.5 h-4 w-4 shrink-0" />
-            <p>사용 가능한 placeholder는 고객명, 담당자명, 다음연락일, 상담주제입니다. 템플릿 본문 전문은 활동 로그에 저장하지 않습니다.</p>
+            <p>사용 가능한 placeholder: 고객명, 담당자명, 다음연락일, 상담주제. 템플릿 본문 전문은 활동 로그에 저장하지 않습니다.</p>
           </CardContent>
         </Card>
 
-        <Tabs defaultValue="checklists" className="space-y-4">
-          <TabsList className="grid h-auto w-full grid-cols-1 gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:grid-cols-3">
-            <TabsTrigger value="checklists" className="min-h-12 whitespace-normal px-3 text-center leading-5 sm:min-h-9">상담 체크리스트</TabsTrigger>
-            <TabsTrigger value="templates" className="min-h-12 whitespace-normal px-3 text-center leading-5 sm:min-h-9">후속 문구 템플릿</TabsTrigger>
-            <TabsTrigger value="scripts" className="min-h-12 whitespace-normal px-3 text-center leading-5 sm:min-h-9">상담 스크립트</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm">
+            <TabsTrigger value="checklists" className="min-h-11 whitespace-normal px-2 text-center text-xs leading-5 sm:min-h-9 sm:text-sm">
+              <span className="sm:hidden">체크</span><span className="hidden sm:inline">상담 체크리스트</span>
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="min-h-11 whitespace-normal px-2 text-center text-xs leading-5 sm:min-h-9 sm:text-sm">
+              <span className="sm:hidden">문구</span><span className="hidden sm:inline">후속 문구 템플릿</span>
+            </TabsTrigger>
+            <TabsTrigger value="scripts" className="min-h-11 whitespace-normal px-2 text-center text-xs leading-5 sm:min-h-9 sm:text-sm">
+              <span className="sm:hidden">스크립트</span><span className="hidden sm:inline">상담 스크립트</span>
+            </TabsTrigger>
           </TabsList>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className={cn("rounded-full border px-2.5 py-1 font-semibold", activeTab === "checklists" ? "border-primary/30 bg-primary/10 text-primary" : "border-slate-200 bg-white text-slate-600")}>체크 {checklistItems.length}</span>
+            <span className={cn("rounded-full border px-2.5 py-1 font-semibold", activeTab === "templates" ? "border-primary/30 bg-primary/10 text-primary" : "border-slate-200 bg-white text-slate-600")}>문구 {templateItems.length}</span>
+            <span className={cn("rounded-full border px-2.5 py-1 font-semibold", activeTab === "scripts" ? "border-primary/30 bg-primary/10 text-primary" : "border-slate-200 bg-white text-slate-600")}>스크립트 {scriptItems.length}</span>
+          </div>
 
           <TabsContent value="checklists" className="space-y-4">
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(20rem,24rem)]">
@@ -397,6 +416,14 @@ export default function ConsultationToolsManagement() {
               </Card>
             ) : null}
             <div className="grid gap-3">
+              {checklistItems.length === 0 ? (
+                <Card className="border-dashed border-slate-200 bg-white/80">
+                  <CardContent className="space-y-2 p-5 text-sm text-muted-foreground">
+                    <p className="font-semibold text-slate-900">등록된 체크리스트가 없습니다.</p>
+                    <p>{isBranchAdmin ? "상단 입력 영역에서 기본 체크리스트를 확인하거나 새 항목을 추가하세요." : "지점장에게 상담 체크리스트 등록을 요청하세요."}</p>
+                  </CardContent>
+                </Card>
+              ) : null}
               {checklistItems.map((item: any) => (
                 <Card
                   key={item.id}
@@ -407,10 +434,20 @@ export default function ConsultationToolsManagement() {
                   onClick={() => setSelectedChecklistId(item.id)}
                 >
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 font-medium leading-6">{item.title} {item.isRequired ? <span className="text-xs text-primary">필수</span> : null}</p>
-                      <p className="text-xs text-muted-foreground">{item.phase} / {item.category} / 정렬 {item.sortOrder} / {getActiveLabel(item.isActive)}</p>
-                      {item.description ? <p className="mt-1 text-sm leading-6 text-muted-foreground">{item.description}</p> : null}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 font-semibold leading-6 text-slate-950">{item.title}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{item.phase}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{item.category}</span>
+                            {item.isRequired ? <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">필수</span> : null}
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{getActiveLabel(item.isActive)}</span>
+                          </div>
+                        </div>
+                        {selectedChecklist?.id === item.id ? <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" /> : null}
+                      </div>
+                      {item.description ? <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground md:line-clamp-3">{item.description}</p> : null}
                     </div>
                     {isBranchAdmin ? (
                       <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
@@ -482,6 +519,14 @@ export default function ConsultationToolsManagement() {
               </Card>
             ) : null}
             <div className="grid gap-3">
+              {templateItems.length === 0 ? (
+                <Card className="border-dashed border-slate-200 bg-white/80">
+                  <CardContent className="space-y-2 p-5 text-sm text-muted-foreground">
+                    <p className="font-semibold text-slate-900">등록된 문구 템플릿이 없습니다.</p>
+                    <p>{isBranchAdmin ? "상단 입력 영역에서 기본 템플릿을 확인하거나 새 문구를 추가하세요." : "지점장에게 후속 문구 템플릿 등록을 요청하세요."}</p>
+                  </CardContent>
+                </Card>
+              ) : null}
               {templateItems.map((item: any) => (
                 <Card
                   key={item.id}
@@ -492,10 +537,30 @@ export default function ConsultationToolsManagement() {
                   onClick={() => setSelectedTemplateId(item.id)}
                 >
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 font-medium leading-6">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.situation} / {item.channel} / {getActiveLabel(item.isActive)}</p>
-                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.body}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 font-semibold leading-6 text-slate-950">{item.title}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{item.situation}</span>
+                            <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">{item.channel}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{getActiveLabel(item.isActive)}</span>
+                          </div>
+                        </div>
+                        {selectedTemplate?.id === item.id ? <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" /> : null}
+                      </div>
+                      <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">{item.body}</p>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="mt-3 min-h-11 w-full md:hidden"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          copyPreviewText(item.body, "문구");
+                        }}
+                      >
+                        <Copy className="mr-1 h-4 w-4" /> 문구 복사
+                      </Button>
                     </div>
                     {isBranchAdmin ? (
                       <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
@@ -520,7 +585,7 @@ export default function ConsultationToolsManagement() {
                   body={selectedTemplate?.body}
                   note={selectedTemplate?.complianceNote}
                   emptyText="문구 템플릿을 선택하면 긴 본문만 내부에서 스크롤됩니다."
-                  onCopy={() => copyPreviewText(selectedTemplate?.body)}
+                  onCopy={() => copyPreviewText(selectedTemplate?.body, "문구")}
                 />
               </div>
             </div>
@@ -588,7 +653,10 @@ export default function ConsultationToolsManagement() {
             <div className="grid gap-3">
               {scriptItems.length === 0 ? (
                 <Card className="border-dashed border-slate-200 bg-white/80">
-                  <CardContent className="p-6 text-sm text-muted-foreground">등록된 상담 스크립트가 없습니다.</CardContent>
+                  <CardContent className="space-y-2 p-5 text-sm text-muted-foreground">
+                    <p className="font-semibold text-slate-900">등록된 상담 스크립트가 없습니다.</p>
+                    <p>{isBranchAdmin ? "상단 입력 영역에서 기본 스크립트를 확인하거나 새 스크립트를 추가하세요." : "지점장에게 상담 스크립트 등록을 요청하세요."}</p>
+                  </CardContent>
                 </Card>
               ) : null}
               {scriptItems.map((item: any) => (
@@ -601,10 +669,30 @@ export default function ConsultationToolsManagement() {
                   onClick={() => setSelectedScriptId(item.id)}
                 >
                   <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
-                    <div className="min-w-0">
-                      <p className="line-clamp-2 font-medium leading-6">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">{item.category} / {item.tags ?? "태그 없음"} / {getActiveLabel(item.isActive)}</p>
-                      <p className="mt-2 line-clamp-3 whitespace-pre-wrap text-sm leading-6 text-muted-foreground">{item.scriptBody}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 font-semibold leading-6 text-slate-950">{item.title}</p>
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">{item.category}</span>
+                            <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">{item.tags ?? "태그 없음"}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">{getActiveLabel(item.isActive)}</span>
+                          </div>
+                        </div>
+                        {selectedScript?.id === item.id ? <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" /> : null}
+                      </div>
+                      <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">{item.scriptBody}</p>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="mt-3 min-h-11 w-full md:hidden"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          copyPreviewText(item.scriptBody, "스크립트");
+                        }}
+                      >
+                        <Copy className="mr-1 h-4 w-4" /> 스크립트 복사
+                      </Button>
                     </div>
                     {isBranchAdmin ? (
                       <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
@@ -629,7 +717,7 @@ export default function ConsultationToolsManagement() {
                   body={selectedScript?.scriptBody}
                   note={selectedScript?.complianceNote}
                   emptyText="상담 스크립트를 선택하면 긴 본문만 미리보기 안에서 스크롤됩니다."
-                  onCopy={() => copyPreviewText(selectedScript?.scriptBody)}
+                  onCopy={() => copyPreviewText(selectedScript?.scriptBody, "스크립트")}
                 />
               </div>
             </div>
