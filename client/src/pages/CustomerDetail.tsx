@@ -43,6 +43,14 @@ const CONSULTATION_TYPES = ["전화", "카톡", "문자", "방문", "소개", "�
 const CUSTOMER_NEEDS = ["보험료 부담", "보장 불안", "가족 보장", "실손/의료비", "암/뇌/심장 보장", "운전자보험", "해지 고민", "리밸런싱", "자녀 보장", "노후/간병", "기타"] as const;
 const CUSTOMER_NEXT_ACTIONS = ["재연락", "설계안 발송", "보장분석 진행", "계약 진행", "추가 자료 요청", "가족과 상의", "보류", "거절", "장기관리", "사후관리"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
+const linkedScheduleReminderOptions = [
+  { value: "-1", label: "알림 없음" },
+  { value: "0", label: "시작 시각" },
+  { value: "30", label: "30분 전" },
+  { value: "60", label: "1시간 전" },
+  { value: "120", label: "2시간 전" },
+  { value: "1440", label: "하루 전" },
+] as const;
 
 const TIMELINE_FILTERS = [
   { value: "all", label: "전체", eventTypes: [] },
@@ -168,7 +176,16 @@ export default function CustomerDetail({ id }: { id: number }) {
   });
 
   const createConsultMutation = trpc.consultations.create.useMutation({
-    onSuccess: () => { toast.success("상담기록이 저장되었습니다."); setShowConsultModal(false); refetchConsult(); refetchCustomer(); },
+    onSuccess: (_result, variables) => {
+      toast.success(variables.calendarSchedule ? "상담기록과 캘린더 일정이 저장되었습니다." : "상담기록이 저장되었습니다.");
+      setShowConsultModal(false);
+      refetchConsult();
+      refetchCustomer();
+      if (variables.calendarSchedule) {
+        utils.schedules.list.invalidate();
+        utils.dashboard.todayWork.invalidate();
+      }
+    },
   });
 
   const updateConsultMutation = trpc.consultations.update.useMutation({
@@ -226,11 +243,12 @@ export default function CustomerDetail({ id }: { id: number }) {
   });
 
   const createFollowUpMutation = trpc.followUps.create.useMutation({
-    onSuccess: () => {
-      toast.success("다음 연락일이 설정되었습니다.");
+    onSuccess: (_result, variables) => {
+      toast.success(variables.calendarSchedule ? "다음 연락일과 캘린더 일정이 설정되었습니다." : "다음 연락일이 설정되었습니다.");
       setShowFollowUpModal(false);
       refetchFollowUps();
       utils.dashboard.todayWork.invalidate();
+      if (variables.calendarSchedule) utils.schedules.list.invalidate();
     },
     onError: (err) => toast.error(err.message || "다음 연락일 설정에 실패했습니다."),
   });
@@ -1642,7 +1660,7 @@ function FollowUpPanel({ followUps, onCreate, onComplete, onPostpone, onCancel, 
 function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (data: { nextContactDate: string; reason: string; nextAction: "전화" | "카톡" | "문자" | "방문" | "설계안 발송" | "계약 확인" | "보장분석" | "사후관리" | "기타"; memo?: string }) => void;
+  onSubmit: (data: { nextContactDate: string; reason: string; nextAction: "전화" | "카톡" | "문자" | "방문" | "설계안 발송" | "계약 확인" | "보장분석" | "사후관리" | "기타"; memo?: string; calendarSchedule?: { title?: string; startTime: string; type?: "고객상담" | "재통화"; memo?: string; reminderOffsetMinutes: -1 | 0 | 30 | 60 | 120 | 1440 } }) => void;
   loading: boolean;
   mode?: "create" | "postpone";
 }) {
@@ -1651,8 +1669,12 @@ function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
   const [reason, setReason] = useState("");
   const [nextAction, setNextAction] = useState<"전화" | "카톡" | "문자" | "방문" | "설계안 발송" | "계약 확인" | "보장분석" | "사후관리" | "기타">("전화");
   const [memo, setMemo] = useState("");
+  const [createCalendarSchedule, setCreateCalendarSchedule] = useState(mode === "create");
+  const [scheduleTitle, setScheduleTitle] = useState("");
+  const [scheduleReminderOffset, setScheduleReminderOffset] = useState("30");
   const actions = ["전화", "카톡", "문자", "방문", "설계안 발송", "계약 확인", "보장분석", "사후관리", "기타"] as const;
   const reasons = ["설계안 전달 후 재상담", "보험료 조정 상담", "보장분석 후속 연락", "계약 전 확인", "계약 후 사후관리", "생일/기념일 관리", "장기 미관리 고객 재접촉", "기타"];
+  const canCreateSchedule = mode === "create";
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
@@ -1681,9 +1703,53 @@ function FollowUpModal({ open, onClose, onSubmit, loading, mode = "create" }: {
             <Label>메모</Label>
             <Textarea value={memo} onChange={(e) => setMemo(e.target.value)} className="mt-1" placeholder="민감정보 입력 금지" />
           </div>
+          {canCreateSchedule && (
+            <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-blue-950">
+                <input type="checkbox" checked={createCalendarSchedule} onChange={(e) => setCreateCalendarSchedule(e.target.checked)} />
+                캘린더 일정도 함께 등록
+              </label>
+              {createCalendarSchedule && (
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <Label className="text-xs">일정 제목</Label>
+                    <Input value={scheduleTitle} onChange={(e) => setScheduleTitle(e.target.value)} className="mt-1" placeholder="비우면 후속관리 일정" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">일정 알림</Label>
+                    <Select value={scheduleReminderOffset} onValueChange={setScheduleReminderOffset}>
+                      <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {linkedScheduleReminderOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <p className="text-[11px] text-blue-800">다음 연락일과 같은 시각에 고객 연결 일정이 생성됩니다.</p>
+                </div>
+              )}
+            </div>
+          )}
           <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-background pt-2">
             <Button className="min-h-12 md:min-h-11" variant="outline" onClick={onClose}>취소</Button>
-            <Button className="min-h-12 md:min-h-11" disabled={!nextContactDate || !reason || loading} onClick={() => onSubmit({ nextContactDate, reason, nextAction, memo: memo || undefined })}>
+            <Button
+              className="min-h-12 md:min-h-11"
+              disabled={!nextContactDate || !reason || loading}
+              onClick={() => onSubmit({
+                nextContactDate,
+                reason,
+                nextAction,
+                memo: memo || undefined,
+                calendarSchedule: canCreateSchedule && createCalendarSchedule
+                  ? {
+                      title: scheduleTitle || undefined,
+                      startTime: nextContactDate,
+                      type: nextAction === "방문" ? "고객상담" : "재통화",
+                      memo: memo || reason,
+                      reminderOffsetMinutes: Number(scheduleReminderOffset) as -1 | 0 | 30 | 60 | 120 | 1440,
+                    }
+                  : undefined,
+              })}
+            >
               {mode === "postpone" ? "연기" : "저장"}
             </Button>
           </div>
@@ -1810,6 +1876,10 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
     content: "",
     nextContactAt: "",
   });
+  const [createCalendarSchedule, setCreateCalendarSchedule] = useState(false);
+  const [scheduleTitle, setScheduleTitle] = useState("");
+  const [scheduleReminderOffset, setScheduleReminderOffset] = useState("30");
+  const missingScheduleTime = createCalendarSchedule && !form.nextContactAt;
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto">
@@ -1858,9 +1928,56 @@ function ConsultModal({ open, onClose, onSubmit, loading, currentStatus }: {
             <Label className="text-xs">재상담 예정일</Label>
             <Input type="datetime-local" value={form.nextContactAt} onChange={(e) => setForm({ ...form, nextContactAt: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" />
           </div>
+          <div className="rounded-md border bg-muted/20 p-3">
+            <label className="flex items-start gap-2 text-sm">
+              <Checkbox checked={createCalendarSchedule} onCheckedChange={(checked) => setCreateCalendarSchedule(checked === true)} />
+              <span>
+                <span className="font-medium">캘린더 일정도 함께 등록</span>
+                <span className="mt-1 block text-xs text-muted-foreground">재상담 예정일과 같은 시각에 고객 연결 일정이 생성됩니다.</span>
+              </span>
+            </label>
+            {createCalendarSchedule && (
+              <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div>
+                  <Label className="text-xs">일정 제목</Label>
+                  <Input value={scheduleTitle} maxLength={100} onChange={(e) => setScheduleTitle(e.target.value)} className="mt-1 min-h-12 md:h-9 md:min-h-9" placeholder="재상담 일정" />
+                </div>
+                <div>
+                  <Label className="text-xs">알림</Label>
+                  <Select value={scheduleReminderOffset} onValueChange={setScheduleReminderOffset}>
+                    <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {linkedScheduleReminderOptions.map((option) => <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {missingScheduleTime && <p className="text-xs text-destructive sm:col-span-2">캘린더 일정 등록을 위해 재상담 예정일을 입력해주세요.</p>}
+              </div>
+            )}
+          </div>
           <div className="flex justify-end gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>취소</Button>
-            <Button size="sm" disabled={loading} onClick={() => onSubmit({ ...form, summary: form.summary || undefined, content: form.content || undefined, nextContactAt: form.nextContactAt || undefined })}>{loading ? "저장 중..." : "저장"}</Button>
+            <Button
+              size="sm"
+              disabled={loading || missingScheduleTime}
+              onClick={() => onSubmit({
+                ...form,
+                summary: form.summary || undefined,
+                content: form.content || undefined,
+                nextContactAt: form.nextContactAt || undefined,
+                calendarSchedule: createCalendarSchedule
+                  ? {
+                      title: scheduleTitle || undefined,
+                      startTime: form.nextContactAt,
+                      type: form.consultationType === "방문" ? "고객상담" : "재통화",
+                      memo: form.summary || form.content || undefined,
+                      reminderOffsetMinutes: Number(scheduleReminderOffset) as -1 | 0 | 30 | 60 | 120 | 1440,
+                    }
+                  : undefined,
+              })}
+            >
+              {loading ? "저장 중..." : "저장"}
+            </Button>
           </div>
         </div>
       </DialogContent>

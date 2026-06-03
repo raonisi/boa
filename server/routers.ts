@@ -1681,6 +1681,103 @@ function reminderFlagsFromOffset(reminderOffsetMinutes: number) {
   };
 }
 
+const linkedScheduleInputSchema = z.object({
+  title: z.string().min(1).max(100).optional(),
+  type: z.enum(["고객상담","재통화","계약예정","보장분석","해지방어","팀회의","교육","외근","휴무","기타"]).optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().nullable().optional(),
+  memo: z.string().max(2000).optional(),
+  reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).default(30),
+}).optional();
+
+type PreparedLinkedCustomerSchedule = {
+  targetUserId: number;
+  customerId: number;
+  title: string;
+  type: "고객상담" | "재통화" | "계약예정" | "보장분석" | "해지방어" | "팀회의" | "교육" | "외근" | "휴무" | "기타";
+  startTimeDate: Date;
+  endTimeDate?: Date;
+  memo?: string;
+  reminderOffsetMinutes: -1 | 0 | 30 | 60 | 120 | 180 | 1440;
+  reminderFlags: ReturnType<typeof reminderFlagsFromOffset>;
+};
+
+async function prepareLinkedCustomerScheduleFromWork(params: {
+  actor: { id: number; role: string; teamId: number | null; accountStatus: string };
+  customer: Awaited<ReturnType<typeof verifyCustomerAccess>>;
+  schedule?: z.infer<typeof linkedScheduleInputSchema>;
+  fallbackStartTime?: string;
+  defaultTitle: string;
+  defaultType: "고객상담" | "재통화" | "계약예정" | "보장분석" | "해지방어" | "팀회의" | "교육" | "외근" | "휴무" | "기타";
+  defaultMemo?: string;
+}): Promise<PreparedLinkedCustomerSchedule | undefined> {
+  const { actor, customer, schedule, fallbackStartTime, defaultTitle, defaultType, defaultMemo } = params;
+  if (!schedule) return undefined;
+
+  const startTime = schedule.startTime || fallbackStartTime;
+  if (!startTime) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "캘린더 일정 시작 시간이 필요합니다." });
+  }
+
+  const targetUserId = customer.agentId ?? actor.id;
+  if (targetUserId !== actor.id) {
+    await verifyTargetUserAccess(actor, targetUserId);
+  }
+  await assertActiveScheduleTarget(targetUserId);
+
+  const startTimeDate = parseScheduleDateTime(startTime, "일정 시작 시간");
+  const endTimeDate = schedule.endTime ? parseScheduleDateTime(schedule.endTime, "일정 종료 시간") : undefined;
+  assertScheduleEndAfterStart(startTimeDate, endTimeDate);
+  const reminderOffsetMinutes = schedule.reminderOffsetMinutes ?? 30;
+  const reminderFlags = reminderFlagsFromOffset(reminderOffsetMinutes);
+  const title = schedule.title?.trim() || defaultTitle;
+
+  return {
+    targetUserId,
+    customerId: customer.id,
+    title,
+    type: schedule.type ?? defaultType,
+    startTimeDate,
+    endTimeDate,
+    memo: schedule.memo ?? defaultMemo,
+    reminderOffsetMinutes,
+    reminderFlags,
+  };
+}
+
+async function createPreparedLinkedCustomerSchedule(
+  actorId: number,
+  preparedSchedule?: PreparedLinkedCustomerSchedule,
+) {
+  if (!preparedSchedule) return false;
+
+  await createSchedule({
+    userId: preparedSchedule.targetUserId,
+    customerId: preparedSchedule.customerId,
+    title: preparedSchedule.title,
+    type: preparedSchedule.type,
+    status: "예정",
+    startTime: preparedSchedule.startTimeDate,
+    endTime: preparedSchedule.endTimeDate,
+    memo: preparedSchedule.memo,
+    reminderOffsetMinutes: preparedSchedule.reminderOffsetMinutes,
+    ...preparedSchedule.reminderFlags,
+    createdBy: actorId,
+  });
+  await log(actorId, "SCHEDULE_CREATED", "schedule", undefined, `title=${preparedSchedule.title}`);
+
+  const allSchedules = await getSchedules({ userId: preparedSchedule.targetUserId });
+  const newSchedule = allSchedules.find((s) => s.title === preparedSchedule.title && s.startTime.getTime() === preparedSchedule.startTimeDate.getTime());
+  if (newSchedule) {
+    await cancelScheduleTimingNotifications(preparedSchedule.targetUserId, newSchedule.id);
+    if (preparedSchedule.reminderOffsetMinutes >= 0) {
+      await createScheduleReminderByOffset(newSchedule.id, preparedSchedule.targetUserId, preparedSchedule.startTimeDate, preparedSchedule.title, preparedSchedule.reminderOffsetMinutes);
+    }
+    if (preparedSchedule.endTimeDate) await createScheduleIncompleteReminder(newSchedule.id, preparedSchedule.targetUserId, preparedSchedule.endTimeDate, preparedSchedule.title);
+  }
+  return true;
+}
+
 async function getScopedDashboardData(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
   if (user.role === "branch_admin") {
     const [customerList, contractList, scheduleList, notificationResult, followUpList] = await Promise.all([
@@ -5136,10 +5233,20 @@ export const appRouter = router({
         summary: z.string().max(200).optional(),
         content: z.string().max(2000).optional(),
         nextContactAt: z.string().optional(),
+        calendarSchedule: linkedScheduleInputSchema,
       }))
       .mutation(async ({ ctx, input }) => {
         const customer = await verifyCustomerAccess(ctx.user, input.customerId);
         if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 상담기록을 등록할 수 없습니다." });
+        const preparedSchedule = await prepareLinkedCustomerScheduleFromWork({
+          actor: ctx.user,
+          customer,
+          schedule: input.calendarSchedule,
+          fallbackStartTime: input.nextContactAt,
+          defaultTitle: "재상담 일정",
+          defaultType: "재통화",
+          defaultMemo: input.summary ?? input.content,
+        });
         if (input.status !== customer.consultStatus) {
           await createStatusHistory({ customerId: input.customerId, changedBy: ctx.user.id, previousStatus: customer.consultStatus, newStatus: input.status });
         }
@@ -5166,6 +5273,7 @@ export const appRouter = router({
           }));
         }
         if (nextContactDate) await createReconsultReminder(input.customerId, ctx.user.id, nextContactDate, customer.name);
+        const scheduleCreated = await createPreparedLinkedCustomerSchedule(ctx.user.id, preparedSchedule);
         if (customer.agentId) await refreshLongUnmanagedReminder(input.customerId, customer.agentId, new Date(), customer.name);
         await log(ctx.user.id, "CONSULTATION_CREATED", "customer", input.customerId, logDetails({
           actor: ctx.user.id,
@@ -5178,6 +5286,7 @@ export const appRouter = router({
             nextAction: input.nextAction ?? null,
             summary: input.summary ?? null,
           },
+          metadata: { scheduleCreated },
         }));
         return { success: true };
       }),
@@ -5949,12 +6058,22 @@ export const appRouter = router({
         reason: z.string().min(1),
         nextAction: z.enum(["전화", "카톡", "문자", "방문", "설계안 발송", "계약 확인", "보장분석", "사후관리", "기타"]).default("전화"),
         memo: z.string().optional(),
+        calendarSchedule: linkedScheduleInputSchema,
       }))
       .mutation(async ({ ctx, input }) => {
         const customer = await verifyCustomerAccess(ctx.user, input.customerId);
         if (!customer.isActive || customer.deletedAt) throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 후속관리를 등록할 수 없습니다." });
         const nextContactDate = parseKstLocalDateTime(input.nextContactDate);
         if (Number.isNaN(nextContactDate.getTime())) throw new TRPCError({ code: "BAD_REQUEST", message: "다음 연락일이 올바르지 않습니다." });
+        const preparedSchedule = await prepareLinkedCustomerScheduleFromWork({
+          actor: ctx.user,
+          customer,
+          schedule: input.calendarSchedule,
+          fallbackStartTime: input.nextContactDate,
+          defaultTitle: "후속관리 일정",
+          defaultType: input.nextAction === "방문" ? "고객상담" : "재통화",
+          defaultMemo: input.memo ?? input.reason,
+        });
         await createFollowUp({
           customerId: customer.id,
           assignedAgentId: customer.agentId,
@@ -5967,12 +6086,13 @@ export const appRouter = router({
           memo: input.memo,
           createdBy: ctx.user.id,
         });
+        const scheduleCreated = await createPreparedLinkedCustomerSchedule(ctx.user.id, preparedSchedule);
         await log(ctx.user.id, "FOLLOW_UP_CREATED", "customer", customer.id, logDetails({
           actor: ctx.user.id,
           targetId: customer.id,
           targetType: "customer",
           afterValue: { nextContactDate, reason: input.reason, nextAction: input.nextAction, status: "scheduled" },
-          metadata: { customerId: customer.id },
+          metadata: { customerId: customer.id, scheduleCreated },
         }));
         return { success: true };
       }),

@@ -560,6 +560,7 @@ describe("Follow-ups - KST local date policy", () => {
   it("preserves the selected next contact local datetime when creating follow-ups", async () => {
     const createSpy = vi.spyOn(db, "createFollowUp").mockResolvedValue(undefined);
     vi.spyOn(db, "getCustomerById").mockResolvedValue(customer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 } as any);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
     await appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.create({
@@ -571,6 +572,40 @@ describe("Follow-ups - KST local date policy", () => {
 
     const nextContactDate = createSpy.mock.calls[0][0].nextContactDate as Date;
     expect(formatKstLocalDateTime(nextContactDate)).toBe("2026-05-22T10:00:00");
+  });
+
+  it("creates a linked customer schedule when requested from follow-up creation", async () => {
+    const startTime = parseKstLocalDateTime("2026-05-22T10:00:00");
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(customer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 } as any);
+    vi.spyOn(db, "createFollowUp").mockResolvedValue(undefined);
+    const scheduleSpy = vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([{ id: 91, userId: 4, customerId: 100, title: "[TEST] follow schedule", startTime } as any]);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await appRouter.createCaller(createCtx("member", { userId: 4 })).followUps.create({
+      customerId: 100,
+      nextContactDate: "2026-05-22T10:00:00",
+      reason: "[TEST] follow",
+      nextAction: "전화",
+      calendarSchedule: {
+        title: "[TEST] follow schedule",
+        reminderOffsetMinutes: 30,
+      },
+    });
+
+    expect(scheduleSpy).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 4,
+      customerId: 100,
+      title: "[TEST] follow schedule",
+      type: "재통화",
+      startTime,
+      reminderOffsetMinutes: 30,
+    }));
+    expect(reminderSpy).toHaveBeenCalledWith(91, 4, startTime, "[TEST] follow schedule", 30);
   });
 
   it("preserves the selected next contact local datetime when postponing follow-ups", async () => {
@@ -4571,6 +4606,46 @@ describe("consultation UX metadata and customer management meta", () => {
     const consultationLog = logSpy.mock.calls.find((call) => call[0]?.action === "CONSULTATION_CREATED")?.[0];
     expect(consultationLog?.details).toContain("[TEST] 보험료 재상담");
     expect(consultationLog?.details).not.toContain("[TEST] 상세 상담 메모");
+  });
+
+  it("creates a linked customer schedule when requested from consultation creation", async () => {
+    const startTime = parseKstLocalDateTime("2026-05-22T14:00:00");
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 4, role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2 } as any);
+    vi.spyOn(db, "createConsultation").mockResolvedValue(undefined);
+    vi.spyOn(db, "updateCustomer").mockResolvedValue(undefined);
+    const scheduleSpy = vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([{ id: 92, userId: 4, customerId: 100, title: "[TEST] consult schedule", startTime } as any]);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createReconsultReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "refreshLongUnmanagedReminder").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "cancelScheduleTimingNotifications").mockResolvedValue(undefined);
+    const reminderSpy = vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleIncompleteReminder").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).consultations.create({
+      customerId: 100,
+      status: "미상담",
+      consultationType: "전화",
+      customerNeed: "보험료 부담",
+      nextAction: "재연락",
+      summary: "[TEST] 보험료 재상담",
+      nextContactAt: "2026-05-22T14:00:00",
+      calendarSchedule: {
+        title: "[TEST] consult schedule",
+        reminderOffsetMinutes: 60,
+      },
+    })).resolves.toEqual({ success: true });
+
+    expect(scheduleSpy).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 4,
+      customerId: 100,
+      title: "[TEST] consult schedule",
+      type: "재통화",
+      startTime,
+      reminderOffsetMinutes: 60,
+    }));
+    expect(reminderSpy).toHaveBeenCalledWith(92, 4, startTime, "[TEST] consult schedule", 60);
   });
 
   it("blocks member from creating consultation for another member customer", async () => {
