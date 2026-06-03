@@ -80,6 +80,7 @@ describe("Bulk Import Functions", () => {
         예상보험료: "5",
         통화가능시간: "09:00-18:00",
         유입경로: "지인",
+        "DB 업체명": "렌선",
         상담상태: "미상담",
         메모: "테스트",
         부지점장: "",
@@ -412,6 +413,14 @@ describe("Bulk Import Functions", () => {
         예상보험료: "99",
       });
       expect(row.expectedPremium).toBe("12");
+    });
+
+    it("reads DB 업체명 aliases", () => {
+      const row = normalizeBulkImportRow({
+        이름: "테스트",
+        "DB 업체명": "렌선",
+      });
+      expect(row.dbCompany).toBe("렌선");
     });
   });
 

@@ -81,6 +81,7 @@ export const customers = mysqlTable("customers", {
   expectedPremium: int("expectedPremium"),
   availableTime: varchar("availableTime", { length: 100 }),
   source: varchar("source", { length: 100 }),
+  dbCompany: varchar("dbCompany", { length: 100 }),
   agentId: int("agentId"),
   assignedTeamId: int("assignedTeamId"),
   assignedAt: timestamp("assignedAt"),

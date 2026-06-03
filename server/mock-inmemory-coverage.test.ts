@@ -399,13 +399,14 @@ describe("mock bulk import and settings option coverage", () => {
       예상보험료: "10",
       통화가능시간: "evening",
       유입경로: "test",
+      "DB 업체명": "렌선",
       상담상태: "미상담",
       메모: "[TEST] memo",
       부지점장: "[TEST] sub_branch_admin A",
       팀: "[TEST] A team",
       담당자: "[TEST] member A-1",
     });
-    expect(row).toMatchObject({ name: "[TEST] bulk customer", phone: "010 1234 5678" });
+    expect(row).toMatchObject({ name: "[TEST] bulk customer", phone: "010 1234 5678", dbCompany: "렌선" });
     expect(normalizePhone(row.phone ?? "")).toBe("01012345678");
     expect(normalizePhone("010-1234-5678")).toBe("01012345678");
     expect(normalizePhone("01012345678")).toBe("01012345678");

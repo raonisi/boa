@@ -11,14 +11,107 @@ import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { formatUserWithRole } from "@/lib/userRole";
 
+type ParsedCellValue = string | number | boolean | null;
+type XlsxCellValue = ParsedCellValue | Date;
+
 interface ParsedRow {
-  [key: string]: string;
+  [key: string]: ParsedCellValue;
 }
 
 interface ValidationResult {
   rowIndex: number;
   isValid: boolean;
   errors: string[];
+}
+
+const BIRTH_DATE_HEADERS = new Set(["birthDate", "생년월일"]);
+
+function pad2(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function toYmd(year: number, month: number, day: number) {
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function dateToYmd(date: Date) {
+  return toYmd(date.getFullYear(), date.getMonth() + 1, date.getDate());
+}
+
+function excelSerialDateToYmd(value: number) {
+  const parsed = XLSX.SSF.parse_date_code(value);
+  if (!parsed) return undefined;
+
+  const currentYear = new Date().getFullYear();
+  if (parsed.y < 1900 || parsed.y > currentYear) return undefined;
+
+  return toYmd(parsed.y, parsed.m, parsed.d);
+}
+
+function isBirthDateHeader(header: string) {
+  return BIRTH_DATE_HEADERS.has(header.trim());
+}
+
+function normalizeXlsxBirthDateCell(cell: XLSX.CellObject | undefined, value: XlsxCellValue) {
+  if (cell?.t === "n" && typeof cell.v === "number") {
+    return excelSerialDateToYmd(cell.v) ?? String(cell.v);
+  }
+  if (cell?.t === "d" && cell.v instanceof Date) {
+    return dateToYmd(cell.v);
+  }
+  if (value instanceof Date) {
+    return dateToYmd(value);
+  }
+  return value == null ? "" : String(value).trim();
+}
+
+function normalizeXlsxCellValue(value: XlsxCellValue): ParsedCellValue {
+  if (value instanceof Date) {
+    return dateToYmd(value);
+  }
+  return value;
+}
+
+function parseXlsxRows(sheet: XLSX.WorkSheet): ParsedRow[] {
+  const rangeRef = sheet["!ref"];
+  if (!rangeRef) return [];
+
+  const range = XLSX.utils.decode_range(rangeRef);
+  const headers: string[] = [];
+  for (let col = range.s.c; col <= range.e.c; col++) {
+    const cellRef = XLSX.utils.encode_cell({ r: range.s.r, c: col });
+    const headerCell = sheet[cellRef];
+    headers[col] = String(headerCell?.v ?? "").trim();
+  }
+
+  const rows: ParsedRow[] = [];
+  for (let rowIndex = range.s.r + 1; rowIndex <= range.e.r; rowIndex++) {
+    const row: ParsedRow = {};
+    let hasValue = false;
+
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const header = headers[col];
+      if (!header) continue;
+
+      const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c: col });
+      const cell = sheet[cellRef];
+      const rawValue = (cell?.v ?? "") as XlsxCellValue;
+      const value = isBirthDateHeader(header)
+        ? normalizeXlsxBirthDateCell(cell, rawValue)
+        : normalizeXlsxCellValue(rawValue);
+
+      row[header] = value;
+      if (String(value ?? "").trim() !== "") {
+        hasValue = true;
+      }
+    }
+
+    if (hasValue) {
+      rows.push(row);
+    }
+  }
+
+  return rows;
 }
 
 export default function CustomerBulkImport() {
@@ -53,13 +146,13 @@ export default function CustomerBulkImport() {
 
   const templateHeaders = downloadTemplateQuery.data?.headers ?? [];
   const sampleRow = canSelectAssignee
-    ? ["홍길동", "1990-01-15", "010-1234-5678", "남", "서울", "5", "09:00-18:00", "지인", "미상담", "상담 전 확인 필요", "김담당"]
-    : ["홍길동", "1990-01-15", "010-1234-5678", "남", "서울", "5", "09:00-18:00", "지인", "미상담", "상담 전 확인 필요"];
+    ? ["홍길동", "1990-01-15", "010-1234-5678", "남", "서울", "5", "09:00-18:00", "지인", "렌선", "미상담", "상담 전 확인 필요", "김담당"]
+    : ["홍길동", "1990-01-15", "010-1234-5678", "남", "서울", "5", "09:00-18:00", "지인", "렌선", "미상담", "상담 전 확인 필요"];
 
   const templateGuideRows = [
     ["구분", "내용"],
     ["필수 컬럼", "이름, 생년월일, 연락처"],
-    ["선택 컬럼", "성별, 지역, 예상보험료(만원), 통화가능시간, 유입경로, 상담상태, 메모"],
+    ["선택 컬럼", "성별, 지역, 예상보험료(만원), 통화가능시간, 유입경로, DB 업체명, 상담상태, 메모"],
     ["예상보험료", "만원 단위 숫자(소수 가능). 예: 50 → 50만원(저장: 500,000원). 열 이름은 예상보험료(만원) 또는 예상보험료 모두 가능합니다."],
     ["상담상태", "선택값입니다. 미입력 시 미상담으로 등록됩니다."],
     ["비관리자 배정", "업로드한 고객은 내 고객으로 자동 등록됩니다. 담당자 컬럼은 사용하지 않습니다."],
@@ -128,7 +221,7 @@ export default function CustomerBulkImport() {
         .then((buffer) => {
           const workbook = XLSX.read(buffer, { type: "array" });
           const sheet = workbook.Sheets[workbook.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json<ParsedRow>(sheet, { defval: "" });
+          const rows = parseXlsxRows(sheet);
           setParsedRows(rows);
           handlePreview(rows, file.name, file.size, nextMimeType);
         })

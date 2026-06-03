@@ -169,6 +169,13 @@
       "when": 1779188400000,
       "tag": "0023_schedule_customer_context",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "5",
+      "when": 1780416000000,
+      "tag": "0024_customer_db_company",
+      "breakpoints": true
     }
   ]
 }

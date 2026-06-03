@@ -881,6 +881,7 @@ export default function CustomerList() {
                             <div className="flex flex-col">
                               <span>{c.region ?? "-"}</span>
                               <span>{c.source ?? "-"}</span>
+                              {(c as any).dbCompany && <span>DB 업체: {(c as any).dbCompany}</span>}
                             </div>
                           </TableCell>
                           <TableCell className="text-right tabular-nums text-base font-bold text-slate-950">
@@ -1147,7 +1148,7 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading, currentUser, ag
   const consultStatuses = consultStatusOptions?.length ? consultStatusOptions.map((item) => item.value) : ["미상담"];
   const [form, setForm] = useState({
     name: "", phone: "", birthDate: "", gender: "" as "male" | "female" | "other" | "",
-    region: "", expectedPremium: "", availableTime: "", source: "",
+    region: "", expectedPremium: "", availableTime: "", source: "", dbCompany: "",
     consultStatus: "미상담", privacyConsent: false, marketingConsent: false, memo: "",
     agentId: "self",
   });
@@ -1167,6 +1168,7 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading, currentUser, ag
         ? expectedPremiumStoredWonFromManwonInput(form.expectedPremium)
         : undefined,
       availableTime: form.availableTime || undefined, source: form.source || undefined,
+      dbCompany: form.dbCompany || undefined,
       consultStatus: form.consultStatus || undefined,
       privacyConsent: form.privacyConsent, marketingConsent: form.marketingConsent,
       memo: form.memo || undefined,
@@ -1210,6 +1212,7 @@ function CreateCustomerModal({ open, onClose, onSubmit, loading, currentUser, ag
             </div>
             <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" placeholder="예: 오후 2~5시" /></div>
             <div><Label className="text-xs">유입경로</Label><Input list="customer-source-options" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" placeholder="예: 지인소개, SNS" /></div>
+            <div><Label className="text-xs">DB 업체명</Label><Input value={form.dbCompany} onChange={(e) => setForm({ ...form, dbCompany: e.target.value })} className="h-8 mt-1" placeholder="예: 렌선, 실버" /></div>
             <div>
               <Label className="text-xs">상담상태</Label>
               <Select value={form.consultStatus} onValueChange={(v) => setForm({ ...form, consultStatus: v })}>

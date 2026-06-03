@@ -503,13 +503,14 @@ export default function CustomerDetail({ id }: { id: number }) {
               </DropdownMenu>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
               {[
                 { label: "담당자", value: agentName },
                 { label: "예상보험료", value: customer.expectedPremium != null ? formatExpectedPremiumManwon(customer.expectedPremium) : "-" },
                 { label: "마지막 상담일", value: latestConsultDate ? formatDate(latestConsultDate) : "상담 없음" },
                 { label: "다음 연락일", value: nextFollowUp ? formatDate(nextFollowUp.nextContactDate) : "설정 없음" },
                 { label: "유입경로", value: customer.source ?? "-" },
+                { label: "DB 업체명", value: (customer as any).dbCompany ?? "-" },
                 { label: "지역", value: customer.region ?? "-" },
               ].map((item) => (
                 <div key={item.label} className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2">
@@ -724,6 +725,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                     { label: "예상보험료", value: customer.expectedPremium != null ? formatExpectedPremiumManwon(customer.expectedPremium) : "-" },
                     { label: "통화가능시간", value: customer.availableTime ?? "-" },
                     { label: "유입경로", value: customer.source ?? "-" },
+                    { label: "DB 업체명", value: (customer as any).dbCompany ?? "-" },
                     { label: "배정일", value: customer.assignedAt ? new Date(customer.assignedAt).toLocaleDateString("ko-KR") : "-" },
                     { label: "개인정보 동의", value: customer.privacyConsent ? "✓ 동의" : "✗ 미동의" },
                     { label: "마케팅 수신 동의", value: customer.marketingConsent ? "✓ 동의" : "✗ 미동의" },
@@ -1710,6 +1712,7 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
         : "",
     availableTime: customer.availableTime ?? "",
     source: customer.source ?? "",
+    dbCompany: customer.dbCompany ?? "",
     memo: customer.memo ?? "",
     privacyConsent: customer.privacyConsent ?? false,
     marketingConsent: customer.marketingConsent ?? false,
@@ -1751,6 +1754,7 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
             </div>
             <div><Label className="text-xs">통화가능시간</Label><Input value={form.availableTime} onChange={(e) => setForm({ ...form, availableTime: e.target.value })} className="h-8 mt-1" /></div>
             <div><Label className="text-xs">유입경로</Label><Input list="edit-customer-source-options" value={form.source} onChange={(e) => setForm({ ...form, source: e.target.value })} className="h-8 mt-1" /></div>
+            <div><Label className="text-xs">DB 업체명</Label><Input value={form.dbCompany} onChange={(e) => setForm({ ...form, dbCompany: e.target.value })} className="h-8 mt-1" /></div>
           </div>
           <datalist id="edit-customer-region-options">{regions.map((v) => <option key={v} value={v} />)}</datalist>
           <datalist id="edit-customer-source-options">{sources.map((v) => <option key={v} value={v} />)}</datalist>
@@ -1777,6 +1781,7 @@ function EditCustomerModal({ customer, onClose, onSubmit, loading }: {
                 : undefined,
               availableTime: form.availableTime || undefined,
               source: form.source || undefined,
+              dbCompany: form.dbCompany || undefined,
               memo: form.memo || undefined,
               privacyConsent: form.privacyConsent,
               marketingConsent: form.marketingConsent,

@@ -677,11 +677,13 @@ describe("PR18-4 - direct customer creation assignment policy", () => {
       appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.create({
         name: "[TEST] Branch Direct",
         phone: "010-1000-0001",
+        dbCompany: "[TEST] Vendor",
       })
     ).resolves.toEqual({ success: true });
 
     expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
       name: "[TEST] Branch Direct",
+      dbCompany: "[TEST] Vendor",
       agentId: 1,
       assignedTeamId: null,
       subBranchAdminId: null,
@@ -857,12 +859,12 @@ describe("Bulk import branch-admin access policy", () => {
 
     await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.bulkImport({
       fileName: "customers.xlsx",
-      rows: [{ ...row, name: "[TEST] Bulk Status" }],
+      rows: [{ ...row, name: "[TEST] Bulk Status", "DB 업체명": "[TEST] Vendor" }],
       agentId: 4,
     });
 
     expect(bulkCreateSpy).toHaveBeenCalledWith([
-      expect.objectContaining({ name: "[TEST] Bulk Status", agentId: 4 }),
+      expect.objectContaining({ name: "[TEST] Bulk Status", dbCompany: "[TEST] Vendor", agentId: 4 }),
     ], {});
   });
 

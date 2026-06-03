@@ -692,6 +692,7 @@ export async function getCustomers(filter: {
   includeInactive?: boolean;
   region?: string;
   source?: string;
+  dbCompany?: string;
   priority?: string;
   tag?: string;
   nextAction?: string;
@@ -729,6 +730,7 @@ export async function getCustomers(filter: {
   if (filter.status) conditions.push(eq(customers.consultStatus, filter.status as any));
   if (filter.region) conditions.push(eq(customers.region, filter.region));
   if (filter.source) conditions.push(eq(customers.source, filter.source));
+  if (filter.dbCompany) conditions.push(eq(customers.dbCompany, filter.dbCompany));
   if (filter.priority) conditions.push(eq(customers.priority, filter.priority as any));
   if (filter.nextAction) conditions.push(eq(customers.nextAction, filter.nextAction));
   if (filter.tag) conditions.push(sql`${customers.customerTags} like ${`%${filter.tag}%`}` as any);
@@ -740,6 +742,7 @@ export async function getCustomers(filter: {
       sql`lower(${customers.phone}) like ${likeSearch}`,
       sql`lower(${customers.region}) like ${likeSearch}`,
       sql`lower(${customers.source}) like ${likeSearch}`,
+      sql`lower(${customers.dbCompany}) like ${likeSearch}`,
       sql`lower(${customers.consultStatus}) like ${likeSearch}`,
       sql`lower(${customers.priority}) like ${likeSearch}`,
     ) as any);
@@ -877,6 +880,7 @@ function customerMergeSummary(row: typeof customers.$inferSelect, stats?: Custom
     birthDate: row.birthDate,
     region: row.region,
     source: row.source,
+    dbCompany: row.dbCompany,
     consultStatus: row.consultStatus,
     priority: row.priority,
     customerTags: decodeTagList(row.customerTags),
@@ -977,7 +981,7 @@ export async function getCustomerMergePreview(targetCustomerId: number, sourceCu
   const pendingRows = db ? await db.select({ count: sql<number>`COUNT(*)` }).from(deleteRequests)
     .where(and(eq(deleteRequests.customerId, sourceCustomerId), eq(deleteRequests.status, "pending")))
     : [{ count: 0 }];
-  const conflicts = ["name", "phone", "region", "source", "consultStatus", "priority", "nextAction"]
+  const conflicts = ["name", "phone", "region", "source", "dbCompany", "consultStatus", "priority", "nextAction"]
     .filter((field) => (target as any)[field] && (source as any)[field] && (target as any)[field] !== (source as any)[field]);
   return {
     targetCustomer: customerMergeSummary(target, targetStats),
@@ -1017,6 +1021,7 @@ export async function mergeCustomers(params: {
     expectedPremium: target.expectedPremium ?? source.expectedPremium,
     availableTime: target.availableTime ?? source.availableTime,
     source: target.source ?? source.source,
+    dbCompany: target.dbCompany ?? source.dbCompany,
     priority: strongerPriority(target.priority, source.priority) as any,
     customerTags: tags,
     nextAction: target.nextAction ?? source.nextAction,
@@ -2958,6 +2963,7 @@ export function normalizeBulkImportRow(row: Record<string, unknown>): BulkImport
     expectedPremium: pickString(row, "expectedPremium", "예상보험료(만원)", "예상보험료"),
     availableTime: pickString(row, "availableTime", "통화가능시간"),
     source: pickString(row, "source", "유입경로"),
+    dbCompany: pickString(row, "dbCompany", "DB 업체명", "DB업체명", "디비업체명", "업체명"),
     consultStatus: pickString(row, "consultStatus", "상담상태"),
     memo: pickString(row, "memo", "메모"),
     subBranchAdminName: pickString(row, "subBranchAdminName", "부지점장"),
@@ -3038,6 +3044,7 @@ export interface BulkImportRow {
   expectedPremium?: string;
   availableTime?: string;
   source?: string;
+  dbCompany?: string;
   consultStatus?: string;
   memo?: string;
   subBranchAdminName?: string;
@@ -3265,6 +3272,7 @@ export async function bulkCreateCustomers(
     expectedPremium?: number;
     availableTime?: string;
     source?: string;
+    dbCompany?: string;
     consultStatus: string;
     memo?: string;
     agentId?: number;
@@ -3290,6 +3298,7 @@ export async function bulkCreateCustomers(
     expectedPremium: row.expectedPremium,
     availableTime: row.availableTime,
     source: row.source,
+    dbCompany: row.dbCompany,
     consultStatus: row.consultStatus as any,
     memo: row.memo,
     agentId: row.agentId,
