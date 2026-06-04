@@ -123,6 +123,9 @@ export default function CustomerList() {
     priority: priorityFilter === "all" ? undefined : priorityFilter as any,
     tag: tagFilter === "all" ? undefined : tagFilter as any,
     nextAction: nextActionFilter === "all" ? undefined : nextActionFilter as any,
+    agentIdFilter: agentFilter !== "all" && agentFilter !== "unassigned" ? Number(agentFilter) : undefined,
+    unassigned: agentFilter === "unassigned" ? true : undefined,
+    assignmentStatus: agentFilter === "unassigned" ? "unassigned" : undefined,
     assignedDateFrom: assignedDateFrom || undefined,
     assignedDateTo: assignedDateTo || undefined,
     scope: user?.role === "branch_admin" ? scopeFilter : undefined,
@@ -199,7 +202,8 @@ export default function CustomerList() {
   const filtered = (customers ?? []).filter((c) => {
     const matchRegion = !regionFilter || (c.region ?? "").includes(regionFilter);
     const matchSource = !sourceFilter || (c.source ?? "").includes(sourceFilter);
-    const matchAgent = agentFilter === "all" || String(c.agentId) === agentFilter;
+    const matchAgent = agentFilter === "all"
+      || (agentFilter === "unassigned" ? c.agentId == null && c.assignmentStatus === "unassigned" : String(c.agentId) === agentFilter);
     const recommendation = recommendationByCustomerId.get(c.id);
     const matchRecommendation =
       recommendationFilter === "all" ||
@@ -273,7 +277,11 @@ export default function CustomerList() {
     } : null,
     assignedDateFrom ? { key: "assignedDateFrom", label: `배정 시작: ${assignedDateFrom}`, clear: () => setAssignedDateFrom("") } : null,
     assignedDateTo ? { key: "assignedDateTo", label: `배정 종료: ${assignedDateTo}`, clear: () => setAssignedDateTo("") } : null,
-    agentFilter !== "all" ? { key: "agent", label: `담당자: ${formatUserWithRole(agentById.get(Number(agentFilter)))}`, clear: () => setAgentFilter("all") } : null,
+    agentFilter !== "all" ? {
+      key: "agent",
+      label: `담당자: ${agentFilter === "unassigned" ? "담당자 없음" : formatUserWithRole(agentById.get(Number(agentFilter)))}`,
+      clear: () => setAgentFilter("all"),
+    } : null,
   ].filter((chip): chip is { key: string; label: string; clear: () => void } => Boolean(chip));
   const hasActiveFilters = activeFilterChips.length > 0;
 
@@ -525,6 +533,7 @@ export default function CustomerList() {
                     <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"><SelectValue placeholder="담당자" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">전체 담당자</SelectItem>
+                      <SelectItem value="unassigned">담당자 없음</SelectItem>
                       {agents.map((a) => <SelectItem key={a.id} value={String(a.id)}>{formatUserWithRole(a)}</SelectItem>)}
                     </SelectContent>
                   </Select>
