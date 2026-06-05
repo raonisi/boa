@@ -31,6 +31,8 @@ import {
   InsertFollowUp,
   InsertImportBatch,
   InsertNotification,
+  InsertOnboardingTemplate,
+  InsertOnboardingTemplateItem,
   InsertPushNotificationPreference,
   InsertPushNotificationLog,
   InsertSchedule,
@@ -39,6 +41,8 @@ import {
   InsertUserDeviceToken,
   messageTemplates,
   notifications,
+  onboardingTemplateItems,
+  onboardingTemplates,
   performanceGoals,
   pushNotificationPreferences,
   pushNotificationLogs,
@@ -47,11 +51,15 @@ import {
   settings,
   statusHistory,
   teams,
+  userOnboardingAssignments,
+  userOnboardingItemProgress,
   userDeviceTokens,
   userPermissions,
   Team,
   users,
   User,
+  InsertUserOnboardingAssignment,
+  InsertUserOnboardingItemProgress,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -2072,6 +2080,245 @@ export async function updateSetting(id: number, value: string) {
   const db = await getDb();
   if (!db) return;
   await db.update(settings).set({ value }).where(eq(settings.id, id));
+}
+
+export type OnboardingTemplateWithItemsInput = {
+  name: string;
+  description?: string | null;
+  targetRole: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+  items: Array<{
+    title: string;
+    description?: string | null;
+    category: string;
+    required: boolean;
+    requiresManagerApproval: boolean;
+    practiceRequired: boolean;
+    relatedMenu?: string | null;
+    completionCriteria?: string | null;
+    estimatedMinutes?: number;
+    sortOrder: number;
+  }>;
+};
+
+export async function getOnboardingTemplates(includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const condition = includeInactive ? undefined : and(eq(onboardingTemplates.isActive, true), isNull(onboardingTemplates.archivedAt));
+  return db.select().from(onboardingTemplates).where(condition).orderBy(onboardingTemplates.targetRole, onboardingTemplates.id);
+}
+
+export async function getOnboardingTemplateById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(onboardingTemplates).where(eq(onboardingTemplates.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getOnboardingTemplateItems(templateId: number, includeInactive = false) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [eq(onboardingTemplateItems.templateId, templateId)];
+  if (!includeInactive) conditions.push(eq(onboardingTemplateItems.isActive, true));
+  return db.select().from(onboardingTemplateItems).where(and(...conditions)).orderBy(onboardingTemplateItems.sortOrder, onboardingTemplateItems.id);
+}
+
+export async function createOnboardingTemplate(data: InsertOnboardingTemplate, items: Array<Omit<InsertOnboardingTemplateItem, "templateId">>) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(onboardingTemplates).values(data);
+  const [template] = await db.select().from(onboardingTemplates).orderBy(desc(onboardingTemplates.id)).limit(1);
+  if (!template) return null;
+  if (items.length > 0) {
+    await db.insert(onboardingTemplateItems).values(items.map((item) => ({ ...item, templateId: template.id })));
+  }
+  return template;
+}
+
+export async function updateOnboardingTemplate(id: number, data: Partial<InsertOnboardingTemplate>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(onboardingTemplates).set(data).where(eq(onboardingTemplates.id, id));
+}
+
+export async function upsertOnboardingTemplateItem(id: number | null, data: InsertOnboardingTemplateItem) {
+  const db = await getDb();
+  if (!db) return;
+  if (id) {
+    await db.update(onboardingTemplateItems).set(data).where(eq(onboardingTemplateItems.id, id));
+    return id;
+  }
+  await db.insert(onboardingTemplateItems).values(data);
+  const [created] = await db.select().from(onboardingTemplateItems).orderBy(desc(onboardingTemplateItems.id)).limit(1);
+  return created?.id;
+}
+
+export async function getOnboardingAssignments(filter: {
+  targetUserIds?: number[];
+  targetUserId?: number;
+  assignedBy?: number;
+  includeArchived?: boolean;
+  status?: "assigned" | "in_progress" | "completed" | "overdue" | "archived";
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions: any[] = [];
+  if (!filter.includeArchived) conditions.push(isNull(userOnboardingAssignments.archivedAt));
+  if (filter.targetUserIds !== undefined) {
+    if (filter.targetUserIds.length === 0) return [];
+    conditions.push(inArray(userOnboardingAssignments.targetUserId, filter.targetUserIds));
+  } else if (filter.targetUserId !== undefined) {
+    conditions.push(eq(userOnboardingAssignments.targetUserId, filter.targetUserId));
+  }
+  if (filter.assignedBy !== undefined) conditions.push(eq(userOnboardingAssignments.assignedBy, filter.assignedBy));
+  if (filter.status) conditions.push(eq(userOnboardingAssignments.status, filter.status));
+  return db.select().from(userOnboardingAssignments).where(conditions.length ? and(...conditions) : undefined).orderBy(desc(userOnboardingAssignments.createdAt));
+}
+
+export async function getOnboardingAssignmentById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(userOnboardingAssignments).where(eq(userOnboardingAssignments.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function getOnboardingItemProgressByAssignment(assignmentId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userOnboardingItemProgress).where(eq(userOnboardingItemProgress.assignmentId, assignmentId));
+}
+
+export async function createOnboardingAssignment(data: InsertUserOnboardingAssignment) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(userOnboardingAssignments).values(data);
+  const [created] = await db.select().from(userOnboardingAssignments).orderBy(desc(userOnboardingAssignments.id)).limit(1);
+  return created;
+}
+
+export async function createOnboardingItemProgressRows(rows: InsertUserOnboardingItemProgress[]) {
+  const db = await getDb();
+  if (!db || rows.length === 0) return;
+  await db.insert(userOnboardingItemProgress).values(rows);
+}
+
+export async function updateOnboardingAssignment(id: number, data: Partial<InsertUserOnboardingAssignment>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(userOnboardingAssignments).set(data).where(eq(userOnboardingAssignments.id, id));
+}
+
+export async function updateOnboardingItemProgress(id: number, data: Partial<InsertUserOnboardingItemProgress>) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(userOnboardingItemProgress).set(data).where(eq(userOnboardingItemProgress.id, id));
+}
+
+export async function getOnboardingItemProgressById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db.select().from(userOnboardingItemProgress).where(eq(userOnboardingItemProgress.id, id)).limit(1);
+  return rows[0];
+}
+
+export async function ensureDefaultOnboardingTemplates(createdBy: number) {
+  const db = await getDb();
+  if (!db) return { createdTemplates: 0, createdItems: 0 };
+
+  const baseline: OnboardingTemplateWithItemsInput[] = [
+    {
+      name: "팀원 기본 교육",
+      description: "신규 팀원의 고객관리·상담·후속관리 기본 운영 교육",
+      targetRole: "member",
+      items: [
+        { title: "BOA CRM 로그인 방법", category: "basic", required: true, requiresManagerApproval: false, practiceRequired: false, relatedMenu: "/", completionCriteria: "정상 로그인 확인", estimatedMinutes: 10, sortOrder: 10 },
+        { title: "모바일 앱 실행 및 푸시 알림 허용", category: "mobile", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/notification-preferences", completionCriteria: "모바일에서 알림 허용 완료", estimatedMinutes: 15, sortOrder: 20 },
+        { title: "내 고객만 조회되는 권한 구조 이해", category: "security", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/customers", completionCriteria: "권한 범위 설명 가능", estimatedMinutes: 15, sortOrder: 30 },
+        { title: "고객 검색 방법", category: "customer", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/customers", completionCriteria: "[TEST] 고객 검색 성공", estimatedMinutes: 10, sortOrder: 40 },
+        { title: "상담기록 2~3줄 작성 기준", category: "consultation", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/customers", completionCriteria: "[TEST] 고객 상담기록 작성", estimatedMinutes: 15, sortOrder: 50 },
+        { title: "후속관리 날짜 등록", category: "follow_up", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/customers", completionCriteria: "[TEST] 고객 후속관리 등록", estimatedMinutes: 15, sortOrder: 60 },
+        { title: "일정 생성과 완료 처리", category: "schedule", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/calendar", completionCriteria: "일정 생성/완료 처리", estimatedMinutes: 15, sortOrder: 70 },
+        { title: "계약 입력 기준", category: "contract", required: true, requiresManagerApproval: true, practiceRequired: true, relatedMenu: "/contracts", completionCriteria: "[TEST] 계약 입력 연습", estimatedMinutes: 20, sortOrder: 80 },
+        { title: "고객정보 외부 저장 금지", category: "security", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/operation-risk", completionCriteria: "보안 정책 확인", estimatedMinutes: 10, sortOrder: 90 },
+        { title: "실제 고객정보 테스트 금지", category: "security", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/customers", completionCriteria: "[TEST] 데이터만 사용", estimatedMinutes: 10, sortOrder: 100 },
+      ],
+    },
+    {
+      name: "팀장 기본 교육",
+      description: "팀장 산하 팀원 관리와 운영 지표 점검 교육",
+      targetRole: "team_leader",
+      items: [
+        { title: "산하 팀원 고객 조회 범위", category: "rbac", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/customers", completionCriteria: "타 팀 접근 금지 이해", estimatedMinutes: 15, sortOrder: 10 },
+        { title: "팀원 DB 배정 기준", category: "operation", required: true, requiresManagerApproval: true, practiceRequired: true, relatedMenu: "/customers/assign", completionCriteria: "[TEST] 배정 시나리오 설명", estimatedMinutes: 20, sortOrder: 20 },
+        { title: "오늘 후속관리 누락 확인", category: "follow_up", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/aftercare-campaigns", completionCriteria: "누락 대상 확인", estimatedMinutes: 15, sortOrder: 30 },
+        { title: "알림 처리율·후속관리 완료율 확인", category: "analytics", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/admin/team-completion", completionCriteria: "지표 조회 성공", estimatedMinutes: 15, sortOrder: 40 },
+        { title: "타 팀 데이터 접근 금지", category: "security", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/operation-risk", completionCriteria: "권한 정책 숙지", estimatedMinutes: 10, sortOrder: 50 },
+      ],
+    },
+    {
+      name: "부지점장 기본 교육",
+      description: "부지점 단위 조직 운영과 보고 기준 교육",
+      targetRole: "sub_branch_admin",
+      items: [
+        { title: "산하 팀장·팀원 범위 이해", category: "rbac", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/organization", completionCriteria: "산하 범위 설명", estimatedMinutes: 15, sortOrder: 10 },
+        { title: "산하 고객 조회 기준", category: "customer", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/customers", completionCriteria: "필터 기반 조회", estimatedMinutes: 15, sortOrder: 20 },
+        { title: "팀장별 업무 흐름 점검", category: "operation", required: true, requiresManagerApproval: false, practiceRequired: true, relatedMenu: "/team-insights", completionCriteria: "팀장별 현황 확인", estimatedMinutes: 20, sortOrder: 30 },
+      ],
+    },
+    {
+      name: "지점장 관리자 교육",
+      description: "전체 운영 권한과 민감 기능 주의사항 교육",
+      targetRole: "branch_admin",
+      items: [
+        { title: "전체 DB와 내 DB 구분", category: "rbac", required: true, requiresManagerApproval: false, practiceRequired: false, relatedMenu: "/", completionCriteria: "대시보드 지표 구분 이해", estimatedMinutes: 10, sortOrder: 10 },
+        { title: "삭제 요청 승인·반려", category: "critical", required: true, requiresManagerApproval: true, practiceRequired: true, relatedMenu: "/operation-risk", completionCriteria: "[TEST] 삭제 요청 처리", estimatedMinutes: 20, sortOrder: 20 },
+        { title: "운영 DB reset/drop/hard delete 금지", category: "security", required: true, requiresManagerApproval: true, practiceRequired: false, relatedMenu: "/operation-risk", completionCriteria: "운영 안전 정책 확인", estimatedMinutes: 10, sortOrder: 30 },
+      ],
+    },
+  ];
+
+  let createdTemplates = 0;
+  let createdItems = 0;
+  for (const template of baseline) {
+    const [existing] = await db.select().from(onboardingTemplates)
+      .where(and(eq(onboardingTemplates.name, template.name), eq(onboardingTemplates.targetRole, template.targetRole as any)))
+      .limit(1);
+    let templateId = existing?.id;
+    if (!existing) {
+      await db.insert(onboardingTemplates).values({
+        name: template.name,
+        description: template.description,
+        targetRole: template.targetRole,
+        createdBy,
+        isActive: true,
+      });
+      const [created] = await db.select().from(onboardingTemplates).orderBy(desc(onboardingTemplates.id)).limit(1);
+      templateId = created?.id;
+      createdTemplates += 1;
+    }
+    if (!templateId) continue;
+    for (const item of template.items) {
+      const [existsItem] = await db.select().from(onboardingTemplateItems)
+        .where(and(eq(onboardingTemplateItems.templateId, templateId), eq(onboardingTemplateItems.title, item.title)))
+        .limit(1);
+      if (existsItem) continue;
+      await db.insert(onboardingTemplateItems).values({
+        templateId,
+        title: item.title,
+        description: item.description,
+        category: item.category,
+        required: item.required,
+        requiresManagerApproval: item.requiresManagerApproval,
+        practiceRequired: item.practiceRequired,
+        relatedMenu: item.relatedMenu,
+        completionCriteria: item.completionCriteria,
+        estimatedMinutes: item.estimatedMinutes ?? 10,
+        sortOrder: item.sortOrder,
+        isActive: true,
+      });
+      createdItems += 1;
+    }
+  }
+  return { createdTemplates, createdItems };
 }
 
 // ─── Activity Logs ────────────────────────────────────────────────────────────

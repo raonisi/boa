@@ -58,6 +58,7 @@ const moreItems: MobileMenuItem[] = [
   { icon: BellRing, label: "앱 알림 설정", path: "/notification-preferences" },
   { icon: FileText, label: "계약관리", path: "/contracts" },
   { icon: ClipboardCheck, label: "사후관리 캠페인", path: "/aftercare-campaigns", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
+  { icon: ClipboardCheck, label: "온보딩 체크리스트", path: "/onboarding-checklists", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
   { icon: BarChart3, label: "실적관리", path: "/performance" },
   { icon: Target, label: "목표관리", path: "/performance/goals" },
   { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },

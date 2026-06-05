@@ -576,6 +576,82 @@ export const pushNotificationPreferences = mysqlTable("push_notification_prefere
 export type PushNotificationPreference = typeof pushNotificationPreferences.$inferSelect;
 export type InsertPushNotificationPreference = typeof pushNotificationPreferences.$inferInsert;
 
+// ─── Onboarding Checklists ───────────────────────────────────────────────────
+export const onboardingTemplates = mysqlTable("onboarding_templates", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  targetRole: mysqlEnum("targetRole", ["branch_admin", "sub_branch_admin", "team_leader", "member"]).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdBy: int("createdBy").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
+});
+export type OnboardingTemplate = typeof onboardingTemplates.$inferSelect;
+export type InsertOnboardingTemplate = typeof onboardingTemplates.$inferInsert;
+
+export const onboardingTemplateItems = mysqlTable("onboarding_template_items", {
+  id: int("id").autoincrement().primaryKey(),
+  templateId: int("templateId").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 100 }).notNull(),
+  required: boolean("required").default(true).notNull(),
+  requiresManagerApproval: boolean("requiresManagerApproval").default(false).notNull(),
+  practiceRequired: boolean("practiceRequired").default(false).notNull(),
+  relatedMenu: varchar("relatedMenu", { length: 200 }),
+  completionCriteria: text("completionCriteria"),
+  estimatedMinutes: int("estimatedMinutes").default(10).notNull(),
+  sortOrder: int("sortOrder").default(0).notNull(),
+  isActive: boolean("isActive").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type OnboardingTemplateItem = typeof onboardingTemplateItems.$inferSelect;
+export type InsertOnboardingTemplateItem = typeof onboardingTemplateItems.$inferInsert;
+
+export const userOnboardingAssignments = mysqlTable("user_onboarding_assignments", {
+  id: int("id").autoincrement().primaryKey(),
+  targetUserId: int("targetUserId").notNull(),
+  templateId: int("templateId").notNull(),
+  assignedBy: int("assignedBy").notNull(),
+  trainerUserId: int("trainerUserId"),
+  startedAt: timestamp("startedAt").notNull(),
+  dueAt: timestamp("dueAt").notNull(),
+  completedAt: timestamp("completedAt"),
+  status: mysqlEnum("status", ["assigned", "in_progress", "completed", "overdue", "archived"]).default("assigned").notNull(),
+  progressPercent: int("progressPercent").default(0).notNull(),
+  requiredPendingCount: int("requiredPendingCount").default(0).notNull(),
+  approvalPendingCount: int("approvalPendingCount").default(0).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
+});
+export type UserOnboardingAssignment = typeof userOnboardingAssignments.$inferSelect;
+export type InsertUserOnboardingAssignment = typeof userOnboardingAssignments.$inferInsert;
+
+export const userOnboardingItemProgress = mysqlTable("user_onboarding_item_progress", {
+  id: int("id").autoincrement().primaryKey(),
+  assignmentId: int("assignmentId").notNull(),
+  itemId: int("itemId").notNull(),
+  status: mysqlEnum("status", ["pending", "needs_approval", "approved", "rejected", "skipped"]).default("pending").notNull(),
+  completedAt: timestamp("completedAt"),
+  completedBy: int("completedBy"),
+  approvedAt: timestamp("approvedAt"),
+  approvedBy: int("approvedBy"),
+  note: text("note"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+},
+(table) => ({
+  uniqueAssignmentItemProgress: unique("uq_onboarding_assignment_item").on(table.assignmentId, table.itemId),
+}));
+export type UserOnboardingItemProgress = typeof userOnboardingItemProgress.$inferSelect;
+export type InsertUserOnboardingItemProgress = typeof userOnboardingItemProgress.$inferInsert;
+
 // ─── Coaching Notes ──────────────────────────────────────────────────────────
 export const teamMemberCoachingNotes = mysqlTable("team_member_coaching_notes", {
   id: int("id").autoincrement().primaryKey(),

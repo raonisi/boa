@@ -91,6 +91,7 @@ const navGroups: NavGroup[] = [
     items: [
       { icon: Users, label: "고객 DB", path: "/customers" },
       { icon: ClipboardCheck, label: "사후관리 캠페인", path: "/aftercare-campaigns", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
+      { icon: ClipboardCheck, label: "온보딩 체크리스트", path: "/onboarding-checklists", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
       { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },
       { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
       { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
@@ -149,6 +150,7 @@ const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/performance", title: "실적관리" },
   { prefix: "/notifications", title: "알림센터" },
   { prefix: "/aftercare-campaigns", title: "사후관리 캠페인" },
+  { prefix: "/onboarding-checklists", title: "온보딩 체크리스트" },
   { prefix: "/notification-preferences", title: "앱 알림 설정" },
   { prefix: "/push-notifications", title: "푸시 알림 운영" },
   { prefix: "/calendar", title: "일정 캘린더" },

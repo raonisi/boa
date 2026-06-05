@@ -100,6 +100,46 @@ describe("auth.logout", () => {
   });
 });
 
+describe("Onboarding checklist RBAC and workflow", () => {
+  it("blocks member from manager summary", async () => {
+    await expect(
+      appRouter.createCaller(createCtx("member", { userId: 41 })).onboardingAssignments.summary()
+    ).rejects.toThrow();
+  });
+
+  it("allows branch_admin to seed default onboarding templates", async () => {
+    vi.spyOn(db, "ensureDefaultOnboardingTemplates").mockResolvedValue({ createdTemplates: 2, createdItems: 5 } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).onboardingTemplates.seedDefaults();
+    expect(result).toEqual({ createdTemplates: 2, createdItems: 5 });
+  });
+
+  it("creates assignment with pending progress rows", async () => {
+    vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
+      if (id === 4) return { id: 4, role: "member", accountStatus: "active", teamId: 10 } as any;
+      return undefined as any;
+    });
+    vi.spyOn(db, "getOnboardingTemplateById").mockResolvedValue({ id: 100, isActive: true, archivedAt: null, targetRole: "member" } as any);
+    vi.spyOn(db, "getOnboardingTemplateItems").mockResolvedValue([
+      { id: 1001, required: true },
+      { id: 1002, required: false },
+    ] as any);
+    vi.spyOn(db, "createOnboardingAssignment").mockResolvedValue({ id: 900, targetUserId: 4, templateId: 100 } as any);
+    const createRowsSpy = vi.spyOn(db, "createOnboardingItemProgressRows").mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).onboardingAssignments.assign({
+      targetUserId: 4,
+      templateId: 100,
+      startedAt: new Date("2026-06-01").toISOString(),
+      dueAt: new Date("2026-06-08").toISOString(),
+    });
+
+    expect(result.assignmentId).toBe(900);
+    expect(createRowsSpy).toHaveBeenCalled();
+  });
+});
+
 // ─── RBAC - accountStatus 기반 차단 ──────────────────────────────────────────
 describe("RBAC - inactive accountStatus blocked from all data", () => {
   it("blocks inactive from customers.list", async () => {
