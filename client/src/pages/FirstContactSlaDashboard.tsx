@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useLocation } from "wouter";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function FirstContactSlaDashboard() {
   const [, setLocation] = useLocation();
@@ -12,17 +13,20 @@ export default function FirstContactSlaDashboard() {
 
   if (isLoading) {
     return (
+      <DashboardLayout>
       <div className="flex h-[50vh] items-center justify-center">
         <div className="flex flex-col items-center gap-2 text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <p className="text-sm">SLA 데이터를 분석하고 있습니다...</p>
         </div>
       </div>
+      </DashboardLayout>
     );
   }
 
   if (error) {
     return (
+      <DashboardLayout>
       <div className="flex h-[50vh] items-center justify-center">
         <div className="flex max-w-md flex-col items-center gap-3 text-center">
           <AlertCircle className="h-10 w-10 text-destructive" />
@@ -30,12 +34,14 @@ export default function FirstContactSlaDashboard() {
           <p className="text-sm text-slate-500">{error.message}</p>
         </div>
       </div>
+      </DashboardLayout>
     );
   }
 
   if (!data) return null;
 
   return (
+    <DashboardLayout>
     <div className="space-y-6 pb-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">DB 배정 후 첫 연락 SLA 관리</h1>
@@ -212,5 +218,6 @@ export default function FirstContactSlaDashboard() {
         </CardContent>
       </Card>
     </div>
+    </DashboardLayout>
   );
 }

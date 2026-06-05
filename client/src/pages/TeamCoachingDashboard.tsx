@@ -19,6 +19,7 @@ import { TeamMemberCoachingTimeline } from "@/components/TeamMemberCoachingTimel
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ForbiddenState } from "@/components/ForbiddenState";
 import { getRoleLabel } from "@/lib/userRole";
+import DashboardLayout from "@/components/DashboardLayout";
 
 export default function TeamCoachingDashboard() {
   const { user } = useAuth();
@@ -76,20 +77,27 @@ export default function TeamCoachingDashboard() {
   }, [notes, usersData]);
 
   if (user?.role === "member") {
-    return <ForbiddenState description="이 화면은 관리자 권한으로만 사용할 수 있습니다." />;
+    return (
+      <DashboardLayout>
+        <ForbiddenState description="이 화면은 관리자 권한으로만 사용할 수 있습니다." />
+      </DashboardLayout>
+    );
   }
 
   if (isLoading) {
     return (
+      <DashboardLayout>
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+      </DashboardLayout>
     );
   }
 
   if (selectedUser) {
     const targetUser = usersMap.get(selectedUser);
     return (
+      <DashboardLayout>
       <div className="p-6 space-y-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="outline" onClick={() => setSelectedUser(null)}>
@@ -102,10 +110,12 @@ export default function TeamCoachingDashboard() {
         </div>
         <TeamMemberCoachingTimeline targetUserId={selectedUser} />
       </div>
+      </DashboardLayout>
     );
   }
 
   return (
+    <DashboardLayout>
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
         <div>
@@ -218,5 +228,6 @@ export default function TeamCoachingDashboard() {
         <CoachingNoteDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
       )}
     </div>
+    </DashboardLayout>
   );
 }
