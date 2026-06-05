@@ -1,6 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { buildFirstContactSlaInsights } from "./sla";
+import { buildTeamCompletionInsights } from "./teamCompletion";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -3337,6 +3338,24 @@ export const appRouter = router({
         const visibleUsers = activeUsers.filter((u) => scopedUserIds.has(u.id) && u.role !== "branch_admin");
         const visibleTeams = await getAllTeams() as any[];
         return buildFirstContactSlaInsights(scopedData.customerList, visibleUsers, visibleTeams);
+      }),
+    notificationFollowUpDashboard: managerAnalyticsProcedure
+      .input(z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional()
+      }).optional())
+      .query(async ({ ctx, input }) => {
+        const user = ctx.user as any;
+        const allUsers = await getAllUsers() as any[];
+        const activeUsers = allUsers.filter((u) => u.accountStatus === "active");
+        const scopedUserIds = user.role === "branch_admin"
+          ? new Set(activeUsers.map((item) => item.id))
+          : new Set((await getHierarchyScopeUserIds(user)) ?? [user.id]);
+        const visibleUsers = activeUsers.filter((u) => scopedUserIds.has(u.id) && u.role !== "branch_admin");
+        const visibleTeams = await getAllTeams() as any[];
+        const dFrom = input?.dateFrom ? new Date(input.dateFrom) : undefined;
+        const dTo = input?.dateTo ? new Date(input.dateTo) : undefined;
+        return buildTeamCompletionInsights(user, visibleUsers, visibleTeams, dFrom, dTo);
       }),
   }),
 

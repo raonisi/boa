@@ -43,6 +43,7 @@ const DeletedDataManagement = lazy(() => import("./pages/DeletedDataManagement")
 const OperationRiskCenter = lazy(() => import("./pages/OperationRiskCenter"));
 const TeamInsights = lazy(() => import("./pages/TeamInsights"));
 const FirstContactSlaDashboard = lazy(() => import("./pages/FirstContactSlaDashboard"));
+const TeamCompletionDashboard = lazy(() => import("./pages/TeamCompletionDashboard"));
 
 function RouteFallback() {
   return (
@@ -350,6 +351,15 @@ function Router() {
           <ManagerGuard>
             <LazyRoute>
               <OperationRiskCenter />
+            </LazyRoute>
+          </ManagerGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/admin/team-completion">
+        <AuthGuard>
+          <ManagerGuard>
+            <LazyRoute>
+              <TeamCompletionDashboard />
             </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
