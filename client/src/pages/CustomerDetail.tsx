@@ -25,8 +25,9 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { buildCustomerExecutionScore } from "@shared/customerExecution";
-import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal, Undo2 } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Phone, Plus, UserCog, Edit2, Trash2, History, Copy, CalendarPlus, MessageSquare, FilePlus2, MoreHorizontal, Undo2, Zap } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { formatKstLocalDateTime, getKstLocalDateTimeAfter } from "@shared/timePolicy";
@@ -91,6 +92,7 @@ function daysSince(value?: string | Date | null) {
 export default function CustomerDetail({ id }: { id: number }) {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
+  const [showQuickConsultModal, setShowQuickConsultModal] = useState(false);
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showChangeAgentModal, setShowChangeAgentModal] = useState(false);
@@ -575,7 +577,10 @@ export default function CustomerDetail({ id }: { id: number }) {
             </div>
             <div className="space-y-2 md:grid md:grid-cols-6 md:gap-2 md:space-y-0">
               <div className="grid grid-cols-2 gap-2 md:contents">
-              <Button className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowConsultModal(true)}>
+              <Button className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm bg-blue-600 hover:bg-blue-700" onClick={() => setShowQuickConsultModal(true)}>
+                <Zap className="h-4 w-4" /> 퀵 상담
+              </Button>
+              <Button variant="outline" className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowConsultModal(true)}>
                 <MessageSquare className="h-4 w-4" /> 상담기록
               </Button>
               <Button variant="secondary" className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm" onClick={() => setShowFollowUpModal(true)}>
@@ -1314,6 +1319,15 @@ export default function CustomerDetail({ id }: { id: number }) {
         loading={postponeFollowUpMutation.isPending}
       />
 
+      <QuickConsultationModal
+        open={showQuickConsultModal}
+        onOpenChange={setShowQuickConsultModal}
+        customerId={customer.id}
+        customerName={customer.name}
+        currentStatus={customer.consultStatus}
+        currentNextAction={customer.nextAction || undefined}
+        onSuccess={() => refetchCustomer()}
+      />
       <Dialog open={showCustomerDeleteDialog} onOpenChange={setShowCustomerDeleteDialog}>
         <DialogContent className="max-w-md rounded-2xl border-red-100">
           <DialogHeader>

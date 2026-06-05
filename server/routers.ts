@@ -5433,7 +5433,6 @@ export const appRouter = router({
             consultationType: input.consultationType ?? null,
             customerNeed: input.customerNeed ?? null,
             nextAction: input.nextAction ?? null,
-            summary: input.summary ?? null,
           },
           metadata: { scheduleCreated },
         }));

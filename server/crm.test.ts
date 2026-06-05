@@ -4606,7 +4606,7 @@ describe("consultation UX metadata and customer management meta", () => {
     }));
     expect(updateCustomerSpy).toHaveBeenCalledWith(100, { nextAction: "재연락" });
     const consultationLog = logSpy.mock.calls.find((call) => call[0]?.action === "CONSULTATION_CREATED")?.[0];
-    expect(consultationLog?.details).toContain("[TEST] 보험료 재상담");
+    expect(consultationLog?.details).not.toContain("[TEST] 보험료 재상담");
     expect(consultationLog?.details).not.toContain("[TEST] 상세 상담 메모");
   });
 

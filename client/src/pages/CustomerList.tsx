@@ -26,8 +26,9 @@ import {
 import { buildCustomerExecutionScore, type CustomerExecutionRecommendation } from "@shared/customerExecution";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { useIsMobile } from "@/hooks/useMobile";
-import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2, UserCog } from "lucide-react";
+import { AlertTriangle, Phone, Plus, Search, UserPlus, Filter, X, Trash2, Upload, LayoutGrid, MoreHorizontal, Eye, MessageSquare, CalendarPlus, Undo2, UserCog, Zap } from "lucide-react";
 import { useState } from "react";
+import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -114,6 +115,7 @@ export default function CustomerList() {
   const [bulkAssigneeId, setBulkAssigneeId] = useState("");
   const [bulkAssigneeReason, setBulkAssigneeReason] = useState("");
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
+  const [selectedQuickConsultCustomer, setSelectedQuickConsultCustomer] = useState<any>(null);
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
@@ -704,6 +706,7 @@ export default function CustomerList() {
                             </DropdownMenuItem>
                           ) : null}
                           <DropdownMenuItem onClick={() => setLocation(`/customers/${c.id}?action=consult`)}>상담기록 / 메모</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setSelectedQuickConsultCustomer(c)} className="text-blue-600 font-medium"><Zap className="mr-2 h-4 w-4" /> 퀵 상담 기록</DropdownMenuItem>
                           {isCustomerReclaimable(c) && (
                             <DropdownMenuItem onClick={(e) => handleOpenReclaimCustomer(c.id, e as any)}>
                               <Undo2 className="mr-2 h-4 w-4" /> DB 회수
@@ -953,6 +956,9 @@ export default function CustomerList() {
                                     </Button>
                                   </DropdownMenuTrigger>
                                   <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => setSelectedQuickConsultCustomer(c)} className="text-blue-600 font-medium">
+                                      <Zap className="h-4 w-4 mr-2" /> 퀵 상담 기록
+                                    </DropdownMenuItem>
                                     {isCustomerReclaimable(c) && (
                                       <DropdownMenuItem onClick={(e) => handleOpenReclaimCustomer(c.id, e as any)}>
                                         <Undo2 className="h-4 w-4" /> DB 회수
@@ -1137,6 +1143,18 @@ export default function CustomerList() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {selectedQuickConsultCustomer && (
+        <QuickConsultationModal
+          open={!!selectedQuickConsultCustomer}
+          onOpenChange={(open) => !open && setSelectedQuickConsultCustomer(null)}
+          customerId={selectedQuickConsultCustomer.id}
+          customerName={selectedQuickConsultCustomer.name}
+          currentStatus={selectedQuickConsultCustomer.consultStatus}
+          currentNextAction={selectedQuickConsultCustomer.nextAction || undefined}
+          onSuccess={() => refetch()}
+        />
+      )}
     </DashboardLayout>
   );
 }
