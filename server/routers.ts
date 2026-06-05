@@ -1,5 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { buildFirstContactSlaInsights } from "./sla";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -3324,6 +3325,19 @@ export const appRouter = router({
   adminTeamInsights: router({
     summary: managerAnalyticsProcedure
       .query(async ({ ctx }) => buildAdminTeamInsights(ctx.user as any)),
+    firstContactSla: managerAnalyticsProcedure
+      .query(async ({ ctx }) => {
+        const user = ctx.user as any;
+        const scopedData = await getScopedDashboardData(user);
+        const allUsers = await getAllUsers() as any[];
+        const activeUsers = allUsers.filter((u) => u.accountStatus === "active");
+        const scopedUserIds = user.role === "branch_admin"
+          ? new Set(activeUsers.map((item) => item.id))
+          : new Set((await getHierarchyScopeUserIds(user)) ?? [user.id]);
+        const visibleUsers = activeUsers.filter((u) => scopedUserIds.has(u.id) && u.role !== "branch_admin");
+        const visibleTeams = await getAllTeams() as any[];
+        return buildFirstContactSlaInsights(scopedData.customerList, visibleUsers, visibleTeams);
+      }),
   }),
 
   salesReports: router({

@@ -111,6 +111,7 @@ const navGroups: NavGroup[] = [
     label: "관리자",
     items: [
       { icon: Monitor, label: "팀원 관리", path: "/team-insights", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+      { icon: Activity, label: "첫 연락 SLA 관리", path: "/admin/sla", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
       { icon: Network, label: "조직 구조", path: "/organization", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },
@@ -149,6 +150,7 @@ const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/organization", title: "조직 구조 관리" },
   { prefix: "/users", title: "사용자 관리" },
   { prefix: "/team-insights", title: "팀원 관리" },
+  { prefix: "/admin/sla", title: "첫 연락 SLA 관리" },
   { prefix: "/teams", title: "팀 관리" },
   { prefix: "/operation-risk", title: "운영 리스크 센터" },
   { prefix: "/logs", title: "활동 로그" },

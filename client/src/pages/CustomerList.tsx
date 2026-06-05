@@ -32,7 +32,7 @@ import { QuickConsultationModal } from "@/components/consultations/QuickConsulta
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
-type WorkspaceFilter = "all" | "priority" | "warning" | "no_next_action" | "uncontacted";
+type WorkspaceFilter = "all" | "priority" | "warning" | "no_next_action" | "uncontacted" | "sla_overdue";
 
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
 const CUSTOMER_TAGS = ["가격민감형", "보장불안형", "가족책임형", "무관심형", "해지위험", "리밸런싱필요", "사후관리필요", "소개가능성", "고액계약가능성", "장기관리"] as const;
@@ -56,6 +56,9 @@ function executionBadges(customer: any, recommendation?: any) {
   const badges: { label: string; className: string }[] = [];
   if (customer.assignmentStatus === "unassigned" || (!customer.agentId && !customer.subBranchAdminId)) badges.push({ label: "미배정", className: "bg-slate-200 text-slate-700" });
   if (customer.consultStatus === "미상담") badges.push({ label: "미상담", className: "bg-slate-100 text-slate-700" });
+  if (customer.consultStatus === "미상담" && customer.agentId && customer.assignedAt && (Date.now() - new Date(customer.assignedAt).getTime()) > 24 * 60 * 60 * 1000) {
+    badges.push({ label: "배정 후 연락 필요", className: "bg-destructive/10 text-destructive border-destructive/20 border" });
+  }
   if (recommendation?.warnings?.some((warning: any) => String(warning.message).includes("장기") || String(warning.warningType).includes("long"))) {
     badges.push({ label: "장기 미관리", className: "bg-amber-100 text-amber-800" });
   }
@@ -220,6 +223,7 @@ export default function CustomerList() {
     warning: filtered.filter((c) => Boolean(recommendationByCustomerId.get(c.id)?.warnings?.length)).length,
     noNextAction: filtered.filter((c) => !(c as any).nextAction).length,
     uncontacted: filtered.filter((c) => c.consultStatus === "미상담").length,
+    slaOverdue: filtered.filter((c) => c.consultStatus === "미상담" && c.agentId && c.assignedAt && (Date.now() - new Date(c.assignedAt).getTime()) > 24 * 60 * 60 * 1000).length,
   };
   const workspaceCustomers = filtered
     .filter((c) => {
@@ -228,6 +232,7 @@ export default function CustomerList() {
       if (workspaceFilter === "warning") return Boolean(recommendation?.warnings?.length);
       if (workspaceFilter === "no_next_action") return !(c as any).nextAction;
       if (workspaceFilter === "uncontacted") return c.consultStatus === "미상담";
+      if (workspaceFilter === "sla_overdue") return c.consultStatus === "미상담" && c.agentId && c.assignedAt && (Date.now() - new Date(c.assignedAt).getTime()) > 24 * 60 * 60 * 1000;
       return true;
     })
     .slice()
@@ -274,7 +279,7 @@ export default function CustomerList() {
     } : null,
     workspaceFilter !== "all" ? {
       key: "workspace",
-      label: `작업공간: ${workspaceFilter === "priority" ? "우선 연락" : workspaceFilter === "warning" ? "경고" : workspaceFilter === "no_next_action" ? "다음 액션 없음" : "미상담"}`,
+      label: `작업공간: ${workspaceFilter === "priority" ? "우선 연락" : workspaceFilter === "warning" ? "경고" : workspaceFilter === "no_next_action" ? "다음 액션 없음" : workspaceFilter === "sla_overdue" ? "첫 연락 필요(SLA 지연)" : "미상담"}`,
       clear: () => setWorkspaceFilter("all"),
     } : null,
     assignedDateFrom ? { key: "assignedDateFrom", label: `배정 시작: ${assignedDateFrom}`, clear: () => setAssignedDateFrom("") } : null,
@@ -395,11 +400,12 @@ export default function CustomerList() {
                 </Button>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
               {[
                 { key: "all" as const, label: "전체", value: isCustomersLoading || isCustomersError ? "-" : filtered.length, tone: "border-slate-200 bg-white" },
                 { key: "priority" as const, label: "우선 연락", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.priority, tone: "border-emerald-200 bg-emerald-50" },
                 { key: "warning" as const, label: "주의 필요", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.warning, tone: "border-red-200 bg-red-50" },
+                { key: "sla_overdue" as const, label: "SLA 지연 (연락요청)", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.slaOverdue, tone: "border-destructive/20 bg-destructive/10" },
                 { key: "no_next_action" as const, label: "다음 액션 없음", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.noNextAction, tone: "border-amber-200 bg-amber-50" },
                 { key: "uncontacted" as const, label: "미상담", value: isCustomersLoading || isCustomersError ? "-" : workspaceStats.uncontacted, tone: "border-slate-200 bg-slate-50" },
               ].map((item) => (

@@ -42,6 +42,7 @@ const ConsultationToolsManagement = lazy(() => import("./pages/ConsultationTools
 const DeletedDataManagement = lazy(() => import("./pages/DeletedDataManagement"));
 const OperationRiskCenter = lazy(() => import("./pages/OperationRiskCenter"));
 const TeamInsights = lazy(() => import("./pages/TeamInsights"));
+const FirstContactSlaDashboard = lazy(() => import("./pages/FirstContactSlaDashboard"));
 
 function RouteFallback() {
   return (
@@ -306,6 +307,15 @@ function Router() {
           <ManagerGuard>
             <LazyRoute>
               <TeamInsights />
+            </LazyRoute>
+          </ManagerGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/admin/sla">
+        <AuthGuard>
+          <ManagerGuard>
+            <LazyRoute>
+              <FirstContactSlaDashboard />
             </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
