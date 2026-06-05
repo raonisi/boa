@@ -45,6 +45,7 @@ const TeamInsights = lazy(() => import("./pages/TeamInsights"));
 const FirstContactSlaDashboard = lazy(() => import("./pages/FirstContactSlaDashboard"));
 const TeamCompletionDashboard = lazy(() => import("./pages/TeamCompletionDashboard"));
 const TeamCoachingDashboard = lazy(() => import("./pages/TeamCoachingDashboard"));
+const AftercareCampaigns = lazy(() => import("./pages/AftercareCampaigns"));
 
 function RouteFallback() {
   return (
@@ -254,6 +255,13 @@ function Router() {
       <Route path="/notifications">
         <AuthGuard>
           <Notifications />
+        </AuthGuard>
+      </Route>
+      <Route path="/aftercare-campaigns">
+        <AuthGuard>
+          <LazyRoute>
+            <AftercareCampaigns />
+          </LazyRoute>
         </AuthGuard>
       </Route>
       <Route path="/notification-preferences">

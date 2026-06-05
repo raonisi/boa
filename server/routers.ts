@@ -63,6 +63,7 @@ import {
   getConsultationScriptById,
   getConsultationScripts,
   getConsultationsByCustomer,
+  getLatestConsultationDatesByCustomerIds,
   getContractById,
   getContractPermanentDeleteBlockers,
   getContractHistory,
@@ -317,6 +318,345 @@ const IMPORT_BATCH_CANCEL_CONFIRM_TEXT = "BATCH\uCDE8\uC18C";
 const IMPORT_BATCH_ALREADY_CANCELLED_MESSAGE = "\uC774\uBBF8 \uCDE8\uC18C\uB41C batch\uC785\uB2C8\uB2E4.";
 const IMPORT_BATCH_NO_ACTIVE_CUSTOMERS_MESSAGE = "\uCDE8\uC18C\uD560 active \uACE0\uAC1D\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.";
 const IMPORT_BATCH_CANCEL_BLOCKED_MESSAGE = "\uACC4\uC57D, \uC77C\uC815, \uC0C1\uB2F4\uAE30\uB85D, \uC54C\uB9BC \uB610\uB294 \uBC30\uC815 \uC774\uB825\uC774 \uC5F0\uACB0\uB41C \uACE0\uAC1D\uC774 \uC788\uC5B4 batch \uCDE8\uC18C\uB97C \uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4. \uD544\uC694\uD55C \uACE0\uAC1D\uC740 \uAC1C\uBCC4 \uC0AD\uC81C \uC694\uCCAD \uB610\uB294 \uAD00\uB9AC\uC790 \uAC80\uD1A0 \uD6C4 \uCC98\uB9AC\uD574\uC8FC\uC138\uC694.";
+
+const AFTERCARE_CAMPAIGN_TYPES = [
+  "contract_30",
+  "contract_90",
+  "contract_180",
+  "contract_365",
+  "birthday",
+  "long_unmanaged",
+  "incomplete_schedule",
+  "claim_guide",
+] as const;
+type AftercareCampaignType = typeof AFTERCARE_CAMPAIGN_TYPES[number];
+
+const AFTERCARE_TEMPLATE_SITUATION_MAP: Record<AftercareCampaignType, string[]> = {
+  contract_30: ["post_contract_care", "general_check"],
+  contract_90: ["post_contract_care", "general_check"],
+  contract_180: ["post_contract_care", "general_check"],
+  contract_365: ["post_contract_care", "general_check"],
+  birthday: ["birthday", "general_check"],
+  long_unmanaged: ["long_unmanaged", "general_check"],
+  incomplete_schedule: ["follow_up_schedule", "general_check"],
+  claim_guide: ["document_request", "general_check"],
+};
+
+const aftercareCampaignInputSchema = z.object({
+  campaignType: z.enum(AFTERCARE_CAMPAIGN_TYPES).optional(),
+  periodType: z.enum(["day", "week", "month", "custom"]).optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+  scope: z.enum(["all", "mine"]).optional(),
+  assignedUserId: z.number().optional(),
+  statusFilter: z.enum(["all", "pending", "completed", "overdue"]).optional(),
+});
+
+function getAftercareCampaignLabel(type: AftercareCampaignType) {
+  const labels: Record<AftercareCampaignType, string> = {
+    contract_30: "계약 후 30일 케어",
+    contract_90: "계약 90일 점검",
+    contract_180: "계약 180일 점검",
+    contract_365: "계약 365일 연간 점검",
+    birthday: "생일 케어",
+    long_unmanaged: "장기 미관리 고객",
+    incomplete_schedule: "미완료 일정 후속",
+    claim_guide: "보험금 청구 안내",
+  };
+  return labels[type];
+}
+
+function addDays(base: Date, days: number) {
+  return new Date(base.getTime() + (days * 24 * 60 * 60 * 1000));
+}
+
+function toDateOnlyKey(value: Date) {
+  return getKstDayRange(value).dateKey;
+}
+
+function buildAftercareTargetStatus(params: {
+  now: Date;
+  dueDate: Date;
+  openFollowUp?: { nextContactDate?: Date | null } | null;
+  completedFollowUp?: { completedAt?: Date | null } | null;
+}) {
+  if (params.completedFollowUp) return "completed" as const;
+  if (params.openFollowUp) {
+    const due = params.openFollowUp.nextContactDate ? new Date(params.openFollowUp.nextContactDate) : params.dueDate;
+    return due.getTime() < params.now.getTime() ? "overdue" as const : "pending" as const;
+  }
+  return params.dueDate.getTime() < params.now.getTime() ? "overdue" as const : "pending" as const;
+}
+
+async function buildAftercareCampaignData(
+  actor: { id: number; role: string; teamId: number | null; accountStatus: string },
+  input?: z.infer<typeof aftercareCampaignInputSchema>
+) {
+  if (input?.scope === "all" && actor.role !== "branch_admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "전체 범위는 지점장만 조회할 수 있습니다." });
+  }
+  if (input?.assignedUserId !== undefined && input.assignedUserId !== actor.id && actor.role === "member") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "본인 고객만 조회 가능합니다." });
+  }
+  if (input?.assignedUserId !== undefined && actor.role !== "branch_admin" && actor.role !== "member") {
+    await verifyTargetUserAccess(actor, input.assignedUserId);
+  }
+
+  const now = new Date();
+  const scopeAgentIds = actor.role === "branch_admin"
+    ? undefined
+    : actor.role === "member"
+      ? [actor.id]
+      : (await getHierarchyScopeUserIds(actor)) ?? [actor.id];
+
+  const [customerList, contractList, followUpList, scheduleList, allUsers, templates] = await Promise.all([
+    actor.role === "branch_admin"
+      ? getCustomers({})
+      : actor.role === "member"
+        ? getCustomers({ agentId: actor.id })
+        : getCustomers({ agentIds: scopeAgentIds }),
+    actor.role === "branch_admin"
+      ? getAllContracts({})
+      : actor.role === "member"
+        ? getAllContracts({ agentId: actor.id })
+        : getAllContracts({ agentIds: scopeAgentIds }),
+    actor.role === "branch_admin"
+      ? getFollowUps({ statuses: ["scheduled", "postponed", "completed"] })
+      : actor.role === "member"
+        ? getFollowUps({ agentId: actor.id, statuses: ["scheduled", "postponed", "completed"] })
+        : getFollowUps({ agentIds: scopeAgentIds, statuses: ["scheduled", "postponed", "completed"] }),
+    getAccessibleSchedules(actor),
+    getAllUsers(),
+    getMessageTemplates(false),
+  ]);
+
+  const scopedCustomers = input?.assignedUserId
+    ? customerList.filter((customer) => customer.agentId === input.assignedUserId)
+    : customerList;
+
+  const activeUserMap = new Map(
+    allUsers
+      .filter((user) => user.accountStatus === "active")
+      .map((user) => [user.id, user])
+  );
+
+  const contractByCustomer = new Map<number, typeof contractList>();
+  for (const contract of contractList) {
+    const list = contractByCustomer.get(contract.customerId) ?? [];
+    list.push(contract);
+    contractByCustomer.set(contract.customerId, list);
+  }
+
+  const followUpsByCustomer = new Map<number, typeof followUpList>();
+  for (const followUp of followUpList) {
+    const list = followUpsByCustomer.get(followUp.customerId) ?? [];
+    list.push(followUp);
+    followUpsByCustomer.set(followUp.customerId, list);
+  }
+
+  const schedulesByCustomer = new Map<number, typeof scheduleList>();
+  for (const schedule of scheduleList) {
+    if (!schedule.customerId) continue;
+    const list = schedulesByCustomer.get(schedule.customerId) ?? [];
+    list.push(schedule);
+    schedulesByCustomer.set(schedule.customerId, list);
+  }
+
+  const consultationDates = await getLatestConsultationDatesByCustomerIds(scopedCustomers.map((customer) => customer.id));
+  const consultationDateByCustomer = new Map(consultationDates.map((item) => [item.customerId, item.latestCreatedAt]));
+  const templateIdBySituation = new Map<string, number[]>();
+  for (const template of templates) {
+    const list = templateIdBySituation.get(template.situation) ?? [];
+    list.push(template.id);
+    templateIdBySituation.set(template.situation, list);
+  }
+
+  function buildTarget(type: AftercareCampaignType, customer: typeof scopedCustomers[number], baseDate: Date, reason: string, recommendedAction: string, dueInDays = 3) {
+    const campaignFollowUps = (followUpsByCustomer.get(customer.id) ?? []).filter((item) => !item.deletedAt);
+    const openFollowUp = campaignFollowUps.find((item) => item.status === "scheduled" || item.status === "postponed");
+    const completedFollowUp = campaignFollowUps.find((item) => item.status === "completed" && item.completedAt && new Date(item.completedAt).getTime() >= toDayStart(baseDate).getTime());
+    const dueDate = addDays(baseDate, dueInDays);
+    const status = buildAftercareTargetStatus({ now, dueDate, openFollowUp, completedFollowUp });
+    const recommendedTemplateIds = AFTERCARE_TEMPLATE_SITUATION_MAP[type].flatMap((situation) => templateIdBySituation.get(situation) ?? []);
+    const assignee = customer.agentId ? activeUserMap.get(customer.agentId) : undefined;
+    const highRisk = status === "overdue" || !assignee;
+    return {
+      customerId: customer.id,
+      customerDisplayName: customer.name,
+      assignedUserId: customer.agentId,
+      assignedUserName: assignee?.name ?? "미배정",
+      reason,
+      baseDate,
+      dueDate,
+      daysFromBase: daysBetween(baseDate, now),
+      status,
+      recommendedAction,
+      recommendedTemplateIds,
+      highRisk,
+      links: {
+        customerDetailPath: `/customers/${customer.id}`,
+      },
+    };
+  }
+
+  function matchesPeriod(date: Date) {
+    if (input?.periodType === "custom" && input.dateFrom && input.dateTo) {
+      const from = toDayStart(parseKstLocalDateTime(input.dateFrom));
+      const to = toDayEnd(parseKstLocalDateTime(input.dateTo));
+      return date.getTime() >= from.getTime() && date.getTime() <= to.getTime();
+    }
+    if (input?.periodType === "day") return toDateOnlyKey(date) === toDateOnlyKey(now);
+    if (input?.periodType === "week") {
+      const day = now.getDay();
+      const mondayOffset = day === 0 ? -6 : 1 - day;
+      const weekStart = toDayStart(new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset));
+      const weekEnd = toDayEnd(addDays(weekStart, 6));
+      return date.getTime() >= weekStart.getTime() && date.getTime() <= weekEnd.getTime();
+    }
+    if (input?.periodType === "month") {
+      return date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth();
+    }
+    return true;
+  }
+
+  const results: Record<AftercareCampaignType, ReturnType<typeof buildTarget>[]> = {
+    contract_30: [],
+    contract_90: [],
+    contract_180: [],
+    contract_365: [],
+    birthday: [],
+    long_unmanaged: [],
+    incomplete_schedule: [],
+    claim_guide: [],
+  };
+
+  for (const customer of scopedCustomers) {
+    const contracts = (contractByCustomer.get(customer.id) ?? [])
+      .filter((contract) => !!contract.contractDate)
+      .sort((a, b) => new Date(b.contractDate as Date).getTime() - new Date(a.contractDate as Date).getTime());
+    const latestContract = contracts[0];
+    if (latestContract?.contractDate) {
+      const contractDate = new Date(latestContract.contractDate);
+      const daysFromContract = daysBetween(contractDate, now);
+      if (daysFromContract >= 25 && daysFromContract <= 35 && matchesPeriod(contractDate)) {
+        results.contract_30.push(buildTarget("contract_30", customer, contractDate, "계약 후 30일 내외 고객 케어 시점입니다.", "보장 내용 확인 및 청구 절차 안내"));
+      }
+      if (daysFromContract >= 85 && daysFromContract <= 95 && matchesPeriod(contractDate)) {
+        results.contract_90.push(buildTarget("contract_90", customer, contractDate, "계약 90일 초기 유지 점검 시점입니다.", "초기 유지관리 및 질문 확인"));
+      }
+      if (daysFromContract >= 175 && daysFromContract <= 185 && matchesPeriod(contractDate)) {
+        results.contract_180.push(buildTarget("contract_180", customer, contractDate, "계약 180일 중기 점검 시점입니다.", "중기 사후관리와 보장 이해도 점검"));
+      }
+      if (daysFromContract >= 350 && daysFromContract <= 380 && matchesPeriod(contractDate)) {
+        results.contract_365.push(buildTarget("contract_365", customer, contractDate, "계약 1년 연간 점검 시점입니다.", "연간 보장 점검과 상황 변화 확인"));
+      }
+    }
+
+    if (customer.birthDate) {
+      const birthDate = new Date(customer.birthDate);
+      const birthThisYear = new Date(now.getFullYear(), birthDate.getMonth(), birthDate.getDate());
+      const thisWeek = Math.abs(daysBetween(now, birthThisYear)) <= 6;
+      const thisMonth = birthThisYear.getMonth() === now.getMonth();
+      if ((thisWeek || thisMonth) && matchesPeriod(birthThisYear)) {
+        results.birthday.push(buildTarget("birthday", customer, birthThisYear, "생일 기반 안부 케어 대상입니다.", "안부 인사와 관계 관리"));
+      }
+    }
+
+    const latestConsultationAt = consultationDateByCustomer.get(customer.id) ? new Date(consultationDateByCustomer.get(customer.id) as Date) : undefined;
+    const completedFollowUpAt = (followUpsByCustomer.get(customer.id) ?? [])
+      .filter((item) => item.status === "completed" && item.completedAt)
+      .map((item) => new Date(item.completedAt as Date))
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+    const completedScheduleAt = (schedulesByCustomer.get(customer.id) ?? [])
+      .filter((item) => item.status === "완료" && item.completedAt)
+      .map((item) => new Date(item.completedAt as Date))
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+    const managementStart = customerManagementStartDate(customer);
+    const latestManagedAt = [latestConsultationAt, completedFollowUpAt, completedScheduleAt, managementStart]
+      .filter((item): item is Date => !!item)
+      .sort((a, b) => b.getTime() - a.getTime())[0];
+    if (latestManagedAt && daysBetween(latestManagedAt, now) >= 90 && matchesPeriod(latestManagedAt)) {
+      results.long_unmanaged.push(buildTarget("long_unmanaged", customer, latestManagedAt, "최근 90일 이상 관리 이력이 없습니다.", "관리 공백 해소를 위한 재연락"));
+    }
+
+    const overdueSchedules = (schedulesByCustomer.get(customer.id) ?? [])
+      .filter((item) => !["완료", "취소", "노쇼"].includes(item.status) && new Date(item.endTime ?? item.startTime).getTime() < now.getTime());
+    if (overdueSchedules.length > 0) {
+      const baseDate = new Date(overdueSchedules[0].endTime ?? overdueSchedules[0].startTime);
+      if (matchesPeriod(baseDate)) {
+        results.incomplete_schedule.push(buildTarget("incomplete_schedule", customer, baseDate, "기한이 지난 미완료 일정이 있습니다.", "미완료 일정 후속관리 및 상담기록 연결", 1));
+      }
+    }
+
+    const tags = parseRecommendationTags(customer.customerTags);
+    const claimGuideTarget = tags.some((tag) => ["청구", "보험금", "claim"].some((keyword) => tag.includes(keyword)))
+      || (customer.nextAction?.includes("청구") ?? false)
+      || customer.consultStatus === "해지관리";
+    if (claimGuideTarget) {
+      const baseDate = latestConsultationAt ?? managementStart;
+      if (matchesPeriod(baseDate)) {
+        results.claim_guide.push(buildTarget("claim_guide", customer, baseDate, "청구 안내가 필요한 고객 상태입니다.", "청구 절차 및 필요서류 안내", 2));
+      }
+    }
+  }
+
+  const campaigns = AFTERCARE_CAMPAIGN_TYPES
+    .filter((type) => !input?.campaignType || input.campaignType === type)
+    .map((type) => {
+      const allTargets = results[type]
+        .filter((target) => !input?.statusFilter || input.statusFilter === "all" || target.status === input.statusFilter)
+        .sort((a, b) => b.highRisk === a.highRisk ? a.dueDate.getTime() - b.dueDate.getTime() : Number(b.highRisk) - Number(a.highRisk));
+
+      const assigneeSummaryMap = new Map<number, {
+        userId: number;
+        name: string;
+        role: string;
+        teamName: string;
+        targetCount: number;
+        completedCount: number;
+        pendingCount: number;
+      }>();
+      for (const target of allTargets) {
+        if (!target.assignedUserId) continue;
+        const user = activeUserMap.get(target.assignedUserId);
+        if (!user) continue;
+        const existing = assigneeSummaryMap.get(user.id) ?? {
+          userId: user.id,
+          name: user.name ?? `사용자 ${user.id}`,
+          role: user.role,
+          teamName: user.teamId ? `팀 ${user.teamId}` : "-",
+          targetCount: 0,
+          completedCount: 0,
+          pendingCount: 0,
+        };
+        existing.targetCount += 1;
+        if (target.status === "completed") existing.completedCount += 1;
+        if (target.status === "pending" || target.status === "overdue") existing.pendingCount += 1;
+        assigneeSummaryMap.set(user.id, existing);
+      }
+
+      const summary = {
+        targetCount: allTargets.length,
+        pendingCount: allTargets.filter((target) => target.status === "pending").length,
+        completedCount: allTargets.filter((target) => target.status === "completed").length,
+        overdueCount: allTargets.filter((target) => target.status === "overdue").length,
+        highRiskCount: allTargets.filter((target) => target.highRisk).length,
+      };
+
+      return {
+        campaignType: type,
+        policy: getAftercareCampaignLabel(type),
+        summary,
+        assigneeSummary: Array.from(assigneeSummaryMap.values()).map((item) => ({
+          ...item,
+          completionRate: item.targetCount > 0 ? Math.round((item.completedCount / item.targetCount) * 100) : 0,
+        })),
+        targets: allTargets,
+      };
+    });
+
+  return { generatedAt: now, campaigns };
+}
 
 async function requireSoftDeletedTeam(teamId: number) {
   const team = await getTeamById(teamId);
@@ -6351,6 +6691,114 @@ export const appRouter = router({
           beforeValue: { status: followUp.status },
           afterValue: { status: "cancelled" },
           metadata: { customerId: followUp.customerId },
+        }));
+        return { success: true };
+      }),
+  }),
+
+  aftercareCampaigns: router({
+    list: activeUserProcedure
+      .input(aftercareCampaignInputSchema.optional())
+      .query(async ({ ctx, input }) => {
+        const report = await buildAftercareCampaignData(ctx.user, input);
+        return report.campaigns.map((campaign) => ({
+          campaignType: campaign.campaignType,
+          policy: campaign.policy,
+          summary: campaign.summary,
+        }));
+      }),
+
+    summary: activeUserProcedure
+      .input(aftercareCampaignInputSchema.optional())
+      .query(async ({ ctx, input }) => {
+        const report = await buildAftercareCampaignData(ctx.user, input);
+        const total = report.campaigns.reduce((acc, campaign) => ({
+          targetCount: acc.targetCount + campaign.summary.targetCount,
+          pendingCount: acc.pendingCount + campaign.summary.pendingCount,
+          completedCount: acc.completedCount + campaign.summary.completedCount,
+          overdueCount: acc.overdueCount + campaign.summary.overdueCount,
+          highRiskCount: acc.highRiskCount + campaign.summary.highRiskCount,
+        }), { targetCount: 0, pendingCount: 0, completedCount: 0, overdueCount: 0, highRiskCount: 0 });
+        return {
+          generatedAt: report.generatedAt,
+          summary: total,
+          campaigns: report.campaigns.map((campaign) => ({
+            campaignType: campaign.campaignType,
+            policy: campaign.policy,
+            summary: campaign.summary,
+          })),
+        };
+      }),
+
+    detail: activeUserProcedure
+      .input(aftercareCampaignInputSchema.extend({ campaignType: z.enum(AFTERCARE_CAMPAIGN_TYPES) }))
+      .query(async ({ ctx, input }) => {
+        const report = await buildAftercareCampaignData(ctx.user, input);
+        return report.campaigns[0] ?? null;
+      }),
+
+    targets: activeUserProcedure
+      .input(aftercareCampaignInputSchema.extend({ campaignType: z.enum(AFTERCARE_CAMPAIGN_TYPES) }))
+      .query(async ({ ctx, input }) => {
+        const report = await buildAftercareCampaignData(ctx.user, input);
+        return report.campaigns[0]?.targets ?? [];
+      }),
+
+    getRecommendedTemplates: activeUserProcedure
+      .input(z.object({
+        campaignType: z.enum(AFTERCARE_CAMPAIGN_TYPES),
+        customerId: z.number().optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (input.customerId) await verifyCustomerAccess(ctx.user, input.customerId);
+        const situations = AFTERCARE_TEMPLATE_SITUATION_MAP[input.campaignType];
+        const templates = await getMessageTemplates(false);
+        return templates
+          .filter((template) => situations.includes(template.situation))
+          .map((template) => ({
+            id: template.id,
+            title: template.title,
+            situation: template.situation,
+            channel: template.channel,
+            complianceNote: template.complianceNote,
+          }));
+      }),
+
+    createFollowUpForTarget: activeUserProcedure
+      .input(z.object({
+        campaignType: z.enum(AFTERCARE_CAMPAIGN_TYPES),
+        customerId: z.number(),
+        reason: z.string().min(1).max(200),
+        dueDate: z.string(),
+        memo: z.string().max(1000).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const customer = await verifyCustomerAccess(ctx.user, input.customerId);
+        if (!customer.isActive || customer.deletedAt) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 고객에는 후속관리를 등록할 수 없습니다." });
+        }
+        const dueDate = parseKstLocalDateTime(input.dueDate);
+        if (Number.isNaN(dueDate.getTime())) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "후속관리 예정일이 올바르지 않습니다." });
+        }
+        await createFollowUp({
+          customerId: customer.id,
+          assignedAgentId: customer.agentId,
+          teamId: customer.assignedTeamId,
+          subBranchAdminId: customer.subBranchAdminId,
+          nextContactDate: dueDate,
+          reason: input.reason,
+          nextAction: "사후관리",
+          status: "scheduled",
+          memo: input.memo,
+          createdBy: ctx.user.id,
+        });
+        await log(ctx.user.id, "AFTERCARE_CAMPAIGN_FOLLOW_UP_CREATED", "customer", customer.id, logDetails({
+          actor: ctx.user.id,
+          targetType: "customer",
+          targetId: customer.id,
+          metadata: { campaignType: input.campaignType },
+          afterValue: { dueDate, reason: input.reason },
         }));
         return { success: true };
       }),
