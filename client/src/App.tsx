@@ -41,6 +41,7 @@ const PushNotificationOperations = lazy(() => import("./pages/PushNotificationOp
 const ConsultationToolsManagement = lazy(() => import("./pages/ConsultationToolsManagement"));
 const DeletedDataManagement = lazy(() => import("./pages/DeletedDataManagement"));
 const OperationRiskCenter = lazy(() => import("./pages/OperationRiskCenter"));
+const TeamInsights = lazy(() => import("./pages/TeamInsights"));
 
 function RouteFallback() {
   return (
@@ -298,6 +299,15 @@ function Router() {
               <UserManagement />
             </LazyRoute>
           </AdminGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/team-insights">
+        <AuthGuard>
+          <ManagerGuard>
+            <LazyRoute>
+              <TeamInsights />
+            </LazyRoute>
+          </ManagerGuard>
         </AuthGuard>
       </Route>
       <Route path="/teams">

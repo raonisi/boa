@@ -5137,6 +5137,44 @@ describe("PR14 work rhythm report", () => {
   });
 });
 
+describe("adminTeamInsights", () => {
+  const dateFrom = "2026-05-01T00:00:00";
+  const dateTo = "2026-05-31T23:59:59";
+  const users = [
+    { id: 1, name: "[TEST] Branch Admin", role: "branch_admin", accountStatus: "active" },
+    { id: 2, name: "[TEST] Sub Branch Admin", role: "sub_branch_admin", accountStatus: "active" },
+    { id: 3, name: "[TEST] Leader", role: "team_leader", teamId: 10, subBranchAdminId: 2, accountStatus: "active" },
+    { id: 4, name: "[TEST] Member", role: "member", teamId: 10, subBranchAdminId: 2, accountStatus: "active" },
+    { id: 5, name: "[TEST] Inactive", role: "member", teamId: 10, subBranchAdminId: 2, accountStatus: "inactive" },
+  ];
+
+  function mockDashboardData() {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(users as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([{ id: 10, subBranchAdminId: 2, isActive: true }] as any);
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([{ id: 3 }, { id: 4 }] as any);
+    vi.spyOn(db, "getCustomers").mockResolvedValue([{ id: 100, agentId: 4, consultStatus: "미상담", priority: "B", isActive: true, deletedAt: null }] as any);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue([] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue([] as any);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({ items: [], total: 0, page: 1, pageSize: 200 } as any);
+    vi.spyOn(db, "getConsultationsByCustomer").mockResolvedValue([] as any);
+  }
+
+  it("calculates metrics correctly for team members", async () => {
+    mockDashboardData();
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).adminTeamInsights.summary();
+    
+    expect(result.summary.totalUnconsultedDb).toBe(1);
+    expect(result.userMetrics.find((m: any) => m.user.id === 4)?.metrics.unconsultedDbCount).toBe(1);
+    expect(result.userMetrics.some((m: any) => m.user.id === 5)).toBe(false); // Inactive excluded
+  });
+
+  it("blocks member access", async () => {
+    mockDashboardData();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).adminTeamInsights.summary()).rejects.toThrow(/FORBIDDEN|관리자/);
+  });
+});
+
 describe("PR5 sales funnel performance report", () => {
   const dateFrom = "2026-05-01T00:00:00";
   const dateTo = "2026-05-31T23:59:59";

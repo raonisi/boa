@@ -2779,6 +2779,150 @@ async function buildWorkRhythmReport(
   };
 }
 
+async function buildAdminTeamInsights(user: { id: number; role: string; teamId: number | null; accountStatus: string; subBranchAdminId: number | null }) {
+  if (user.role === "member") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "팀원 관리 대시보드는 관리자만 접근할 수 있습니다." });
+  }
+
+  const allUsers = await getAllUsers() as any[];
+  const activeUsers = allUsers.filter((u) => u.accountStatus === "active");
+
+  const scopedUserIds = user.role === "branch_admin"
+    ? new Set(activeUsers.map((item) => item.id))
+    : new Set((await getHierarchyScopeUserIds(user)) ?? [user.id]);
+
+  const visibleUsers = activeUsers.filter((u) => scopedUserIds.has(u.id) && u.role !== "branch_admin");
+
+  const scopedData = await getScopedDashboardData(user);
+  
+  const todayStart = toDayStart(new Date());
+  const todayEnd = toDayEnd(new Date());
+  const managedSince = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const longUnmanagedSince = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+  const consultationEntries = await Promise.all(scopedData.customerList.map(async (customer) => ({
+    customerId: customer.id,
+    agentId: customer.agentId,
+    consultations: await getConsultationsByCustomer(customer.id),
+  })));
+  
+  const userMetrics = visibleUsers.map((u) => {
+    // 1. 미상담 DB
+    const assignedCustomers = scopedData.customerList.filter((c) => c.agentId === u.id && c.isActive && !c.deletedAt);
+    const unconsultedDbCount = assignedCustomers.filter((c) => c.consultStatus === "미상담").length;
+
+    // 2. 후속관리 지연
+    const userFollowUps = scopedData.followUpList.filter((f) => f.assignedAgentId === u.id && isOpenFollowUpStatus(f.status));
+    const overdueFollowUpsCount = userFollowUps.filter((f) => new Date(f.nextContactDate) < todayStart).length;
+    const todayFollowUpsCount = userFollowUps.filter((f) => new Date(f.nextContactDate) >= todayStart && new Date(f.nextContactDate) <= todayEnd).length;
+
+    // 3. 오늘 미완료 일정
+    const userSchedules = scopedData.scheduleList.filter((s) => s.userId === u.id);
+    const todaySchedules = userSchedules.filter((s) => isSameCalendarDay(new Date(s.startTime), new Date()));
+    const incompleteSchedulesCount = todaySchedules.filter((s) => !isFinishedScheduleStatus(s.status)).length;
+
+    // 4. 장기 미관리 및 A등급 미관리
+    let longUnmanagedCount = 0;
+    let priorityAUnmanagedCount = 0;
+    let postContractUnmanagedCount = 0;
+
+    assignedCustomers.forEach((customer) => {
+      const entry = consultationEntries.find(e => e.customerId === customer.id);
+      const latestConsult = entry?.consultations
+        .map((c) => new Date(c.createdAt).getTime())
+        .filter((time) => !Number.isNaN(time))
+        .sort((a, b) => b - a)[0];
+      
+      const lastConsultDate = latestConsult ? new Date(latestConsult) : null;
+      
+      if (!lastConsultDate || lastConsultDate < longUnmanagedSince) {
+        longUnmanagedCount++;
+      }
+      
+      if (customer.priority === "A") {
+        if (!lastConsultDate || lastConsultDate < managedSince) {
+          const recentCompletedFollowUp = scopedData.followUpList.some((f) => 
+            f.customerId === customer.id && f.status === "completed" && getFollowUpCompletedValue(f) >= managedSince
+          );
+          if (!recentCompletedFollowUp) {
+            priorityAUnmanagedCount++;
+          }
+        }
+      }
+
+      const customerContracts = scopedData.contractList.filter((c) => c.customerId === customer.id && c.isActive && !c.deletedAt);
+      if (customerContracts.length > 0) {
+        const latestContract = customerContracts.sort((a, b) => new Date(getContractDateValue(b)).getTime() - new Date(getContractDateValue(a)).getTime())[0];
+        const contractDate = new Date(getContractDateValue(latestContract));
+        if (contractDate < thirtyDaysAgo) {
+          if (!lastConsultDate || lastConsultDate < contractDate) {
+            postContractUnmanagedCount++;
+          }
+        }
+      }
+    });
+
+    // 5. 미확인 알림
+    const unreadNotificationsCount = scopedData.notifications.filter((n) => n.userId === u.id && isUnreadNotification(n)).length;
+
+    // 6. 오늘 상담/계약
+    const todayConsultationsCount = consultationEntries
+      .filter((e) => e.agentId === u.id)
+      .flatMap((e) => e.consultations)
+      .filter((c) => isSameCalendarDay(new Date(c.createdAt), new Date())).length;
+      
+    const todayContractsCount = scopedData.contractList
+      .filter((c) => c.agentId === u.id && isSameCalendarDay(new Date(getContractDateValue(c)), new Date()) && c.isActive && !c.deletedAt)
+      .length;
+
+    const riskScore = 
+      (unconsultedDbCount * 2) + 
+      (overdueFollowUpsCount * 5) + 
+      (incompleteSchedulesCount * 3) + 
+      (longUnmanagedCount * 3) + 
+      (priorityAUnmanagedCount * 5) + 
+      (postContractUnmanagedCount * 4) +
+      (unreadNotificationsCount * 1);
+
+    return {
+      user: { id: u.id, name: u.name ?? `팀원 ${u.id}`, role: u.role, teamId: u.teamId, subBranchAdminId: u.subBranchAdminId },
+      metrics: {
+        unconsultedDbCount,
+        overdueFollowUpsCount,
+        todayFollowUpsCount,
+        incompleteSchedulesCount,
+        longUnmanagedCount,
+        priorityAUnmanagedCount,
+        postContractUnmanagedCount,
+        unreadNotificationsCount,
+        todayConsultationsCount,
+        todayContractsCount,
+      },
+      riskScore,
+    };
+  });
+
+  const topRiskUsers = [...userMetrics]
+    .filter((m) => m.riskScore > 0)
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, 5);
+
+  const summary = {
+    totalUnconsultedDb: userMetrics.reduce((sum, m) => sum + m.metrics.unconsultedDbCount, 0),
+    totalOverdueFollowUps: userMetrics.reduce((sum, m) => sum + m.metrics.overdueFollowUpsCount, 0),
+    totalTodayFollowUps: userMetrics.reduce((sum, m) => sum + m.metrics.todayFollowUpsCount, 0),
+    totalIncompleteSchedules: userMetrics.reduce((sum, m) => sum + m.metrics.incompleteSchedulesCount, 0),
+    totalPriorityAUnmanaged: userMetrics.reduce((sum, m) => sum + m.metrics.priorityAUnmanagedCount, 0),
+  };
+
+  return {
+    summary,
+    topRiskUsers,
+    userMetrics: userMetrics.sort((a, b) => b.riskScore - a.riskScore),
+  };
+}
+
 const downloadRequestSchema = z.object({
   reason: z.string().min(5).max(300),
   masked: z.boolean().optional().default(true),
@@ -3175,6 +3319,11 @@ export const appRouter = router({
         subBranchAdminId: z.number().optional(),
       }).optional())
       .query(async ({ ctx, input }) => buildWorkRhythmReport(ctx.user, input ?? { period: "week" })),
+  }),
+
+  adminTeamInsights: router({
+    summary: managerAnalyticsProcedure
+      .query(async ({ ctx }) => buildAdminTeamInsights(ctx.user as any)),
   }),
 
   salesReports: router({
