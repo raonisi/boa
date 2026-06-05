@@ -176,6 +176,13 @@
       "when": 1780416000000,
       "tag": "0024_customer_db_company",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "5",
+      "when": 1780639714760,
+      "tag": "0025_rapid_hammerhead",
+      "breakpoints": true
     }
   ]
 }

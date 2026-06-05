@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { buildFirstContactSlaInsights } from "./sla";
 import { buildTeamCompletionInsights } from "./teamCompletion";
+import { teamCoachingRouter } from "./teamCoaching";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -1493,7 +1494,7 @@ function descendantUserIdsFrom(
   return Array.from(result);
 }
 
-async function getHierarchyScopeUserIds(actor: {
+export async function getHierarchyScopeUserIds(actor: {
   id: number;
   role: string;
   accountStatus: string;
@@ -6794,6 +6795,8 @@ export const appRouter = router({
       return entries.map(sanitizeActivityLogRow);
     }),
   }),
+  
+  teamCoaching: teamCoachingRouter,
 });
 
 export type AppRouter = typeof appRouter;

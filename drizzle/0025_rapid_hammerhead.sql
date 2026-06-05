@@ -1,0 +1,22 @@
+CREATE TABLE `team_member_coaching_notes` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`targetUserId` int NOT NULL,
+	`authorUserId` int NOT NULL,
+	`category` enum('praise','improvement','follow_up_delay','notification_unread','customer_care_gap','goal_gap','training','one_on_one','general') NOT NULL DEFAULT 'general',
+	`title` varchar(200) NOT NULL,
+	`note` text NOT NULL,
+	`actionItems` text,
+	`priority` enum('low','medium','high') NOT NULL DEFAULT 'medium',
+	`status` enum('open','resolved','archived') NOT NULL DEFAULT 'open',
+	`visibility` enum('private_admin','manager_visible','member_visible') NOT NULL DEFAULT 'manager_visible',
+	`nextReviewAt` timestamp,
+	`linkedMetricType` varchar(100),
+	`linkedMetricSnapshotJson` json,
+	`isArchived` boolean NOT NULL DEFAULT false,
+	`archivedAt` timestamp,
+	`archivedBy` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`deletedAt` timestamp,
+	CONSTRAINT `team_member_coaching_notes_id` PRIMARY KEY(`id`)
+);

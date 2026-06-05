@@ -8,6 +8,7 @@ import {
   boolean,
   date,
   unique,
+  json,
 } from "drizzle-orm/mysql-core";
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -574,3 +575,31 @@ export const pushNotificationPreferences = mysqlTable("push_notification_prefere
 }));
 export type PushNotificationPreference = typeof pushNotificationPreferences.$inferSelect;
 export type InsertPushNotificationPreference = typeof pushNotificationPreferences.$inferInsert;
+
+// ─── Coaching Notes ──────────────────────────────────────────────────────────
+export const teamMemberCoachingNotes = mysqlTable("team_member_coaching_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  targetUserId: int("targetUserId").notNull(),
+  authorUserId: int("authorUserId").notNull(),
+  category: mysqlEnum("category", [
+    "praise", "improvement", "follow_up_delay", "notification_unread", 
+    "customer_care_gap", "goal_gap", "training", "one_on_one", "general"
+  ]).default("general").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  note: text("note").notNull(),
+  actionItems: text("actionItems"),
+  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
+  status: mysqlEnum("status", ["open", "resolved", "archived"]).default("open").notNull(),
+  visibility: mysqlEnum("visibility", ["private_admin", "manager_visible", "member_visible"]).default("manager_visible").notNull(),
+  nextReviewAt: timestamp("nextReviewAt"),
+  linkedMetricType: varchar("linkedMetricType", { length: 100 }),
+  linkedMetricSnapshotJson: json("linkedMetricSnapshotJson"),
+  isArchived: boolean("isArchived").default(false).notNull(),
+  archivedAt: timestamp("archivedAt"),
+  archivedBy: int("archivedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
+});
+export type TeamMemberCoachingNote = typeof teamMemberCoachingNotes.$inferSelect;
+export type InsertTeamMemberCoachingNote = typeof teamMemberCoachingNotes.$inferInsert;
