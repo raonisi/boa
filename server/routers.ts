@@ -5,6 +5,7 @@ import { buildTeamCompletionInsights } from "./teamCompletion";
 import { teamCoachingRouter } from "./teamCoaching";
 import { onboardingAssignmentsRouter, onboardingTemplatesRouter } from "./onboarding";
 import { managementReportsRouter } from "./managementReports";
+import { customerDataQualityRouter } from "./customerDataQualityRouter";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -7247,6 +7248,7 @@ export const appRouter = router({
   }),
   
   managementReports: managementReportsRouter,
+  customerDataQuality: customerDataQualityRouter,
   onboardingTemplates: onboardingTemplatesRouter,
   onboardingAssignments: onboardingAssignmentsRouter,
   teamCoaching: teamCoachingRouter,

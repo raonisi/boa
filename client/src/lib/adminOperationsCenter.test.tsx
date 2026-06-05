@@ -64,13 +64,12 @@ describe("adminOperationsCenter feature availability", () => {
     }
   });
 
-  it("keeps customer data quality as coming soon without a route", () => {
+  it("exposes customer data quality as an available routed feature", () => {
     const card = findCard("customer-data-quality");
-    expect(card?.status).toBe("coming_soon");
-    expect(card?.isComingSoon).toBe(true);
-    expect(card?.route).toBeUndefined();
-    expect(isCardNavigable(card!)).toBe(false);
-    expect(getCardStatusNotice(card!)).toEqual(COMING_SOON_NOTICE);
+    expect(card?.status).toBe("available");
+    expect(card?.route).toBe("/customer-data-quality");
+    expect(isCardNavigable(card!)).toBe(true);
+    expect(card?.description).toContain("보완 필요");
   });
 
   it("uses beta notice for management reports and team coaching", () => {

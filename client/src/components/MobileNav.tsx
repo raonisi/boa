@@ -65,6 +65,8 @@ const moreItems: MobileMenuItem[] = [
   { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },
   { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
   { icon: Database, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+  { icon: Database, label: "고객 데이터 품질 점검", path: "/customer-data-quality", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+  { icon: Database, label: "내 고객 데이터 보완", path: "/customer-data-quality", roles: ["member"] },
   { icon: LayoutDashboard, label: "관리자 운영센터", path: "/admin/operations-center", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: FileText, label: "관리자 보고서", path: "/management-reports", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: Users, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },

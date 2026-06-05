@@ -18,6 +18,7 @@ const smokeRoutes = [
   "/operation-risk",
   "/admin/operations-center",
   "/management-reports",
+  "/customer-data-quality",
   "/admin-audit",
   "/download",
 ];

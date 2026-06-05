@@ -6319,3 +6319,154 @@ describe("managementReports", () => {
     expect(details).not.toHaveProperty("narrativeSummary");
   });
 });
+
+describe("customerDataQuality", () => {
+  const users = [
+    { id: 1, name: "[TEST] Branch", role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: null },
+    { id: 2, name: "[TEST] Sub", role: "sub_branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: 1 },
+    { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 2 },
+    { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+    { id: 5, name: "[TEST] Other", role: "member", accountStatus: "active", teamId: 20, subBranchAdminId: 99, parentUserId: 30 },
+    { id: 99, name: "[TEST] Inactive Agent", role: "member", accountStatus: "inactive", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+  ] as any[];
+  const teams = [
+    { id: 10, name: "[TEST] Team", managerId: 3, subBranchAdminId: 2, isActive: true, deletedAt: null },
+    { id: 20, name: "[TEST] Other Team", managerId: 30, subBranchAdminId: 99, isActive: true, deletedAt: null },
+  ] as any[];
+  const customers = [
+    { id: 100, name: "[TEST] Good Customer", phone: "010-1000-0001", birthDate: "1990-01-01", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", customerTags: JSON.stringify(["vip"]), isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 101, name: "[TEST] Missing Phone", phone: null, birthDate: null, agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "미상담", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 102, name: "[TEST] Unassigned", phone: "010-1000-0003", birthDate: "1990-01-03", agentId: null, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "미상담", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 103, name: "[TEST] No Follow Up", phone: "010-1000-0004", birthDate: "1990-01-04", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 104, name: "[TEST] Duplicate", phone: "010-1000-0001", birthDate: "1990-01-01", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 105, name: "[TEST] Many Tags", phone: "010-1000-0005", birthDate: "1990-01-05", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", customerTags: JSON.stringify(["1", "2", "3", "4", "5", "6", "7", "8"]), isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 106, name: "[TEST] Contract Only", phone: "010-1000-0006", birthDate: "1990-01-06", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "계약", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 107, name: "[TEST] Long Unmanaged", phone: "010-1000-0007", birthDate: "1990-01-07", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2025-01-01"), createdAt: new Date("2025-01-01") },
+    { id: 108, name: "[TEST] Inactive Agent", phone: "010-1000-0008", birthDate: "1990-01-08", agentId: 99, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+    { id: 200, name: "[TEST] Other Team", phone: "010-9999-0001", birthDate: "1990-02-01", agentId: 5, assignedTeamId: 20, subBranchAdminId: 99, consultStatus: "통화완료", customerTags: null, isActive: true, deletedAt: null, updatedAt: new Date("2026-05-20"), createdAt: new Date("2026-05-01") },
+  ] as any[];
+  const contracts = [
+    { id: 11, customerId: 100, agentId: 4, contractDate: new Date("2026-05-10"), monthlyPremium: 100000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+    { id: 12, customerId: 106, agentId: 4, contractDate: new Date("2026-05-10"), monthlyPremium: 100000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+    { id: 13, customerId: 200, agentId: 5, contractDate: new Date("2026-05-10"), monthlyPremium: 100000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+  ] as any[];
+  const followUps = [
+    { id: 21, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "completed", nextContactDate: new Date("2026-05-10"), completedAt: new Date("2026-05-10"), createdAt: new Date("2026-05-09"), deletedAt: null },
+    { id: 22, customerId: 101, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "scheduled", nextContactDate: new Date("2026-04-01"), createdAt: new Date("2026-04-01"), deletedAt: null },
+    { id: 23, customerId: 200, assignedAgentId: 5, teamId: 20, subBranchAdminId: 99, status: "completed", nextContactDate: new Date("2026-05-11"), completedAt: new Date("2026-05-11"), createdAt: new Date("2026-05-10"), deletedAt: null },
+  ] as any[];
+  const schedules = [
+    { id: 31, userId: 4, customerId: 101, teamId: 10, status: "예정", startTime: new Date("2026-04-01"), isActive: true, deletedAt: null },
+    { id: 32, userId: 5, customerId: 200, teamId: 20, status: "예정", startTime: new Date("2026-05-18"), isActive: true, deletedAt: null },
+  ] as any[];
+  const consultationDates = [
+    { customerId: 100, latestCreatedAt: new Date("2026-05-10") },
+    { customerId: 103, latestCreatedAt: new Date("2026-05-10") },
+    { customerId: 104, latestCreatedAt: new Date("2026-05-10") },
+    { customerId: 105, latestCreatedAt: new Date("2026-05-10") },
+    { customerId: 107, latestCreatedAt: new Date("2025-01-01") },
+    { customerId: 108, latestCreatedAt: new Date("2026-05-10") },
+    { customerId: 200, latestCreatedAt: new Date("2026-05-10") },
+  ] as any[];
+
+  function mockCustomerDataQualityData() {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(users);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue(teams);
+    vi.spyOn(db, "getUsersByTeamId").mockImplementation(async (teamId: number) => {
+      if (teamId === 10) return [{ id: 3 }, { id: 4 }, { id: 99 }] as any;
+      if (teamId === 20) return [{ id: 5 }] as any;
+      return [];
+    });
+    vi.spyOn(db, "getCustomers").mockImplementation(async (filter: any = {}) => {
+      if (filter.agentId) return customers.filter((item) => item.agentId === filter.agentId);
+      if (filter.agentIds) return customers.filter((item) => item.agentId && filter.agentIds.includes(item.agentId));
+      return customers;
+    });
+    vi.spyOn(db, "getAllContracts").mockImplementation(async (filter: any = {}) => {
+      if (filter.agentIds) return contracts.filter((item) => filter.agentIds.includes(item.agentId));
+      if (filter.agentId) return contracts.filter((item) => item.agentId === filter.agentId);
+      return contracts;
+    });
+    vi.spyOn(db, "getSchedules").mockImplementation(async (filter: any = {}) => {
+      if (filter.userId) return schedules.filter((item) => item.userId === filter.userId);
+      if (filter.userIds) return schedules.filter((item) => filter.userIds.includes(item.userId));
+      return schedules;
+    });
+    vi.spyOn(db, "getFollowUps").mockImplementation(async (filter: any = {}) => {
+      if (filter.agentId) return followUps.filter((item) => item.assignedAgentId === filter.agentId);
+      if (filter.agentIds) return followUps.filter((item) => filter.agentIds.includes(item.assignedAgentId));
+      return followUps;
+    });
+    vi.spyOn(db, "getLatestConsultationDatesByCustomerIds").mockImplementation(async (customerIds: number[]) =>
+      consultationDates.filter((item) => customerIds.includes(item.customerId)),
+    );
+  }
+
+  it("allows branch_admin to view full-scope quality summary", async () => {
+    mockCustomerDataQualityData();
+    const result = await appRouter.createCaller(createCtx("branch_admin")).customerDataQuality.dashboard({});
+    expect(result.summary.customerCount).toBeGreaterThan(8);
+    expect(result.customers.some((item) => item.customerId === 200)).toBe(true);
+    expect(result.assignees.length).toBeGreaterThan(0);
+  });
+
+  it("scopes sub_branch_admin to managed customers only", async () => {
+    mockCustomerDataQualityData();
+    const result = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).customerDataQuality.dashboard({});
+    expect(result.customers.some((item) => item.customerId === 200)).toBe(false);
+    expect(result.customers.some((item) => item.customerId === 101)).toBe(true);
+  });
+
+  it("scopes team_leader to own team customers only", async () => {
+    mockCustomerDataQualityData();
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customerDataQuality.dashboard({});
+    expect(result.customers.some((item) => item.customerId === 200)).toBe(false);
+    expect(result.customers.some((item) => item.customerId === 101)).toBe(true);
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).customerDataQuality.dashboard({ teamId: 20 })).rejects.toThrow();
+  });
+
+  it("allows member to view only own assigned customer issues", async () => {
+    mockCustomerDataQualityData();
+    const result = await appRouter.createCaller(createCtx("member", { userId: 4 })).customerDataQuality.dashboard({});
+    expect(result.customers.every((item) => item.assignedUserId === 4)).toBe(true);
+    expect(result.customers.some((item) => item.customerId === 200)).toBe(false);
+    expect(result.assignees).toEqual([]);
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).customerDataQuality.dashboard({ assignedUserId: 5 })).rejects.toThrow();
+  });
+
+  it("blocks inactive and resigned users", async () => {
+    mockCustomerDataQualityData();
+    await expect(appRouter.createCaller(createInactiveCtx()).customerDataQuality.dashboard({})).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("member", { accountStatus: "resigned" })).customerDataQuality.dashboard({})).rejects.toThrow();
+  });
+
+  it("calculates issue counts and quality levels accurately", async () => {
+    mockCustomerDataQualityData();
+    const result = await appRouter.createCaller(createCtx("branch_admin")).customerDataQuality.dashboard({});
+    expect(result.summary.missingPhoneCount).toBeGreaterThan(0);
+    expect(result.summary.unassignedCustomerCount).toBeGreaterThan(0);
+    expect(result.summary.noFollowUpCount).toBeGreaterThan(0);
+    expect(result.summary.duplicateCandidateCount).toBeGreaterThan(0);
+    expect(result.summary.excessiveTagCount).toBeGreaterThan(0);
+    expect(result.summary.contractWithoutConsultationCount).toBeGreaterThan(0);
+    expect(result.summary.longUnmanagedCount).toBeGreaterThan(0);
+    expect(result.summary.delayedFollowUpOrScheduleCount).toBeGreaterThan(0);
+
+    const missingPhone = result.customers.find((item) => item.customerId === 101);
+    expect(missingPhone?.issueTypes).toEqual(expect.arrayContaining(["missing_phone", "missing_birth_date", "missing_status"]));
+    expect(missingPhone?.qualityLevel).toBe("critical");
+
+    const duplicate = result.customers.find((item) => item.customerId === 104);
+    expect(duplicate?.issueTypes).toContain("duplicate_candidate");
+  });
+
+  it("keeps sensitive customer fields out of default dashboard rows", async () => {
+    mockCustomerDataQualityData();
+    const result = await appRouter.createCaller(createCtx("branch_admin")).customerDataQuality.dashboard({});
+    const serialized = JSON.stringify(result.customers);
+    expect(serialized).not.toContain("010-");
+    expect(serialized).not.toContain("1990-01-01");
+    expect(serialized).not.toContain("100000");
+    expect(result.customers.every((item) => item.customerDisplayName.includes("*") || item.customerDisplayName.length <= 2)).toBe(true);
+  });
+});

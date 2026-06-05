@@ -282,13 +282,13 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "customer-data-quality",
     title: "고객 데이터 품질 점검",
-    description: "전화번호 누락, 담당자 없음, 후속관리 없음 등 고객 DB 품질을 점검하는 기능입니다. 추후 제공 예정입니다.",
+    description: "전화번호 누락, 담당자 없음, 후속관리 공백, 중복 가능 고객 등 고객 DB의 보완 필요 항목을 확인합니다.",
     section: "customer-db",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/customer-data-quality",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "available",
     icon: Database,
-    isComingSoon: true,
   },
   {
     id: "team-insights",
