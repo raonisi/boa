@@ -66,6 +66,7 @@ const moreItems: MobileMenuItem[] = [
   { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
   { icon: Database, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: LayoutDashboard, label: "관리자 운영센터", path: "/admin/operations-center", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+  { icon: FileText, label: "관리자 보고서", path: "/management-reports", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: Users, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
   { icon: Network, label: "조직 구조", path: "/organization", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
   { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },

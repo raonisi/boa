@@ -6191,3 +6191,131 @@ describe("delete request and deleted data lifecycle", () => {
     expect(logSpy.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ action: "IMPORT_BATCH_CANCEL_BLOCKED" }));
   });
 });
+
+describe("managementReports", () => {
+  const users = [
+    { id: 1, name: "[TEST] Branch", role: "branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: null },
+    { id: 2, name: "[TEST] Sub", role: "sub_branch_admin", accountStatus: "active", teamId: null, subBranchAdminId: null, parentUserId: 1 },
+    { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 2 },
+    { id: 4, name: "[TEST] Member", role: "member", accountStatus: "active", teamId: 10, subBranchAdminId: 2, parentUserId: 3 },
+    { id: 5, name: "[TEST] Other", role: "member", accountStatus: "active", teamId: 20, subBranchAdminId: 99, parentUserId: 30 },
+  ] as any[];
+  const teams = [
+    { id: 10, name: "[TEST] Team", managerId: 3, subBranchAdminId: 2, isActive: true, deletedAt: null },
+    { id: 20, name: "[TEST] Other Team", managerId: 30, subBranchAdminId: 99, isActive: true, deletedAt: null },
+  ] as any[];
+  const customers = [
+    { id: 100, name: "[TEST] Customer A", phone: "010-0000-0000", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "통화완료", priority: "A", isActive: true, deletedAt: null, createdAt: new Date("2026-05-10"), assignedAt: new Date("2026-05-10") },
+    { id: 101, name: "[TEST] Customer B", phone: "010-1111-2222", agentId: 4, assignedTeamId: 10, subBranchAdminId: 2, consultStatus: "미상담", priority: "B", isActive: true, deletedAt: null, createdAt: new Date("2026-05-11"), assignedAt: new Date("2026-05-11") },
+    { id: 200, name: "[TEST] Other Customer", phone: "010-9999-8888", agentId: 5, assignedTeamId: 20, subBranchAdminId: 99, consultStatus: "계약", priority: "A", isActive: true, deletedAt: null, createdAt: new Date("2026-05-12"), assignedAt: new Date("2026-05-12") },
+  ] as any[];
+  const contracts = [
+    { id: 11, customerId: 100, agentId: 4, contractDate: new Date("2026-05-10"), monthlyPremium: 100000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+    { id: 12, customerId: 200, agentId: 5, contractDate: new Date("2026-05-11"), monthlyPremium: 200000, contractStatus: "유지", paymentStatus: "정상", isActive: true, deletedAt: null },
+  ] as any[];
+  const followUps = [
+    { id: 21, customerId: 100, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "completed", nextContactDate: new Date("2026-05-10"), completedAt: new Date("2026-05-10"), createdAt: new Date("2026-05-09"), deletedAt: null },
+    { id: 22, customerId: 101, assignedAgentId: 4, teamId: 10, subBranchAdminId: 2, status: "scheduled", nextContactDate: new Date("2026-04-01"), createdAt: new Date("2026-04-01"), deletedAt: null },
+    { id: 23, customerId: 200, assignedAgentId: 5, teamId: 20, subBranchAdminId: 99, status: "completed", nextContactDate: new Date("2026-05-11"), completedAt: new Date("2026-05-11"), createdAt: new Date("2026-05-10"), deletedAt: null },
+  ] as any[];
+  const schedules = [
+    { id: 31, userId: 4, teamId: 10, status: "예정", startTime: new Date("2026-05-18"), isActive: true, deletedAt: null },
+    { id: 32, userId: 5, teamId: 20, status: "예정", startTime: new Date("2026-05-18"), isActive: true, deletedAt: null },
+  ] as any[];
+  const consultations = [
+    { id: 41, customerId: 100, createdAt: new Date("2026-05-10") },
+    { id: 42, customerId: 101, createdAt: new Date("2026-05-11") },
+  ] as any[];
+
+  function mockManagementReportData() {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(users);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue(teams);
+    vi.spyOn(db, "getUsersByTeamId").mockImplementation(async (teamId: number) => {
+      if (teamId === 10) return [{ id: 3 }, { id: 4 }] as any;
+      if (teamId === 20) return [{ id: 5 }] as any;
+      return [];
+    });
+    vi.spyOn(db, "getCustomers").mockResolvedValue(customers);
+    vi.spyOn(db, "getAllContracts").mockResolvedValue(contracts);
+    vi.spyOn(db, "getSchedules").mockResolvedValue(schedules);
+    vi.spyOn(db, "getFollowUps").mockResolvedValue(followUps);
+    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({ items: [{ id: 1, userId: 4, isRead: false, processStatus: "미확인", createdAt: new Date("2026-05-10") }], total: 1, page: 1, pageSize: 500 } as any);
+    vi.spyOn(db, "getConsultationsByCustomer").mockImplementation(async (customerId: number) => consultations.filter((item) => item.customerId === customerId));
+    vi.spyOn(db, "getPerformanceGoalDashboard").mockResolvedValue({ items: [{ achievementRate: 75, goal: { targetType: "team", targetId: 10 } }] } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+  }
+
+  it("allows branch_admin to generate a weekly report for all scope", async () => {
+    mockManagementReportData();
+    const result = await appRouter.createCaller(createCtx("branch_admin")).managementReports.generate({
+      reportType: "weekly",
+      periodType: "custom",
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-31",
+    });
+    expect(result.empty).toBe(false);
+    expect(result.users.some((user) => user.userId === 4)).toBe(true);
+    expect(result.users.some((user) => user.userId === 5)).toBe(true);
+    expect(result.summary.consultationCount).toBeGreaterThan(0);
+    expect(result.summary.followUpCompletionRate).not.toBeNull();
+  });
+
+  it("scopes sub_branch_admin reports to managed users only", async () => {
+    mockManagementReportData();
+    const result = await appRouter.createCaller(createCtx("sub_branch_admin", { userId: 2 })).managementReports.generate({ reportType: "weekly", periodType: "week" });
+    expect(result.users.some((user) => user.userId === 4)).toBe(true);
+    expect(result.users.some((user) => user.userId === 5)).toBe(false);
+  });
+
+  it("scopes team_leader reports to own team only", async () => {
+    mockManagementReportData();
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).managementReports.generate({ reportType: "team", periodType: "week", targetTeamId: 10 });
+    expect(result.users.some((user) => user.userId === 4)).toBe(true);
+    expect(result.users.some((user) => user.userId === 5)).toBe(false);
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).managementReports.generate({ reportType: "team", periodType: "week", targetTeamId: 20 })).rejects.toThrow();
+  });
+
+  it("blocks member access", async () => {
+    mockManagementReportData();
+    await expect(appRouter.createCaller(createCtx("member", { userId: 4 })).managementReports.generate({ reportType: "weekly", periodType: "week" })).rejects.toThrow(/FORBIDDEN|관리자/);
+  });
+
+  it("blocks inactive and resigned users", async () => {
+    mockManagementReportData();
+    await expect(appRouter.createCaller(createInactiveCtx()).managementReports.generate({ reportType: "weekly", periodType: "week" })).rejects.toThrow();
+    await expect(appRouter.createCaller(createCtx("team_leader", { accountStatus: "resigned" })).managementReports.generate({ reportType: "weekly", periodType: "week" })).rejects.toThrow();
+  });
+
+  it("calculates overdue follow-up and incomplete schedule counts", async () => {
+    mockManagementReportData();
+    const result = await appRouter.createCaller(createCtx("team_leader", { userId: 3, teamId: 10 })).managementReports.generate({ reportType: "daily", periodType: "today" });
+    const member = result.users.find((user) => user.userId === 4);
+    expect(member?.metrics.overdueFollowUpCount).toBeGreaterThan(0);
+    expect(member?.metrics.unconsultedDbCount).toBe(1);
+    expect(result.summary.overdueFollowUpCount).toBeGreaterThan(0);
+  });
+
+  it("keeps customer-sensitive data out of copyable and narrative summaries", async () => {
+    mockManagementReportData();
+    const result = await appRouter.createCaller(createCtx("branch_admin")).managementReports.generate({ reportType: "weekly", periodType: "week" });
+    expect(result.copyableSummary).not.toContain("010-");
+    expect(result.copyableSummary).not.toContain("[TEST] Customer");
+    expect(result.narrativeSummary).not.toContain("010-");
+    expect(result.narrativeSummary).not.toContain("100000");
+    expect(result.copyableSummary).toContain("후속관리 지연");
+  });
+
+  it("logs report generation metadata without full report body", async () => {
+    mockManagementReportData();
+    const logSpy = vi.spyOn(db, "createActivityLog");
+    await appRouter.createCaller(createCtx("branch_admin")).managementReports.generate({ reportType: "monthly", periodType: "month" });
+    expect(logSpy).toHaveBeenCalledWith(expect.objectContaining({
+      action: "MANAGEMENT_REPORT_GENERATED",
+      targetType: "management_report",
+    }));
+    const details = JSON.parse(String(logSpy.mock.calls.at(-1)?.[0]?.details ?? "{}"));
+    expect(details.reportType).toBe("monthly");
+    expect(details).not.toHaveProperty("copyableSummary");
+    expect(details).not.toHaveProperty("narrativeSummary");
+  });
+});

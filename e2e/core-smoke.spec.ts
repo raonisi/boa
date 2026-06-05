@@ -17,6 +17,7 @@ const smokeRoutes = [
   "/analytics",
   "/operation-risk",
   "/admin/operations-center",
+  "/management-reports",
   "/admin-audit",
   "/download",
 ];
@@ -246,6 +247,15 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(page.getByText("OAuth")).toHaveCount(0);
     await expect(page.getByText("010-1000-2000")).toHaveCount(0);
     await expectStablePageShell(page, errors);
+  });
+
+  test("member sees permission state for management reports", async ({ page }) => {
+    await mockBoaTrpc(page, "member");
+
+    await page.goto("/management-reports");
+    await expect(page.locator("#root")).not.toBeEmpty();
+    await expect(page.getByText(/권한|Permission|required|접근/).first()).toBeVisible();
+    await expect(page.getByText("관리자 보고서")).toHaveCount(0);
   });
 
   test("member sees permission state for admin operations center", async ({ page }) => {

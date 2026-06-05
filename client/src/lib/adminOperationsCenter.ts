@@ -483,6 +483,17 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     icon: BarChart3,
   },
   {
+    id: "management-reports",
+    title: "관리자 보고서",
+    description: "일일·주간·월간 운영 보고서와 팀·부지점 요약을 생성합니다.",
+    section: "goals-performance",
+    allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/management-reports",
+    riskLevel: "normal",
+    status: "available",
+    icon: BarChart3,
+  },
+  {
     id: "goal-actions",
     title: "목표 대비 행동량",
     description: "목표 달성까지 필요한 상담, 후속관리, 계약 행동량을 확인합니다.",

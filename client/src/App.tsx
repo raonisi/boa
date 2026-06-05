@@ -48,6 +48,7 @@ const TeamCoachingDashboard = lazy(() => import("./pages/TeamCoachingDashboard")
 const AftercareCampaigns = lazy(() => import("./pages/AftercareCampaigns"));
 const OnboardingDashboard = lazy(() => import("./pages/OnboardingDashboard"));
 const AdminOperationsCenter = lazy(() => import("./pages/AdminOperationsCenter"));
+const ManagementReports = lazy(() => import("./pages/ManagementReports"));
 
 function RouteFallback() {
   return (
@@ -396,6 +397,15 @@ function Router() {
           <ManagerGuard>
             <LazyRoute>
               <AdminOperationsCenter />
+            </LazyRoute>
+          </ManagerGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/management-reports">
+        <AuthGuard>
+          <ManagerGuard>
+            <LazyRoute>
+              <ManagementReports />
             </LazyRoute>
           </ManagerGuard>
         </AuthGuard>
