@@ -42,7 +42,7 @@ function collectPageErrors(page: Page) {
 
 async function expectStablePageShell(page: Page, errors: string[]) {
   await expect(page.locator("#root")).not.toBeEmpty();
-  await expect(page.locator("body")).not.toHaveText(/login required|not found/i);
+  await expect(page.getByText(/login required|not found/i)).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   expect(errors, errors.join("\n")).toEqual([]);
 }
@@ -79,8 +79,8 @@ test.describe("BOA CRM e2e smoke", () => {
     const errors = collectPageErrors(page);
 
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("body")).toContainText("[E2E] Customer Alpha");
-    await expect(page.getByText("[E2E] Branch Admin").first()).toBeVisible();
+    await expect(page.locator('text="[E2E] Customer Alpha" >> visible=true').first()).toBeVisible();
+    await expect(page.locator('text="[E2E] Branch Admin" >> visible=true').first()).toBeVisible();
     await expectStablePageShell(page, errors);
 
     await page.goto("/customers", { waitUntil: "domcontentloaded" });
