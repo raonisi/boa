@@ -39,6 +39,7 @@ import {
   FileText,
   GitMerge,
   Home,
+  LayoutDashboard,
   LayoutGrid,
   LogOut,
   Monitor,
@@ -112,6 +113,7 @@ const navGroups: NavGroup[] = [
   {
     label: "관리자",
     items: [
+      { icon: LayoutDashboard, label: "관리자 운영센터", path: "/admin/operations-center", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: Monitor, label: "팀원 관리", path: "/team-insights", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: Activity, label: "첫 연락 SLA 관리", path: "/admin/sla", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
       { icon: Activity, label: "팀원 업무 처리율", path: "/admin/team-completion", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
@@ -157,6 +159,7 @@ const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/users/handoff", title: "인수인계 관리" },
   { prefix: "/organization", title: "조직 구조 관리" },
   { prefix: "/users", title: "사용자 관리" },
+  { prefix: "/admin/operations-center", title: "관리자 운영센터" },
   { prefix: "/team-insights", title: "팀원 관리" },
   { prefix: "/admin/sla", title: "첫 연락 SLA 관리" },
   { prefix: "/teams", title: "팀 관리" },

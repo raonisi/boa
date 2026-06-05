@@ -241,6 +241,7 @@ const defaults: Record<string, unknown> = {
   "salesReports.summary": salesReport,
   "operationRisk.summary": operationRisk,
   "operationRisk.scopedSummary": scopedOperationRisk,
+  "pushNotifications.operationSummary": { total: 2, sent: 1, failed: 0, skipped: 1, inactiveTokens: 0 },
   "adminAudit.summary": { cards: { total: 1, risky: 1, downloads: 1, deletes: 0, users: 0, customers: 0 } },
   "adminAudit.logSearch": { items: [{ id: 701, action: "DATA_DOWNLOAD", actorName: "[E2E] Branch Admin", targetType: "customer", reason: "[E2E] audit reason", summary: "[E2E] safe summary", createdAt: now }], total: 1 },
   "download.preview": downloadPreview,
