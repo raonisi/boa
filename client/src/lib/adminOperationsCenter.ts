@@ -9,6 +9,7 @@ import {
   Database,
   Download,
   GitMerge,
+  Home,
   LayoutDashboard,
   Network,
   RotateCcw,
@@ -37,7 +38,7 @@ export type AdminCardSection =
 
 export type RiskLevel = "normal" | "caution" | "high" | "branch_admin_only";
 
-export type CardStatus = "available" | "coming_soon" | "branch_admin_only";
+export type CardStatus = "available" | "beta" | "coming_soon" | "branch_admin_only" | "production_ready";
 
 export type AdminOperationCard = {
   id: string;
@@ -58,8 +59,22 @@ export const PAGE_DESCRIPTION =
   "조직 운영, 팀원 관리, 고객 DB 관리, 보안·위험 작업을 한곳에서 확인합니다.";
 
 export const COMING_SOON_NOTICE = [
-  "이 기능은 조직 운영 고도화 단계에서 추가될 예정입니다.",
-  "현재는 기존 고객관리, 후속관리, 알림센터, 실적관리 기능을 통해 관련 업무를 확인할 수 있습니다.",
+  "현재 준비 중인 기능입니다.",
+  "기존 고객관리·후속관리·보고서 기능으로 관련 업무를 확인할 수 있습니다.",
+] as const;
+
+export const AVAILABLE_NOTICE = ["현재 사용할 수 있는 기능입니다."] as const;
+
+export const BETA_NOTICE = [
+  "기능은 구현되어 있으나 조직 전체 공개 전 추가 검수를 권장합니다.",
+] as const;
+
+export const PRODUCTION_READY_NOTICE = [
+  "운영 검수와 테스트가 완료된 안정 기능입니다.",
+] as const;
+
+export const RESTRICTED_NOTICE = [
+  "권한이 있는 관리자만 사용할 수 있는 민감 작업입니다.",
 ] as const;
 
 export const PERMISSION_DENIED_TITLE = "접근 권한이 없습니다";
@@ -119,8 +134,10 @@ export const RISK_LEVEL_LABELS: Record<RiskLevel, string> = {
 
 export const CARD_STATUS_LABELS: Record<CardStatus, string> = {
   available: "사용 가능",
+  beta: "검수 필요",
   coming_soon: "준비 중",
   branch_admin_only: "지점장 전용",
+  production_ready: "운영 안정",
 };
 
 export const ROLE_SCOPE_HINTS: Record<ManagerRole, string> = {
@@ -199,7 +216,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "customer-db",
     title: "고객 DB 관리",
-    description: "전체 고객과 내 담당 고객을 조회하고 관리합니다.",
+    description: "전체 고객과 내 담당 고객을 조회합니다. 고객 상세에서 30초 퀵 상담, 접점 타임라인을 함께 사용할 수 있습니다.",
     section: "customer-db",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/customers",
@@ -237,7 +254,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     allowedRoles: ["branch_admin"],
     route: "/deleted-data",
     riskLevel: "high",
-    status: "available",
+    status: "branch_admin_only",
     icon: RotateCcw,
   },
   {
@@ -263,80 +280,102 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     icon: Activity,
   },
   {
+    id: "customer-data-quality",
+    title: "고객 데이터 품질 점검",
+    description: "전화번호 누락, 담당자 없음, 후속관리 없음 등 고객 DB 품질을 점검하는 기능입니다. 추후 제공 예정입니다.",
+    section: "customer-db",
+    allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    riskLevel: "normal",
+    status: "coming_soon",
+    icon: Database,
+    isComingSoon: true,
+  },
+  {
     id: "team-insights",
     title: "관리자 밀착 대시보드",
     description: "팀원별 미상담 DB, 후속관리 지연, 일정 미완료를 한눈에 확인합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/team-insights",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "available",
     icon: LayoutDashboard,
-    isComingSoon: true,
   },
   {
     id: "first-contact-sla",
     title: "첫 연락 SLA",
-    description: "DB 배정 후 정해진 시간 안에 첫 연락이 이루어졌는지 확인합니다.",
+    description: "DB 배정 후 첫 연락이 지연되는 고객과 담당자를 확인합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/admin/sla",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "available",
     icon: Activity,
-    isComingSoon: true,
   },
   {
     id: "team-completion",
     title: "알림·후속관리 처리율",
-    description: "팀원별 알림 처리율과 후속관리 완료율을 점검합니다.",
+    description: "팀원별 알림 처리율과 후속관리 완료율을 확인합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/admin/team-completion",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "available",
     icon: ClipboardCheck,
-    isComingSoon: true,
   },
   {
     id: "team-coaching",
     title: "코칭 메모",
-    description: "팀원별 개선 포인트와 다음 코칭 내용을 기록합니다.",
+    description: "팀원별 코칭 기록, 개선 행동, 다음 확인일을 관리합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/admin/team-coaching",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "beta",
     icon: ClipboardCheck,
-    isComingSoon: true,
   },
   {
     id: "onboarding-checklists",
     title: "온보딩 체크리스트",
-    description: "신규 직원 교육 진행률과 필수 교육 완료 여부를 확인합니다.",
+    description: "신규 직원의 CRM 교육 항목, 진행률, 승인 대기 상태를 관리합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/onboarding-checklists",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "available",
     icon: ClipboardCheck,
-    isComingSoon: true,
   },
   {
     id: "aftercare-campaigns",
     title: "사후관리 캠페인",
-    description: "계약 후 점검, 생일, 장기 미관리 고객을 캠페인 단위로 관리합니다.",
+    description: "계약 점검, 생일, 장기 미관리 고객을 사후관리 대상으로 확인하고 후속관리로 연결합니다. 자동 발송은 포함하지 않습니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/aftercare-campaigns",
     riskLevel: "normal",
-    status: "coming_soon",
+    status: "available",
     icon: ClipboardCheck,
-    isComingSoon: true,
+  },
+  {
+    id: "today-work-priority",
+    title: "오늘의 업무 우선순위",
+    description: "오늘 처리해야 할 업무를 긴급·오늘·일반 기준으로 정렬합니다.",
+    section: "team-work",
+    allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/",
+    riskLevel: "normal",
+    status: "available",
+    icon: Home,
   },
   {
     id: "operation-risk-dashboard",
     title: "운영 점검 대시보드",
-    description: "시스템 운영 상태와 주요 점검 항목을 확인합니다.",
+    description: "운영 위험, 오류, 푸시 실패, 권한 차단 등 운영 상태를 점검합니다.",
     section: "operations-security",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/operation-risk",
     riskLevel: "normal",
-    status: "available",
+    status: "production_ready",
     icon: ShieldCheck,
   },
   {
@@ -352,13 +391,13 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   },
   {
     id: "operation-risk-report",
-    title: "운영 위험 리포트",
-    description: "위험 작업과 보안상 주의가 필요한 행동을 확인합니다.",
+    title: "운영자용 장애·오류 리포트",
+    description: "운영 위험, 오류, 푸시 실패, 권한 차단 등 운영 상태를 점검합니다.",
     section: "operations-security",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/operation-risk",
     riskLevel: "caution",
-    status: "available",
+    status: "production_ready",
     icon: ShieldCheck,
   },
   {
@@ -380,7 +419,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     allowedRoles: ["branch_admin"],
     route: "/operation-risk?tab=logs",
     riskLevel: "high",
-    status: "available",
+    status: "branch_admin_only",
     icon: ShieldCheck,
   },
   {
@@ -391,7 +430,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     allowedRoles: ["branch_admin"],
     route: "/deleted-data",
     riskLevel: "high",
-    status: "available",
+    status: "branch_admin_only",
     icon: RotateCcw,
   },
   {
@@ -485,12 +524,12 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "management-reports",
     title: "관리자 보고서",
-    description: "일일·주간·월간 운영 보고서와 팀·부지점 요약을 생성합니다.",
+    description: "일일·주간·월간 기준으로 팀장·부지점장 운영 보고서를 생성합니다.",
     section: "goals-performance",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/management-reports",
     riskLevel: "normal",
-    status: "available",
+    status: "beta",
     icon: BarChart3,
   },
   {
@@ -552,4 +591,16 @@ export function filterAdminOperationCards(cards: AdminOperationCard[], query: st
 
 export function isHighRiskCard(card: AdminOperationCard) {
   return card.riskLevel === "high";
+}
+
+export function isCardNavigable(card: AdminOperationCard) {
+  return card.status !== "coming_soon" && Boolean(card.route);
+}
+
+export function getCardStatusNotice(card: AdminOperationCard): readonly string[] {
+  if (card.status === "coming_soon" || card.isComingSoon) return COMING_SOON_NOTICE;
+  if (card.status === "beta") return BETA_NOTICE;
+  if (card.status === "production_ready") return PRODUCTION_READY_NOTICE;
+  if (card.status === "branch_admin_only") return RESTRICTED_NOTICE;
+  return AVAILABLE_NOTICE;
 }

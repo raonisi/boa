@@ -9,7 +9,6 @@ import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import {
   ADMIN_OPERATION_SECTIONS,
   CARD_STATUS_LABELS,
-  COMING_SOON_NOTICE,
   HIGH_RISK_NOTICE,
   NO_VISIBLE_CARDS_DESCRIPTION,
   NO_VISIBLE_CARDS_TITLE,
@@ -23,8 +22,10 @@ import {
   ROLE_SCOPE_HINTS,
   canAccessAdminOperationsCenter,
   filterAdminOperationCards,
+  getCardStatusNotice,
   getVisibleAdminOperationCards,
   groupAdminOperationCards,
+  isCardNavigable,
   isHighRiskCard,
 } from "@/lib/adminOperationsCenter";
 import { getRoleLabel } from "@/lib/userRole";
@@ -52,8 +53,10 @@ const riskBadgeClasses: Record<AdminOperationCard["riskLevel"], string> = {
 
 const statusBadgeClasses: Record<AdminOperationCard["status"], string> = {
   available: "border-emerald-200/80 bg-emerald-50 text-emerald-800",
+  beta: "border-indigo-200/80 bg-indigo-50 text-indigo-900",
   coming_soon: "border-slate-200 bg-slate-50 text-slate-600",
   branch_admin_only: "border-[#b99b5f]/30 bg-[#f8f4ea] text-[#7a6535]",
+  production_ready: "border-teal-200/80 bg-teal-50 text-teal-900",
 };
 
 function SummarySkeleton() {
@@ -73,8 +76,10 @@ function OperationCard({
   card: AdminOperationCard;
   onNavigate: (route: string) => void;
 }) {
-  const isDisabled = card.isComingSoon || !card.route;
+  const isDisabled = !isCardNavigable(card);
   const showHighRiskNotice = isHighRiskCard(card) && !isDisabled;
+  const statusNotice = getCardStatusNotice(card);
+  const showStatusNotice = card.status !== "available" || card.isComingSoon;
   const Icon = card.icon;
 
   return (
@@ -109,9 +114,17 @@ function OperationCard({
         </div>
       </CardHeader>
       <CardContent className="mt-auto space-y-3 pt-0">
-        {card.isComingSoon ? (
-          <div className="rounded-xl border border-slate-200/80 bg-slate-50/80 p-3 text-xs leading-relaxed text-slate-600">
-            {COMING_SOON_NOTICE.map((line) => (
+        {showStatusNotice ? (
+          <div
+            className={cn(
+              "rounded-xl border p-3 text-xs leading-relaxed",
+              card.status === "coming_soon" && "border-slate-200/80 bg-slate-50/80 text-slate-600",
+              card.status === "beta" && "border-indigo-200/70 bg-indigo-50/70 text-indigo-900",
+              card.status === "production_ready" && "border-teal-200/70 bg-teal-50/70 text-teal-900",
+              card.status === "branch_admin_only" && "border-[#d9c99f]/40 bg-[#f8f4ea] text-[#7a6535]",
+            )}
+          >
+            {statusNotice.map((line) => (
               <p key={line}>{line}</p>
             ))}
           </div>
