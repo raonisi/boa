@@ -536,6 +536,7 @@ describe("Schedules - datetime and reminder persistence", () => {
   });
 
   it("uses the preserved KST wall-clock time for 30 minute reminder dueAt", async () => {
+    vi.useFakeTimers({ now: new Date("2026-05-01T00:00:00.000Z") });
     const execute = vi.fn().mockResolvedValue([]);
     vi.spyOn(db, "getDb").mockResolvedValue({ session: { client: { execute } } } as any);
 
@@ -544,6 +545,7 @@ describe("Schedules - datetime and reminder persistence", () => {
     expect(execute).toHaveBeenCalledTimes(1);
     const dueAt = execute.mock.calls[0][1][6] as Date;
     expect(formatKstLocalDateTime(dueAt)).toBe("2026-05-22T11:30:00");
+    vi.useRealTimers();
   });
 });
 
