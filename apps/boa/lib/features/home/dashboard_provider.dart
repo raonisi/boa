@@ -48,6 +48,9 @@ class DashboardTodayPayload {
     required this.todaySchedules,
     required this.incompleteSchedules,
     required this.pendingNotifications,
+    required this.todayFollowUps,
+    required this.overdueFollowUps,
+    required this.longUnmanagedCustomers,
   });
 
   final String? scope;
@@ -55,6 +58,9 @@ class DashboardTodayPayload {
   final List<Map<String, dynamic>> todaySchedules;
   final List<Map<String, dynamic>> incompleteSchedules;
   final List<Map<String, dynamic>> pendingNotifications;
+  final List<Map<String, dynamic>> todayFollowUps;
+  final List<Map<String, dynamic>> overdueFollowUps;
+  final List<Map<String, dynamic>> longUnmanagedCustomers;
 
   factory DashboardTodayPayload.fromJson(Map<String, dynamic> json) {
     List<Map<String, dynamic>> listOfMaps(String key) {
@@ -72,6 +78,9 @@ class DashboardTodayPayload {
       todaySchedules: listOfMaps('todaySchedules'),
       incompleteSchedules: listOfMaps('incompleteSchedules'),
       pendingNotifications: listOfMaps('pendingNotifications'),
+      todayFollowUps: listOfMaps('todayFollowUps'),
+      overdueFollowUps: listOfMaps('overdueFollowUps'),
+      longUnmanagedCustomers: listOfMaps('longUnmanagedCustomers'),
     );
   }
 }

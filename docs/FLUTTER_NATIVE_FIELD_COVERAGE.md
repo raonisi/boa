@@ -47,7 +47,7 @@ Status legend:
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | 로그인 | Native 완료 | Native 완료 | P0 | `SignInScreen` + Google OAuth + secure session | |
 | 2 | 홈 대시보드 | Native 완료 | Native 고도화 필요 | P0 | `HomeTab` + `dashboardTodayWorkProvider` | KPI·오늘 할 일 hierarchy polish |
-| 3 | 오늘 할 일 | Native 완료 | Native 고도화 필요 | P0 | Dashboard cards + calendar/follow-up links | Field Command Center 방향 |
+| 3 | 오늘 할 일 | Native 완료 | Native 완료 | P0 | `FieldCommandCenterView` (`HomeTab`) | 후속 Quick Action·일정 완료·알림 요약 |
 | 4 | 고객 목록 | Native 완료 | Native 고도화 필요 | P0 | `CustomersTab` + search debounce | Empty/loading polish 적용 |
 | 5 | 고객 검색 | Native 완료 | Native 완료 | P0 | `/api/mobile/customers?search=` | |
 | 6 | 고객 상세 | Native 완료 | Native 고도화 필요 | P0 | `CustomerDetailScreen` | 360° native upgrade 예정 |
@@ -120,7 +120,7 @@ Status legend:
 
 | PR | 목적 | 주요 화면 | 위험도 | 권장 검수 방식 |
 | --- | --- | --- | --- | --- |
-| 1. Flutter Field Command Center | 홈·오늘 할 일·빠른 실행 통합 | `HomeTab`, shell | 낮음 | `[TEST]` 고객 + role smoke |
+| 1. Flutter Field Command Center | 홈·오늘 할 일·빠른 실행 통합 (**완료**) | `HomeTab`, `field_command_center.dart` | 낮음 | `[TEST]` 고객 + role smoke |
 | 2. CustomerDetail 360 Native Upgrade | 상담상태·우선순위·상담기록 Native | `CustomerDetailScreen` | 중간 | scope·RBAC API 검증 |
 | 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX | `CalendarTab`, follow-up tiles | 낮음 | mobile API smoke |
 | 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 | `ContractCreateScreen`, contracts | 중간 | Web 동일 필드·RBAC |

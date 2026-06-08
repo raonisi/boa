@@ -1,0 +1,960 @@
+import 'package:boa/core/api/mobile_work_api.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/features/calendar/calendar_agenda_provider.dart';
+import 'package:boa/features/contracts/contract_create_screen.dart';
+import 'package:boa/features/contracts/contracts_providers.dart';
+import 'package:boa/features/customers/customer_detail_screen.dart';
+import 'package:boa/features/home/dashboard_provider.dart';
+import 'package:boa/features/home/field_command_helpers.dart';
+import 'package:boa/features/home/field_recent_contracts_provider.dart';
+import 'package:boa/features/more/performance_screen.dart';
+import 'package:boa/features/more/performance_stats_provider.dart';
+import 'package:boa/features/notifications/notification_priority.dart';
+import 'package:boa/features/notifications/notifications_providers.dart';
+import 'package:boa/features/notifications/unread_count_provider.dart';
+import 'package:boa/features/shell/shell_tab_provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+void invalidateFieldCommandData(WidgetRef ref) {
+  ref.invalidate(dashboardTodayWorkProvider);
+  ref.invalidate(unreadNotificationCountProvider);
+  ref.invalidate(calendarAgendaProvider);
+  ref.invalidate(performanceStatsProvider);
+  ref.invalidate(fieldRecentContractsProvider);
+}
+
+/// 현장 설계사용 Field Command Center — 오늘 실행 업무 보드.
+class FieldCommandCenterView extends ConsumerWidget {
+  const FieldCommandCenterView({
+    super.key,
+    required this.payload,
+    required this.userName,
+  });
+
+  final DashboardTodayPayload payload;
+  final String? userName;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final c = payload.cards;
+    final unreadAsync = ref.watch(unreadNotificationCountProvider);
+    final todayActionCount = fieldTodayActionCount(
+      todayFollowUpCount: c.todayFollowUpCount,
+      todayScheduleCount: c.todayScheduleCount,
+      pendingNotificationCount: c.pendingNotificationCount,
+    );
+    final contactQueue = fieldMergeContactQueue(
+      overdue: payload.overdueFollowUps,
+      today: payload.todayFollowUps,
+    );
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        invalidateFieldCommandData(ref);
+        await Future.wait<void>([
+          ref.read(dashboardTodayWorkProvider.future),
+          ref.read(unreadNotificationCountProvider.future),
+          ref.read(calendarAgendaProvider.future),
+          ref.read(performanceStatsProvider.future),
+          ref.read(fieldRecentContractsProvider.future),
+        ]);
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+        children: [
+          if (userName != null)
+            Text(
+              '$userName님, 오늘 할 일',
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+            ),
+          const SizedBox(height: 4),
+          Text(
+            '연락 · 일정 · 알림을 한 화면에서 바로 처리하세요.',
+            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: 16),
+          _HeroSummaryCard(
+            theme: theme,
+            todayActionCount: todayActionCount,
+            overdueFollowUpCount: c.overdueFollowUpCount,
+            todayScheduleCount: c.todayScheduleCount,
+            pendingNotificationCount: c.pendingNotificationCount,
+            monthlyContractCount: c.monthlyContractCount,
+            monthlyPremiumSum: c.monthlyPremiumSum,
+            unreadAsync: unreadAsync,
+            onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
+            onOpenNotifications: () => ref.read(shellTabIndexProvider.notifier).state = 4,
+            onOpenContracts: () => ref.read(shellTabIndexProvider.notifier).state = 2,
+          ),
+          const SizedBox(height: 16),
+          _FieldCommandQuickActions(
+            onSearchCustomers: () => ref.read(shellTabIndexProvider.notifier).state = 1,
+            onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
+            onCreateContract: () {
+              Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(builder: (_) => const ContractCreateScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 20),
+          _SectionHeader(
+            title: '오늘 연락할 고객',
+            actionLabel: contactQueue.isNotEmpty ? '전체 일정' : null,
+            onAction: contactQueue.isNotEmpty ? () => ref.read(shellTabIndexProvider.notifier).state = 3 : null,
+          ),
+          const SizedBox(height: 8),
+          if (contactQueue.isEmpty)
+            const BoaEmptyState(
+              icon: Icons.call_missed_outgoing_outlined,
+              title: '오늘 연락 예정 고객이 없습니다',
+              message: '후속관리가 등록되면 여기에 표시됩니다.',
+            )
+          else
+            ...contactQueue.map(
+              (raw) => _FollowUpActionTile(
+                key: ValueKey('fu-${raw['id']}'),
+                raw: raw,
+                isOverdue: payload.overdueFollowUps.any((o) => fieldCoerceId(o['id']) == fieldCoerceId(raw['id'])),
+              ),
+            ),
+          const SizedBox(height: 20),
+          _SectionHeader(
+            title: '오늘 일정',
+            actionLabel: '캘린더',
+            onAction: () => ref.read(shellTabIndexProvider.notifier).state = 3,
+          ),
+          const SizedBox(height: 8),
+          if (payload.todaySchedules.isEmpty)
+            const BoaEmptyState(
+              icon: Icons.event_available_outlined,
+              title: '오늘 예정된 일정이 없습니다',
+              message: '캘린더에서 일정을 등록할 수 있습니다.',
+            )
+          else
+            ...payload.todaySchedules.take(6).map(
+                  (s) => _ScheduleActionTile(
+                    key: ValueKey('sch-${s['id']}'),
+                    raw: s,
+                  ),
+                ),
+          const SizedBox(height: 20),
+          _RecentContractsSection(theme: theme),
+          const SizedBox(height: 20),
+          _NotificationSummarySection(
+            theme: theme,
+            notifications: payload.pendingNotifications,
+            onOpenNotifications: () => ref.read(shellTabIndexProvider.notifier).state = 4,
+          ),
+          if (payload.longUnmanagedCustomers.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _SectionHeader(
+              title: '관리 필요 고객',
+              actionLabel: '고객 목록',
+              onAction: () => ref.read(shellTabIndexProvider.notifier).state = 1,
+            ),
+            const SizedBox(height: 8),
+            ...payload.longUnmanagedCustomers.take(5).map(
+                  (c) => _LongUnmanagedCustomerTile(
+                    key: ValueKey('lum-${c['id']}'),
+                    raw: c,
+                  ),
+                ),
+          ],
+          const SizedBox(height: 16),
+          _MonthlyPerformanceCard(theme: theme),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroSummaryCard extends StatelessWidget {
+  const _HeroSummaryCard({
+    required this.theme,
+    required this.todayActionCount,
+    required this.overdueFollowUpCount,
+    required this.todayScheduleCount,
+    required this.pendingNotificationCount,
+    required this.monthlyContractCount,
+    required this.monthlyPremiumSum,
+    required this.unreadAsync,
+    required this.onOpenCalendar,
+    required this.onOpenNotifications,
+    required this.onOpenContracts,
+  });
+
+  final ThemeData theme;
+  final int todayActionCount;
+  final int overdueFollowUpCount;
+  final int todayScheduleCount;
+  final int pendingNotificationCount;
+  final int monthlyContractCount;
+  final int monthlyPremiumSum;
+  final AsyncValue<int> unreadAsync;
+  final VoidCallback onOpenCalendar;
+  final VoidCallback onOpenNotifications;
+  final VoidCallback onOpenContracts;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    final headline = todayActionCount == 0 && overdueFollowUpCount == 0
+        ? '오늘 예정된 업무가 없습니다'
+        : '오늘 처리할 업무 $todayActionCount건';
+
+    return Card(
+      elevation: 0,
+      color: cs.primaryContainer.withValues(alpha: 0.35),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              headline,
+              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+            ),
+            if (overdueFollowUpCount > 0)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '연체 재연락 $overdueFollowUpCount건 — 우선 처리하세요',
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                ),
+              ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _SummaryMetric(
+                  label: '오늘 일정',
+                  value: '$todayScheduleCount',
+                  onTap: onOpenCalendar,
+                ),
+                _SummaryMetric(
+                  label: '미처리 알림',
+                  value: '$pendingNotificationCount',
+                  onTap: onOpenNotifications,
+                ),
+                _SummaryMetric(
+                  label: '연체 재연락',
+                  value: '$overdueFollowUpCount',
+                  onTap: onOpenCalendar,
+                  accent: overdueFollowUpCount > 0 ? Colors.red.shade700 : null,
+                ),
+                unreadAsync.when(
+                  data: (n) => _SummaryMetric(
+                    label: '미읽음',
+                    value: '$n',
+                    onTap: onOpenNotifications,
+                  ),
+                  loading: () => _SummaryMetric(label: '미읽음', value: '…', onTap: onOpenNotifications),
+                  error: (_, __) => _SummaryMetric(label: '미읽음', value: '—', onTap: onOpenNotifications),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: onOpenContracts,
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Text(
+                  '이번 달 신규 계약 $monthlyContractCount건 · 월납 ${fieldCommaInt(monthlyPremiumSum)}원',
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryMetric extends StatelessWidget {
+  const _SummaryMetric({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.accent,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  final Color? accent;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: accent ?? theme.colorScheme.onSurface,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({
+    required this.title,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final String title;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        if (actionLabel != null && onAction != null)
+          TextButton(onPressed: onAction, child: Text(actionLabel!)),
+      ],
+    );
+  }
+}
+
+class _FieldCommandQuickActions extends StatelessWidget {
+  const _FieldCommandQuickActions({
+    required this.onSearchCustomers,
+    required this.onOpenCalendar,
+    required this.onCreateContract,
+  });
+
+  final VoidCallback onSearchCustomers;
+  final VoidCallback onOpenCalendar;
+  final VoidCallback onCreateContract;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('빠른 실행', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _QuickActionButton(icon: Icons.search, label: '고객 검색', onTap: onSearchCustomers),
+              const SizedBox(width: 8),
+              _QuickActionButton(
+                icon: Icons.edit_note_outlined,
+                label: '상담기록',
+                onTap: () {
+                  onSearchCustomers();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('고객을 선택한 뒤 상세 화면에서 상담기록을 작성하세요.')),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+              _QuickActionButton(icon: Icons.call_missed_outgoing_outlined, label: '후속관리', onTap: onOpenCalendar),
+              const SizedBox(width: 8),
+              _QuickActionButton(icon: Icons.event_outlined, label: '일정 등록', onTap: onOpenCalendar),
+              const SizedBox(width: 8),
+              _QuickActionButton(icon: Icons.description_outlined, label: '계약 등록', onTap: onCreateContract),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickActionButton extends StatelessWidget {
+  const _QuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 88,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 22, color: theme.colorScheme.primary),
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.labelSmall,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FollowUpActionTile extends ConsumerStatefulWidget {
+  const _FollowUpActionTile({super.key, required this.raw, required this.isOverdue});
+
+  final Map<String, dynamic> raw;
+  final bool isOverdue;
+
+  @override
+  ConsumerState<_FollowUpActionTile> createState() => _FollowUpActionTileState();
+}
+
+class _FollowUpActionTileState extends ConsumerState<_FollowUpActionTile> {
+  int? _busy;
+
+  Future<void> _run(int id, Future<void> Function() action) async {
+    if (_busy != null) return;
+    setState(() => _busy = id);
+    try {
+      await action();
+      invalidateFieldCommandData(ref);
+      boaLightSuccessHaptic();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('반영되었습니다.')));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (mounted) setState(() => _busy = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final raw = widget.raw;
+    final followUpId = fieldCoerceId(raw['id']);
+    final customerId = fieldCoerceId(raw['customerId']);
+    final customerName = '${raw['customerName'] ?? ''}'.trim();
+    final reason = '${raw['reason'] ?? ''}'.trim();
+    final nextAction = '${raw['nextAction'] ?? ''}'.trim();
+    final status = '${raw['status'] ?? ''}';
+    final canAct = followUpId != null && fieldIsOpenFollowUp(status);
+    final busy = _busy == followUpId;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            InkWell(
+              onTap: customerId == null
+                  ? null
+                  : () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: customerId)),
+                      );
+                    },
+              borderRadius: BorderRadius.circular(8),
+              child: Row(
+                children: [
+                  if (widget.isOverdue)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text('연체', style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          customerName.isNotEmpty ? customerName : (reason.isNotEmpty ? reason : '후속관리'),
+                          style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          [
+                            if (reason.isNotEmpty && customerName.isNotEmpty) reason,
+                            fieldFmtDateTime(raw['nextContactDate']),
+                            if (nextAction.isNotEmpty) nextAction,
+                          ].where((e) => e.isNotEmpty).join(' · '),
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (customerId != null) const Icon(Icons.chevron_right, size: 20),
+                ],
+              ),
+            ),
+            if (canAct) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  _ActionChip(
+                    label: '완료',
+                    icon: Icons.check_circle_outline,
+                    loading: busy,
+                    onPressed: busy ? null : () => _run(followUpId, () => mobileCompleteFollowUp(ref, followUpId)),
+                  ),
+                  _ActionChip(
+                    label: '내일',
+                    icon: Icons.today_outlined,
+                    loading: busy,
+                    onPressed: busy
+                        ? null
+                        : () {
+                            final next = DateTime.now().add(const Duration(days: 1));
+                            _run(followUpId, () => mobilePostponeFollowUp(ref, followUpId, nextContactDate: fieldDateOnlyApi(next)));
+                          },
+                  ),
+                  _ActionChip(
+                    label: '+3일',
+                    icon: Icons.date_range_outlined,
+                    loading: busy,
+                    onPressed: busy
+                        ? null
+                        : () {
+                            final next = DateTime.now().add(const Duration(days: 3));
+                            _run(followUpId, () => mobilePostponeFollowUp(ref, followUpId, nextContactDate: fieldDateOnlyApi(next)));
+                          },
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ActionChip extends StatelessWidget {
+  const _ActionChip({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.loading = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const SizedBox(
+        width: 72,
+        height: 32,
+        child: Center(child: SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+    return ActionChip(
+      avatar: Icon(icon, size: 16),
+      label: Text(label),
+      onPressed: onPressed,
+      visualDensity: VisualDensity.compact,
+    );
+  }
+}
+
+class _ScheduleActionTile extends ConsumerStatefulWidget {
+  const _ScheduleActionTile({super.key, required this.raw});
+
+  final Map<String, dynamic> raw;
+
+  @override
+  ConsumerState<_ScheduleActionTile> createState() => _ScheduleActionTileState();
+}
+
+class _ScheduleActionTileState extends ConsumerState<_ScheduleActionTile> {
+  bool _busy = false;
+
+  Future<void> _completeSchedule(int sid) async {
+    if (_busy) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _busy = true);
+    try {
+      await mobileCompleteSchedule(ref, sid);
+      invalidateFieldCommandData(ref);
+      boaLightSuccessHaptic();
+      messenger.showSnackBar(const SnackBar(content: Text('일정을 완료했습니다.')));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('$e')));
+    } finally {
+      if (context.mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final raw = widget.raw;
+    final scheduleId = fieldCoerceId(raw['id']);
+    final title = '${raw['title'] ?? '일정'}';
+    final when = fieldFmtTime(raw['startTime']);
+    final status = '${raw['status'] ?? ''}';
+    final canComplete = scheduleId != null && !fieldIsFinishedSchedule(status);
+    final Widget trailing;
+    if (!canComplete) {
+      trailing = const Icon(Icons.chevron_right, size: 20);
+    } else {
+      final sid = scheduleId;
+      trailing = _busy
+          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+          : IconButton(
+              tooltip: '완료',
+              icon: const Icon(Icons.check_circle_outline),
+              onPressed: () => _completeSchedule(sid),
+            );
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        dense: true,
+        title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(when.isNotEmpty ? when : fieldFmtDateTime(raw['startTime'])),
+        trailing: trailing,
+        onTap: () => ref.read(shellTabIndexProvider.notifier).state = 3,
+      ),
+    );
+  }
+}
+
+class _RecentContractsSection extends ConsumerWidget {
+  const _RecentContractsSection({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(fieldRecentContractsProvider);
+    return async.when(
+      data: (items) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SectionHeader(
+              title: '최근 계약',
+              actionLabel: '전체',
+              onAction: () => ref.read(shellTabIndexProvider.notifier).state = 2,
+            ),
+            const SizedBox(height: 8),
+            if (items.isEmpty)
+              const BoaEmptyState(
+                icon: Icons.description_outlined,
+                title: '등록된 계약이 없습니다',
+                message: '계약 등록 후 여기에 표시됩니다.',
+              )
+            else
+              ...items.take(5).map((row) => _ContractPreviewTile(row: row)),
+          ],
+        );
+      },
+      loading: () => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('최근 계약', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          const LinearProgressIndicator(minHeight: 2),
+        ],
+      ),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
+
+class _ContractPreviewTile extends StatelessWidget {
+  const _ContractPreviewTile({required this.row});
+
+  final BoaContractRow row;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final product = row.productName ?? row.company ?? '계약 #${row.id}';
+    final prem = row.monthlyPremium;
+    final premLabel = prem == null ? '' : ' · 월납 ${fieldCommaInt(prem)}원';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        dense: true,
+        title: Text(product, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: Text(
+          [
+            if (row.contractStatus != null && row.contractStatus!.isNotEmpty) row.contractStatus!,
+          ].join() + premLabel,
+          style: theme.textTheme.bodySmall,
+        ),
+        trailing: row.customerId != null ? const Icon(Icons.chevron_right, size: 20) : null,
+        onTap: row.customerId == null
+            ? () => Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(builder: (_) => const ContractCreateScreen()),
+                )
+            : () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CustomerDetailScreen(customerId: row.customerId!),
+                  ),
+                );
+              },
+      ),
+    );
+  }
+}
+
+class _NotificationSummarySection extends ConsumerStatefulWidget {
+  const _NotificationSummarySection({
+    required this.theme,
+    required this.notifications,
+    required this.onOpenNotifications,
+  });
+
+  final ThemeData theme;
+  final List<Map<String, dynamic>> notifications;
+  final VoidCallback onOpenNotifications;
+
+  @override
+  ConsumerState<_NotificationSummarySection> createState() => _NotificationSummarySectionState();
+}
+
+class _NotificationSummarySectionState extends ConsumerState<_NotificationSummarySection> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = widget.theme;
+    final notifications = widget.notifications;
+    final top = sortNotificationsForQueue([...notifications]).take(3).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionHeader(
+          title: '알림 요약',
+          actionLabel: '알림함',
+          onAction: widget.onOpenNotifications,
+        ),
+        const SizedBox(height: 8),
+        if (notifications.isEmpty)
+          const BoaEmptyState(
+            icon: Icons.notifications_none_outlined,
+            title: '처리할 알림이 없습니다',
+            message: '새 알림이 오면 여기에 표시됩니다.',
+          )
+        else
+          ...top.map((n) => _HomeNotificationTile(theme: theme, raw: n, priority: classifyNotificationPriority(n))),
+      ],
+    );
+  }
+}
+
+class _HomeNotificationTile extends ConsumerWidget {
+  const _HomeNotificationTile({required this.theme, required this.raw, required this.priority});
+
+  final ThemeData theme;
+  final Map<String, dynamic> raw;
+  final NotificationPriority priority;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final idVal = raw['id'];
+    final id = idVal is int ? idVal : int.tryParse('$idVal') ?? 0;
+    final title = '${raw['title'] ?? '알림'}';
+    final customerName = '${raw['customerName'] ?? ''}'.trim();
+    final accentColor = switch (priority) {
+      NotificationPriority.urgent => Colors.red.shade400,
+      NotificationPriority.today => Colors.orange.shade400,
+      NotificationPriority.general => Colors.blueGrey.shade400,
+    };
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 4,
+              height: 40,
+              margin: const EdgeInsets.only(top: 2, right: 8),
+              decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(999)),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  if (customerName.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(customerName, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                    ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: id == 0
+                  ? null
+                  : () async {
+                      try {
+                        await markMobileNotificationRead(ref, id);
+                        invalidateFieldCommandData(ref);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('알림을 읽음 처리했습니다.')));
+                        }
+                      } catch (e) {
+                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+                      }
+                    },
+              child: const Text('읽음'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LongUnmanagedCustomerTile extends StatelessWidget {
+  const _LongUnmanagedCustomerTile({super.key, required this.raw});
+
+  final Map<String, dynamic> raw;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final id = fieldCoerceId(raw['id']);
+    final name = '${raw['name'] ?? '고객'}';
+    final status = '${raw['consultStatus'] ?? ''}';
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        dense: true,
+        leading: Icon(Icons.person_outline, color: theme.colorScheme.secondary),
+        title: Text(name, maxLines: 1, overflow: TextOverflow.ellipsis),
+        subtitle: status.isNotEmpty ? Text(status, style: theme.textTheme.bodySmall) : null,
+        trailing: const Icon(Icons.chevron_right, size: 20),
+        onTap: id == null
+            ? null
+            : () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: id)),
+                );
+              },
+      ),
+    );
+  }
+}
+
+class _MonthlyPerformanceCard extends ConsumerWidget {
+  const _MonthlyPerformanceCard({required this.theme});
+
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(performanceStatsProvider);
+    return async.when(
+      data: (stats) {
+        if (stats == null) return const SizedBox.shrink();
+        final contracts = stats['newContractCount'] ?? stats['contractCount'];
+        final contractStr = contracts == null ? '—' : '$contracts';
+        final prem = stats['monthlyPremiumSum'] ?? stats['monthlyPremiumTotal'];
+        String premStr = '—';
+        if (prem is int) premStr = '${fieldCommaInt(prem)}원';
+        if (prem is num) premStr = '${fieldCommaInt(prem.round())}원';
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '이번 달 실적',
+                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(builder: (_) => const PerformanceScreen()),
+                        );
+                      },
+                      child: const Text('상세'),
+                    ),
+                  ],
+                ),
+                Text('신규 계약 $contractStr건 · 월납 $premStr', style: theme.textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        );
+      },
+      loading: () => const Padding(padding: EdgeInsets.only(top: 4), child: LinearProgressIndicator(minHeight: 2)),
+      error: (_, __) => const SizedBox.shrink(),
+    );
+  }
+}
