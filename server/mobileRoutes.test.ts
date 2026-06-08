@@ -44,6 +44,18 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("mobile push preferences", () => {
+  it("requires authentication for preference reads", async () => {
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/mobile/push-preferences`);
+      const body = await response.json();
+
+      expect(response.status).toBe(401);
+      expect(body).toEqual({ error: "Unauthorized" });
+    });
+  });
+});
+
 describe("mobile contract create", () => {
   it("rejects invalid customer id before auth", async () => {
     await withMobileServer(async (baseUrl) => {

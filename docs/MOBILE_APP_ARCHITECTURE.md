@@ -43,7 +43,7 @@ These workflows are implemented or targeted as **Flutter native screens** for th
 | Calendar | Schedule create, complete (일정) |
 | Contracts | Contract list + **native create** (계약 목록·신규 등록) |
 | Notifications | Inbox (알림함) |
-| Push settings | User-facing notification preferences |
+| Push settings | User-facing notification preferences (Flutter `PushPreferencesScreen`, PR19-4) |
 | Performance | Goals and performance summary (성과/목표 현황) |
 
 Native implementation should prefer existing mobile REST endpoints and RBAC rules on the server. Do not weaken scope checks in the client.
@@ -118,8 +118,8 @@ PR19-4 defines user notification preferences and branch-admin push operations. T
 
 | Concern | Direction |
 | --- | --- |
-| User personal notification settings | **Flutter native first** (`push_preferences_screen` and related APIs) |
-| Branch-admin push operation dashboard | **Web admin UI** — not duplicated in Flutter for PR19-4 |
+| User personal notification settings | **Flutter native first** — `PushPreferencesScreen` + `GET/PATCH /api/mobile/push-preferences` |
+| Branch-admin push operation dashboard | **Web admin UI** — `/push-notifications` (`PushNotificationOperations`), branch_admin only |
 | Quiet hours, ON/OFF toggles | Must stay compatible with server policy (`push_notification_preferences`, quiet-hours filter in `sendPushToUsers`) |
 | Device tokens | Keep existing `user_device_tokens` structure and registration flow |
 | Delivery audit | Keep existing `push_notification_logs` structure; no token plaintext in logs |
@@ -136,7 +136,7 @@ PR19-4 defines user notification preferences and branch-admin push operations. T
 Ordered next steps after this document:
 
 1. ~~**Contract registration native migration**~~ — **native create shipped** (`ContractCreateScreen`); contract edit and advanced flows remain WebView until a follow-up PR.
-2. **PR19-4 completion** — Flutter user notification settings + Web branch-admin push operations dashboard.
+2. ~~**PR19-4 completion**~~ — Flutter user notification settings + Web branch-admin push operations dashboard (shipped).
 3. **Flutter pilot deployment checklist** — internal APK distribution, SHA-1/OAuth alignment, FCM smoke, role-based field UAT.
 4. **Capacitor legacy decision** — after pilot stabilization, separate PR to deprecate or remove `capacitor.config.ts` and root `android/app` if no longer needed.
 
