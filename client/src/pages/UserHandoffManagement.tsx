@@ -59,6 +59,12 @@ export default function UserHandoffManagement() {
   const selectedTarget = targetUsers.find((user: any) => user.id === targetUserId);
 
   const canSubmit = !!sourceUserId && !!targetUserId && reason.trim().length >= 5;
+  const handoffScopeSummary = [
+    transferCustomers && "고객·계약",
+    transferFollowUps && "후속관리",
+    transferSchedules && "일정",
+    transferNotifications && "알림",
+  ].filter(Boolean).join(" / ") || "-";
 
   return (
     <DashboardLayout>
@@ -68,7 +74,7 @@ export default function UserHandoffManagement() {
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">User Handoff</p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">인수인계 관리</h1>
             <p className="mt-1 text-sm text-slate-500">
-              퇴사자 또는 조직 이동 대상자의 고객, 후속관리, 미완료 일정, 미확인 알림을 새 담당자에게 안전하게 이관합니다.
+              퇴사자 또는 조직 이동 대상자의 고객, 후속관리, 미완료 일정, 미확인 알림을 인수자에게 안전하게 이관합니다.
             </p>
           </CardContent>
         </Card>
@@ -82,12 +88,13 @@ export default function UserHandoffManagement() {
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-                <p className="mb-3 text-xs font-semibold text-slate-500">1. 인수인계 대상 선택</p>
+                <p className="mb-3 text-xs font-semibold text-slate-500">1. 인계자 · 인수자 선택</p>
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="space-y-2">
-                    <Label>대상 사용자</Label>
+                    <Label>인계자</Label>
+                    <p className="text-xs leading-relaxed text-muted-foreground">업무를 넘기는 사용자</p>
                     <Select value={sourceUserId ? String(sourceUserId) : ""} onValueChange={(value) => { setSourceUserId(Number(value)); setTargetUserId(null); }}>
-                      <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="이관할 사용자를 선택" /></SelectTrigger>
+                      <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="업무를 넘기는 사용자를 선택하세요" /></SelectTrigger>
                       <SelectContent>
                         {sourceUsers.map((user: any) => (
                           <SelectItem key={user.id} value={String(user.id)}>
@@ -96,11 +103,15 @@ export default function UserHandoffManagement() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      선택한 사용자의 고객, 계약, 후속관리, 일정, 알림을 인수자에게 이관합니다.
+                    </p>
                   </div>
                   <div className="space-y-2">
-                    <Label>새 담당자</Label>
+                    <Label>인수자</Label>
+                    <p className="text-xs leading-relaxed text-muted-foreground">업무를 넘겨받는 사용자</p>
                     <Select value={targetUserId ? String(targetUserId) : ""} onValueChange={(value) => setTargetUserId(Number(value))}>
-                      <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="활성 팀장/팀원 선택" /></SelectTrigger>
+                      <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:min-h-9"><SelectValue placeholder="업무를 넘겨받을 사용자를 선택하세요" /></SelectTrigger>
                       <SelectContent>
                         {targetUsers.map((user: any) => (
                           <SelectItem key={user.id} value={String(user.id)}>
@@ -109,6 +120,9 @@ export default function UserHandoffManagement() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      이 사용자가 인계자의 업무를 넘겨받습니다. 활성 상태의 팀장/팀원만 선택할 수 있습니다.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -156,7 +170,7 @@ export default function UserHandoffManagement() {
                 <p className="mb-3 text-xs font-semibold text-amber-800">3. 실행 후 보안 조치</p>
                 <div className="grid gap-3 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label>대상 계정 처리</Label>
+                    <Label>인계자 계정 처리</Label>
                     <Select value={updateSourceAccountStatus} onValueChange={(value) => setUpdateSourceAccountStatus(value as any)}>
                       <SelectTrigger className="min-h-12 rounded-xl bg-white md:min-h-9"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -209,15 +223,19 @@ export default function UserHandoffManagement() {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <p className="text-xs text-muted-foreground">대상 사용자</p>
+                <p className="text-xs text-muted-foreground">인계자</p>
                 <p className="font-medium">{selectedSource ? formatUserWithRole(selectedSource) : "-"}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">새 담당자</p>
+                <p className="text-xs text-muted-foreground">인수자</p>
                 <p className="font-medium">{selectedTarget ? formatUserWithRole(selectedTarget) : "-"}</p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-muted-foreground">
-                새 담당자는 활성 상태의 팀장/팀원만 허용됩니다. 고객의 팀과 부지점장 범위는 새 담당자 기준으로 동기화됩니다.
+              <div>
+                <p className="text-xs text-muted-foreground">이관 범위</p>
+                <p className="font-medium">{handoffScopeSummary}</p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-xs leading-relaxed text-muted-foreground">
+                인수자는 활성 상태의 팀장/팀원만 허용됩니다. 고객의 팀과 부지점장 범위는 인수자 기준으로 동기화됩니다.
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3 text-xs text-muted-foreground">
                 고객별 인수인계 메모는 고객 상세 화면의 인수인계 메모 카드에서 작성할 수 있습니다. 민감정보는 메모에 입력하지 마세요.
@@ -240,7 +258,7 @@ export default function UserHandoffManagement() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-xs font-semibold text-[#b99b5f]">인수인계 이력</p>
-                    <p className="mt-1 text-base font-semibold text-slate-950">#{item.sourceUserId} → #{item.targetUserId}</p>
+                    <p className="mt-1 text-base font-semibold text-slate-950">인계자 #{item.sourceUserId} → 인수자 #{item.targetUserId}</p>
                   </div>
                   <span className="shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
                     {new Date(item.createdAt).toLocaleDateString("ko-KR")}
@@ -263,8 +281,8 @@ export default function UserHandoffManagement() {
               <TableHeader className="bg-slate-50/80">
                 <TableRow>
                   <TableHead>일시</TableHead>
-                  <TableHead>source</TableHead>
-                  <TableHead>target</TableHead>
+                  <TableHead>인계자</TableHead>
+                  <TableHead>인수자</TableHead>
                   <TableHead>고객/후속/일정/알림</TableHead>
                   <TableHead>상태 변경</TableHead>
                 </TableRow>
@@ -290,10 +308,16 @@ export default function UserHandoffManagement() {
           <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-amber-600" /> 인수인계 최종 확인
+                <ShieldAlert className="h-4 w-4 text-amber-600" /> 인수인계 실행 확인
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 text-sm">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 space-y-2">
+                <p><span className="text-muted-foreground">인계자:</span> {selectedSource ? formatUserWithRole(selectedSource) : "-"}</p>
+                <p><span className="text-muted-foreground">인수자:</span> {selectedTarget ? formatUserWithRole(selectedTarget) : "-"}</p>
+                <p><span className="text-muted-foreground">이관 범위:</span> {handoffScopeSummary}</p>
+              </div>
+              <p className="text-amber-800">실행 후 선택한 업무가 인수자에게 이관됩니다. 인계자와 인수자를 다시 확인하세요.</p>
               <p>이 작업은 고객 담당자와 미완료 업무 담당자를 변경합니다. 기존 상담기록과 활동 로그는 변경하지 않습니다.</p>
               <p className="text-muted-foreground">진행하려면 아래 입력창에 “인수인계”를 입력하세요.</p>
               <Input className="min-h-12 md:min-h-9" value={confirmText} onChange={(event) => setConfirmText(event.target.value)} placeholder="인수인계" />
