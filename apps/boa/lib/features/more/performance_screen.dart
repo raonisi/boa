@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +24,11 @@ class PerformanceScreen extends ConsumerWidget {
       body: async.when(
         data: (stats) {
           if (stats == null) {
-            return Center(child: Text('데이터가 없습니다.', style: theme.textTheme.bodyLarge));
+            return const BoaEmptyState(
+              icon: Icons.bar_chart_outlined,
+              title: '이번 달 실적 데이터가 없습니다.',
+              message: '계약·상담이 등록되면 실적이 집계됩니다.',
+            );
           }
           final rows = <(String label, dynamic value)>[
             ('배정', stats['assigned']),
@@ -61,8 +66,12 @@ class PerformanceScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('$e', textAlign: TextAlign.center))),
+        loading: () => const BoaListLoadingSkeleton(itemCount: 3),
+        error: (e, _) => BoaErrorState(
+          title: '실적을 불러오지 못했습니다',
+          message: '$e',
+          onRetry: () => ref.invalidate(performanceStatsProvider),
+        ),
       ),
     );
   }

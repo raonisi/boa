@@ -1,5 +1,6 @@
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
@@ -51,21 +52,33 @@ class CalendarTab extends ConsumerWidget {
                 Text('연체 후속관리', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 if (agenda.followUpsOverdue.isEmpty)
-                  Text('없음', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant))
+                  const BoaEmptyState(
+                    icon: Icons.warning_amber_outlined,
+                    title: '연체 후속관리가 없습니다.',
+                    message: '기한이 지난 후속 일정이 없습니다.',
+                  )
                 else
                   ...agenda.followUpsOverdue.map((f) => _FollowUpCard(theme: theme, raw: f)),
                 const SizedBox(height: 24),
                 Text('오늘·예정 후속관리', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 if (agenda.followUpsToday.isEmpty)
-                  Text('없음', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant))
+                  const BoaEmptyState(
+                    icon: Icons.today_outlined,
+                    title: '오늘 예정된 후속관리가 없습니다.',
+                    message: '고객 상세에서 후속 일정을 등록할 수 있습니다.',
+                  )
                 else
                   ...agenda.followUpsToday.map((f) => _FollowUpCard(theme: theme, raw: f)),
                 const SizedBox(height: 24),
                 Text('일정 (가까운 순)', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
                 const SizedBox(height: 8),
                 if (scheduleRows.isEmpty)
-                  Text('없음', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant))
+                  const BoaEmptyState(
+                    icon: Icons.event_available_outlined,
+                    title: '등록된 일정이 없습니다.',
+                    message: '하단 일정 등록으로 상담·재통화 일정을 추가하세요.',
+                  )
                 else
                   ...scheduleRows.map((s) => _ScheduleCard(theme: theme, raw: s)),
               ],
@@ -88,7 +101,7 @@ class CalendarTab extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const BoaListLoadingSkeleton(itemCount: 3),
       error: (e, _) => RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(calendarAgendaProvider);
@@ -98,7 +111,11 @@ class CalendarTab extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(24),
           children: [
-            Text('$e', textAlign: TextAlign.center),
+            BoaErrorState(
+              title: '일정을 불러오지 못했습니다',
+              message: '다시 시도해 주세요.',
+              onRetry: () => ref.invalidate(calendarAgendaProvider),
+            ),
           ],
         ),
       ),
@@ -395,7 +412,10 @@ class _CreateScheduleDialogState extends ConsumerState<_CreateScheduleDialog> {
         endTime: end.toIso8601String(),
         memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
       );
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        boaLightSuccessHaptic();
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {

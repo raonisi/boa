@@ -2,6 +2,7 @@ import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
@@ -61,12 +62,15 @@ class CustomerDetailScreen extends ConsumerWidget {
       floatingActionButton: detailReady
           ? FloatingActionButton.extended(
               onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
                 final ok = await showDialog<bool>(
                   context: context,
                   builder: (ctx) => _CreateFollowUpDialog(customerId: customerId),
                 );
-                if (ok == true && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('후속관리를 등록했습니다.')));
+                if (!context.mounted) return;
+                if (ok == true) {
+                  boaLightSuccessHaptic();
+                  messenger.showSnackBar(const SnackBar(content: Text('후속관리를 등록했습니다.')));
                 }
               },
               icon: const Icon(Icons.add_task_outlined),
@@ -116,7 +120,9 @@ class CustomerDetailScreen extends ConsumerWidget {
                     ),
                     FilledButton.tonalIcon(
                       onPressed: () async {
-                        final ok = await Navigator.of(context).push<bool>(
+                        final navigator = Navigator.of(context);
+                        final messenger = ScaffoldMessenger.of(context);
+                        final ok = await navigator.push<bool>(
                           MaterialPageRoute<bool>(
                             builder: (_) => ContractCreateScreen(
                               customerId: customerId,
@@ -124,11 +130,14 @@ class CustomerDetailScreen extends ConsumerWidget {
                             ),
                           ),
                         );
-                        if (ok == true && context.mounted) {
+                        if (!context.mounted) return;
+                        if (ok == true) {
                           ref.invalidate(customerContractsProvider(customerId));
                           ref.invalidate(customerDetailProvider(customerId));
                           await ref.read(contractsListNotifierProvider.notifier).refresh();
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          if (!context.mounted) return;
+                          boaLightSuccessHaptic();
+                          messenger.showSnackBar(
                             const SnackBar(content: Text('계약을 등록했습니다.')),
                           );
                         }
@@ -142,9 +151,10 @@ class CustomerDetailScreen extends ConsumerWidget {
                 contractsAsync.when(
                   data: (rows) {
                     if (rows.isEmpty) {
-                      return Text(
-                        '등록된 계약이 없습니다.',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      return const BoaEmptyState(
+                        icon: Icons.description_outlined,
+                        title: '등록된 계약이 없습니다.',
+                        message: '위 신규 계약 버튼으로 현장에서 바로 등록할 수 있습니다.',
                       );
                     }
                     return Column(
@@ -191,9 +201,10 @@ class CustomerDetailScreen extends ConsumerWidget {
                 followUpsAsync.when(
                   data: (rows) {
                     if (rows.isEmpty) {
-                      return Text(
-                        '등록된 후속관리가 없습니다.',
-                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      return const BoaEmptyState(
+                        icon: Icons.add_task_outlined,
+                        title: '오늘 예정된 후속관리가 없습니다.',
+                        message: '하단 후속 등록 버튼으로 다음 연락 일정을 잡아 보세요.',
                       );
                     }
                     return Column(
@@ -444,7 +455,10 @@ class _CreateFollowUpDialogState extends ConsumerState<_CreateFollowUpDialog> {
       ref.invalidate(customerFollowUpsProvider(widget.customerId));
       ref.invalidate(dashboardTodayWorkProvider);
       ref.invalidate(calendarAgendaProvider);
-      if (mounted) Navigator.of(context).pop(true);
+      if (mounted) {
+        boaLightSuccessHaptic();
+        Navigator.of(context).pop(true);
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
     } finally {

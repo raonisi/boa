@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:flutter/material.dart';
@@ -127,24 +128,13 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
     CustomerListState listState,
   ) {
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const BoaListLoadingSkeleton();
     }
     if (listState.errorMessage != null && listState.items.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text('목록을 불러오지 못했습니다', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            listState.errorMessage!,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-          ),
-          const SizedBox(height: 16),
-          FilledButton.tonal(
-            onPressed: () => ref.read(customersListNotifierProvider.notifier).refresh(),
-            child: const Text('다시 시도'),
-          ),
-        ],
+      return BoaErrorState(
+        title: '고객 목록을 불러오지 못했습니다',
+        message: listState.errorMessage!,
+        onRetry: () => ref.read(customersListNotifierProvider.notifier).refresh(),
       );
     }
     final rows = listState.items;
@@ -157,17 +147,12 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
           children: [
             SizedBox(
               height: MediaQuery.sizeOf(context).height * 0.65,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    appliedQuery.isNotEmpty
-                        ? '검색 결과가 없습니다.'
-                        : '등록된 고객이 없거나 목록이 비어 있습니다.',
-                    style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+              child: BoaEmptyState(
+                icon: Icons.people_outline,
+                title: appliedQuery.isNotEmpty ? '검색 결과가 없습니다.' : '아직 등록된 고객이 없습니다.',
+                message: appliedQuery.isNotEmpty
+                    ? '이름 또는 전화번호를 다시 확인해 주세요.'
+                    : '담당 고객이 배정되면 이곳에 표시됩니다.',
               ),
             ),
           ],

@@ -348,7 +348,18 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(widget.title),
+              Text(
+                '관리자 웹 화면 · 별도 로그인 필요',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
           bottom: _loading
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(3),

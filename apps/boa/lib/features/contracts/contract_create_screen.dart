@@ -2,6 +2,7 @@ import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/contracts/contract_agents_provider.dart';
 import 'package:boa/features/contracts/contract_create_logic.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
@@ -203,6 +204,7 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
       ref.invalidate(customerDetailProvider(customerId));
       await ref.read(contractsListNotifierProvider.notifier).refresh();
       if (!mounted) return;
+      boaLightSuccessHaptic();
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {

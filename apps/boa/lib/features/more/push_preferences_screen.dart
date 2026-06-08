@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/more/push_preferences_logic.dart';
 import 'package:boa/features/more/push_preferences_provider.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,7 @@ class PushPreferencesScreen extends ConsumerWidget {
                           final ok = await notifier.save(prefs);
                           if (!context.mounted) return;
                           if (ok) {
+                            boaLightSuccessHaptic();
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(content: Text('알림 설정을 저장했습니다.')),
                             );

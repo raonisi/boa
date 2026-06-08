@@ -1,5 +1,6 @@
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/more/performance_screen.dart';
@@ -134,23 +135,20 @@ class HomeTab extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const BoaListLoadingSkeleton(itemCount: 3),
       error: (e, _) => ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(24),
         children: [
-          Text('불러오기 실패', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text('$e', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error)),
-          const SizedBox(height: 16),
-          FilledButton.tonal(
-            onPressed: () {
+          BoaErrorState(
+            title: '대시보드를 불러오지 못했습니다',
+            message: '네트워크 상태를 확인한 뒤 다시 시도해 주세요.',
+            onRetry: () {
               ref.invalidate(dashboardTodayWorkProvider);
               ref.invalidate(unreadNotificationCountProvider);
               ref.invalidate(calendarAgendaProvider);
               ref.invalidate(performanceStatsProvider);
             },
-            child: const Text('다시 시도'),
           ),
         ],
       ),
@@ -523,13 +521,13 @@ class _InlinePriorityPill extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.18) : color.withOpacity(0.1),
+          color: selected ? color.withValues(alpha: 0.18) : color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: selected ? color.withOpacity(0.6) : color.withOpacity(0.25)),
+          border: Border.all(color: selected ? color.withValues(alpha: 0.6) : color.withValues(alpha: 0.25)),
         ),
         child: Text(
           '$label $count건',
-          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withOpacity(selected ? 1 : 0.88)),
+          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: color.withValues(alpha: selected ? 1 : 0.88)),
         ),
       ),
     );

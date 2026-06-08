@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/more/goals_dashboard_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -23,7 +24,11 @@ class GoalsScreen extends ConsumerWidget {
       body: async.when(
         data: (dash) {
           if (dash == null) {
-            return const Center(child: Text('데이터가 없습니다.'));
+            return const BoaEmptyState(
+              icon: Icons.flag_outlined,
+              title: '설정된 목표가 없습니다.',
+              message: '목표가 등록되면 달성률이 표시됩니다.',
+            );
           }
           final year = dash['year'];
           final month = dash['month'];
@@ -83,8 +88,12 @@ class GoalsScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Padding(padding: const EdgeInsets.all(24), child: Text('$e', textAlign: TextAlign.center))),
+        loading: () => const BoaListLoadingSkeleton(itemCount: 2),
+        error: (e, _) => BoaErrorState(
+          title: '목표를 불러오지 못했습니다',
+          message: '$e',
+          onRetry: () => ref.invalidate(goalsDashboardProvider),
+        ),
       ),
     );
   }

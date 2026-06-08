@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/notifications/notification_priority.dart';
 import 'package:boa/features/notifications/notifications_providers.dart';
@@ -58,25 +59,13 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
     }
 
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const BoaListLoadingSkeleton();
     }
 
     if (listState.errorMessage != null && listState.items.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(listState.errorMessage!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton(
-                onPressed: () => ref.read(notificationsListNotifierProvider.notifier).refresh(),
-                child: const Text('다시 시도'),
-              ),
-            ],
-          ),
-        ),
+      return BoaErrorState(
+        message: listState.errorMessage!,
+        onRetry: () => ref.read(notificationsListNotifierProvider.notifier).refresh(),
       );
     }
 
@@ -175,12 +164,15 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
             const SizedBox(height: 12),
             if (sortedItems.isEmpty)
               Padding(
-                padding: const EdgeInsets.only(top: 32),
-                child: Center(
-                  child: Text(
-                    _priorityFilter == _NotificationFilter.all ? '알림이 없습니다.' : '선택한 우선순위 알림이 없습니다.',
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
+                padding: const EdgeInsets.only(top: 16),
+                child: BoaEmptyState(
+                  icon: Icons.notifications_none_outlined,
+                  title: _priorityFilter == _NotificationFilter.all
+                      ? '새 알림이 없습니다.'
+                      : '선택한 우선순위 알림이 없습니다.',
+                  message: _priorityFilter == _NotificationFilter.all
+                      ? '업무 알림이 도착하면 이곳에 표시됩니다.'
+                      : '다른 필터를 선택해 보세요.',
                 ),
               )
             else
@@ -214,8 +206,12 @@ class _PriorityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected ? toneColor.withOpacity(0.12) : Theme.of(context).colorScheme.surfaceContainerHighest.withOpacity(0.45);
-    final border = selected ? toneColor.withOpacity(0.45) : Theme.of(context).colorScheme.outline.withOpacity(0.3);
+    final bg = selected
+        ? toneColor.withValues(alpha: 0.12)
+        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
+    final border = selected
+        ? toneColor.withValues(alpha: 0.45)
+        : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3);
     final textColor = selected ? toneColor : Theme.of(context).colorScheme.onSurface;
 
     return InkWell(

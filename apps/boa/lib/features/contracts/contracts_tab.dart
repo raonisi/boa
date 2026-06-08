@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
@@ -125,8 +126,11 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
               builder: (_) => const ContractCreateScreen(),
             ),
           );
-          if (ok == true && context.mounted) {
+          if (!context.mounted) return;
+          if (ok == true) {
             await ref.read(contractsListNotifierProvider.notifier).refresh();
+            if (!context.mounted) return;
+            boaLightSuccessHaptic();
             messenger.showSnackBar(
               const SnackBar(content: Text('계약을 등록했습니다.')),
             );
@@ -145,23 +149,13 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
     ContractListState listState,
   ) {
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
+      return const BoaListLoadingSkeleton();
     }
     if (listState.errorMessage != null && listState.items.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text('오류', style: theme.textTheme.titleMedium),
-          Text(
-            listState.errorMessage!,
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
-          ),
-          const SizedBox(height: 12),
-          FilledButton.tonal(
-            onPressed: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
-            child: const Text('다시 시도'),
-          ),
-        ],
+      return BoaErrorState(
+        title: '계약 목록을 불러오지 못했습니다',
+        message: listState.errorMessage!,
+        onRetry: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
       );
     }
     final rows = listState.items;
@@ -174,15 +168,12 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
           children: [
             SizedBox(
               height: MediaQuery.sizeOf(context).height * 0.65,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    appliedQuery.isNotEmpty ? '검색 결과가 없습니다.' : '조회 가능한 계약이 없습니다.',
-                    style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
+              child: BoaEmptyState(
+                icon: Icons.description_outlined,
+                title: appliedQuery.isNotEmpty ? '검색 결과가 없습니다.' : '계약 정보가 없습니다.',
+                message: appliedQuery.isNotEmpty
+                    ? '상품명·보험사·고객번호로 다시 검색해 보세요.'
+                    : '고객 상세 또는 신규 계약 버튼으로 등록할 수 있습니다.',
               ),
             ),
           ],
