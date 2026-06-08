@@ -60,9 +60,9 @@ Status legend:
 | 13 | 일정 생성 | Native 완료 | Native 완료 | P0 | `CreateScheduleDialog` / `CreateCustomerScheduleDialog` | Calendar·고객 상세·quick action |
 | 14 | 일정 완료 | Native 완료 | Native 완료 | P0 | `ScheduleQuickActionTile` → `POST .../complete` | 확인 다이얼로그 후 완료 |
 | 15 | 캘린더 / 일정 조회 | Native 완료 | Native 완료 | P1 | `CalendarTab` 오늘/예정 구분 + agenda provider | |
-| 16 | 계약 목록 | Native 완료 | Native 고도화 필요 | P0 | `ContractsTab` | |
-| 17 | 신규 계약 등록 | Native 완료 | Native 고도화 필요 | P0 | `ContractCreateScreen` | 수정·고급 흐름은 WebView |
-| 18 | 월납보험료 / 계약 요약 | Native 완료 | Native 고도화 필요 | P1 | 목록·상세 카드 요약 | 전용 Contract Detail Native는 후속 |
+| 16 | 계약 목록 | Native 완료 | Native 완료 | P0 | `ContractsTab` + `ContractSummaryCard` | 월납 합계·상태 배지 |
+| 17 | 신규 계약 등록 | Native 완료 | Native 완료 | P0 | `ContractCreateScreen` | 고객 context·validation·저장 갱신 |
+| 18 | 월납보험료 / 계약 요약 | Native 완료 | Native 완료 | P1 | `ContractSummaryCard` | CustomerDetail·Field Command Center 공통 |
 | 19 | 알림함 | Native 완료 | Native 고도화 필요 | P0 | `NotificationsTab` | 읽음/필터 polish |
 | 20 | 푸시 알림 설정 | Native 완료 | Native 고도화 필요 | P0 | `PushPreferencesScreen` + PR19-4 mobile API | |
 | 21 | 성과 / 목표 / 부족분 | Native 완료 | Native 고도화 필요 | P1 | `PerformanceScreen`, `GoalsScreen` | |
@@ -123,7 +123,7 @@ Status legend:
 | 1. Flutter Field Command Center | 홈·오늘 할 일·빠른 실행 통합 (**완료**) | `HomeTab`, `field_command_center.dart` | 낮음 | `[TEST]` 고객 + role smoke |
 | 2. CustomerDetail 360 Native Upgrade | 상담상태·우선순위·상담기록 Native (**완료**, 편집/상담기록은 WebView) | `CustomerDetail360View` | 중간 | scope·RBAC API 검증 |
 | 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX (**완료**) | `FollowUpQuickActionTile`, `ScheduleQuickActionTile`, `CalendarTab`, `FieldCommandCenterView`, `CustomerDetail360View` | 낮음 | mobile API smoke |
-| 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 | `ContractCreateScreen`, contracts | 중간 | Web 동일 필드·RBAC |
+| 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 (**완료**) | `ContractCreateScreen`, `ContractSummaryCard`, `ContractsTab`, `CustomerDetail360View` | 중간 | Web 동일 필드·RBAC |
 | 5. Global Search / Quick Create | 통합 검색·빠른 고객 등록 | TBD | 중간 | 검색 scope 서버 검증 |
 | 6. Push Preferences / Notifications Polish | PR19-4 이후 알림 UX | `PushPreferencesScreen`, `NotificationsTab` | 낮음 | push policy checklist |
 | 7. WebView Fallback Polish | 관리자 진입·로딩·뒤로가기 | `CrmWebScreen`, drawer | 낮음 | branch_admin WebView smoke |

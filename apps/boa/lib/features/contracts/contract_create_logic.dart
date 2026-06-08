@@ -19,12 +19,24 @@ String? validateContractCreateForm({
   required int? customerId,
   required bool requiresAgent,
   required int? selectedAgentId,
+  String? company,
+  String? productName,
+  String? monthlyPremiumRaw,
 }) {
   if (customerId == null || customerId <= 0) {
     return '고객을 선택해 주세요.';
   }
+  final companyTrim = company?.trim() ?? '';
+  final productTrim = productName?.trim() ?? '';
+  if (companyTrim.isEmpty && productTrim.isEmpty) {
+    return '보험사 또는 상품명을 입력해 주세요.';
+  }
   if (requiresAgent && selectedAgentId == null) {
     return '계약 담당 설계사를 선택해야 합니다.';
+  }
+  final premiumDigits = monthlyPremiumRaw?.replaceAll(RegExp(r'[^0-9]'), '') ?? '';
+  if (premiumDigits.isNotEmpty && int.tryParse(premiumDigits) == null) {
+    return '월납보험료 형식이 올바르지 않습니다.';
   }
   return null;
 }

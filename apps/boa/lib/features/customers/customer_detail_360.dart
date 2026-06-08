@@ -2,6 +2,8 @@ import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/calendar/schedule_work_logic.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
+import 'package:boa/features/contracts/contract_data_refresh.dart';
+import 'package:boa/features/contracts/contract_summary_card.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customer_contact_actions.dart';
 import 'package:boa/features/customers/customer_contracts_provider.dart';
@@ -182,8 +184,8 @@ class CustomerDetail360View extends ConsumerWidget {
     );
     if (!context.mounted) return;
     if (ok == true) {
+      await refreshContractData(ref, customerId: id);
       refreshFieldWorkData(ref, customerId: id);
-      await ref.read(contractsListNotifierProvider.notifier).refresh();
       if (!context.mounted) return;
       boaLightSuccessHaptic();
       messenger.showSnackBar(const SnackBar(content: Text('계약을 등록했습니다.')));
@@ -582,22 +584,13 @@ class _ContractPanel extends StatelessWidget {
         if (rows.isEmpty)
           const BoaEmptyState(icon: Icons.description_outlined, title: '등록된 계약이 없습니다', message: '신규 계약을 등록할 수 있습니다.')
         else
-          ...rows.take(6).map((r) {
-            final product = r.productName?.trim().isNotEmpty == true
-                ? r.productName!.trim()
-                : (r.company?.trim().isNotEmpty == true ? r.company!.trim() : '계약 #${r.id}');
-            final prem = r.monthlyPremium;
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                dense: true,
-                title: Text(product, maxLines: 1, overflow: TextOverflow.ellipsis),
-                subtitle: Text(
-                  [if (r.contractStatus != null) r.contractStatus!, if (prem != null) '월납 ${fieldCommaInt(prem)}원'].join(' · '),
+          ...rows.take(6).map(
+                (r) => ContractSummaryCard(
+                  key: ValueKey('cust-contract-${r.id}'),
+                  row: r,
+                  compact: true,
                 ),
               ),
-            );
-          }),
       ],
     );
   }

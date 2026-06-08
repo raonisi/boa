@@ -3,8 +3,12 @@ import 'dart:async';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
+import 'package:boa/features/contracts/contract_data_refresh.dart';
+import 'package:boa/features/contracts/contract_summary_card.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
+import 'package:boa/features/customers/customer_detail_logic.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
+import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -128,12 +132,10 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
           );
           if (!context.mounted) return;
           if (ok == true) {
-            await ref.read(contractsListNotifierProvider.notifier).refresh();
+            await refreshContractData(ref);
             if (!context.mounted) return;
             boaLightSuccessHaptic();
-            messenger.showSnackBar(
-              const SnackBar(content: Text('계약을 등록했습니다.')),
-            );
+            messenger.showSnackBar(const SnackBar(content: Text('계약을 등록했습니다.')));
           }
         },
         icon: const Icon(Icons.add),
@@ -180,16 +182,38 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
         ),
       );
     }
+    final totalPremium = sumMonthlyPremium(rows);
+
     return RefreshIndicator(
       onRefresh: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScrollNearEnd,
         child: ListView.builder(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(vertical: 8),
-          itemCount: rows.length + (listState.hasMore ? 1 : 0),
+          padding: const EdgeInsets.only(bottom: 88),
+          itemCount: rows.length + (listState.hasMore ? 1 : 0) + 1,
           itemBuilder: (context, i) {
-            if (i >= rows.length) {
+            if (i == 0) {
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '${rows.length}건 표시',
+                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                    Text(
+                      '월납 합계 ${fieldCommaInt(totalPremium)}원',
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              );
+            }
+            final rowIndex = i - 1;
+            if (rowIndex >= rows.length) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 child: Center(
@@ -203,31 +227,18 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
                 ),
               );
             }
-            final c = rows[i];
-            final title = c.productName?.trim().isNotEmpty == true
-                ? c.productName!.trim()
-                : (c.company?.trim().isNotEmpty == true ? c.company!.trim() : '계약 #${c.id}');
-            final sub = [
-              if (c.customerId != null) '고객 #${c.customerId}',
-              if (c.contractStatus != null) c.contractStatus,
-              if (c.paymentStatus != null) c.paymentStatus,
-              if (c.monthlyPremium != null) '월 ${c.monthlyPremium}원',
-            ].join(' · ');
+            final c = rows[rowIndex];
             final customerId = c.customerId;
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: ListTile(
-                title: Text(title, style: theme.textTheme.titleSmall),
-                subtitle: Text(sub, style: theme.textTheme.bodySmall),
-                trailing: customerId != null ? const Icon(Icons.chevron_right) : null,
-                onTap: customerId == null
-                    ? null
-                    : () {
-                        Navigator.of(context).push<void>(
-                          MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: customerId)),
-                        );
-                      },
-              ),
+            return ContractSummaryCard(
+              key: ValueKey('contract-${c.id}'),
+              row: c,
+              onTap: customerId == null
+                  ? null
+                  : () {
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: customerId)),
+                      );
+                    },
             );
           },
         ),

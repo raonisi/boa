@@ -5,9 +5,8 @@ import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/contracts/contract_agents_provider.dart';
 import 'package:boa/features/contracts/contract_create_logic.dart';
-import 'package:boa/features/contracts/contracts_providers.dart';
-import 'package:boa/features/customers/customer_contracts_provider.dart';
-import 'package:boa/features/customers/customer_detail_provider.dart';
+import 'package:boa/features/contracts/contract_data_refresh.dart';
+import 'package:boa/features/contracts/contract_display_logic.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -147,12 +146,6 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
     );
   }
 
-  String get _screenTitle {
-    final name = _selectedCustomerName?.trim();
-    if (name != null && name.isNotEmpty) return '$name님의 신규 계약 등록';
-    return '신규 계약 등록';
-  }
-
   Future<void> _pickContractDate() async {
     final picked = await showDatePicker(
       context: context,
@@ -177,6 +170,9 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
       customerId: _selectedCustomerId,
       requiresAgent: _requiresAgent,
       selectedAgentId: _selectedAgentId,
+      company: _companyController.text,
+      productName: _productNameController.text,
+      monthlyPremiumRaw: _premiumController.text,
     );
     if (validation != null) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(validation)));
@@ -200,11 +196,10 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
         agentIdOverride: _requiresAgent ? _selectedAgentId : null,
       );
       final customerId = _selectedCustomerId!;
-      ref.invalidate(customerContractsProvider(customerId));
-      ref.invalidate(customerDetailProvider(customerId));
-      await ref.read(contractsListNotifierProvider.notifier).refresh();
+      await refreshContractData(ref, customerId: customerId);
       if (!mounted) return;
       boaLightSuccessHaptic();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('계약을 등록했습니다.')));
       Navigator.of(context).pop(true);
     } catch (e) {
       if (mounted) {
@@ -235,14 +230,30 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_selectedCustomerName != null && _selectedCustomerName!.isNotEmpty)
+          if (_selectedCustomerName != null && _selectedCustomerName!.trim().isNotEmpty)
             Material(
               color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                child: Text(
-                  _screenTitle,
-                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                child: Row(
+                  children: [
+                    Icon(Icons.person_outline, size: 20, color: theme.colorScheme.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('고객', style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                          Text(
+                            _selectedCustomerName!.trim(),
+                            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -312,10 +323,18 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
                     ],
                     const SizedBox(height: 20),
                   ],
+                  Text('계약 정보', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 4),
+                  Text(
+                    '보험사 또는 상품명 중 하나는 필수입니다.',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _companyController,
                     decoration: const InputDecoration(
                       labelText: '보험사',
+                      hintText: '예: 삼성생명',
                       border: OutlineInputBorder(),
                     ),
                     textInputAction: TextInputAction.next,
@@ -326,6 +345,7 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
                     controller: _productNameController,
                     decoration: const InputDecoration(
                       labelText: '상품명',
+                      hintText: '예: 종신보험',
                       border: OutlineInputBorder(),
                     ),
                     textInputAction: TextInputAction.next,
@@ -343,20 +363,30 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
                     enabled: !_saving,
                   ),
                   const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('계약일'),
-                    subtitle: Text(dateOnlyApi(_contractDate)),
-                    trailing: const Icon(Icons.calendar_today_outlined),
-                    onTap: _saving ? null : _pickContractDate,
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      labelText: '계약일',
+                      border: OutlineInputBorder(),
+                    ),
+                    child: InkWell(
+                      onTap: _saving ? null : _pickContractDate,
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(formatContractDateLabel(_contractDate))),
+                          Icon(Icons.calendar_today_outlined, color: theme.colorScheme.primary, size: 20),
+                        ],
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _premiumController,
                     decoration: const InputDecoration(
-                      labelText: '월납보험료 (원)',
+                      labelText: '월납보험료',
+                      hintText: '숫자만 입력',
                       border: OutlineInputBorder(),
                       suffixText: '원',
+                      helperText: '천 단위 구분은 자동 적용됩니다.',
                     ),
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],

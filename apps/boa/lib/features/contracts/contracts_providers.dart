@@ -9,6 +9,7 @@ class BoaContractRow {
     this.customerId,
     this.productName,
     this.company,
+    this.productGroup,
     this.monthlyPremium,
     this.contractStatus,
     this.paymentStatus,
@@ -20,6 +21,7 @@ class BoaContractRow {
   final int? customerId;
   final String? productName;
   final String? company;
+  final String? productGroup;
   final int? monthlyPremium;
   final String? contractStatus;
   final String? paymentStatus;
@@ -40,6 +42,7 @@ class BoaContractRow {
       customerId: cid is int ? cid : int.tryParse('$cid'),
       productName: json['productName'] as String?,
       company: json['company'] as String?,
+      productGroup: json['productGroup'] as String?,
       monthlyPremium: (json['monthlyPremium'] as num?)?.toInt(),
       contractStatus: json['contractStatus'] as String?,
       paymentStatus: json['paymentStatus'] as String?,

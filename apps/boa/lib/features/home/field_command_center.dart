@@ -1,7 +1,7 @@
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
-import 'package:boa/features/contracts/contracts_providers.dart';
+import 'package:boa/features/contracts/contract_summary_card.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/followups/followup_quick_action_tile.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
@@ -463,7 +463,22 @@ class _RecentContractsSection extends ConsumerWidget {
                 message: '계약 등록 후 여기에 표시됩니다.',
               )
             else
-              ...items.take(5).map((row) => _ContractPreviewTile(row: row)),
+              ...items.take(5).map(
+                    (row) => ContractSummaryCard(
+                      key: ValueKey('recent-contract-${row.id}'),
+                      row: row,
+                      compact: true,
+                      onTap: row.customerId == null
+                          ? null
+                          : () {
+                              Navigator.of(context).push<void>(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => CustomerDetailScreen(customerId: row.customerId!),
+                                ),
+                              );
+                            },
+                    ),
+                  ),
           ],
         );
       },
@@ -476,46 +491,6 @@ class _RecentContractsSection extends ConsumerWidget {
         ],
       ),
       error: (_, __) => const SizedBox.shrink(),
-    );
-  }
-}
-
-class _ContractPreviewTile extends StatelessWidget {
-  const _ContractPreviewTile({required this.row});
-
-  final BoaContractRow row;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final product = row.productName ?? row.company ?? '계약 #${row.id}';
-    final prem = row.monthlyPremium;
-    final premLabel = prem == null ? '' : ' · 월납 ${fieldCommaInt(prem)}원';
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        dense: true,
-        title: Text(product, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-          [
-            if (row.contractStatus != null && row.contractStatus!.isNotEmpty) row.contractStatus!,
-          ].join() + premLabel,
-          style: theme.textTheme.bodySmall,
-        ),
-        trailing: row.customerId != null ? const Icon(Icons.chevron_right, size: 20) : null,
-        onTap: row.customerId == null
-            ? () => Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(builder: (_) => const ContractCreateScreen()),
-                )
-            : () {
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => CustomerDetailScreen(customerId: row.customerId!),
-                  ),
-                );
-              },
-      ),
     );
   }
 }

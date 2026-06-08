@@ -43,7 +43,37 @@ void main() {
 
     test('passes with customer and optional agent', () {
       expect(
-        validateContractCreateForm(customerId: 1, requiresAgent: false, selectedAgentId: null),
+        validateContractCreateForm(
+          customerId: 1,
+          requiresAgent: false,
+          selectedAgentId: null,
+          productName: '[TEST] Product',
+        ),
+        isNull,
+      );
+    });
+
+    test('requires company or product name', () {
+      expect(
+        validateContractCreateForm(
+          customerId: 1,
+          requiresAgent: false,
+          selectedAgentId: null,
+          company: '',
+          productName: '',
+        ),
+        '보험사 또는 상품명을 입력해 주세요.',
+      );
+    });
+
+    test('accepts company only', () {
+      expect(
+        validateContractCreateForm(
+          customerId: 1,
+          requiresAgent: false,
+          selectedAgentId: null,
+          company: '[TEST] Insurer',
+        ),
         isNull,
       );
     });
