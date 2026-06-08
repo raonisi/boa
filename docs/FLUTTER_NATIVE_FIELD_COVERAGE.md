@@ -55,11 +55,11 @@ Status legend:
 | 8 | 우선순위 / 태그 / 다음 액션 | WebView fallback | Native 완료 | P1 | Hero 표시 + 웹 수정 | mobile PATCH API 후속 PR |
 | 9 | 상담기록 작성 | WebView fallback | Native 완료 | P1 | 빠른 실행 → 웹 고객 상세 | mobile consultation API 후속 PR |
 | 10 | 후속관리 생성 | Native 완료 | Native 완료 | P0 | Dialog + `POST .../follow-ups` | |
-| 11 | 후속관리 완료 | Native 완료 | Native 완료 | P0 | `POST .../follow-ups/:id/complete` | |
-| 12 | 후속관리 연기 | Native 완료 | Native 완료 | P0 | `POST .../follow-ups/:id/postpone` | |
-| 13 | 일정 생성 | Native 완료 | Native 고도화 필요 | P0 | `CalendarTab` dialog + `POST /schedules` | |
-| 14 | 일정 완료 | Native 완료 | Native 완료 | P0 | `POST .../schedules/:id/complete` | |
-| 15 | 캘린더 / 일정 조회 | Native 완료 | Native 고도화 필요 | P1 | `CalendarTab` + agenda provider | |
+| 11 | 후속관리 완료 | Native 완료 | Native 완료 | P0 | `FollowUpQuickActionTile` → `POST .../complete` | Field Command Center·CustomerDetail·Calendar 공통 |
+| 12 | 후속관리 연기 | Native 완료 | Native 완료 | P0 | `FollowUpQuickActionTile` → `POST .../postpone` | 내일·3일·날짜 직접 선택 |
+| 13 | 일정 생성 | Native 완료 | Native 완료 | P0 | `CreateScheduleDialog` / `CreateCustomerScheduleDialog` | Calendar·고객 상세·quick action |
+| 14 | 일정 완료 | Native 완료 | Native 완료 | P0 | `ScheduleQuickActionTile` → `POST .../complete` | 확인 다이얼로그 후 완료 |
+| 15 | 캘린더 / 일정 조회 | Native 완료 | Native 완료 | P1 | `CalendarTab` 오늘/예정 구분 + agenda provider | |
 | 16 | 계약 목록 | Native 완료 | Native 고도화 필요 | P0 | `ContractsTab` | |
 | 17 | 신규 계약 등록 | Native 완료 | Native 고도화 필요 | P0 | `ContractCreateScreen` | 수정·고급 흐름은 WebView |
 | 18 | 월납보험료 / 계약 요약 | Native 완료 | Native 고도화 필요 | P1 | 목록·상세 카드 요약 | 전용 Contract Detail Native는 후속 |
@@ -122,7 +122,7 @@ Status legend:
 | --- | --- | --- | --- | --- |
 | 1. Flutter Field Command Center | 홈·오늘 할 일·빠른 실행 통합 (**완료**) | `HomeTab`, `field_command_center.dart` | 낮음 | `[TEST]` 고객 + role smoke |
 | 2. CustomerDetail 360 Native Upgrade | 상담상태·우선순위·상담기록 Native (**완료**, 편집/상담기록은 WebView) | `CustomerDetail360View` | 중간 | scope·RBAC API 검증 |
-| 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX | `CalendarTab`, follow-up tiles | 낮음 | mobile API smoke |
+| 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX (**완료**) | `FollowUpQuickActionTile`, `ScheduleQuickActionTile`, `CalendarTab`, `FieldCommandCenterView`, `CustomerDetail360View` | 낮음 | mobile API smoke |
 | 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 | `ContractCreateScreen`, contracts | 중간 | Web 동일 필드·RBAC |
 | 5. Global Search / Quick Create | 통합 검색·빠른 고객 등록 | TBD | 중간 | 검색 scope 서버 검증 |
 | 6. Push Preferences / Notifications Polish | PR19-4 이후 알림 UX | `PushPreferencesScreen`, `NotificationsTab` | 낮음 | push policy checklist |

@@ -51,6 +51,7 @@ void main() {
     expect(find.text('빠른 실행'), findsOneWidget);
     expect(find.text('상담기록'), findsOneWidget);
     expect(find.text('후속관리'), findsOneWidget);
+    expect(find.text('완료'), findsOneWidget);
     expect(find.text('다음 액션'), findsOneWidget);
   });
 

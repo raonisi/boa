@@ -1,6 +1,6 @@
-import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
-import 'package:boa/features/calendar/calendar_agenda_provider.dart';
+import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
+import 'package:boa/features/calendar/schedule_work_logic.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customer_contact_actions.dart';
@@ -11,20 +11,15 @@ import 'package:boa/features/customers/customer_detail_provider.dart';
 import 'package:boa/features/customers/customer_followups_provider.dart';
 import 'package:boa/features/customers/customer_schedules_provider.dart';
 import 'package:boa/features/customers/customer_web_actions.dart';
-import 'package:boa/features/home/dashboard_provider.dart';
+import 'package:boa/features/followups/followup_quick_action_tile.dart';
 import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:boa/features/shell/shell_tab_provider.dart';
+import 'package:boa/features/work/work_data_refresh.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-void invalidateCustomerDetail360(WidgetRef ref, int customerId) {
-  ref.invalidate(customerDetailProvider(customerId));
-  ref.invalidate(customerContractsProvider(customerId));
-  ref.invalidate(customerFollowUpsProvider(customerId));
-  ref.invalidate(customerSchedulesProvider(customerId));
-  ref.invalidate(dashboardTodayWorkProvider);
-  ref.invalidate(calendarAgendaProvider);
-}
+@Deprecated('Use refreshFieldWorkData')
+void invalidateCustomerDetail360(WidgetRef ref, int customerId) => refreshFieldWorkData(ref, customerId: customerId);
 
 /// 고객 상세 360° — 현장 상담 실행 허브.
 class CustomerDetail360View extends ConsumerWidget {
@@ -60,7 +55,7 @@ class CustomerDetail360View extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        invalidateCustomerDetail360(ref, customerId);
+        refreshFieldWorkData(ref, customerId: customerId);
         await Future.wait<void>([
           ref.read(customerDetailProvider(customerId).future),
           ref.read(customerContractsProvider(customerId).future),
@@ -99,7 +94,7 @@ class CustomerDetail360View extends ConsumerWidget {
           ],
           const SizedBox(height: 20),
           followUpsAsync.when(
-            data: (rows) => _FollowUpPanel(theme: theme, customerId: customerId, followUps: rows),
+            data: (rows) => _FollowUpPanel(theme: theme, customerId: customerId, customerName: name, followUps: rows),
             loading: () => const _PanelLoading(title: '후속관리'),
             error: (e, _) => _PanelError(title: '후속관리', message: '$e'),
           ),
@@ -108,6 +103,7 @@ class CustomerDetail360View extends ConsumerWidget {
             data: (rows) => _SchedulePanel(
               theme: theme,
               customerId: customerId,
+              customerName: name,
               schedules: rows,
               onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
             ),
@@ -160,7 +156,7 @@ class CustomerDetail360View extends ConsumerWidget {
     final ok = await showDialog<bool>(context: context, builder: (_) => CreateFollowUpDialog(customerId: id));
     if (!context.mounted) return;
     if (ok == true) {
-      invalidateCustomerDetail360(ref, id);
+      refreshFieldWorkData(ref, customerId: id);
       messenger.showSnackBar(const SnackBar(content: Text('후속관리를 등록했습니다.')));
     }
   }
@@ -173,7 +169,7 @@ class CustomerDetail360View extends ConsumerWidget {
     );
     if (!context.mounted) return;
     if (ok == true) {
-      invalidateCustomerDetail360(ref, id);
+      refreshFieldWorkData(ref, customerId: id);
       messenger.showSnackBar(const SnackBar(content: Text('일정을 등록했습니다.')));
     }
   }
@@ -186,7 +182,7 @@ class CustomerDetail360View extends ConsumerWidget {
     );
     if (!context.mounted) return;
     if (ok == true) {
-      invalidateCustomerDetail360(ref, id);
+      refreshFieldWorkData(ref, customerId: id);
       await ref.read(contractsListNotifierProvider.notifier).refresh();
       if (!context.mounted) return;
       boaLightSuccessHaptic();
@@ -420,9 +416,15 @@ class _NextActionCard extends StatelessWidget {
 }
 
 class _FollowUpPanel extends ConsumerWidget {
-  const _FollowUpPanel({required this.theme, required this.customerId, required this.followUps});
+  const _FollowUpPanel({
+    required this.theme,
+    required this.customerId,
+    required this.customerName,
+    required this.followUps,
+  });
   final ThemeData theme;
   final int customerId;
+  final String customerName;
   final List<Map<String, dynamic>> followUps;
 
   @override
@@ -447,119 +449,31 @@ class _FollowUpPanel extends ConsumerWidget {
           if (overdue.isNotEmpty) ...[
             Text('연체', style: theme.textTheme.labelLarge?.copyWith(color: Colors.red.shade700)),
             const SizedBox(height: 4),
-            ...overdue.map((f) => _FollowUpQuickTile(customerId: customerId, raw: f, isOverdue: true)),
+            ...overdue.map(
+              (f) => FollowUpQuickActionTile(
+                key: ValueKey('fu-od-${f['id']}'),
+                raw: f,
+                isOverdue: true,
+                customerContextId: customerId,
+                customerContextName: customerName,
+              ),
+            ),
             const SizedBox(height: 8),
           ],
           if (scheduled.isNotEmpty) ...[
             Text('예정', style: theme.textTheme.labelLarge),
             const SizedBox(height: 4),
-            ...scheduled.take(6).map((f) => _FollowUpQuickTile(customerId: customerId, raw: f)),
+            ...scheduled.take(6).map(
+                  (f) => FollowUpQuickActionTile(
+                    key: ValueKey('fu-${f['id']}'),
+                    raw: f,
+                    customerContextId: customerId,
+                    customerContextName: customerName,
+                  ),
+                ),
           ],
         ],
       ],
-    );
-  }
-}
-
-class _FollowUpQuickTile extends ConsumerStatefulWidget {
-  const _FollowUpQuickTile({required this.customerId, required this.raw, this.isOverdue = false});
-  final int customerId;
-  final Map<String, dynamic> raw;
-  final bool isOverdue;
-
-  @override
-  ConsumerState<_FollowUpQuickTile> createState() => _FollowUpQuickTileState();
-}
-
-class _FollowUpQuickTileState extends ConsumerState<_FollowUpQuickTile> {
-  bool _busy = false;
-
-  Future<void> _run(Future<void> Function() action) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await action();
-      invalidateCustomerDetail360(ref, widget.customerId);
-      boaLightSuccessHaptic();
-      messenger.showSnackBar(const SnackBar(content: Text('반영되었습니다.')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final raw = widget.raw;
-    final followUpId = fieldCoerceId(raw['id']);
-    final reason = '${raw['reason'] ?? ''}'.trim();
-    final canAct = followUpId != null && fieldIsOpenFollowUp('${raw['status'] ?? ''}');
-    final fid = followUpId;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (widget.isOverdue)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: Text('연체', style: TextStyle(fontSize: 11, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
-                  ),
-                Expanded(
-                  child: Text(
-                    reason.isNotEmpty ? reason : '후속관리',
-                    style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            Text(
-              fieldFmtDateTime(raw['nextContactDate']),
-              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-            if (canAct && fid != null) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                children: [
-                  ActionChip(
-                    label: _busy ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2)) : const Text('완료'),
-                    onPressed: _busy ? null : () => _run(() => mobileCompleteFollowUp(ref, fid)),
-                  ),
-                  ActionChip(
-                    label: const Text('내일'),
-                    onPressed: _busy
-                        ? null
-                        : () {
-                            final next = DateTime.now().add(const Duration(days: 1));
-                            _run(() => mobilePostponeFollowUp(ref, fid, nextContactDate: fieldDateOnlyApi(next)));
-                          },
-                  ),
-                  ActionChip(
-                    label: const Text('+3일'),
-                    onPressed: _busy
-                        ? null
-                        : () {
-                            final next = DateTime.now().add(const Duration(days: 3));
-                            _run(() => mobilePostponeFollowUp(ref, fid, nextContactDate: fieldDateOnlyApi(next)));
-                          },
-                  ),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 }
@@ -568,24 +482,23 @@ class _SchedulePanel extends ConsumerWidget {
   const _SchedulePanel({
     required this.theme,
     required this.customerId,
+    required this.customerName,
     required this.schedules,
     required this.onOpenCalendar,
   });
 
   final ThemeData theme;
   final int customerId;
+  final String customerName;
   final List<Map<String, dynamic>> schedules;
   final VoidCallback onOpenCalendar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
-    final sorted = [...schedules]..sort((a, b) {
-        final ta = parseApiDateTime(a['startTime']) ?? DateTime.fromMillisecondsSinceEpoch(0);
-        final tb = parseApiDateTime(b['startTime']) ?? DateTime.fromMillisecondsSinceEpoch(0);
-        return ta.compareTo(tb);
-      });
-    final upcoming = sorted.where((s) => !fieldIsFinishedSchedule('${s['status'] ?? ''}')).take(6).toList();
+    final today = todayOpenSchedules(schedules, now);
+    final upcoming = upcomingOpenSchedules(schedules, now).take(6).toList();
+    final openCount = today.length + upcoming.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -597,85 +510,38 @@ class _SchedulePanel extends ConsumerWidget {
           ],
         ),
         const SizedBox(height: 8),
-        if (upcoming.isEmpty)
+        if (openCount == 0)
           const BoaEmptyState(icon: Icons.event_available_outlined, title: '연결된 일정이 없습니다', message: '일정을 등록하거나 캘린더에서 확인하세요.')
-        else
-          ...upcoming.map((s) => _ScheduleTile(customerId: customerId, raw: s, now: now)),
+        else ...[
+          if (today.isNotEmpty) ...[
+            Text('오늘', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            ...today.map(
+              (s) => ScheduleQuickActionTile(
+                key: ValueKey('sch-today-${s['id']}'),
+                raw: s,
+                customerContextId: customerId,
+                customerContextName: customerName,
+                showTodayBadge: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          if (upcoming.isNotEmpty) ...[
+            Text('예정', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 4),
+            ...upcoming.map(
+              (s) => ScheduleQuickActionTile(
+                key: ValueKey('sch-up-${s['id']}'),
+                raw: s,
+                customerContextId: customerId,
+                customerContextName: customerName,
+              ),
+            ),
+          ],
+        ],
       ],
     );
-  }
-}
-
-class _ScheduleTile extends ConsumerStatefulWidget {
-  const _ScheduleTile({required this.customerId, required this.raw, required this.now});
-  final int customerId;
-  final Map<String, dynamic> raw;
-  final DateTime now;
-
-  @override
-  ConsumerState<_ScheduleTile> createState() => _ScheduleTileState();
-}
-
-class _ScheduleTileState extends ConsumerState<_ScheduleTile> {
-  bool _busy = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheduleId = fieldCoerceId(widget.raw['id']);
-    final title = '${widget.raw['title'] ?? '일정'}';
-    final start = parseApiDateTime(widget.raw['startTime']);
-    final isToday = start != null && isSameCalendarDay(start, widget.now);
-    final canComplete = scheduleId != null && !fieldIsFinishedSchedule('${widget.raw['status'] ?? ''}');
-
-    Widget? trailing;
-    if (canComplete) {
-      final sid = scheduleId;
-      trailing = _busy
-          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
-          : IconButton(
-              tooltip: '완료',
-              icon: const Icon(Icons.check_circle_outline),
-              onPressed: () => _complete(sid),
-            );
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        dense: true,
-        title: Row(
-          children: [
-            if (isToday)
-              Container(
-                margin: const EdgeInsets.only(right: 6),
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(color: theme.colorScheme.primaryContainer, borderRadius: BorderRadius.circular(4)),
-                child: Text('오늘', style: theme.textTheme.labelSmall),
-              ),
-            Expanded(child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis)),
-          ],
-        ),
-        subtitle: Text(fieldFmtDateTime(widget.raw['startTime'])),
-        trailing: trailing,
-      ),
-    );
-  }
-
-  Future<void> _complete(int sid) async {
-    if (_busy) return;
-    setState(() => _busy = true);
-    final messenger = ScaffoldMessenger.of(context);
-    try {
-      await mobileCompleteSchedule(ref, sid);
-      invalidateCustomerDetail360(ref, widget.customerId);
-      boaLightSuccessHaptic();
-      messenger.showSnackBar(const SnackBar(content: Text('일정을 완료했습니다.')));
-    } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
   }
 }
 
