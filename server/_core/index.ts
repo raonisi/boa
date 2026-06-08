@@ -36,6 +36,21 @@ async function findAvailablePort(startPort: number = 3000, host: string): Promis
   throw new Error(`No available port found starting from ${startPort} (host=${host})`);
 }
 
+function isStrictDeploymentPort(): boolean {
+  return (
+    process.env.NODE_ENV === "production" ||
+    Boolean(process.env.RAILWAY_ENVIRONMENT) ||
+    Boolean(process.env.RAILWAY_SERVICE_ID)
+  );
+}
+
+async function resolveListenPort(preferredPort: number, host: string): Promise<number> {
+  if (isStrictDeploymentPort()) {
+    return preferredPort;
+  }
+  return findAvailablePort(preferredPort, host);
+}
+
 async function startServer() {
   console.log("[boot] BOA CRM server starting…");
   if (process.env.NODE_ENV !== "development") {
@@ -90,18 +105,23 @@ async function startServer() {
 
   const host = process.env.HOST ?? "0.0.0.0";
   const preferredPort = parseInt(process.env.PORT || "3000", 10);
-  const port = await findAvailablePort(preferredPort, host);
+  const strictDeploymentPort = isStrictDeploymentPort();
+  const port = await resolveListenPort(preferredPort, host);
 
-  if (port !== preferredPort) {
+  if (!strictDeploymentPort && port !== preferredPort) {
     console.log(`Port ${preferredPort} is busy, using port ${port} instead`);
   }
 
   server.on("error", (err: NodeJS.ErrnoException) => {
     console.error("[server] listen error:", err.message);
     if (err.code === "EADDRINUSE") {
-      console.error(`[server] Port ${port} is already in use. Try PORT=3001 pnpm dev or close the other process.`);
+      if (strictDeploymentPort) {
+        console.error("[server] Assigned PORT is not available. Railway/production requires binding to the assigned port only.");
+      } else {
+        console.error(`[server] Port ${port} is already in use. Try PORT=3001 pnpm dev or close the other process.`);
+      }
     }
-    process.exitCode = 1;
+    process.exit(1);
   });
 
   server.listen(port, host, () => {

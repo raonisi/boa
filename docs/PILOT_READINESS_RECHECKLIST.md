@@ -35,14 +35,38 @@ Required test customer name:
 ## B. Deployment Safety
 
 - [ ] Merge to `main` happens only after PR review and required checks pass.
-- [ ] Railway deploy uses the latest intended `main` commit.
-- [ ] Failed old commits are not redeployed.
+- [ ] Railway deploy uses **Deploy Latest Commit** for the intended `main` commit.
+- [ ] Failed old commits are **not** redeployed.
 - [ ] Railway Build Command is verified if deployment is involved.
 - [ ] Railway Pre-Deploy Command is verified if deployment is involved.
 - [ ] Railway Start Command is verified if deployment is involved.
 - [ ] DB migration logs are checked only when a migration exists.
 - [ ] No production DB reset, drop, truncate, or manual hard delete is performed.
 - [ ] Production hard delete is not tested during pilot verification.
+
+### Railway Dashboard Baseline (no `railway.json` / `railway.toml` in repo)
+
+The repository does not commit Railway service config files. Use the Railway Dashboard settings below as the deployment source of truth.
+
+| Step | Command |
+| --- | --- |
+| Build Command | `pnpm install && pnpm build` |
+| Pre-Deploy Command | `pnpm db:migrate` |
+| Start Command | `pnpm start` |
+
+Operator rules:
+
+- Run `pnpm db:migrate` only through the Railway **Pre-Deploy Command** unless an approved runbook says otherwise.
+- After merging a PR that includes DB migrations, confirm Railway deploy logs show `pnpm db:migrate` success before treating the release as healthy.
+- If a deploy fails, use **Deploy Latest Commit** on the intended commit. Do not redeploy an older failed deployment artifact.
+- Do not reset, drop, truncate, or manually hard delete production DB data during deploy verification.
+
+### Railway PORT Binding
+
+- In Railway/production, the server binds only to the assigned `PORT` from the platform.
+- The server does not fall back to another port when `NODE_ENV=production` or Railway environment markers are present.
+- If the assigned port cannot be bound, the process fails fast so Railway health checks do not route to the wrong port.
+- Local development may still scan for the next available port when the preferred port is busy.
 
 ## C. Role And RBAC Smoke
 
