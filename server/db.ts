@@ -3449,8 +3449,8 @@ export async function validateBulkImportRow(
         `담당자를 찾을 수 없습니다. (${row.agentName})`
       );
     } else {
-      if (user.role !== "team_leader" && user.role !== "member") {
-        errors.push(`담당자는 팀장 또는 팀원이어야 합니다. (${row.agentName})`);
+      if (user.role !== "branch_admin" && user.role !== "sub_branch_admin" && user.role !== "team_leader" && user.role !== "member") {
+        errors.push(`담당자는 올바른 직책(지점장/부지점장/팀장/팀원)을 가져야 합니다. (${row.agentName})`);
       } else {
         agentId = user.id;
       }
