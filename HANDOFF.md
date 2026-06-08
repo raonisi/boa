@@ -20,6 +20,10 @@
 | **Testing** | Vitest + React Testing Library |
 | **Build** | Vite + pnpm |
 | **Deployment** | Railway / Node.js hosting |
+| **Pilot field mobile app** | Flutter (`apps/boa`) — Native + WebView hybrid |
+| **Legacy mobile shell** | Capacitor (`capacitor.config.ts`, root `android/app`) — fallback, not removed yet |
+
+모바일 앱 역할 분리·보안·로드맵은 [docs/MOBILE_APP_ARCHITECTURE.md](docs/MOBILE_APP_ARCHITECTURE.md)를 기준으로 한다.
 
 ---
 
