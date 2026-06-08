@@ -1,6 +1,7 @@
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_quick_create_strip.dart';
+import 'package:boa/features/search/global_search_screen.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
-import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contract_summary_card.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/followups/followup_quick_action_tile.dart';
@@ -85,15 +86,17 @@ class FieldCommandCenterView extends ConsumerWidget {
             onOpenContracts: () => ref.read(shellTabIndexProvider.notifier).state = 2,
           ),
           const SizedBox(height: 16),
-          _FieldCommandQuickActions(
-            onSearchCustomers: () => ref.read(shellTabIndexProvider.notifier).state = 1,
-            onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
-            onCreateContract: () {
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(builder: (_) => const ContractCreateScreen()),
-              );
-            },
+          OutlinedButton.icon(
+            onPressed: () => openGlobalSearch(context),
+            icon: const Icon(Icons.search),
+            label: const Text('고객 검색'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              alignment: Alignment.center,
+            ),
           ),
+          const SizedBox(height: 12),
+          const BoaQuickCreateStrip(),
           const SizedBox(height: 20),
           _SectionHeader(
             title: '오늘 연락할 고객',
@@ -339,100 +342,6 @@ class _SectionHeader extends StatelessWidget {
         if (actionLabel != null && onAction != null)
           TextButton(onPressed: onAction, child: Text(actionLabel!)),
       ],
-    );
-  }
-}
-
-class _FieldCommandQuickActions extends StatelessWidget {
-  const _FieldCommandQuickActions({
-    required this.onSearchCustomers,
-    required this.onOpenCalendar,
-    required this.onCreateContract,
-  });
-
-  final VoidCallback onSearchCustomers;
-  final VoidCallback onOpenCalendar;
-  final VoidCallback onCreateContract;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('빠른 실행', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _QuickActionButton(icon: Icons.search, label: '고객 검색', onTap: onSearchCustomers),
-              const SizedBox(width: 8),
-              _QuickActionButton(
-                icon: Icons.edit_note_outlined,
-                label: '상담기록',
-                onTap: () {
-                  onSearchCustomers();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('고객을 선택한 뒤 상세 화면에서 상담기록을 작성하세요.')),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              _QuickActionButton(icon: Icons.call_missed_outgoing_outlined, label: '후속관리', onTap: onOpenCalendar),
-              const SizedBox(width: 8),
-              _QuickActionButton(icon: Icons.event_outlined, label: '일정 등록', onTap: onOpenCalendar),
-              const SizedBox(width: 8),
-              _QuickActionButton(icon: Icons.description_outlined, label: '계약 등록', onTap: onCreateContract),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _QuickActionButton extends StatelessWidget {
-  const _QuickActionButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 88,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, size: 22, color: theme.colorScheme.primary),
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  textAlign: TextAlign.center,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.labelSmall,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

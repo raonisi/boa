@@ -1,6 +1,8 @@
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/customers/customer_detail_360.dart';
 import 'package:boa/features/customers/customer_detail_provider.dart';
+import 'package:boa/features/customers/customers_providers.dart';
+import 'package:boa/features/search/recent_customers_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +14,24 @@ class CustomerDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(customerDetailProvider(customerId));
+    ref.listen(customerDetailProvider(customerId), (prev, next) {
+      next.whenData((c) {
+        final id = c['id'];
+        final parsedId = id is int ? id : int.tryParse('$id');
+        if (parsedId == null) return;
+        recordRecentCustomer(
+          ref,
+          BoaCustomerRow(
+            id: parsedId,
+            name: '${c['name'] ?? ''}'.trim().isNotEmpty ? '${c['name']}'.trim() : '(이름 없음)',
+            phone: c['phone'] as String?,
+            consultStatus: c['consultStatus'] as String?,
+            priority: c['priority'] as String?,
+            nextAction: c['nextAction'] as String?,
+          ),
+        );
+      });
+    });
     final name = async.maybeWhen(data: (c) => '${c['name'] ?? ''}'.trim(), orElse: () => '');
 
     return Scaffold(

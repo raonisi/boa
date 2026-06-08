@@ -10,6 +10,7 @@ import 'package:boa/features/more/goals_screen.dart';
 import 'package:boa/features/more/performance_screen.dart';
 import 'package:boa/features/more/push_preferences_screen.dart';
 import 'package:boa/features/notifications/notifications_tab.dart';
+import 'package:boa/features/search/global_search_screen.dart';
 import 'package:boa/features/shell/shell_tab_provider.dart';
 import 'package:boa/features/web/crm_web_portal_paths.dart';
 import 'package:boa/features/web/crm_web_screen.dart';
@@ -52,6 +53,11 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
           _ => '알림',
         }),
         actions: [
+          IconButton(
+            tooltip: '고객 검색',
+            icon: const Icon(Icons.search),
+            onPressed: () => openGlobalSearch(context),
+          ),
           IconButton(
             tooltip: '더보기 메뉴',
             icon: const Icon(Icons.menu),

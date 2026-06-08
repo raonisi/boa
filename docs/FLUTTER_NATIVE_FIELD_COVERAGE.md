@@ -49,7 +49,7 @@ Status legend:
 | 2 | 홈 대시보드 | Native 완료 | Native 고도화 필요 | P0 | `HomeTab` + `dashboardTodayWorkProvider` | KPI·오늘 할 일 hierarchy polish |
 | 3 | 오늘 할 일 | Native 완료 | Native 완료 | P0 | `FieldCommandCenterView` (`HomeTab`) | 후속 Quick Action·일정 완료·알림 요약 |
 | 4 | 고객 목록 | Native 완료 | Native 고도화 필요 | P0 | `CustomersTab` + search debounce | Empty/loading polish 적용 |
-| 5 | 고객 검색 | Native 완료 | Native 완료 | P0 | `/api/mobile/customers?search=` | |
+| 5 | 고객 검색 | Native 완료 | Native 완료 | P0 | `GlobalSearchScreen` + `/api/mobile/customers?search=` | Shell·Field Command Center 전역 진입 |
 | 6 | 고객 상세 | Native 완료 | Native 완료 | P0 | `CustomerDetail360View` | 후속·일정·계약·타임라인·빠른 실행 |
 | 7 | 상담상태 변경 | WebView fallback | Native 완료 | P1 | `CrmWebScreen` `/customers/:id` | mobile PATCH API 후속 PR |
 | 8 | 우선순위 / 태그 / 다음 액션 | WebView fallback | Native 완료 | P1 | Hero 표시 + 웹 수정 | mobile PATCH API 후속 PR |
@@ -124,7 +124,7 @@ Status legend:
 | 2. CustomerDetail 360 Native Upgrade | 상담상태·우선순위·상담기록 Native (**완료**, 편집/상담기록은 WebView) | `CustomerDetail360View` | 중간 | scope·RBAC API 검증 |
 | 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX (**완료**) | `FollowUpQuickActionTile`, `ScheduleQuickActionTile`, `CalendarTab`, `FieldCommandCenterView`, `CustomerDetail360View` | 낮음 | mobile API smoke |
 | 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 (**완료**) | `ContractCreateScreen`, `ContractSummaryCard`, `ContractsTab`, `CustomerDetail360View` | 중간 | Web 동일 필드·RBAC |
-| 5. Global Search / Quick Create | 통합 검색·빠른 고객 등록 | TBD | 중간 | 검색 scope 서버 검증 |
+| 5. Global Search / Quick Create | 통합 검색·빠른 실행 (**완료**) | `GlobalSearchScreen`, `BoaQuickCreateStrip`, Shell AppBar | 중간 | 검색 scope 서버 검증 |
 | 6. Push Preferences / Notifications Polish | PR19-4 이후 알림 UX | `PushPreferencesScreen`, `NotificationsTab` | 낮음 | push policy checklist |
 | 7. WebView Fallback Polish | 관리자 진입·로딩·뒤로가기 | `CrmWebScreen`, drawer | 낮음 | branch_admin WebView smoke |
 | 8. Flutter APK Pilot Deployment Checklist | 내부 배포·FCM·OAuth | `apps/boa/android` | 중간 | PILOT_READINESS_RECHECKLIST |
