@@ -23,6 +23,7 @@ This document is the source of truth for mobile app roles, pilot scope, security
 
 **Related docs**
 
+- **Native 80% coverage matrix:** [FLUTTER_NATIVE_FIELD_COVERAGE.md](./FLUTTER_NATIVE_FIELD_COVERAGE.md) — field vs WebView/PC scope, PR roadmap, decision criteria
 - Flutter setup and build: [FLUTTER_ANDROID_APP.md](./FLUTTER_ANDROID_APP.md), [apps/boa/README.md](../apps/boa/README.md)
 - Legacy Capacitor APK shell: [ANDROID_INTERNAL_APK_SETUP.md](./ANDROID_INTERNAL_APK_SETUP.md)
 - Pilot verification gate: [PILOT_READINESS_RECHECKLIST.md](./PILOT_READINESS_RECHECKLIST.md)
