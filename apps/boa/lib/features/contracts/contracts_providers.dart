@@ -12,6 +12,8 @@ class BoaContractRow {
     this.monthlyPremium,
     this.contractStatus,
     this.paymentStatus,
+    this.contractDate,
+    this.createdAt,
   });
 
   final int id;
@@ -21,6 +23,14 @@ class BoaContractRow {
   final int? monthlyPremium;
   final String? contractStatus;
   final String? paymentStatus;
+  final DateTime? contractDate;
+  final DateTime? createdAt;
+
+  static DateTime? _parseDate(dynamic v) {
+    if (v == null) return null;
+    if (v is DateTime) return v;
+    return DateTime.tryParse('$v');
+  }
 
   factory BoaContractRow.fromJson(Map<String, dynamic> json) {
     final id = json['id'];
@@ -33,6 +43,8 @@ class BoaContractRow {
       monthlyPremium: (json['monthlyPremium'] as num?)?.toInt(),
       contractStatus: json['contractStatus'] as String?,
       paymentStatus: json['paymentStatus'] as String?,
+      contractDate: _parseDate(json['contractDate']),
+      createdAt: _parseDate(json['createdAt']),
     );
   }
 }

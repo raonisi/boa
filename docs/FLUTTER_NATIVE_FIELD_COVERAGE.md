@@ -50,10 +50,10 @@ Status legend:
 | 3 | 오늘 할 일 | Native 완료 | Native 완료 | P0 | `FieldCommandCenterView` (`HomeTab`) | 후속 Quick Action·일정 완료·알림 요약 |
 | 4 | 고객 목록 | Native 완료 | Native 고도화 필요 | P0 | `CustomersTab` + search debounce | Empty/loading polish 적용 |
 | 5 | 고객 검색 | Native 완료 | Native 완료 | P0 | `/api/mobile/customers?search=` | |
-| 6 | 고객 상세 | Native 완료 | Native 고도화 필요 | P0 | `CustomerDetailScreen` | 360° native upgrade 예정 |
-| 7 | 상담상태 변경 | Native 전환 예정 | Native 완료 | P1 | 현재 조회 위주 → mobile PATCH API 연동 예정 | Web과 동일 enum/RBAC |
-| 8 | 우선순위 / 태그 / 다음 액션 | Native 전환 예정 | Native 완료 | P1 | 상세 화면 표시만 → 인라인 편집 예정 | 서버 검증 필수 |
-| 9 | 상담기록 작성 | Native 전환 예정 | Native 완료 | P1 | Web 상담 모달 기준 필드만 Native | 민감 필드 추가 금지 |
+| 6 | 고객 상세 | Native 완료 | Native 완료 | P0 | `CustomerDetail360View` | 후속·일정·계약·타임라인·빠른 실행 |
+| 7 | 상담상태 변경 | WebView fallback | Native 완료 | P1 | `CrmWebScreen` `/customers/:id` | mobile PATCH API 후속 PR |
+| 8 | 우선순위 / 태그 / 다음 액션 | WebView fallback | Native 완료 | P1 | Hero 표시 + 웹 수정 | mobile PATCH API 후속 PR |
+| 9 | 상담기록 작성 | WebView fallback | Native 완료 | P1 | 빠른 실행 → 웹 고객 상세 | mobile consultation API 후속 PR |
 | 10 | 후속관리 생성 | Native 완료 | Native 완료 | P0 | Dialog + `POST .../follow-ups` | |
 | 11 | 후속관리 완료 | Native 완료 | Native 완료 | P0 | `POST .../follow-ups/:id/complete` | |
 | 12 | 후속관리 연기 | Native 완료 | Native 완료 | P0 | `POST .../follow-ups/:id/postpone` | |
@@ -121,7 +121,7 @@ Status legend:
 | PR | 목적 | 주요 화면 | 위험도 | 권장 검수 방식 |
 | --- | --- | --- | --- | --- |
 | 1. Flutter Field Command Center | 홈·오늘 할 일·빠른 실행 통합 (**완료**) | `HomeTab`, `field_command_center.dart` | 낮음 | `[TEST]` 고객 + role smoke |
-| 2. CustomerDetail 360 Native Upgrade | 상담상태·우선순위·상담기록 Native | `CustomerDetailScreen` | 중간 | scope·RBAC API 검증 |
+| 2. CustomerDetail 360 Native Upgrade | 상담상태·우선순위·상담기록 Native (**완료**, 편집/상담기록은 WebView) | `CustomerDetail360View` | 중간 | scope·RBAC API 검증 |
 | 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX | `CalendarTab`, follow-up tiles | 낮음 | mobile API smoke |
 | 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 | `ContractCreateScreen`, contracts | 중간 | Web 동일 필드·RBAC |
 | 5. Global Search / Quick Create | 통합 검색·빠른 고객 등록 | TBD | 중간 | 검색 scope 서버 검증 |

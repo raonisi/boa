@@ -7,7 +7,7 @@ import 'package:boa/features/contracts/contract_agents_provider.dart';
 import 'package:boa/features/contracts/contract_create_logic.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customer_contracts_provider.dart';
-import 'package:boa/features/customers/customer_detail_screen.dart';
+import 'package:boa/features/customers/customer_detail_provider.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
