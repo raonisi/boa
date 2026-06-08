@@ -50,6 +50,35 @@ Future<void> mobileCreateSchedule(
       );
 }
 
+Future<void> mobileCreateContract(
+  WidgetRef ref, {
+  required int customerId,
+  String? company,
+  String? productName,
+  String? productGroup,
+  String? contractDate,
+  int? monthlyPremium,
+  String? paymentStatus,
+  String? contractStatus,
+  String? memo,
+  int? agentIdOverride,
+}) async {
+  await ref.read(dioProvider).post<void>(
+        '/api/mobile/customers/$customerId/contracts',
+        data: <String, dynamic>{
+          if (company != null && company.isNotEmpty) 'company': company,
+          if (productName != null && productName.isNotEmpty) 'productName': productName,
+          if (productGroup != null && productGroup.isNotEmpty) 'productGroup': productGroup,
+          if (contractDate != null && contractDate.isNotEmpty) 'contractDate': contractDate,
+          if (monthlyPremium != null) 'monthlyPremium': monthlyPremium,
+          if (paymentStatus != null && paymentStatus.isNotEmpty) 'paymentStatus': paymentStatus,
+          if (contractStatus != null && contractStatus.isNotEmpty) 'contractStatus': contractStatus,
+          if (memo != null && memo.isNotEmpty) 'memo': memo,
+          if (agentIdOverride != null) 'agentIdOverride': agentIdOverride,
+        },
+      );
+}
+
 Future<void> mobileCreateFollowUp(
   WidgetRef ref, {
   required int customerId,

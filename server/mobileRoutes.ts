@@ -52,6 +52,18 @@ const followUpCreateBody = z.object({
   memo: z.string().optional(),
 });
 
+const contractCreateBody = z.object({
+  company: z.string().max(200).optional(),
+  productName: z.string().max(200).optional(),
+  productGroup: z.string().max(100).optional(),
+  contractDate: z.string().optional(),
+  monthlyPremium: z.coerce.number().int().nonnegative().optional(),
+  paymentStatus: z.enum(["정상", "미납", "실효", "해지"]).optional(),
+  contractStatus: z.enum(["청약", "성립", "철회", "유지", "해지"]).optional(),
+  memo: z.string().max(2000).optional(),
+  agentIdOverride: z.coerce.number().int().positive().optional(),
+});
+
 const scheduleCreateBody = z.object({
   title: z.string().min(1),
   type: z.enum([
@@ -389,6 +401,88 @@ export function registerMobileRoutes(app: Express) {
         res.json({ items });
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : "Failed to list contracts";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.post(
+    "/api/mobile/customers/:customerId/contracts",
+    async (req: Request, res: Response) => {
+      const parsedId = z.coerce
+        .number()
+        .int()
+        .positive()
+        .safeParse(req.params.customerId);
+      if (!parsedId.success) {
+        res.status(400).json({ error: "Invalid customer id" });
+        return;
+      }
+      const bodyParsed = contractCreateBody.safeParse(req.body);
+      if (!bodyParsed.success) {
+        res
+          .status(400)
+          .json({ error: "Invalid body", details: bodyParsed.error.flatten() });
+        return;
+      }
+      const caller = await getMobileCaller(req, res);
+      if (!caller) return;
+      const d = bodyParsed.data;
+      try {
+        await caller.contracts.create({
+          customerId: parsedId.data,
+          company: d.company,
+          productName: d.productName,
+          productGroup: d.productGroup,
+          contractDate: d.contractDate,
+          monthlyPremium: d.monthlyPremium,
+          paymentStatus: d.paymentStatus ?? "정상",
+          contractStatus: d.contractStatus ?? "청약",
+          memo: d.memo,
+          agentIdOverride: d.agentIdOverride,
+        });
+        res.json({ success: true });
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : "Failed to create contract";
+        res.status(400).json({ error: msg });
+      }
+    }
+  );
+
+  app.get(
+    "/api/mobile/users/assignable-agents",
+    async (req: Request, res: Response) => {
+      let user;
+      try {
+        user = await sdk.authenticateRequest(req);
+      } catch (e) {
+        if (e instanceof HttpError && e.statusCode === 403) {
+          res.status(401).json({ error: "Unauthorized" });
+          return;
+        }
+        throw e;
+      }
+      const ctx: TrpcContext = { req, res, user };
+      const caller = appRouter.createCaller(ctx);
+      try {
+        const users = await caller.users.list({ activeOnly: true });
+        const items = users
+          .filter(
+            (u) =>
+              u.accountStatus === "active" &&
+              (u.role === "branch_admin" ||
+                u.role === "team_leader" ||
+                u.role === "member")
+          )
+          .map((u) => ({
+            id: u.id,
+            name: u.name,
+            role: u.role,
+          }));
+        res.json({ items });
+      } catch (e: unknown) {
+        const msg =
+          e instanceof Error ? e.message : "Failed to list assignable agents";
         res.status(400).json({ error: msg });
       }
     }

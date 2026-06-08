@@ -3,6 +3,8 @@ import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
+import 'package:boa/features/contracts/contract_create_screen.dart';
+import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customer_contracts_provider.dart';
 import 'package:boa/features/customers/customer_followups_provider.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
@@ -101,7 +103,41 @@ class CustomerDetailScreen extends ConsumerWidget {
                 _detailRow(theme, '유입', _str(c['source'])),
                 _detailRow(theme, '메모', _str(c['memo'])),
                 const Divider(height: 36),
-                Text('계약', style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary, fontWeight: FontWeight.w600)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '계약',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          color: theme.colorScheme.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: () async {
+                        final ok = await Navigator.of(context).push<bool>(
+                          MaterialPageRoute<bool>(
+                            builder: (_) => ContractCreateScreen(
+                              customerId: customerId,
+                              customerName: name,
+                            ),
+                          ),
+                        );
+                        if (ok == true && context.mounted) {
+                          ref.invalidate(customerContractsProvider(customerId));
+                          ref.invalidate(customerDetailProvider(customerId));
+                          await ref.read(contractsListNotifierProvider.notifier).refresh();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('계약을 등록했습니다.')),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.add, size: 18),
+                      label: const Text('신규 계약'),
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 contractsAsync.when(
                   data: (rows) {

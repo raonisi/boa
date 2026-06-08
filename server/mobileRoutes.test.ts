@@ -44,6 +44,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("mobile contract create", () => {
+  it("rejects invalid customer id before auth", async () => {
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/mobile/customers/not-a-number/contracts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ company: "[TEST] insurer" }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(body).toEqual({ error: "Invalid customer id" });
+    });
+  });
+});
+
 describe("mobile auth.me", () => {
   it("returns a serialized active user", async () => {
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));

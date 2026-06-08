@@ -41,7 +41,7 @@ These workflows are implemented or targeted as **Flutter native screens** for th
 | Customer ops | Priority, tags, next action |
 | Follow-ups | Create, complete, defer (후속관리) |
 | Calendar | Schedule create, complete (일정) |
-| Contracts | Contract list (계약 목록) |
+| Contracts | Contract list + **native create** (계약 목록·신규 등록) |
 | Notifications | Inbox (알림함) |
 | Push settings | User-facing notification preferences |
 | Performance | Goals and performance summary (성과/목표 현황) |
@@ -135,7 +135,7 @@ PR19-4 defines user notification preferences and branch-admin push operations. T
 
 Ordered next steps after this document:
 
-1. **Contract registration native migration** — move contract create/edit from WebView to Flutter native where field reps need offline-friendly flows.
+1. ~~**Contract registration native migration**~~ — **native create shipped** (`ContractCreateScreen`); contract edit and advanced flows remain WebView until a follow-up PR.
 2. **PR19-4 completion** — Flutter user notification settings + Web branch-admin push operations dashboard.
 3. **Flutter pilot deployment checklist** — internal APK distribution, SHA-1/OAuth alignment, FCM smoke, role-based field UAT.
 4. **Capacitor legacy decision** — after pilot stabilization, separate PR to deprecate or remove `capacitor.config.ts` and root `android/app` if no longer needed.

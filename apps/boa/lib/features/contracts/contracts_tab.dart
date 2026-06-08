@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:flutter/material.dart';
@@ -78,41 +79,62 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: TextField(
-            controller: _searchController,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: '상품명·보험사·고객번호 검색',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      tooltip: '지우기',
-                      onPressed: _clearSearch,
-                      icon: const Icon(Icons.clear),
-                    )
-                  : null,
-              border: const OutlineInputBorder(),
-              isDense: true,
+    return Scaffold(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: TextField(
+              controller: _searchController,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: '상품명·보험사·고객번호 검색',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        tooltip: '지우기',
+                        onPressed: _clearSearch,
+                        icon: const Icon(Icons.clear),
+                      )
+                    : null,
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              onChanged: (v) {
+                setState(() {});
+                _scheduleSearchApply(v);
+              },
+              onSubmitted: (v) {
+                _debounce?.cancel();
+                ref.read(contractSearchQueryProvider.notifier).state = v.trim();
+              },
             ),
-            onChanged: (v) {
-              setState(() {});
-              _scheduleSearchApply(v);
-            },
-            onSubmitted: (v) {
-              _debounce?.cancel();
-              ref.read(contractSearchQueryProvider.notifier).state = v.trim();
-            },
           ),
-        ),
-        Expanded(
-          child: _buildListBody(context, theme, appliedQuery, listState),
-        ),
-      ],
+          Expanded(
+            child: _buildListBody(context, theme, appliedQuery, listState),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final navigator = Navigator.of(context);
+          final messenger = ScaffoldMessenger.of(context);
+          final ok = await navigator.push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => const ContractCreateScreen(),
+            ),
+          );
+          if (ok == true && context.mounted) {
+            await ref.read(contractsListNotifierProvider.notifier).refresh();
+            messenger.showSnackBar(
+              const SnackBar(content: Text('계약을 등록했습니다.')),
+            );
+          }
+        },
+        icon: const Icon(Icons.add),
+        label: const Text('신규 계약'),
+      ),
     );
   }
 
