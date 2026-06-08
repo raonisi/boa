@@ -350,9 +350,15 @@ export default function Calendar() {
             <CardContent className="grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap">
               {["today","week","month","all","custom"].map((r) => <Button key={r} className="min-h-12" variant={mobileRange===r?"default":"outline"} size="sm" onClick={()=>setMobileRange(r as MobileRange)}>{r==="today"?"오늘":r==="week"?"이번주":r==="month"?"이번달":r==="all"?"전체":"직접선택"}</Button>)}
               {mobileRange === "custom" && (
-                <div className="grid grid-cols-2 gap-2 w-full">
-                  <Input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="min-h-12" />
-                  <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="min-h-12" />
+                <div className="col-span-2 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-slate-600">시작일</span>
+                    <Input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} className="min-h-12 w-full" />
+                  </label>
+                  <label className="space-y-1">
+                    <span className="text-xs font-medium text-slate-600">종료일</span>
+                    <Input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} className="min-h-12 w-full" />
+                  </label>
                 </div>
               )}
             </CardContent>

@@ -628,7 +628,39 @@ export default function CustomerList() {
                 </CardContent>
               </Card>
             ) : (
-              workspaceCustomers.map((c) => {
+              <>
+              {(canReclaimCustomer || canBulkChangeAssignee) && (
+                <Card className="border-slate-200 bg-slate-50/70 shadow-sm">
+                  <CardContent className="flex flex-col gap-2 p-3">
+                    <p className="text-xs text-muted-foreground">
+                      현재 목록 기준 {selectableFilteredIds.length}명 선택 가능 · {selectedCustomerIds.length}명 선택됨
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12 flex-1 sm:flex-none"
+                        onClick={() => handleToggleAllVisibleSelectable(true)}
+                        disabled={selectableFilteredIds.length === 0 || allVisibleSelectableSelected}
+                        aria-label="현재 목록 고객 전체 선택"
+                      >
+                        전체 선택
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="min-h-12 flex-1 sm:flex-none"
+                        onClick={() => handleToggleAllVisibleSelectable(false)}
+                        disabled={selectedCustomerIds.length === 0}
+                        aria-label="고객 선택 해제"
+                      >
+                        선택 해제
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              {workspaceCustomers.map((c) => {
                 const recommendation = recommendationByCustomerId.get(c.id);
                 const badges = executionBadges(c, recommendation);
                 const execution = buildListExecution(c, recommendation);
@@ -760,7 +792,8 @@ export default function CustomerList() {
                   </CardContent>
                 </Card>
                 );
-              })
+              })}
+              </>
             )}
           </div>
         ) : (
