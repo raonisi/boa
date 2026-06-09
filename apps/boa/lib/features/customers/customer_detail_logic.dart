@@ -29,14 +29,24 @@ List<String> parseCustomerTags(dynamic raw) {
 
 String priorityLabel(String? priority) {
   if (priority == null || priority.isEmpty || priority == 'unclassified') return '미분류';
-  return priority;
+  switch (priority.toUpperCase()) {
+    case 'URGENT':
+      return '긴급';
+    case 'HIGH':
+      return '높음';
+    case 'MEDIUM':
+    case 'NORMAL':
+      return '보통';
+    case 'LOW':
+      return '낮음';
+    case 'IMPORTANT':
+      return '중요';
+    default:
+      return priority;
+  }
 }
 
-DateTime? parseApiDateTime(dynamic v) {
-  if (v == null) return null;
-  if (v is DateTime) return v.toLocal();
-  return DateTime.tryParse('$v')?.toLocal();
-}
+DateTime? parseApiDateTime(dynamic v) => decodeApiDateTime(v);
 
 bool isFollowUpOverdue(Map<String, dynamic> raw, DateTime now) {
   final status = '${raw['status'] ?? ''}';

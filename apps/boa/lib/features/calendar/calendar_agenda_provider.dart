@@ -1,6 +1,7 @@
 import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -52,11 +53,7 @@ final calendarAgendaProvider = FutureProvider.autoDispose<CalendarAgenda>((ref) 
   }
 });
 
-DateTime? parseApiDate(dynamic v) {
-  if (v == null) return null;
-  if (v is String) return DateTime.tryParse(v)?.toLocal();
-  return DateTime.tryParse(v.toString())?.toLocal();
-}
+DateTime? parseApiDate(dynamic v) => decodeApiDateTime(v);
 
 bool isSameCalendarDay(DateTime a, DateTime b) {
   return a.year == b.year && a.month == b.month && a.day == b.day;

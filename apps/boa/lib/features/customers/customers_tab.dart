@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
+import 'package:boa/features/customers/customer_detail_logic.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:flutter/material.dart';
@@ -175,7 +176,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
             final subtitle = [
               if (c.consultStatus != null) c.consultStatus,
               if (c.phone != null && c.phone!.isNotEmpty) c.phone,
-              if (c.priority != null && c.priority!.isNotEmpty) '우선순위 ${c.priority}',
+              if (c.priority != null && c.priority!.isNotEmpty) '우선순위 ${priorityLabel(c.priority)}',
             ].join(' · ');
             return BoaSurfaceCard(
               onTap: () {

@@ -83,7 +83,7 @@ class CustomerDetail360View extends ConsumerWidget {
             region: region,
             source: source,
             memo: memo,
-            lastContact: updatedAt != null ? fieldFmtDateTime(updatedAt.toIso8601String()) : null,
+            lastContact: updatedAt != null ? fieldFmtDateTime(updatedAt) : null,
             onEditMeta: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 관리정보'),
           ),
           const SizedBox(height: 16),
@@ -645,7 +645,7 @@ class _ConsultationRecordCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = theme.colorScheme;
-    final dateLabel = entry.occurredAt != null ? fieldFmtDateTime(entry.occurredAt!.toIso8601String()) : null;
+    final dateLabel = entry.occurredAt != null ? fieldFmtDateTime(entry.occurredAt) : null;
 
     return BoaSurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),

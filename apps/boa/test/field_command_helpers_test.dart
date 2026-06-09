@@ -46,6 +46,32 @@ void main() {
         6,
       );
     });
+
+    test('encodeScheduleDateTimeForApi sends KST-local string without offset', () {
+      final local = DateTime(2026, 6, 8, 15, 30);
+      expect(encodeScheduleDateTimeForApi(local), '2026-06-08T15:30:00');
+      expect(encodeScheduleDateTimeForApi(local).contains('Z'), isFalse);
+    });
+
+    test('decodeApiDateTime parses naive local API datetime', () {
+      final dt = decodeApiDateTime('2026-06-08T15:30:00');
+      expect(dt?.year, 2026);
+      expect(dt?.month, 6);
+      expect(dt?.day, 8);
+      expect(dt?.hour, 15);
+      expect(dt?.minute, 30);
+    });
+
+    test('fieldFmtTime converts UTC API response to local display', () {
+      final utcInstant = DateTime.utc(2026, 6, 8, 6, 0);
+      expect(fieldFmtTime(utcInstant.toIso8601String()), formatScheduleTimeKo(utcInstant));
+      expect(fieldFmtDateTime(utcInstant.toIso8601String()), formatScheduleDateTimeKo(utcInstant));
+    });
+
+    test('boundary times encode without date shift', () {
+      expect(encodeScheduleDateTimeForApi(DateTime(2026, 6, 8, 0, 30)), '2026-06-08T00:30:00');
+      expect(encodeScheduleDateTimeForApi(DateTime(2026, 6, 8, 23, 30)), '2026-06-08T23:30:00');
+    });
   });
 
   group('DashboardTodayPayload', () {

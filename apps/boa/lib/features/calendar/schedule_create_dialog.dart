@@ -1,5 +1,6 @@
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -79,8 +80,8 @@ class _CreateScheduleDialogState extends ConsumerState<CreateScheduleDialog> {
         ref,
         title: _title.text.trim(),
         type: _type,
-        startTime: start.toIso8601String(),
-        endTime: end.toIso8601String(),
+        startTime: encodeScheduleDateTimeForApi(start),
+        endTime: encodeScheduleDateTimeForApi(end),
         memo: _memo.text.trim().isEmpty ? null : _memo.text.trim(),
       );
       if (mounted) {

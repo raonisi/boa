@@ -162,10 +162,9 @@ class _CreateCustomerScheduleDialogState extends ConsumerState<CreateCustomerSch
     super.dispose();
   }
 
-  String _isoStart() {
-    final d = DateTime(_date.year, _date.month, _date.day, _time.hour, _time.minute);
-    return d.toUtc().toIso8601String();
-  }
+  String _isoStart() => encodeScheduleDateTimeForApi(
+        combineLocalDateAndTime(_date, _time.hour, _time.minute),
+      );
 
   Future<void> _pickDate() async {
     final p = await showDatePicker(

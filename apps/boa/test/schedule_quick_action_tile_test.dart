@@ -1,4 +1,5 @@
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
+import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,6 +28,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('[TEST] 미팅'), findsOneWidget);
+    expect(find.textContaining(fieldFmtTime('2026-06-08T10:00:00.000')), findsOneWidget);
     expect(find.text('오늘'), findsOneWidget);
     expect(find.text('완료'), findsOneWidget);
     expect(find.text('고객 보기'), findsOneWidget);

@@ -15,18 +15,62 @@ int? fieldCoerceId(dynamic v) {
 String fieldDateOnlyApi(DateTime d) =>
     '${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
+/// 사용자가 선택한 로컬 날짜·시간을 결합합니다 (기기 로컬 = KST 운영 기준).
+DateTime combineLocalDateAndTime(DateTime date, int hour, int minute) =>
+    DateTime(date.year, date.month, date.day, hour, minute);
+
+/// 서버 일정 API는 KST 로컬 시각 문자열(`YYYY-MM-DDTHH:mm:ss`)을 기대합니다.
+String encodeScheduleDateTimeForApi(DateTime localDateTime) {
+  final y = localDateTime.year.toString().padLeft(4, '0');
+  final mo = localDateTime.month.toString().padLeft(2, '0');
+  final d = localDateTime.day.toString().padLeft(2, '0');
+  final h = localDateTime.hour.toString().padLeft(2, '0');
+  final mi = localDateTime.minute.toString().padLeft(2, '0');
+  final s = localDateTime.second.toString().padLeft(2, '0');
+  return '$y-$mo-$d' 'T' '$h:$mi:$s';
+}
+
+final _kstLocalDateTimeRe = RegExp(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}');
+
+bool _isTimezoneNaiveLocalDateTime(String value) {
+  if (!_kstLocalDateTimeRe.hasMatch(value)) return false;
+  return !value.endsWith('Z') && !value.contains('+') && value.indexOf('-', 10) == -1;
+}
+
+/// API 날짜/시간 문자열을 표시·정렬용 로컬 [DateTime]으로 변환합니다.
+DateTime? decodeApiDateTime(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value.toLocal();
+  final text = '$value'.trim();
+  if (text.isEmpty) return null;
+  if (_isTimezoneNaiveLocalDateTime(text)) {
+    return DateTime.tryParse(text);
+  }
+  return DateTime.tryParse(text)?.toLocal();
+}
+
+String _pad2(int n) => n.toString().padLeft(2, '0');
+
+String formatScheduleDateTimeKo(DateTime value) {
+  final local = value.toLocal();
+  return '${local.year}-${_pad2(local.month)}-${_pad2(local.day)} ${_pad2(local.hour)}:${_pad2(local.minute)}';
+}
+
+String formatScheduleTimeKo(DateTime value) {
+  final local = value.toLocal();
+  return '${_pad2(local.hour)}:${_pad2(local.minute)}';
+}
+
 String fieldFmtDateTime(dynamic t) {
-  if (t == null) return '';
-  final s = '$t';
-  if (s.length >= 16) return s.substring(0, 16).replaceFirst('T', ' ');
-  return s;
+  final dt = decodeApiDateTime(t);
+  if (dt != null) return formatScheduleDateTimeKo(dt);
+  return t == null ? '' : '$t';
 }
 
 String fieldFmtTime(dynamic t) {
-  if (t == null) return '';
-  final s = '$t';
-  if (s.length >= 16) return s.substring(11, 16);
-  return s;
+  final dt = decodeApiDateTime(t);
+  if (dt != null) return formatScheduleTimeKo(dt);
+  return t == null ? '' : '$t';
 }
 
 String fieldCommaInt(int n) {

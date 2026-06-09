@@ -45,6 +45,23 @@ void main() {
     });
   });
 
+  group('priorityLabel', () {
+    test('maps English priority values to Korean labels', () {
+      expect(priorityLabel('HIGH'), '높음');
+      expect(priorityLabel('MEDIUM'), '보통');
+      expect(priorityLabel('LOW'), '낮음');
+      expect(priorityLabel('URGENT'), '긴급');
+      expect(priorityLabel('NORMAL'), '보통');
+      expect(priorityLabel('IMPORTANT'), '중요');
+      expect(priorityLabel('unclassified'), '미분류');
+    });
+
+    test('preserves internal grade codes and API payload values', () {
+      expect(priorityLabel('A'), 'A');
+      expect(priorityLabel('B'), 'B');
+    });
+  });
+
   group('isFollowUpOverdue', () {
     test('detects overdue open follow-up', () {
       final now = DateTime(2026, 6, 8);
