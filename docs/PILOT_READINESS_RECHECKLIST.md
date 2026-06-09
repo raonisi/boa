@@ -4,6 +4,8 @@ This checklist is the final operator-facing verification gate before controlled 
 
 Use only safe `[TEST]` data for write tests. Do not use real customer data for create, update, delete, merge, handoff, contract, consultation, follow-up, schedule, or notification tests.
 
+**Flutter APK pilot (limited rollout):** before distributing a release APK to field pilot users, complete [FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST.md](./FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST.md) in addition to this checklist. Do not commit APK/AAB, keystores, or `google-services.json`.
+
 Required test customer name:
 
 ```text

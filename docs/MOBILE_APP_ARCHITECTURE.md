@@ -27,6 +27,7 @@ This document is the source of truth for mobile app roles, pilot scope, security
 - Flutter setup and build: [FLUTTER_ANDROID_APP.md](./FLUTTER_ANDROID_APP.md), [apps/boa/README.md](../apps/boa/README.md)
 - Legacy Capacitor APK shell: [ANDROID_INTERNAL_APK_SETUP.md](./ANDROID_INTERNAL_APK_SETUP.md)
 - Pilot verification gate: [PILOT_READINESS_RECHECKLIST.md](./PILOT_READINESS_RECHECKLIST.md)
+- **Flutter APK pilot deployment:** [FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST.md](./FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST.md) — build, install, smoke, security file controls before limited pilot rollout
 
 ## B. Flutter Native Responsibilities
 
