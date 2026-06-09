@@ -26,7 +26,7 @@ void openCrmWebRoute(
   if (!AppConfig.hasWebPortalBase) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('웹 주소를 알 수 없습니다. BOA_API_BASE_URL 또는 BOA_WEB_BASE_URL 을 설정하세요.'),
+        content: Text('웹 주소를 알 수 없습니다. 앱 설정을 확인하거나 배포 담당자에게 문의해 주세요.'),
       ),
     );
     return;

@@ -164,7 +164,7 @@ class CrmWebErrorPanel extends StatelessWidget {
                 if (showHttp2Hint) ...[
                   const SizedBox(height: 10),
                   Text(
-                    '인앱 WebView와 서버 연결 방식 문제일 수 있습니다. Chrome 탭으로 열기를 시도해 주세요.',
+                    '앱 내 화면과 서버 연결 방식 문제일 수 있습니다. 브라우저 탭으로 열기를 시도해 주세요.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
@@ -174,7 +174,7 @@ class CrmWebErrorPanel extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: onOpenChromeTab,
                     icon: const Icon(Icons.tab),
-                    label: const Text('Chrome 탭으로 열기'),
+                    label: const Text('브라우저 탭으로 열기'),
                   ),
                   const SizedBox(height: 8),
                 ],

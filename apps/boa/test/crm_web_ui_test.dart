@@ -55,7 +55,7 @@ void main() {
           body: CrmWebDrawerTile(
             icon: Icons.cloud_upload_outlined,
             title: '고객 일괄 등록',
-            subtitle: 'PC 권장 · CSV/XLSX',
+            subtitle: 'PC 권장 · 엑셀 일괄',
             category: CrmWebRouteCategory.bulkWork,
             onTap: () {},
           ),
@@ -63,7 +63,7 @@ void main() {
       ),
     );
     expect(find.text('고객 일괄 등록'), findsOneWidget);
-    expect(find.text('PC 권장 · CSV/XLSX'), findsOneWidget);
+    expect(find.text('PC 권장 · 엑셀 일괄'), findsOneWidget);
     expect(find.text('대량 작업'), findsOneWidget);
   });
 }

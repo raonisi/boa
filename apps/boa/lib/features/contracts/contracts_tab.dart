@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contract_data_refresh.dart';
 import 'package:boa/features/contracts/contract_summary_card.dart';
@@ -72,15 +73,8 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
 
     if (!AppConfig.hasApiBase) {
       return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text('API 미설정', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'BOA_API_BASE_URL 을 지정하세요.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [BoaServerConfigHint()],
       );
     }
 
@@ -93,9 +87,9 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
             child: TextField(
               controller: _searchController,
               textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
+              decoration: boaSearchDecoration(
+                context,
                 hintText: '상품명·보험사·고객번호 검색',
-                prefixIcon: const Icon(Icons.search),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
                         tooltip: '지우기',
@@ -103,8 +97,6 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
                         icon: const Icon(Icons.clear),
                       )
                     : null,
-                border: const OutlineInputBorder(),
-                isDense: true,
               ),
               onChanged: (v) {
                 setState(() {});

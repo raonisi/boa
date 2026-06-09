@@ -30,13 +30,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     try {
       if (!AppConfig.hasApiBase) {
         setState(() {
-          _error = 'BOA_API_BASE_URL 이 비어 있습니다. --dart-define 으로 API 베이스 URL을 지정하세요.';
+          _error = '서버 연결이 설정되지 않았습니다. 배포 담당자에게 문의해 주세요.';
         });
         return;
       }
       if (!AppConfig.hasGoogleServerClientId) {
         setState(() {
-          _error = 'BOA_GOOGLE_SERVER_CLIENT_ID 가 필요합니다. (서버 GOOGLE_CLIENT_ID 와 동일한 웹 클라이언트 ID)';
+          _error = '로그인 설정이 완료되지 않았습니다. 배포 담당자에게 문의해 주세요.';
         });
         return;
       }
@@ -55,7 +55,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       final idToken = auth.idToken;
       if (idToken == null || idToken.isEmpty) {
         setState(() {
-          _error = 'Google id_token 을 받지 못했습니다. serverClientId 설정을 확인하세요.';
+          _error = 'Google 계정 인증에 실패했습니다. 잠시 후 다시 시도해 주세요.';
         });
         return;
       }
@@ -71,7 +71,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       final userJson = data?['user'] as Map<String, dynamic>?;
       if (token == null || token.isEmpty || userJson == null) {
         setState(() {
-          _error = '서버 응답이 올바르지 않습니다.';
+          _error = '서버 응답이 올바르지 않습니다. 잠시 후 다시 시도해 주세요.';
         });
         return;
       }
@@ -79,7 +79,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       final user = SessionUser.fromJson(userJson);
       if (!user.isActive) {
         setState(() {
-          _error = '비활성 계정입니다.';
+          _error = '비활성 계정입니다. 관리자에게 문의해 주세요.';
         });
         return;
       }
@@ -91,7 +91,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       bindFcmTokenRefresh(dio);
     } on DioException catch (e) {
       final body = e.response?.data;
-      String msg = '로그인에 실패했습니다.';
+      String msg = '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
       if (body is Map && body['error'] != null) {
         msg = '${body['error']}';
       } else if (e.message != null) {
@@ -99,7 +99,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       }
       setState(() => _error = msg);
     } catch (e) {
-      setState(() => _error = '$e');
+      setState(() => _error = '로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -108,46 +108,81 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Scaffold(
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 28),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 48),
-              Text('BOA 지점관리', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 56),
+              Center(
+                child: Container(
+                  width: 80,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(Icons.business_center_outlined, size: 40, color: cs.primary),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'BOA 지점관리',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+              ),
               const SizedBox(height: 8),
               Text(
-                'Android 전용 앱',
-                style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                '보험 설계사·지점 실무용 모바일 CRM',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
               ),
               if (_error != null) ...[
-                const SizedBox(height: 24),
+                const SizedBox(height: 28),
                 Material(
-                  color: theme.colorScheme.errorContainer,
+                  color: cs.errorContainer,
                   borderRadius: BorderRadius.circular(12),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(_error!, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onErrorContainer)),
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.info_outline, size: 20, color: cs.onErrorContainer),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: theme.textTheme.bodyMedium?.copyWith(color: cs.onErrorContainer),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
               const Spacer(),
-              FilledButton(
+              FilledButton.icon(
                 onPressed: _busy ? null : _onGoogleSignIn,
                 style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                child: _busy
-                    ? const SizedBox(height: 22, width: 22, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Google로 로그인'),
+                icon: _busy
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.login),
+                label: Text(_busy ? '로그인 중…' : 'Google 계정으로 로그인'),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
-                '웹 CRM과 동일하게 사전 등록된 계정만 로그인할 수 있습니다.',
-                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                '사전 등록된 계정만 로그인할 수 있습니다.',
+                style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 36),
             ],
           ),
         ),

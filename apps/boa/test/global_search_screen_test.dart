@@ -13,9 +13,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('고객 검색'), findsOneWidget);
+    expect(find.text('통합 검색'), findsOneWidget);
     expect(find.text('이름 또는 전화번호 검색'), findsOneWidget);
-    expect(find.text('빠른 실행'), findsOneWidget);
+    expect(find.text('빠른 등록'), findsOneWidget);
     expect(find.text('고객 등록'), findsOneWidget);
     expect(find.text('상담 기록'), findsOneWidget);
     expect(find.text('후속 등록'), findsOneWidget);

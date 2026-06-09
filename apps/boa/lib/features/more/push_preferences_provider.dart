@@ -51,7 +51,7 @@ class PushPreferencesNotifier extends StateNotifier<PushPreferencesState> {
     if (!AppConfig.hasApiBase || _ref.read(sessionProvider) == null) {
       state = const PushPreferencesState(
         loading: false,
-        errorMessage: 'BOA_API_BASE_URL 또는 세션이 필요합니다.',
+        errorMessage: '서버 연결 또는 로그인이 필요합니다.',
       );
       return;
     }

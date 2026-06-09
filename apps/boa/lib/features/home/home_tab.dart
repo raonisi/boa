@@ -1,6 +1,7 @@
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/home/field_command_center.dart';
 import 'package:flutter/material.dart';
@@ -12,20 +13,12 @@ class HomeTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
     final session = ref.watch(sessionProvider);
 
     if (!AppConfig.hasApiBase) {
       return ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text('API 미설정', style: theme.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Text(
-            'BOA_API_BASE_URL dart-define 을 지정하세요.',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [BoaServerConfigHint()],
       );
     }
 

@@ -1,5 +1,6 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/more/push_preferences_screen.dart';
 import 'package:boa/features/notifications/notification_action_tile.dart';
@@ -53,15 +54,8 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
 
     if (!AppConfig.hasApiBase) {
       return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          Text('알림센터', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
-          Text(
-            'BOA_API_BASE_URL 을 설정하면 알림 목록이 표시됩니다.',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [BoaServerConfigHint(title: '서버 연결이 설정되지 않았습니다', message: '알림을 받으려면 앱 서버 연결이 필요합니다. 배포 담당자에게 문의해 주세요.')],
       );
     }
 

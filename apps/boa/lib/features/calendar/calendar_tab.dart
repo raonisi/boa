@@ -1,5 +1,6 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/calendar/schedule_create_dialog.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
@@ -17,16 +18,7 @@ class CalendarTab extends ConsumerWidget {
     final theme = Theme.of(context);
 
     if (!AppConfig.hasApiBase) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'BOA_API_BASE_URL 을 설정하면 일정·후속관리가 표시됩니다.',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ),
-      );
+      return const BoaServerConfigHint();
     }
 
     final async = ref.watch(calendarAgendaProvider);

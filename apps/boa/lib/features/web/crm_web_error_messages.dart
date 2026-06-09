@@ -12,7 +12,7 @@ String userFacingWebViewError(String? raw) {
 
   if (upper.contains('ERR_HTTP2') ||
       (upper.contains('HTTP2') && upper.contains('PROTOCOL'))) {
-    return '화면을 불러오지 못했습니다. Chrome 탭으로 열기를 시도해 주세요.';
+    return '화면을 불러오지 못했습니다. 브라우저 탭으로 열기를 시도해 주세요.';
   }
 
   return _classifyError(upper);
@@ -50,7 +50,7 @@ String _classifyError(String upper) {
   }
   if (upper.contains('ERR_HTTP2') ||
       (upper.contains('HTTP2') && upper.contains('PROTOCOL'))) {
-    return '화면을 불러오지 못했습니다. Chrome 탭으로 열기를 시도해 주세요.';
+    return '화면을 불러오지 못했습니다. 브라우저 탭으로 열기를 시도해 주세요.';
   }
   if (upper.contains('TIMEOUT') || upper.contains('TIMED OUT')) {
     return '응답 시간이 초과되었습니다. 네트워크 상태를 확인한 뒤 다시 시도해 주세요.';

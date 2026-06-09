@@ -41,8 +41,51 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 72,
+                  height: 72,
+                  decoration: BoxDecoration(
+                    color: cs.primaryContainer.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(Icons.business_center_outlined, size: 36, color: cs.primary),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'BOA 지점관리',
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '보험 설계사 현장 업무 CRM',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+                const SizedBox(height: 36),
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: cs.primary),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '불러오는 중입니다…',
+                  style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

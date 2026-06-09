@@ -336,7 +336,7 @@ class _QuickActionRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('빠른 실행', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text('빠른 등록', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -445,7 +445,7 @@ class _FollowUpPanel extends ConsumerWidget {
           const BoaEmptyState(
             icon: Icons.add_task_outlined,
             title: '예정된 후속관리가 없습니다',
-            message: '빠른 실행에서 후속을 등록하세요.',
+            message: '빠른 등록에서 후속을 등록하세요.',
           )
         else ...[
           if (overdue.isNotEmpty) ...[

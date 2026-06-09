@@ -44,7 +44,7 @@ const Map<String, CrmWebRouteMeta> _routeMetaByKey = {
   'bulk_import': CrmWebRouteMeta(
     title: '고객 일괄 등록',
     subtitle: '엑셀·대량 작업은 PC 사용을 권장합니다.',
-    drawerSubtitle: 'PC 권장 · CSV/XLSX',
+    drawerSubtitle: 'PC 권장 · 엑셀 일괄',
     pcRecommended: true,
     highRisk: true,
     highRiskNotice: '업로드 파일과 컬럼 매핑을 실행 전 다시 확인해 주세요.',

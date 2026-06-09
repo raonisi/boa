@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:boa/features/search/customer_search_result_tile.dart';
@@ -129,8 +130,8 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
 
     if (!AppConfig.hasApiBase) {
       return Scaffold(
-        appBar: AppBar(title: const Text('고객 검색')),
-        body: const Center(child: Text('BOA_API_BASE_URL 을 설정하세요.')),
+        appBar: AppBar(title: const Text('통합 검색')),
+        body: const BoaServerConfigHint(),
       );
     }
 
@@ -138,7 +139,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
         ? (widget.pendingAction != null
             ? '${quickCreateActionLabel(widget.pendingAction!)} — 고객 선택'
             : '고객 선택')
-        : '고객 검색';
+        : '통합 검색';
 
     return Scaffold(
       appBar: AppBar(
@@ -161,9 +162,9 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
               controller: _controller,
               focusNode: _focusNode,
               textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
+              decoration: boaSearchDecoration(
+                context,
                 hintText: '이름 또는 전화번호 검색',
-                prefixIcon: const Icon(Icons.search),
                 suffixIcon: searchState.loading
                     ? const Padding(
                         padding: EdgeInsets.all(12),
@@ -172,8 +173,6 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
                     : (_controller.text.isNotEmpty
                         ? IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch)
                         : null),
-                border: const OutlineInputBorder(),
-                isDense: true,
               ),
               onChanged: (v) {
                 setState(() {});
@@ -219,7 +218,7 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
             BoaEmptyState(
               icon: Icons.search,
               title: '고객을 검색하세요',
-              message: '이름 또는 전화번호 일부로 검색할 수 있습니다.\n빠른 실행으로 바로 업무를 시작할 수도 있습니다.',
+              message: '이름 또는 전화번호 일부로 검색할 수 있습니다.\n빠른 등록으로 바로 업무를 시작할 수도 있습니다.',
             ),
           ],
         );

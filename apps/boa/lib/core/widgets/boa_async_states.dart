@@ -67,7 +67,14 @@ class BoaEmptyState extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 44, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 36, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75)),
+            ),
             const SizedBox(height: 16),
             Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
             if (message != null) ...[

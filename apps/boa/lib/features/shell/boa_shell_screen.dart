@@ -44,15 +44,15 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
       key: _scaffoldKey,
       appBar: AppBar(
         title: Text(switch (tabIndex) {
-          0 => '대시보드',
-          1 => '고객 DB',
+          0 => '오늘 업무',
+          1 => '고객',
           2 => '계약',
           3 => '일정',
           _ => '알림',
         }),
         actions: [
           IconButton(
-            tooltip: '고객 검색',
+            tooltip: '통합 검색',
             icon: const Icon(Icons.search),
             onPressed: () => openGlobalSearch(context),
           ),
@@ -162,7 +162,7 @@ class _MoreDrawer extends StatelessWidget {
             onTap: () => onSelectShellTab(0)),
         ListTile(
             leading: const Icon(Icons.people_outline),
-            title: const Text('고객 DB'),
+            title: const Text('고객'),
             onTap: () => onSelectShellTab(1)),
         ListTile(
             leading: const Icon(Icons.calendar_today_outlined),
@@ -228,7 +228,7 @@ class _MoreDrawer extends StatelessWidget {
         if (isAdmin) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text('지점장 · 고위험 WebView',
+            child: Text('지점장 · 고위험 업무',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: theme.colorScheme.primary)),
           ),

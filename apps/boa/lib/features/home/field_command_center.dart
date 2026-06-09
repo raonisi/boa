@@ -1,5 +1,6 @@
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/search/global_search_screen.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/contracts/contract_summary_card.dart';
@@ -63,12 +64,12 @@ class FieldCommandCenterView extends ConsumerWidget {
         children: [
           if (userName != null)
             Text(
-              '$userName님, 오늘 할 일',
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+              '$userName님, 오늘의 업무 보드',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
             ),
           const SizedBox(height: 4),
           Text(
-            '연락 · 일정 · 알림을 한 화면에서 바로 처리하세요.',
+            '연락 · 일정 · 알림을 한 화면에서 바로 확인하고 처리하세요.',
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: 16),
@@ -89,7 +90,7 @@ class FieldCommandCenterView extends ConsumerWidget {
           OutlinedButton.icon(
             onPressed: () => openGlobalSearch(context),
             icon: const Icon(Icons.search),
-            label: const Text('고객 검색'),
+            label: const Text('통합 검색'),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               alignment: Alignment.center,
@@ -98,7 +99,7 @@ class FieldCommandCenterView extends ConsumerWidget {
           const SizedBox(height: 12),
           const BoaQuickCreateStrip(),
           const SizedBox(height: 20),
-          _SectionHeader(
+          BoaSectionHeader(
             title: '오늘 연락할 고객',
             actionLabel: contactQueue.isNotEmpty ? '전체 일정' : null,
             onAction: contactQueue.isNotEmpty ? () => ref.read(shellTabIndexProvider.notifier).state = 3 : null,
@@ -119,7 +120,7 @@ class FieldCommandCenterView extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 20),
-          _SectionHeader(
+          BoaSectionHeader(
             title: '오늘 일정',
             actionLabel: '캘린더',
             onAction: () => ref.read(shellTabIndexProvider.notifier).state = 3,
@@ -148,7 +149,7 @@ class FieldCommandCenterView extends ConsumerWidget {
           ),
           if (payload.longUnmanagedCustomers.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _SectionHeader(
+            BoaSectionHeader(
               title: '관리 필요 고객',
               actionLabel: '고객 목록',
               onAction: () => ref.read(shellTabIndexProvider.notifier).state = 1,
@@ -319,32 +320,6 @@ class _SummaryMetric extends StatelessWidget {
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    this.actionLabel,
-    this.onAction,
-  });
-
-  final String title;
-  final String? actionLabel;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Expanded(
-          child: Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-        ),
-        if (actionLabel != null && onAction != null)
-          TextButton(onPressed: onAction, child: Text(actionLabel!)),
-      ],
-    );
-  }
-}
-
 class _RecentContractsSection extends ConsumerWidget {
   const _RecentContractsSection({required this.theme});
 
@@ -358,7 +333,7 @@ class _RecentContractsSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionHeader(
+            BoaSectionHeader(
               title: '최근 계약',
               actionLabel: '전체',
               onAction: () => ref.read(shellTabIndexProvider.notifier).state = 2,
@@ -425,7 +400,7 @@ class _NotificationSummarySectionState extends ConsumerState<_NotificationSummar
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionHeader(
+        BoaSectionHeader(
           title: '알림 요약',
           actionLabel: '알림함',
           onAction: widget.onOpenNotifications,

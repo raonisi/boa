@@ -1,5 +1,6 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,7 +14,7 @@ class PerformanceScreen extends ConsumerWidget {
     if (!AppConfig.hasApiBase) {
       return Scaffold(
         appBar: AppBar(title: const Text('실적관리')),
-        body: const Center(child: Text('BOA_API_BASE_URL 을 설정해 주세요.')),
+        body: const BoaServerConfigHint(),
       );
     }
 

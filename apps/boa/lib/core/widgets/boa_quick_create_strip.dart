@@ -27,7 +27,7 @@ class BoaQuickCreateStrip extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('빠른 실행', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text('빠른 등록', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,

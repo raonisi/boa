@@ -48,7 +48,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('[TEST] Kim'), findsOneWidget);
-    expect(find.text('빠른 실행'), findsOneWidget);
+    expect(find.text('빠른 등록'), findsOneWidget);
     expect(find.text('상담기록'), findsOneWidget);
     expect(find.text('후속관리'), findsOneWidget);
     expect(find.text('완료'), findsOneWidget);

@@ -3,6 +3,7 @@ import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_agents_provider.dart';
 import 'package:boa/features/contracts/contract_create_logic.dart';
 import 'package:boa/features/contracts/contract_data_refresh.dart';
@@ -221,7 +222,7 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
     if (!AppConfig.hasApiBase) {
       return Scaffold(
         appBar: AppBar(title: const Text('신규 계약 등록')),
-        body: const Center(child: Text('BOA_API_BASE_URL 을 설정하세요.')),
+        body: const BoaServerConfigHint(),
       );
     }
 

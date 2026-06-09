@@ -161,7 +161,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
                       _loading = false;
                     });
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Chrome 탭으로 열었습니다. 작업은 탭에서 이어가 주세요.')),
+                      const SnackBar(content: Text('브라우저 탭으로 열었습니다. 작업은 탭에서 이어가 주세요.')),
                     );
                   }
                 });
@@ -229,7 +229,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
       if (!supported) {
         if (showFailureSnackBar && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Chrome 탭을 사용할 수 없어 외부 브라우저로 시도해 주세요.')),
+            const SnackBar(content: Text('브라우저 탭을 사용할 수 없어 외부 브라우저로 시도해 주세요.')),
           );
         }
         return false;
@@ -242,7 +242,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
       if (!mounted) return ok;
       if (!ok && showFailureSnackBar) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chrome 탭을 열 수 없습니다.')),
+          const SnackBar(content: Text('브라우저 탭을 열 수 없습니다.')),
         );
       }
       return ok;
@@ -250,7 +250,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
       if (!mounted) return false;
       if (showFailureSnackBar) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chrome 탭을 열 수 없습니다.')),
+          const SnackBar(content: Text('브라우저 탭을 열 수 없습니다.')),
         );
       }
       return false;
@@ -266,7 +266,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
       if (!mounted) return ok;
       if (!ok && showFailureSnackBar) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chrome 탭과 외부 브라우저를 열 수 없습니다.')),
+          const SnackBar(content: Text('브라우저 탭과 외부 브라우저를 열 수 없습니다.')),
         );
       }
       return ok;
@@ -369,14 +369,14 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               Icon(Icons.tab, size: 48, color: scheme.primary),
               const SizedBox(height: 16),
               Text(
-                '이 메뉴는 Chrome 탭에서 열립니다',
+                '이 메뉴는 브라우저 탭에서 열립니다',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               const SizedBox(height: 12),
               Text(
-                '앱 안 WebView는 이 서버와 HTTP/2에서 호환되지 않을 수 있습니다. '
-                '페이지는 Chrome 탭(또는 아래 버튼)에서 열리며, 그곳에서 그대로 이용하시면 됩니다.',
+                '앱 내 화면은 이 서버와 연결 방식이 맞지 않을 수 있습니다. '
+                '아래 버튼으로 브라우저 탭에서 열어 작업을 이어가 주세요.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
               ),
@@ -384,7 +384,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               FilledButton.icon(
                 onPressed: () => unawaited(_openChromeTabAndEnterHandoff()),
                 icon: const Icon(Icons.tab),
-                label: const Text('Chrome 탭으로 다시 열기'),
+                label: const Text('브라우저 탭으로 다시 열기'),
               ),
               const SizedBox(height: 8),
               OutlinedButton(
@@ -394,7 +394,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               const SizedBox(height: 8),
               TextButton(
                 onPressed: _retryWebViewFromHandoff,
-                child: const Text('WebView로 다시 시도 (개발·점검용)'),
+                child: const Text('앱 내 화면으로 다시 시도'),
               ),
             ],
           ),
@@ -478,7 +478,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               icon: const Icon(Icons.refresh),
             ),
             IconButton(
-              tooltip: 'Chrome 탭으로 열기',
+              tooltip: '브라우저 탭으로 열기',
               onPressed: () => unawaited(_openChromeTabAndEnterHandoff()),
               icon: const Icon(Icons.tab),
             ),

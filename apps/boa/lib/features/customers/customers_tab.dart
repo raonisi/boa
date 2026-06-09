@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:flutter/material.dart';
@@ -67,18 +68,8 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
 
     if (!AppConfig.hasApiBase) {
       return ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'API 주소가 설정되지 않았습니다.',
-            style: theme.textTheme.titleMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '실행 시 --dart-define=BOA_API_BASE_URL=... 를 지정하세요. (에뮬레이터: http://10.0.2.2:포트)',
-            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-          ),
-        ],
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [BoaServerConfigHint()],
       );
     }
 
@@ -90,9 +81,9 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
           child: TextField(
             controller: _searchController,
             textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
+            decoration: boaSearchDecoration(
+              context,
               hintText: '이름 또는 전화번호 검색',
-              prefixIcon: const Icon(Icons.search),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       tooltip: '지우기',
@@ -100,8 +91,6 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                       icon: const Icon(Icons.clear),
                     )
                   : null,
-              border: const OutlineInputBorder(),
-              isDense: true,
             ),
             onChanged: (v) {
               setState(() {});
@@ -188,23 +177,45 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
               if (c.phone != null && c.phone!.isNotEmpty) c.phone,
               if (c.priority != null && c.priority!.isNotEmpty) '우선순위 ${c.priority}',
             ].join(' · ');
-            return Card(
-              margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                title: Text(c.name, style: theme.textTheme.titleSmall),
-                subtitle: Text(
-                  subtitle.isEmpty ? '탭하여 상세' : subtitle,
-                  style: theme.textTheme.bodySmall,
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (context) => CustomerDetailScreen(customerId: c.id),
+            return BoaSurfaceCard(
+              onTap: () {
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (context) => CustomerDetailScreen(customerId: c.id),
+                  ),
+                );
+              },
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
+                    child: Text(
+                      c.name.isNotEmpty ? c.name[0] : '?',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: theme.colorScheme.primary,
+                      ),
                     ),
-                  );
-                },
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(c.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle.isEmpty ? '탭하여 상세 보기' : subtitle,
+                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                ],
               ),
             );
           },

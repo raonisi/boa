@@ -92,11 +92,11 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('[TEST] Agent님, 오늘 할 일'), findsOneWidget);
+    expect(find.text('[TEST] Agent님, 오늘의 업무 보드'), findsOneWidget);
     expect(find.text('오늘 예정된 업무가 없습니다'), findsOneWidget);
     expect(find.text('오늘 연락할 고객'), findsOneWidget);
     expect(find.text('오늘 예정된 일정이 없습니다'), findsOneWidget);
-    expect(find.text('빠른 실행'), findsOneWidget);
+    expect(find.text('빠른 등록'), findsOneWidget);
   });
 
   testWidgets('FieldCommandCenterView shows contact queue and schedule', (tester) async {
