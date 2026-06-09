@@ -126,7 +126,7 @@ Status legend:
 | 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 (**완료**) | `ContractCreateScreen`, `ContractSummaryCard`, `ContractsTab`, `CustomerDetail360View` | 중간 | Web 동일 필드·RBAC |
 | 5. Global Search / Quick Create | 통합 검색·빠른 실행 (**완료**) | `GlobalSearchScreen`, `BoaQuickCreateStrip`, Shell AppBar | 중간 | 검색 scope 서버 검증 |
 | 6. Push Preferences / Notifications Polish | 완료 — 알림 UX·설정 polish | `PushPreferencesScreen`, `NotificationsTab`, `NotificationActionTile` | — | push policy checklist |
-| 7. WebView Fallback Polish | 관리자 진입·로딩·뒤로가기 | `CrmWebScreen`, drawer | 낮음 | branch_admin WebView smoke |
+| 7. WebView Fallback Polish | **완료** — 진입·로딩·뒤로가기·PC 권장 | `CrmWebScreen`, `crm_web_route_meta`, drawer | — | branch_admin WebView smoke |
 | 8. Flutter APK Pilot Deployment Checklist | 내부 배포·FCM·OAuth | `apps/boa/android` | 중간 | PILOT_READINESS_RECHECKLIST |
 | 9. Pilot Feedback Fix PR | 파일럿 피드백 반영 | TBD | 낮음 | operator UAT |
 | 10. Capacitor Legacy Decision PR | Capacitor 유지/폐기 결정 | root `android/`, `capacitor.config.ts` | 중간 | 별도 승인·롤백 계획 |

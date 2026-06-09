@@ -1,6 +1,5 @@
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/auth/session_models.dart';
-import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/push/device_token_registration.dart';
 import 'package:boa/features/calendar/calendar_tab.dart';
 import 'package:boa/features/contracts/contracts_tab.dart';
@@ -12,8 +11,7 @@ import 'package:boa/features/more/push_preferences_screen.dart';
 import 'package:boa/features/notifications/notifications_tab.dart';
 import 'package:boa/features/search/global_search_screen.dart';
 import 'package:boa/features/shell/shell_tab_provider.dart';
-import 'package:boa/features/web/crm_web_portal_paths.dart';
-import 'package:boa/features/web/crm_web_screen.dart';
+import 'package:boa/features/web/crm_web_navigation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -90,36 +88,7 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
               ref.read(shellTabIndexProvider.notifier).state = 2;
               return;
             default:
-              final webPath = crmWebPathForRouteKey(routeKey);
-              if (webPath == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('$title — 앱에서 아직 연결되지 않은 메뉴입니다.')),
-                );
-                return;
-              }
-              if (!AppConfig.hasWebPortalBase) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text(
-                          '웹 주소를 알 수 없습니다. BOA_API_BASE_URL 또는 BOA_WEB_BASE_URL 을 설정하세요.')),
-                );
-                return;
-              }
-              if (session == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('로그인이 필요합니다. 다시 로그인해 주세요.')),
-                );
-                return;
-              }
-              Navigator.of(context).push<void>(
-                MaterialPageRoute<void>(
-                  builder: (_) => CrmWebScreen(
-                    title: title,
-                    path: webPath,
-                    sessionToken: session.sessionToken,
-                  ),
-                ),
-              );
+              openCrmWebRoute(context, ref, routeKey: routeKey);
           }
         },
         onSignOut: () {
@@ -210,63 +179,103 @@ class _MoreDrawer extends StatelessWidget {
               style: theme.textTheme.titleSmall
                   ?.copyWith(color: theme.colorScheme.primary)),
         ),
-        _tile(Icons.view_kanban_outlined, '세일즈 파이프라인', 'pipeline',
-            () => onNavigate('pipeline', '세일즈 파이프라인')),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          child: Text('웹 보조 · 관리자',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: theme.colorScheme.primary)),
+        ),
+        buildCrmWebDrawerTile(
+          routeKey: 'pipeline',
+          onTap: () => onNavigate('pipeline', '세일즈 파이프라인'),
+        ),
         if (isManager)
-          _tile(Icons.analytics_outlined, '영업 분석', 'sales_analytics',
-              () => onNavigate('sales_analytics', '영업 분석')),
+          buildCrmWebDrawerTile(
+            routeKey: 'sales_analytics',
+            onTap: () => onNavigate('sales_analytics', '영업 분석'),
+          ),
         _tile(Icons.description_outlined, '계약관리', 'contracts_tab',
             () => onNavigate('contracts_tab', '계약관리')),
         _tile(Icons.bar_chart_outlined, '실적관리', 'performance',
             () => onNavigate('performance', '실적관리')),
         _tile(Icons.flag_outlined, '목표관리', 'goals',
             () => onNavigate('goals', '목표관리')),
-        _tile(Icons.cloud_upload_outlined, '고객 일괄 등록', 'bulk_import',
-            () => onNavigate('bulk_import', '고객 일괄 등록')),
+        buildCrmWebDrawerTile(
+          routeKey: 'bulk_import',
+          onTap: () => onNavigate('bulk_import', '고객 일괄 등록'),
+        ),
         if (isManager)
-          _tile(Icons.assignment_ind_outlined, 'DB 배정', 'db_assign',
-              () => onNavigate('db_assign', 'DB 배정')),
+          buildCrmWebDrawerTile(
+            routeKey: 'db_assign',
+            onTap: () => onNavigate('db_assign', 'DB 배정'),
+          ),
         if (isManager) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text('조직·기록',
+            child: Text('조직 · 운영 로그',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: theme.colorScheme.primary)),
           ),
-          _tile(Icons.account_tree_outlined, '조직 구조', 'org',
-              () => onNavigate('org', '조직 구조')),
-          _tile(Icons.history_edu_outlined, '활동 로그', 'activity_log',
-              () => onNavigate('activity_log', '활동 로그')),
+          buildCrmWebDrawerTile(
+            routeKey: 'org',
+            onTap: () => onNavigate('org', '조직 구조'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'activity_log',
+            onTap: () => onNavigate('activity_log', '활동 로그'),
+          ),
         ],
         if (isAdmin) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text('지점장 전용',
+            child: Text('지점장 · 고위험 WebView',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: theme.colorScheme.primary)),
           ),
-          _tile(Icons.history, '업로드 이력 관리', 'upload_history',
-              () => onNavigate('upload_history', '업로드 이력 관리')),
-          _tile(Icons.merge_type_outlined, '중복 고객 관리', 'dup_customers',
-              () => onNavigate('dup_customers', '중복 고객 관리')),
-          _tile(Icons.manage_accounts_outlined, '사용자 관리', 'users',
-              () => onNavigate('users', '사용자 관리')),
-          _tile(Icons.swap_horiz, '인수인계 관리', 'handover',
-              () => onNavigate('handover', '인수인계 관리')),
-          _tile(Icons.groups_outlined, '팀 관리', 'teams',
-              () => onNavigate('teams', '팀 관리')),
-          _tile(Icons.shield_outlined, '운영 리스크 센터', 'ops',
-              () => onNavigate('ops', '운영 리스크 센터')),
-          _tile(Icons.campaign_outlined, '푸시 알림 운영', 'push_ops',
-              () => onNavigate('push_ops', '푸시 알림 운영')),
-          _tile(Icons.restore_from_trash_outlined, '삭제 데이터 관리', 'deleted',
-              () => onNavigate('deleted', '삭제 데이터 관리')),
-          _tile(Icons.download_outlined, '데이터 다운로드', 'download',
-              () => onNavigate('download', '데이터 다운로드')),
-          _tile(Icons.build_outlined, '상담 도구 관리', 'tools',
-              () => onNavigate('tools', '상담 도구 관리')),
-          _tile(Icons.settings_outlined, '설정 관리', 'settings_admin',
-              () => onNavigate('settings_admin', '설정 관리')),
+          buildCrmWebDrawerTile(
+            routeKey: 'upload_history',
+            onTap: () => onNavigate('upload_history', '업로드 이력 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'dup_customers',
+            onTap: () => onNavigate('dup_customers', '중복 고객 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'users',
+            onTap: () => onNavigate('users', '사용자 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'handover',
+            onTap: () => onNavigate('handover', '인수인계 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'teams',
+            onTap: () => onNavigate('teams', '팀 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'ops',
+            onTap: () => onNavigate('ops', '운영 리스크 센터'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'push_ops',
+            onTap: () => onNavigate('push_ops', '푸시 알림 운영'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'deleted',
+            onTap: () => onNavigate('deleted', '삭제 데이터 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'download',
+            onTap: () => onNavigate('download', '데이터 다운로드'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'tools',
+            onTap: () => onNavigate('tools', '상담 도구 관리'),
+          ),
+          buildCrmWebDrawerTile(
+            routeKey: 'settings_admin',
+            onTap: () => onNavigate('settings_admin', '설정 관리'),
+          ),
         ],
         const Divider(),
         ListTile(

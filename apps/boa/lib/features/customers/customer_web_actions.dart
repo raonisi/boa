@@ -17,10 +17,10 @@ void openCustomerWebDetail(
   }
   Navigator.of(context).push<void>(
     MaterialPageRoute<void>(
-      builder: (_) => CrmWebScreen(
-        title: title,
+      builder: (_) => CrmWebScreen.forPath(
         path: '/customers/$customerId',
         sessionToken: session.sessionToken,
+        title: title,
       ),
     ),
   );

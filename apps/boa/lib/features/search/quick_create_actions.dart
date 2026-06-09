@@ -42,10 +42,10 @@ void openCustomerRegistrationWeb(BuildContext context, WidgetRef ref) {
   }
   Navigator.of(context).push<void>(
     MaterialPageRoute<void>(
-      builder: (_) => CrmWebScreen(
-        title: '고객 등록',
+      builder: (_) => CrmWebScreen.forPath(
         path: '/customers',
         sessionToken: session.sessionToken,
+        title: '고객 등록',
       ),
     ),
   );

@@ -49,7 +49,7 @@ These workflows are implemented or targeted as **Flutter native screens** for th
 
 Native implementation should prefer existing mobile REST endpoints and RBAC rules on the server. Do not weaken scope checks in the client.
 
-**Pilot UX polish (Flutter only):** shared loading skeletons, empty/error states (`apps/boa/lib/core/widgets/boa_async_states.dart`), async `context.mounted` safety, and WebView admin entry labels. No server/API changes.
+**Pilot UX polish (Flutter only):** shared loading skeletons, empty/error states (`apps/boa/lib/core/widgets/boa_async_states.dart`), async `context.mounted` safety, WebView admin entry labels, and polished `CrmWebScreen` loading/error/back/PC-guidance UX. No server/API changes.
 
 ## C. WebView Retained Areas
 
