@@ -26,9 +26,9 @@ void main() {
 
     expect(find.text('[TEST] Lee'), findsOneWidget);
     expect(find.textContaining('상담예정'), findsOneWidget);
-    expect(find.text('상담기록'), findsOneWidget);
-    expect(find.text('후속'), findsOneWidget);
-    expect(find.text('일정'), findsOneWidget);
-    expect(find.text('계약'), findsOneWidget);
+    expect(find.text('상담 기록'), findsOneWidget);
+    expect(find.text('후속 등록'), findsOneWidget);
+    expect(find.text('일정 등록'), findsOneWidget);
+    expect(find.text('계약 등록'), findsOneWidget);
   });
 }

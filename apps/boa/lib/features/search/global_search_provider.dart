@@ -1,5 +1,6 @@
 import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/auth/session_controller.dart';
+import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,10 +9,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 final globalSearchQueryProvider = StateProvider<String>((ref) => '');
 
 const int _globalSearchPageSize = 30;
+const int _globalContractSearchLimit = 20;
 
 class GlobalSearchState {
   const GlobalSearchState({
     this.items = const [],
+    this.contractItems = const [],
     this.hasMore = false,
     this.loading = false,
     this.loadingMore = false,
@@ -20,14 +23,18 @@ class GlobalSearchState {
   });
 
   final List<BoaCustomerRow> items;
+  final List<BoaContractRow> contractItems;
   final bool hasMore;
   final bool loading;
   final bool loadingMore;
   final String? errorMessage;
   final String appliedQuery;
 
+  bool get hasAnyResults => items.isNotEmpty || contractItems.isNotEmpty;
+
   GlobalSearchState copyWith({
     List<BoaCustomerRow>? items,
+    List<BoaContractRow>? contractItems,
     bool? hasMore,
     bool? loading,
     bool? loadingMore,
@@ -37,6 +44,7 @@ class GlobalSearchState {
   }) {
     return GlobalSearchState(
       items: items ?? this.items,
+      contractItems: contractItems ?? this.contractItems,
       hasMore: hasMore ?? this.hasMore,
       loading: loading ?? this.loading,
       loadingMore: loadingMore ?? this.loadingMore,
@@ -74,18 +82,28 @@ class GlobalSearchNotifier extends StateNotifier<GlobalSearchState> {
     }
     state = GlobalSearchState(loading: true, appliedQuery: trimmed);
     try {
-      final bundle = await _fetchPage(trimmed, 0);
+      final customerFuture = _fetchCustomerPage(trimmed, 0);
+      List<BoaContractRow> contracts = const [];
+      try {
+        contracts = (await _fetchContractPage(trimmed)).items;
+      } catch (_) {
+        contracts = const [];
+      }
+      if (gen != _requestGen) return;
+
+      final customerBundle = await customerFuture;
       if (gen != _requestGen) return;
       state = GlobalSearchState(
-        items: bundle.items,
-        hasMore: bundle.hasMore,
+        items: customerBundle.items,
+        contractItems: contracts,
+        hasMore: customerBundle.hasMore,
         appliedQuery: trimmed,
       );
     } on DioException catch (e) {
       if (gen != _requestGen) return;
       final msg = e.response?.data is Map && (e.response!.data as Map)['error'] != null
           ? '${(e.response!.data as Map)['error']}'
-          : e.message ?? '검색에 실패했습니다.';
+          : e.message ?? '검색 결과를 불러오지 못했습니다.';
       state = GlobalSearchState(errorMessage: msg, appliedQuery: trimmed);
     } catch (e) {
       if (gen != _requestGen) return;
@@ -99,10 +117,11 @@ class GlobalSearchNotifier extends StateNotifier<GlobalSearchState> {
     final gen = _requestGen;
     state = state.copyWith(loadingMore: true);
     try {
-      final bundle = await _fetchPage(q, state.items.length);
+      final bundle = await _fetchCustomerPage(q, state.items.length);
       if (gen != _requestGen) return;
       state = GlobalSearchState(
         items: [...state.items, ...bundle.items],
+        contractItems: state.contractItems,
         hasMore: bundle.hasMore,
         appliedQuery: q,
       );
@@ -112,7 +131,7 @@ class GlobalSearchNotifier extends StateNotifier<GlobalSearchState> {
     }
   }
 
-  Future<_SearchPageBundle> _fetchPage(String search, int offset) async {
+  Future<_CustomerPageBundle> _fetchCustomerPage(String search, int offset) async {
     final dio = _ref.read(dioProvider);
     final res = await dio.get<Map<String, dynamic>>(
       '/api/mobile/customers',
@@ -131,12 +150,38 @@ class GlobalSearchNotifier extends StateNotifier<GlobalSearchState> {
             .whereType<BoaCustomerRow>()
             .toList();
     final hasMore = res.data?['hasMore'] == true;
-    return _SearchPageBundle(items: items, hasMore: hasMore);
+    return _CustomerPageBundle(items: items, hasMore: hasMore);
+  }
+
+  Future<_ContractPageBundle> _fetchContractPage(String search) async {
+    final dio = _ref.read(dioProvider);
+    final res = await dio.get<Map<String, dynamic>>(
+      '/api/mobile/contracts',
+      queryParameters: <String, dynamic>{
+        'limit': _globalContractSearchLimit,
+        'offset': 0,
+        if (search.isNotEmpty) 'search': search,
+      },
+    );
+    final raw = res.data?['items'];
+    final items = raw is! List
+        ? const <BoaContractRow>[]
+        : raw
+            .map((e) => e is Map<String, dynamic> ? e : (e is Map ? Map<String, dynamic>.from(e) : null))
+            .whereType<Map<String, dynamic>>()
+            .map(BoaContractRow.fromJson)
+            .toList();
+    return _ContractPageBundle(items: items);
   }
 }
 
-class _SearchPageBundle {
-  _SearchPageBundle({required this.items, required this.hasMore});
+class _CustomerPageBundle {
+  _CustomerPageBundle({required this.items, required this.hasMore});
   final List<BoaCustomerRow> items;
   final bool hasMore;
+}
+
+class _ContractPageBundle {
+  _ContractPageBundle({required this.items});
+  final List<BoaContractRow> items;
 }

@@ -6,7 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class BoaQuickCreateStrip extends ConsumerWidget {
   const BoaQuickCreateStrip({
     super.key,
-    this.sectionTitle = '빠른 등록',
+    this.sectionTitle = '빠른 실행',
     this.customerId,
     this.customerName,
     this.actions = const [

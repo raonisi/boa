@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  testWidgets('GlobalSearchScreen shows search field and quick create strip', (tester) async {
+  testWidgets('GlobalSearchScreen shows search field and quick actions strip', (tester) async {
     await tester.pumpWidget(
       const ProviderScope(
         child: MaterialApp(home: GlobalSearchScreen()),
@@ -14,8 +14,9 @@ void main() {
     await tester.pump();
 
     expect(find.text('통합 검색'), findsOneWidget);
-    expect(find.text('이름 또는 전화번호 검색'), findsOneWidget);
-    expect(find.text('빠른 등록'), findsOneWidget);
+    expect(find.text('고객명, 연락처 일부, 계약 정보를 검색하세요'), findsOneWidget);
+    expect(find.text('검색어를 입력해 주세요'), findsWidgets);
+    expect(find.text('빠른 실행'), findsOneWidget);
     expect(find.text('고객 등록'), findsOneWidget);
     expect(find.text('상담 기록'), findsOneWidget);
     expect(find.text('후속 등록'), findsOneWidget);

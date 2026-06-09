@@ -6,6 +6,7 @@ import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
+import 'package:boa/features/search/contract_search_result_tile.dart';
 import 'package:boa/features/search/customer_search_result_tile.dart';
 import 'package:boa/features/search/global_search_provider.dart';
 import 'package:boa/features/search/quick_create_actions.dart';
@@ -119,6 +120,14 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     return false;
   }
 
+  String get _screenTitle {
+    if (!widget.pickOnly) return '통합 검색';
+    if (widget.pendingAction != null) {
+      return '${quickCreateActionLabel(widget.pendingAction!)} — 고객 선택';
+    }
+    return '고객 선택';
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -135,15 +144,9 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
       );
     }
 
-    final title = widget.pickOnly
-        ? (widget.pendingAction != null
-            ? '${quickCreateActionLabel(widget.pendingAction!)} — 고객 선택'
-            : '고객 선택')
-        : '통합 검색';
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Text(_screenTitle),
         actions: [
           if (_controller.text.isNotEmpty)
             IconButton(
@@ -153,41 +156,29 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
             ),
         ],
       ),
+      resizeToAvoidBottomInset: true,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              textInputAction: TextInputAction.search,
-              decoration: boaSearchDecoration(
-                context,
-                hintText: '이름 또는 전화번호 검색',
-                suffixIcon: searchState.loading
-                    ? const Padding(
-                        padding: EdgeInsets.all(12),
-                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
-                      )
-                    : (_controller.text.isNotEmpty
-                        ? IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch)
-                        : null),
-              ),
-              onChanged: (v) {
-                setState(() {});
-                _scheduleSearch(v);
-              },
-              onSubmitted: (v) {
-                _debounce?.cancel();
-                ref.read(globalSearchQueryProvider.notifier).state = v.trim();
-              },
-            ),
+          _SearchHeader(
+            theme: theme,
+            controller: _controller,
+            focusNode: _focusNode,
+            loading: searchState.loading && hasQuery,
+            onChanged: (v) {
+              setState(() {});
+              _scheduleSearch(v);
+            },
+            onSubmitted: (v) {
+              _debounce?.cancel();
+              ref.read(globalSearchQueryProvider.notifier).state = v.trim();
+            },
+            onClear: _clearSearch,
           ),
-          if (!hasQuery) ...[
+          if (!hasQuery && !widget.pickOnly) ...[
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
-              child: BoaQuickCreateStrip(),
+              padding: EdgeInsets.fromLTRB(16, 4, 16, 0),
+              child: BoaQuickCreateStrip(sectionTitle: '빠른 실행'),
             ),
             const SizedBox(height: 12),
           ],
@@ -211,89 +202,192 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     double bottomInset,
   ) {
     if (!hasQuery) {
-      if (recent.isEmpty) {
-        return ListView(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
-          children: const [
-            BoaEmptyState(
-              icon: Icons.search,
-              title: '고객을 검색하세요',
-              message: '이름 또는 전화번호 일부로 검색할 수 있습니다.\n빠른 등록으로 바로 업무를 시작할 수도 있습니다.',
-            ),
-          ],
-        );
-      }
+      return _buildIdleBody(context, theme, recent, bottomInset);
+    }
+
+    if (searchState.errorMessage != null && !searchState.hasAnyResults) {
       return ListView(
-        padding: EdgeInsets.fromLTRB(0, 0, 0, 16 + bottomInset),
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-            child: Text('최근 고객', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-          ),
-          ...recent.map(
-            (e) => CustomerSearchResultTile(
-              key: ValueKey('recent-${e.id}'),
-              customer: e.toRow(),
-              showQuickActions: !widget.pickOnly,
-              onOpenDetail: () => _openCustomer(e.toRow()),
-              onQuickAction: widget.pickOnly ? null : (a) => _quickAction(e.toRow(), a),
-            ),
+          BoaErrorState(
+            title: '검색 결과를 불러오지 못했습니다',
+            message: '네트워크 상태를 확인한 뒤 잠시 후 다시 시도해 주세요.',
+            onRetry: () => ref.read(globalSearchNotifierProvider.notifier).search(searchState.appliedQuery),
           ),
         ],
       );
     }
 
-    if (searchState.errorMessage != null && searchState.items.isEmpty) {
-      return BoaErrorState(
-        title: '검색에 실패했습니다',
-        message: searchState.errorMessage!,
-        onRetry: () => ref.read(globalSearchNotifierProvider.notifier).search(searchState.appliedQuery),
+    if (searchState.loading && !searchState.hasAnyResults) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+        children: const [
+          SizedBox(height: 24),
+          Center(child: CircularProgressIndicator()),
+          SizedBox(height: 16),
+          Center(child: Text('검색 중입니다…')),
+          SizedBox(height: 24),
+          BoaListLoadingSkeleton(itemCount: 3),
+        ],
       );
     }
 
-    if (searchState.loading && searchState.items.isEmpty) {
-      return const BoaListLoadingSkeleton();
-    }
-
-    final rows = searchState.items;
-    if (rows.isEmpty) {
+    final customers = searchState.items;
+    final contracts = searchState.contractItems;
+    if (!searchState.hasAnyResults) {
       return ListView(
         padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
         children: [
           BoaEmptyState(
             icon: Icons.person_search_outlined,
             title: '검색 결과가 없습니다',
-            message: '이름 또는 전화번호를 다시 확인해 주세요.',
-            actionLabel: '고객 등록',
-            onAction: () => openCustomerRegistrationWeb(context, ref),
+            message: '고객명이나 연락처 일부를 다시 확인해 주세요.\n'
+                '신규 고객 등록 전에는 기존 고객과 중복되지 않는지 확인해 주세요.',
+            actionLabel: widget.pickOnly ? null : '고객 등록',
+            onAction: widget.pickOnly ? null : () => openCustomerRegistrationWeb(context, ref),
           ),
         ],
       );
     }
 
-    return ListView.builder(
+    return ListView(
       padding: EdgeInsets.only(bottom: 16 + bottomInset),
-      itemCount: rows.length + (searchState.hasMore ? 1 : 0),
-      itemBuilder: (context, i) {
-        if (i >= rows.length) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Center(
-              child: searchState.loadingMore
-                  ? const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const SizedBox.shrink(),
+      children: [
+        if (customers.isNotEmpty) ...[
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 4, 16, 6),
+            child: BoaSectionHeader(title: '고객 결과'),
+          ),
+          ...customers.map(
+            (c) => CustomerSearchResultTile(
+              key: ValueKey('hit-${c.id}'),
+              customer: c,
+              showQuickActions: !widget.pickOnly && widget.pendingAction == null,
+              onOpenDetail: () => _openCustomer(c),
+              onQuickAction: widget.pickOnly ? null : (a) => _quickAction(c, a),
             ),
-          );
-        }
-        final c = rows[i];
-        return CustomerSearchResultTile(
-          key: ValueKey('hit-${c.id}'),
-          customer: c,
-          showQuickActions: !widget.pickOnly && widget.pendingAction == null,
-          onOpenDetail: () => _openCustomer(c),
-          onQuickAction: widget.pickOnly ? null : (a) => _quickAction(c, a),
-        );
-      },
+          ),
+          if (searchState.hasMore)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Center(
+                child: searchState.loadingMore
+                    ? const SizedBox(width: 28, height: 28, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const SizedBox.shrink(),
+              ),
+            ),
+        ],
+        if (contracts.isNotEmpty) ...[
+          Padding(
+            padding: EdgeInsets.fromLTRB(16, customers.isNotEmpty ? 12 : 4, 16, 6),
+            child: const BoaSectionHeader(title: '계약 결과'),
+          ),
+          ...contracts.map(
+            (c) => ContractSearchResultTile(key: ValueKey('contract-hit-${c.id}'), contract: c),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildIdleBody(
+    BuildContext context,
+    ThemeData theme,
+    List<RecentCustomerEntry> recent,
+    double bottomInset,
+  ) {
+    if (recent.isEmpty) {
+      return ListView(
+        padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + bottomInset),
+        children: const [
+          BoaEmptyState(
+            icon: Icons.search,
+            title: '검색어를 입력해 주세요',
+            message: '고객명을 입력하면 관련 고객과 계약을 함께 확인할 수 있습니다.',
+          ),
+        ],
+      );
+    }
+
+    return ListView(
+      padding: EdgeInsets.only(bottom: 16 + bottomInset),
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          child: Text(
+            '최근 고객',
+            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ),
+        ...recent.map(
+          (e) => CustomerSearchResultTile(
+            key: ValueKey('recent-${e.id}'),
+            customer: e.toRow(),
+            showQuickActions: !widget.pickOnly,
+            onOpenDetail: () => _openCustomer(e.toRow()),
+            onQuickAction: widget.pickOnly ? null : (a) => _quickAction(e.toRow(), a),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SearchHeader extends StatelessWidget {
+  const _SearchHeader({
+    required this.theme,
+    required this.controller,
+    required this.focusNode,
+    required this.loading,
+    required this.onChanged,
+    required this.onSubmitted,
+    required this.onClear,
+  });
+
+  final ThemeData theme;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool loading;
+  final ValueChanged<String> onChanged;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '고객명, 연락처 일부, 계약 정보를 검색하세요',
+            style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant, height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            focusNode: focusNode,
+            textInputAction: TextInputAction.search,
+            decoration: boaSearchDecoration(
+              context,
+              hintText: '검색어를 입력해 주세요',
+              suffixIcon: loading
+                  ? const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                    )
+                  : (controller.text.isNotEmpty
+                      ? IconButton(icon: const Icon(Icons.clear), tooltip: '지우기', onPressed: onClear)
+                      : null),
+            ),
+            onChanged: onChanged,
+            onSubmitted: onSubmitted,
+          ),
+        ],
+      ),
     );
   }
 }
