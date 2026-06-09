@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('NotificationActionTile shows type badges and quick actions', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: NotificationActionTile(
@@ -40,7 +40,7 @@ void main() {
 
   testWidgets('NotificationActionTile hides unread dot when read', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: NotificationActionTile(

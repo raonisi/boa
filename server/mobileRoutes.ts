@@ -14,6 +14,11 @@ import {
 import { sdk, type GoogleUserInfo } from "./_core/sdk";
 import { createActivityLog, upsertUserDeviceToken } from "./db";
 import { hashDeviceToken, maskDeviceToken } from "./deviceTokenUtil";
+import {
+  filterMobileContracts,
+  paginateMobileList,
+  parseMobileSearchQuery,
+} from "./mobileSearchFilters";
 
 const googleIdTokenBody = z.object({
   idToken: z.string().min(10),
@@ -320,20 +325,12 @@ export function registerMobileRoutes(app: Express) {
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
     try {
-      const rawSearch =
-        typeof req.query.search === "string" ? req.query.search : undefined;
-      let q: string | undefined;
-      if (rawSearch !== undefined) {
-        const trimmed = rawSearch.trim();
-        if (trimmed.length > 100) {
-          res.status(400).json({ error: "Invalid search query" });
-          return;
-        }
-        q = trimmed.length > 0 ? trimmed : undefined;
+      const parsedSearch = parseMobileSearchQuery(req.query.search);
+      if (!parsedSearch.ok) {
+        res.status(400).json({ error: "Invalid search query" });
+        return;
       }
-      if (q !== undefined) {
-        // customers.list는 search 입력을 받지 않으므로 모바일 API 레벨에서만 검증/무시
-      }
+      const q = parsedSearch.value;
       const pageSizeParsed =
         req.query.limit === undefined
           ? { success: true as const, data: 50 }
@@ -353,15 +350,12 @@ export function registerMobileRoutes(app: Express) {
       }
       const pageSize = pageSizeParsed.data;
       const offset = offsetParsed.data;
-      const rows = await caller.customers.list({});
-      const fetchLimit = pageSize + 1;
-      const windowed = rows.slice(offset, offset + fetchLimit);
-      const hasMore = windowed.length > pageSize;
-      const items = hasMore ? windowed.slice(0, pageSize) : windowed;
+      const rows = await caller.customers.list(q !== undefined ? { search: q } : {});
+      const page = paginateMobileList(rows, offset, pageSize);
       res.json({
-        items,
-        hasMore,
-        nextOffset: hasMore ? offset + pageSize : null,
+        items: page.items,
+        hasMore: page.hasMore,
+        nextOffset: page.nextOffset,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to list customers";
@@ -643,17 +637,12 @@ export function registerMobileRoutes(app: Express) {
       .enum(["all", "mine"])
       .optional()
       .safeParse(req.query.scope);
-    const rawSearch =
-      typeof req.query.search === "string" ? req.query.search : undefined;
-    let search: string | undefined;
-    if (rawSearch !== undefined) {
-      const trimmed = rawSearch.trim();
-      if (trimmed.length > 100) {
-        res.status(400).json({ error: "Invalid search query" });
-        return;
-      }
-      search = trimmed.length > 0 ? trimmed : undefined;
+    const parsedSearch = parseMobileSearchQuery(req.query.search);
+    if (!parsedSearch.ok) {
+      res.status(400).json({ error: "Invalid search query" });
+      return;
     }
+    const search = parsedSearch.value;
     const pageSizeParsed =
       req.query.limit === undefined
         ? { success: true as const, data: 50 }
@@ -673,24 +662,21 @@ export function registerMobileRoutes(app: Express) {
     }
     const pageSize = pageSizeParsed.data;
     const offset = offsetParsed.data;
-    if (search !== undefined) {
-      // contracts.list는 search 입력을 받지 않으므로 모바일 API 레벨에서만 검증/무시
-    }
     const listInput = {
       ...(scopeParsed.success && scopeParsed.data !== undefined
         ? { scope: scopeParsed.data }
         : {}),
     };
     try {
-      const rows = await caller.contracts.list(listInput);
-      const fetchLimit = pageSize + 1;
-      const windowed = rows.slice(offset, offset + fetchLimit);
-      const hasMore = windowed.length > pageSize;
-      const items = hasMore ? windowed.slice(0, pageSize) : windowed;
+      let rows = await caller.contracts.list(listInput);
+      if (search !== undefined) {
+        rows = filterMobileContracts(rows, search);
+      }
+      const page = paginateMobileList(rows, offset, pageSize);
       res.json({
-        items,
-        hasMore,
-        nextOffset: hasMore ? offset + pageSize : null,
+        items: page.items,
+        hasMore: page.hasMore,
+        nextOffset: page.nextOffset,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to list contracts";

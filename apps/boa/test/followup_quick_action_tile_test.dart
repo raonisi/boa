@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('FollowUpQuickActionTile renders quick action labels', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: FollowUpQuickActionTile(
@@ -36,7 +36,7 @@ void main() {
 
   testWidgets('FollowUpQuickActionTile shows overdue badge', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: FollowUpQuickActionTile(
@@ -68,7 +68,7 @@ void main() {
           home: Scaffold(
             body: StatefulBuilder(
               builder: (context, setState) {
-                return FollowUpQuickActionTile(
+                return const FollowUpQuickActionTile(
                   raw: {
                     'id': 44,
                     'customerId': 9,

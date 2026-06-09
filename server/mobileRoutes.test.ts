@@ -3,6 +3,7 @@ import type { Server } from "node:http";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { registerMobileRoutes } from "./mobileRoutes";
 import { sdk } from "./_core/sdk";
+import { appRouter } from "./routers";
 
 function testUser(accountStatus: "active" | "inactive" | "resigned" = "active") {
   return {
@@ -68,6 +69,63 @@ describe("mobile contract create", () => {
 
       expect(response.status).toBe(400);
       expect(body).toEqual({ error: "Invalid customer id" });
+    });
+  });
+});
+
+describe("mobile customers search", () => {
+  it("forwards search query to scoped customers.list", async () => {
+    const listMock = vi.fn().mockResolvedValue([
+      { id: 101, name: "[TEST] Alpha", consultStatus: "미상담" },
+    ]);
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
+    vi.spyOn(appRouter, "createCaller").mockReturnValue({
+      customers: { list: listMock },
+    } as ReturnType<typeof appRouter.createCaller>);
+
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(
+        `${baseUrl}/api/mobile/customers?search=${encodeURIComponent("[TEST] Alpha")}&limit=10`,
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(listMock).toHaveBeenCalledWith({ search: "[TEST] Alpha" });
+      expect(body.items).toHaveLength(1);
+    });
+  });
+
+  it("rejects overlong search query", async () => {
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
+
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/mobile/customers?search=${"x".repeat(101)}`);
+      const body = await response.json();
+      expect(response.status).toBe(400);
+      expect(body).toEqual({ error: "Invalid search query" });
+    });
+  });
+});
+
+describe("mobile contracts search", () => {
+  it("filters scoped contracts before pagination", async () => {
+    const listMock = vi.fn().mockResolvedValue([
+      { id: 1, productName: "[TEST] Alpha Plan", company: "Insurer A", contractStatus: "유지" },
+      { id: 2, productName: "[TEST] Beta Plan", company: "Insurer B", contractStatus: "유지" },
+    ]);
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
+    vi.spyOn(appRouter, "createCaller").mockReturnValue({
+      contracts: { list: listMock },
+    } as ReturnType<typeof appRouter.createCaller>);
+
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/mobile/contracts?search=beta&limit=10`);
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(listMock).toHaveBeenCalledWith({});
+      expect(body.items).toHaveLength(1);
+      expect(body.items[0].id).toBe(2);
     });
   });
 });

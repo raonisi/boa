@@ -186,8 +186,8 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
             ),
           ),
           if (!hasQuery) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
               child: BoaQuickCreateStrip(),
             ),
             const SizedBox(height: 12),

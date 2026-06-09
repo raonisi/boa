@@ -6,10 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('ContractSummaryCard renders premium and status', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
+      const MaterialApp(
         home: Scaffold(
           body: ContractSummaryCard(
-            row: const BoaContractRow(
+            row: BoaContractRow(
               id: 9,
               customerId: 7,
               productName: '[TEST] 종신보험',

@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('ScheduleQuickActionTile renders action chips', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: ScheduleQuickActionTile(
@@ -36,7 +36,7 @@ void main() {
 
   testWidgets('ScheduleQuickActionTile hides complete for finished schedule', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(
           home: Scaffold(
             body: ScheduleQuickActionTile(

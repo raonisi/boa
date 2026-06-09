@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('GlobalSearchScreen shows search field and quick create strip', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(home: GlobalSearchScreen()),
       ),
     );
@@ -34,7 +34,7 @@ void main() {
               ),
             )),
         ],
-        child: MaterialApp(home: GlobalSearchScreen()),
+        child: const MaterialApp(home: GlobalSearchScreen()),
       ),
     );
     await tester.pump();
@@ -45,16 +45,18 @@ void main() {
 
   testWidgets('GlobalSearchScreen clear button resets query', (tester) async {
     await tester.pumpWidget(
-      ProviderScope(
+      const ProviderScope(
         child: MaterialApp(home: GlobalSearchScreen(initialQuery: '[TEST]')),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('[TEST]'), findsOneWidget);
 
     await tester.tap(find.byTooltip('지우기'));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('[TEST]'), findsNothing);
   });

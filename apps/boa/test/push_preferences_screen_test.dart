@@ -20,7 +20,8 @@ void main() {
         child: const MaterialApp(home: PushPreferencesScreen()),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.textContaining('불러오지 못했습니다'), findsOneWidget);
     expect(find.text('다시 시도'), findsOneWidget);
