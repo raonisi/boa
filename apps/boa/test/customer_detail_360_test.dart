@@ -34,7 +34,7 @@ List<Override> _overrides() => [
     ];
 
 void main() {
-  testWidgets('CustomerDetail360View renders profile and action hub', (tester) async {
+  testWidgets('CustomerDetail360View renders consultation workflow sections', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: _overrides(),
@@ -49,15 +49,18 @@ void main() {
 
     expect(find.text('[TEST] Kim'), findsOneWidget);
     expect(find.text('고객 요약'), findsOneWidget);
-    expect(find.text('다음 액션'), findsOneWidget);
+    expect(find.text('오늘 확인할 항목'), findsOneWidget);
     expect(find.text('재연락'), findsOneWidget);
-    expect(find.text('상담 기록'), findsWidgets);
+    expect(find.text('최근 상담 기록'), findsOneWidget);
+    expect(find.text('진행 중인 관리'), findsOneWidget);
     expect(find.text('후속관리'), findsOneWidget);
     expect(find.text('완료'), findsOneWidget);
     expect(find.text('계약 요약'), findsOneWidget);
+    expect(find.text('다음 액션'), findsOneWidget);
+    expect(find.text('상담 기록 남기기'), findsOneWidget);
   });
 
-  testWidgets('CustomerDetail360View shows empty schedule state', (tester) async {
+  testWidgets('CustomerDetail360View shows empty schedule state in ongoing management', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: _overrides(),
