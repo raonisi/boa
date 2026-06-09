@@ -10,8 +10,8 @@ import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:boa/features/home/field_recent_contracts_provider.dart';
 import 'package:boa/features/more/performance_screen.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
+import 'package:boa/features/notifications/notification_action_tile.dart';
 import 'package:boa/features/notifications/notification_priority.dart';
-import 'package:boa/features/notifications/notifications_providers.dart';
 import 'package:boa/features/notifications/unread_count_provider.dart';
 import 'package:boa/features/shell/shell_tab_provider.dart';
 import 'package:boa/features/work/work_data_refresh.dart';
@@ -143,7 +143,6 @@ class FieldCommandCenterView extends ConsumerWidget {
           _RecentContractsSection(theme: theme),
           const SizedBox(height: 20),
           _NotificationSummarySection(
-            theme: theme,
             notifications: payload.pendingNotifications,
             onOpenNotifications: () => ref.read(shellTabIndexProvider.notifier).state = 4,
           ),
@@ -406,12 +405,10 @@ class _RecentContractsSection extends ConsumerWidget {
 
 class _NotificationSummarySection extends ConsumerStatefulWidget {
   const _NotificationSummarySection({
-    required this.theme,
     required this.notifications,
     required this.onOpenNotifications,
   });
 
-  final ThemeData theme;
   final List<Map<String, dynamic>> notifications;
   final VoidCallback onOpenNotifications;
 
@@ -422,7 +419,6 @@ class _NotificationSummarySection extends ConsumerStatefulWidget {
 class _NotificationSummarySectionState extends ConsumerState<_NotificationSummarySection> {
   @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
     final notifications = widget.notifications;
     final top = sortNotificationsForQueue([...notifications]).take(3).toList();
 
@@ -438,80 +434,20 @@ class _NotificationSummarySectionState extends ConsumerState<_NotificationSummar
         if (notifications.isEmpty)
           const BoaEmptyState(
             icon: Icons.notifications_none_outlined,
-            title: '처리할 알림이 없습니다',
+            title: '확인할 업무가 없습니다.',
             message: '새 알림이 오면 여기에 표시됩니다.',
           )
         else
-          ...top.map((n) => _HomeNotificationTile(theme: theme, raw: n, priority: classifyNotificationPriority(n))),
+          ...top.map(
+            (n) => NotificationActionTile(
+              key: ValueKey('home-notif-${n['id']}'),
+              raw: n,
+              priority: classifyNotificationPriority(n),
+              compact: true,
+              onAfterRead: () => refreshFieldWorkData(ref),
+            ),
+          ),
       ],
-    );
-  }
-}
-
-class _HomeNotificationTile extends ConsumerWidget {
-  const _HomeNotificationTile({required this.theme, required this.raw, required this.priority});
-
-  final ThemeData theme;
-  final Map<String, dynamic> raw;
-  final NotificationPriority priority;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final idVal = raw['id'];
-    final id = idVal is int ? idVal : int.tryParse('$idVal') ?? 0;
-    final title = '${raw['title'] ?? '알림'}';
-    final customerName = '${raw['customerName'] ?? ''}'.trim();
-    final accentColor = switch (priority) {
-      NotificationPriority.urgent => Colors.red.shade400,
-      NotificationPriority.today => Colors.orange.shade400,
-      NotificationPriority.general => Colors.blueGrey.shade400,
-    };
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 4,
-              height: 40,
-              margin: const EdgeInsets.only(top: 2, right: 8),
-              decoration: BoxDecoration(color: accentColor, borderRadius: BorderRadius.circular(999)),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                  if (customerName.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(customerName, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                    ),
-                ],
-              ),
-            ),
-            TextButton(
-              onPressed: id == 0
-                  ? null
-                  : () async {
-                      try {
-                        await markMobileNotificationRead(ref, id);
-                        refreshFieldWorkData(ref);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('알림을 읽음 처리했습니다.')));
-                        }
-                      } catch (e) {
-                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
-                      }
-                    },
-              child: const Text('읽음'),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

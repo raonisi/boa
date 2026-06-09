@@ -81,7 +81,7 @@ class NotificationsListNotifier extends StateNotifier<NotificationListState> {
     } on DioException catch (e) {
       if (gen != _requestGen) return;
       final body = e.response?.data;
-      String msg = '알림을 불러오지 못했습니다.';
+      String msg = '알림을 불러오지 못했습니다. 다시 시도해 주세요.';
       if (body is Map && body['error'] != null) msg = '${body['error']}';
       state = NotificationListState(
         loadingInitial: false,

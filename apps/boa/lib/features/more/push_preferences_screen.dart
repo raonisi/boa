@@ -7,11 +7,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class PushPreferencesScreen extends ConsumerWidget {
   const PushPreferencesScreen({super.key});
 
-  static const _workRows = <({String key, String title, String subtitle})>[
-    (key: 'followUpTodayEnabled', title: '오늘 할 일 · 후속관리', subtitle: '오늘 확인할 후속관리 알림'),
-    (key: 'scheduleReminderEnabled', title: '일정 알림', subtitle: '일정 리마인더 및 미완료 일정'),
-    (key: 'deleteRequestEnabled', title: '계약 삭제 요청', subtitle: '처리할 삭제 요청 알림'),
-    (key: 'testNotificationEnabled', title: '테스트 알림', subtitle: '기기 등록 확인용 (민감정보 없음)'),
+  static const _workRows = <({String key, String title, String subtitle, IconData icon})>[
+    (
+      key: 'followUpTodayEnabled',
+      title: '오늘 할 일 · 후속관리',
+      subtitle: '오늘 확인할 후속관리 알림',
+      icon: Icons.support_agent_outlined,
+    ),
+    (
+      key: 'scheduleReminderEnabled',
+      title: '일정 알림',
+      subtitle: '예정된 일정 및 미완료 일정 알림',
+      icon: Icons.event_outlined,
+    ),
+    (
+      key: 'deleteRequestEnabled',
+      title: '계약 · 업무',
+      subtitle: '계약 삭제 요청 등 처리 알림',
+      icon: Icons.description_outlined,
+    ),
+    (
+      key: 'testNotificationEnabled',
+      title: '시스템 안내',
+      subtitle: '기기 등록 확인용 테스트 알림 (민감정보 없음)',
+      icon: Icons.phonelink_setup_outlined,
+    ),
   ];
 
   @override
@@ -43,7 +63,9 @@ class PushPreferencesScreen extends ConsumerWidget {
                           } else {
                             final err = ref.read(pushPreferencesNotifierProvider).errorMessage;
                             if (err != null) {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('저장하지 못했습니다. $err')),
+                              );
                             }
                           }
                         },
@@ -72,21 +94,13 @@ class PushPreferencesScreen extends ConsumerWidget {
       return const Center(child: CircularProgressIndicator());
     }
     if (state.errorMessage != null && state.prefs == null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(state.errorMessage!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              FilledButton.tonal(onPressed: notifier.load, child: const Text('다시 시도')),
-            ],
-          ),
-        ),
+      return BoaErrorState(
+        message: '알림 설정을 불러오지 못했습니다. 다시 시도해 주세요.',
+        onRetry: notifier.load,
       );
     }
     final prefs = state.prefs ?? const PushPreferenceFields();
+    final cs = theme.colorScheme;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, 96 + bottomInset),
@@ -95,79 +109,119 @@ class PushPreferencesScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Card(
+            elevation: 0,
+            color: cs.primaryContainer.withValues(alpha: 0.25),
             child: SwitchListTile(
               title: const Text('업무 푸시 알림 전체'),
-              subtitle: const Text('아래 업무 유형 알림을 한 번에 켜거나 끕니다.'),
+              subtitle: const Text('아래 업무 유형 알림을 한 번에 켜거나 끕니다. 알림을 끄면 오늘 업무 알림을 받지 못할 수 있습니다.'),
               value: prefs.allWorkNotificationsEnabled,
               onChanged: state.saving
                   ? null
                   : (v) => notifier.updateLocal(prefs.withAllWorkNotifications(v)),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text('업무 유형별 알림', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          Text(
+            '필요한 업무 알림만 선택해 받을 수 있습니다.',
+            style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
           ..._workRows.map((row) {
             final value = _boolForKey(prefs, row.key);
             return Card(
               margin: const EdgeInsets.only(bottom: 8),
               child: SwitchListTile(
+                secondary: Icon(row.icon, color: cs.primary),
                 title: Text(row.title),
                 subtitle: Text(row.subtitle, style: theme.textTheme.bodySmall),
                 value: value,
-                onChanged: state.saving ? null : (v) => notifier.updateLocal(_setKey(prefs, row.key, v)),
+                onChanged: state.saving || !prefs.allWorkNotificationsEnabled
+                    ? null
+                    : (v) => notifier.updateLocal(_setKey(prefs, row.key, v)),
               ),
             );
           }),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Text('조용한 시간대', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
+          Text(
+            '설정한 시간에는 푸시를 보내지 않습니다.',
+            style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+          ),
+          const SizedBox(height: 10),
           Card(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  title: const Text('조용한 시간대 사용'),
-                  subtitle: const Text('설정한 시간에는 푸시를 보내지 않습니다.'),
-                  value: prefs.quietHoursEnabled,
-                  onChanged: state.saving ? null : (v) => notifier.updateLocal(prefs.copyWith(quietHoursEnabled: v)),
-                ),
-                const Divider(height: 1),
-                ListTile(
-                  title: const Text('시작'),
-                  subtitle: Text(prefs.quietHoursStart),
-                  trailing: const Icon(Icons.schedule_outlined),
-                  onTap: state.saving
-                      ? null
-                      : () => _pickTime(context, prefs.quietHoursStart, (t) {
-                            notifier.updateLocal(
-                              prefs.copyWith(quietHoursStart: formatTimeForApi(t.hour, t.minute)),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SwitchListTile(
+                    title: const Text('조용한 시간대 사용'),
+                    value: prefs.quietHoursEnabled,
+                    onChanged: state.saving ? null : (v) => notifier.updateLocal(prefs.copyWith(quietHoursEnabled: v)),
+                  ),
+                  if (prefs.quietHoursEnabled) ...[
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final stacked = constraints.maxWidth < 360;
+                          final startTile = _QuietTimeTile(
+                            label: '시작',
+                            value: prefs.quietHoursStart,
+                            enabled: !state.saving,
+                            onTap: () => _pickTime(context, prefs.quietHoursStart, (t) {
+                              notifier.updateLocal(
+                                prefs.copyWith(quietHoursStart: formatTimeForApi(t.hour, t.minute)),
+                              );
+                            }),
+                          );
+                          final endTile = _QuietTimeTile(
+                            label: '종료',
+                            value: prefs.quietHoursEnd,
+                            enabled: !state.saving,
+                            onTap: () => _pickTime(context, prefs.quietHoursEnd, (t) {
+                              notifier.updateLocal(
+                                prefs.copyWith(quietHoursEnd: formatTimeForApi(t.hour, t.minute)),
+                              );
+                            }),
+                          );
+                          if (stacked) {
+                            return Column(
+                              children: [
+                                startTile,
+                                const SizedBox(height: 8),
+                                endTile,
+                              ],
                             );
-                          }),
-                ),
-                ListTile(
-                  title: const Text('종료'),
-                  subtitle: Text(prefs.quietHoursEnd),
-                  trailing: const Icon(Icons.schedule_outlined),
-                  onTap: state.saving
-                      ? null
-                      : () => _pickTime(context, prefs.quietHoursEnd, (t) {
-                            notifier.updateLocal(
-                              prefs.copyWith(quietHoursEnd: formatTimeForApi(t.hour, t.minute)),
-                            );
-                          }),
-                ),
-              ],
+                          }
+                          return Row(
+                            children: [
+                              Expanded(child: startTile),
+                              const SizedBox(width: 12),
+                              Expanded(child: endTile),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 12),
           Text(
             '타임존: ${prefs.timezone}',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
           Text(
             '잠금화면 알림에는 고객명·전화번호·보험정보·토큰이 표시되지 않습니다.',
-            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
         ],
       ),
@@ -199,5 +253,54 @@ class PushPreferencesScreen extends ConsumerWidget {
       initialTime: TimeOfDay(hour: h.clamp(0, 23), minute: m.clamp(0, 59)),
     );
     if (picked != null) onPicked(picked);
+  }
+}
+
+class _QuietTimeTile extends StatelessWidget {
+  const _QuietTimeTile({
+    required this.label,
+    required this.value,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    return Material(
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label, style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant)),
+                    const SizedBox(height: 4),
+                    Text(
+                      value,
+                      style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.schedule_outlined, color: enabled ? cs.primary : cs.outline),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

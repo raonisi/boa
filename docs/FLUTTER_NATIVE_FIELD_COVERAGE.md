@@ -63,8 +63,8 @@ Status legend:
 | 16 | 계약 목록 | Native 완료 | Native 완료 | P0 | `ContractsTab` + `ContractSummaryCard` | 월납 합계·상태 배지 |
 | 17 | 신규 계약 등록 | Native 완료 | Native 완료 | P0 | `ContractCreateScreen` | 고객 context·validation·저장 갱신 |
 | 18 | 월납보험료 / 계약 요약 | Native 완료 | Native 완료 | P1 | `ContractSummaryCard` | CustomerDetail·Field Command Center 공통 |
-| 19 | 알림함 | Native 완료 | Native 고도화 필요 | P0 | `NotificationsTab` | 읽음/필터 polish |
-| 20 | 푸시 알림 설정 | Native 완료 | Native 고도화 필요 | P0 | `PushPreferencesScreen` + PR19-4 mobile API | |
+| 19 | 알림함 | Native 완료 | Native 완료 | P0 | `NotificationsTab` + `NotificationActionTile` | 유형·상태 badge, 미확인 필터, 업무 화면 연결 |
+| 20 | 푸시 알림 설정 | Native 완료 | Native 완료 | P0 | `PushPreferencesScreen` + mobile push-preferences API | 섹션 hierarchy, 조용한 시간대 레이아웃 |
 | 21 | 성과 / 목표 / 부족분 | Native 완료 | Native 고도화 필요 | P1 | `PerformanceScreen`, `GoalsScreen` | |
 | 22 | 빠른 실행 버튼 | Native 고도화 필요 | Native 완료 | P1 | Shell FAB·상세 액션 버튼 | Command Center PR |
 | 23 | 통합 검색 | 보류 | Native 전환 예정 | P2 | — | 향후 예정 |
@@ -125,7 +125,7 @@ Status legend:
 | 3. Follow-up / Schedule Quick Action Upgrade | 완료·연기·일정 액션 UX (**완료**) | `FollowUpQuickActionTile`, `ScheduleQuickActionTile`, `CalendarTab`, `FieldCommandCenterView`, `CustomerDetail360View` | 낮음 | mobile API smoke |
 | 4. Contract Create / Contract Detail Polish | 계약 등록·요약 고도화 (**완료**) | `ContractCreateScreen`, `ContractSummaryCard`, `ContractsTab`, `CustomerDetail360View` | 중간 | Web 동일 필드·RBAC |
 | 5. Global Search / Quick Create | 통합 검색·빠른 실행 (**완료**) | `GlobalSearchScreen`, `BoaQuickCreateStrip`, Shell AppBar | 중간 | 검색 scope 서버 검증 |
-| 6. Push Preferences / Notifications Polish | PR19-4 이후 알림 UX | `PushPreferencesScreen`, `NotificationsTab` | 낮음 | push policy checklist |
+| 6. Push Preferences / Notifications Polish | 완료 — 알림 UX·설정 polish | `PushPreferencesScreen`, `NotificationsTab`, `NotificationActionTile` | — | push policy checklist |
 | 7. WebView Fallback Polish | 관리자 진입·로딩·뒤로가기 | `CrmWebScreen`, drawer | 낮음 | branch_admin WebView smoke |
 | 8. Flutter APK Pilot Deployment Checklist | 내부 배포·FCM·OAuth | `apps/boa/android` | 중간 | PILOT_READINESS_RECHECKLIST |
 | 9. Pilot Feedback Fix PR | 파일럿 피드백 반영 | TBD | 낮음 | operator UAT |
