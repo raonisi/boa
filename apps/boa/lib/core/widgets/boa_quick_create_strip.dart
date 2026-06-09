@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class BoaQuickCreateStrip extends ConsumerWidget {
   const BoaQuickCreateStrip({
     super.key,
+    this.sectionTitle = '빠른 등록',
     this.customerId,
     this.customerName,
     this.actions = const [
@@ -17,6 +18,7 @@ class BoaQuickCreateStrip extends ConsumerWidget {
     ],
   });
 
+  final String sectionTitle;
   final int? customerId;
   final String? customerName;
   final List<QuickCreateAction> actions;
@@ -27,7 +29,7 @@ class BoaQuickCreateStrip extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('빠른 등록', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        Text(sectionTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -69,20 +71,26 @@ class _QuickCreateButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest,
-      borderRadius: BorderRadius.circular(12),
+      color: cs.surface,
+      borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 20, color: theme.colorScheme.primary),
-              const SizedBox(width: 6),
-              Text(label, style: theme.textTheme.labelLarge),
+              Icon(icon, size: 20, color: cs.primary),
+              const SizedBox(width: 8),
+              Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500)),
             ],
           ),
         ),

@@ -65,6 +65,13 @@ List<Map<String, dynamic>> fieldMergeContactQueue({
   return out;
 }
 
+const _koreanWeekdays = ['월', '화', '수', '목', '금', '토', '일'];
+
+String fieldKoreanWeekday(DateTime d) => _koreanWeekdays[d.weekday - 1];
+
+String fieldKoreanDateHeader(DateTime d) =>
+    '${d.year}년 ${d.month}월 ${d.day}일 (${fieldKoreanWeekday(d)})';
+
 int fieldTodayActionCount({
   required int todayFollowUpCount,
   required int todayScheduleCount,

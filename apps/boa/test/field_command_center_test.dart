@@ -76,7 +76,7 @@ DashboardTodayPayload _busyPayload() => DashboardTodayPayload.fromJson({
     });
 
 void main() {
-  testWidgets('FieldCommandCenterView empty state shows hero and empty sections', (tester) async {
+  testWidgets('FieldCommandCenterView empty state shows dashboard header and sections', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: _fieldCommandOverrides(),
@@ -92,14 +92,18 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('[TEST] Agent님, 오늘의 업무 보드'), findsOneWidget);
-    expect(find.text('오늘 예정된 업무가 없습니다'), findsOneWidget);
-    expect(find.text('오늘 연락할 고객'), findsOneWidget);
-    expect(find.text('오늘 예정된 일정이 없습니다'), findsOneWidget);
-    expect(find.text('빠른 등록'), findsOneWidget);
+    expect(find.text('오늘의 업무 보드'), findsOneWidget);
+    expect(find.text('[TEST] Agent님'), findsOneWidget);
+    expect(find.text('오늘 확인할 일정과 후속관리를 정리했습니다.'), findsOneWidget);
+    expect(find.text('우선 처리 업무'), findsOneWidget);
+    expect(find.text('아직 처리할 업무가 없습니다'), findsOneWidget);
+    expect(find.text('처리할 후속관리가 없습니다'), findsOneWidget);
+    expect(find.text('오늘 등록된 일정이 없습니다'), findsOneWidget);
+    expect(find.text('빠른 실행'), findsOneWidget);
+    expect(find.text('고객 검색'), findsOneWidget);
   });
 
-  testWidgets('FieldCommandCenterView shows contact queue and schedule', (tester) async {
+  testWidgets('FieldCommandCenterView shows priority follow-up and schedule', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: _fieldCommandOverrides(),
@@ -115,8 +119,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.textContaining('오늘 처리할 업무'), findsOneWidget);
-    expect(find.text('[TEST] Choi'), findsOneWidget);
+    expect(find.text('미완료 후속'), findsOneWidget);
+    expect(find.text('[TEST] Choi'), findsWidgets);
     expect(find.text('[TEST] Park'), findsOneWidget);
     expect(find.text('[TEST] 미팅'), findsOneWidget);
     expect(find.text('완료'), findsWidgets);

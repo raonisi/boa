@@ -10,6 +10,13 @@ void main() {
       expect(fieldIsOpenFollowUp('completed'), isFalse);
     });
 
+    test('fieldKoreanDateHeader formats Korean weekday', () {
+      expect(
+        fieldKoreanDateHeader(DateTime(2026, 6, 8)),
+        '2026년 6월 8일 (월)',
+      );
+    });
+
     test('fieldMergeContactQueue prioritizes overdue and dedupes', () {
       final merged = fieldMergeContactQueue(
         overdue: [
