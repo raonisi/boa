@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 /// 섹션 제목 + 선택적 액션 — Field Command·고객 상세 등 공통.
@@ -18,20 +19,36 @@ class BoaSectionHeader extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
+        Container(
+          width: 3,
+          height: 16,
+          margin: const EdgeInsets.only(right: 8),
+          decoration: BoxDecoration(
+            color: BoaColors.gold.withValues(alpha: 0.85),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
         Expanded(
           child: Text(
             title,
-            style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: BoaColors.textPrimary,
+            ),
           ),
         ),
         if (actionLabel != null && onAction != null)
-          TextButton(onPressed: onAction, child: Text(actionLabel!)),
+          TextButton(
+            onPressed: onAction,
+            style: TextButton.styleFrom(foregroundColor: BoaColors.deepGreen),
+            child: Text(actionLabel!),
+          ),
       ],
     );
   }
 }
 
-/// 앱 전반 카드 — 얇은 테두리·여백 통일.
+/// 앱 전반 카드 — 화이트 배경·얇은 테두리·넉넉한 라운드.
 class BoaSurfaceCard extends StatelessWidget {
   const BoaSurfaceCard({
     super.key,
@@ -40,6 +57,7 @@ class BoaSurfaceCard extends StatelessWidget {
     this.onTap,
     this.padding = const EdgeInsets.all(16),
     this.color,
+    this.highlight = false,
   });
 
   final Widget child;
@@ -47,19 +65,22 @@ class BoaSurfaceCard extends StatelessWidget {
   final VoidCallback? onTap;
   final EdgeInsetsGeometry padding;
   final Color? color;
+  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final bg = color ?? (highlight ? BoaColors.ivory : BoaColors.card);
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
-      side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.45)),
+      borderRadius: BorderRadius.circular(16),
+      side: BorderSide(
+        color: highlight ? BoaColors.gold.withValues(alpha: 0.28) : BoaColors.border,
+      ),
     );
     final content = Padding(padding: padding, child: child);
     return Card(
       margin: margin ?? const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       elevation: 0,
-      color: color ?? cs.surface,
+      color: bg,
       clipBehavior: Clip.antiAlias,
       shape: shape,
       child: onTap == null ? content : InkWell(onTap: onTap, child: content),
@@ -81,14 +102,21 @@ class BoaServerConfigHint extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.settings_suggest_outlined, size: 44, color: cs.primary.withValues(alpha: 0.85)),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: BoaColors.ivory,
+                shape: BoxShape.circle,
+                border: Border.all(color: BoaColors.border),
+              ),
+              child: const Icon(Icons.settings_suggest_outlined, size: 40, color: BoaColors.navy),
+            ),
             const SizedBox(height: 16),
             Text(
               title,
@@ -99,7 +127,7 @@ class BoaServerConfigHint extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(color: BoaColors.textSecondary),
             ),
           ],
         ),
@@ -114,21 +142,20 @@ InputDecoration boaSearchDecoration(
   required String hintText,
   Widget? suffixIcon,
 }) {
-  final cs = Theme.of(context).colorScheme;
   return InputDecoration(
     hintText: hintText,
-    prefixIcon: const Icon(Icons.search),
+    prefixIcon: const Icon(Icons.search, color: BoaColors.textSecondary),
     suffixIcon: suffixIcon,
     filled: true,
-    fillColor: cs.surfaceContainerHighest.withValues(alpha: 0.35),
+    fillColor: BoaColors.card,
     border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+      borderSide: const BorderSide(color: BoaColors.border),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: BorderSide(color: cs.primary, width: 1.5),
+      borderSide: const BorderSide(color: BoaColors.navy, width: 1.5),
     ),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),

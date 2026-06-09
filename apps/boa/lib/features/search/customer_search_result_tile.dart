@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/customers/customer_detail_logic.dart';
 import 'package:boa/features/customers/customers_providers.dart';
@@ -37,12 +38,12 @@ class CustomerSearchResultTile extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 22,
-                backgroundColor: cs.primaryContainer.withValues(alpha: 0.55),
+                backgroundColor: const Color(0xFFE8EEF4),
                 child: Text(
                   initial,
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: cs.primary,
+                    color: BoaColors.navy,
                   ),
                 ),
               ),

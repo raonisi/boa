@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:boa/core/api/dio_provider.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/auth/auth_bootstrap.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/push/device_token_registration.dart';
@@ -55,15 +56,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   width: 72,
                   height: 72,
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.5),
+                    color: BoaColors.ivory,
                     borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: BoaColors.border),
                   ),
-                  child: Icon(Icons.business_center_outlined, size: 36, color: cs.primary),
+                  child: const Icon(Icons.business_center_outlined, size: 36, color: BoaColors.navy),
                 ),
                 const SizedBox(height: 20),
                 Text(
                   'BOA 지점관리',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: BoaColors.navy),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -74,7 +76,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                 SizedBox(
                   width: 28,
                   height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 2.5, color: cs.primary),
+                  child: const CircularProgressIndicator(strokeWidth: 2.5, color: BoaColors.navy),
                 ),
                 const SizedBox(height: 12),
                 Text(

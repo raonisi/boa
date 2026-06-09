@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -13,8 +14,7 @@ class BoaListLoadingSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final base = scheme.surfaceContainerHighest.withValues(alpha: 0.55);
+    const base = Color(0xFFEDEFF2);
     return ListView.separated(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -22,7 +22,11 @@ class BoaListLoadingSkeleton extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, __) => Card(
         elevation: 0,
-        color: scheme.surface,
+        color: BoaColors.card,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: BoaColors.border),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -70,10 +74,11 @@ class BoaEmptyState extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                color: BoaColors.ivory,
                 shape: BoxShape.circle,
+                border: Border.all(color: BoaColors.border),
               ),
-              child: Icon(icon, size: 36, color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75)),
+              child: Icon(icon, size: 34, color: BoaColors.textSecondary.withValues(alpha: 0.85)),
             ),
             const SizedBox(height: 16),
             Text(title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600), textAlign: TextAlign.center),
@@ -81,13 +86,20 @@ class BoaEmptyState extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 message!,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                style: theme.textTheme.bodyMedium?.copyWith(color: BoaColors.textSecondary),
                 textAlign: TextAlign.center,
               ),
             ],
             if (actionLabel != null && onAction != null) ...[
               const SizedBox(height: 20),
-              FilledButton.tonal(onPressed: onAction, child: Text(actionLabel!)),
+              FilledButton.tonal(
+                onPressed: onAction,
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFE8EEF4),
+                  foregroundColor: BoaColors.navy,
+                ),
+                child: Text(actionLabel!),
+              ),
             ],
           ],
         ),

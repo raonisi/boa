@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
@@ -168,7 +169,7 @@ class _DashboardHeader extends StatelessWidget {
     final cs = theme.colorScheme;
     return BoaSurfaceCard(
       margin: EdgeInsets.zero,
-      color: cs.primary.withValues(alpha: 0.04),
+      highlight: true,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -181,7 +182,7 @@ class _DashboardHeader extends StatelessWidget {
                   '오늘의 업무 보드',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: cs.primary,
+                    color: BoaColors.navy,
                   ),
                 ),
               ),
@@ -320,21 +321,21 @@ class _KpiMetricCard extends StatelessWidget {
     return SizedBox(
       width: 132,
       child: Material(
-        color: cs.surface,
-        borderRadius: BorderRadius.circular(14),
+        color: BoaColors.card,
+        borderRadius: BorderRadius.circular(16),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: data.onTap,
           child: Container(
             padding: const EdgeInsets.fromLTRB(12, 12, 12, 10),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: BoaColors.border),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(data.icon, size: 20, color: cs.primary.withValues(alpha: 0.9)),
+                Icon(data.icon, size: 20, color: BoaColors.deepGreen),
                 const SizedBox(height: 8),
                 Text(
                   data.label,
@@ -659,7 +660,7 @@ class _MonthlyPerformanceCard extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       '이번 달 실적',
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary),
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: BoaColors.navy),
                     ),
                   ),
                   TextButton(

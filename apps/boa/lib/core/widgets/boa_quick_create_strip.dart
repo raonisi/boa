@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/search/quick_create_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -29,8 +30,14 @@ class BoaQuickCreateStrip extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(sectionTitle, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
+        Text(
+          sectionTitle,
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            color: BoaColors.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
@@ -71,9 +78,8 @@ class _QuickCreateButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return Material(
-      color: cs.surface,
+      color: BoaColors.card,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: onTap,
@@ -83,14 +89,21 @@ class _QuickCreateButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+            border: Border.all(color: BoaColors.border),
+            color: BoaColors.ivory.withValues(alpha: 0.55),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 20, color: cs.primary),
+              Icon(icon, size: 20, color: BoaColors.deepGreen),
               const SizedBox(width: 8),
-              Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500)),
+              Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  fontWeight: FontWeight.w500,
+                  color: BoaColors.textPrimary,
+                ),
+              ),
             ],
           ),
         ),

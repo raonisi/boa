@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:boa/core/api/dio_provider.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/api/plain_dio.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/auth/session_models.dart';
@@ -122,17 +123,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.45),
+                    color: BoaColors.ivory,
                     borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: BoaColors.border),
                   ),
-                  child: Icon(Icons.business_center_outlined, size: 40, color: cs.primary),
+                  child: const Icon(Icons.business_center_outlined, size: 40, color: BoaColors.navy),
                 ),
               ),
               const SizedBox(height: 24),
               Text(
                 'BOA 지점관리',
                 textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: BoaColors.navy),
               ),
               const SizedBox(height: 8),
               Text(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/customers/customer_detail_logic.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
@@ -190,12 +191,12 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.55),
+                    backgroundColor: const Color(0xFFE8EEF4),
                     child: Text(
                       c.name.isNotEmpty ? c.name[0] : '?',
                       style: theme.textTheme.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: theme.colorScheme.primary,
+                        color: BoaColors.navy,
                       ),
                     ),
                   ),

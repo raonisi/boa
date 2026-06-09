@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
@@ -272,7 +273,7 @@ class _ProfileHeroCard extends StatelessWidget {
 
     return BoaSurfaceCard(
       margin: EdgeInsets.zero,
-      color: cs.primary.withValues(alpha: 0.04),
+      highlight: true,
       padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,12 +283,12 @@ class _ProfileHeroCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor: cs.primaryContainer.withValues(alpha: 0.65),
+                backgroundColor: const Color(0xFFE8EEF4),
                 child: Text(
                   initial,
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: cs.primary,
+                    color: BoaColors.navy,
                   ),
                 ),
               ),

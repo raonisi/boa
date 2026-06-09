@@ -1,4 +1,5 @@
 import 'package:boa/core/api/mobile_work_api.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
@@ -135,10 +136,17 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
                     margin: const EdgeInsets.only(right: 8),
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: theme.colorScheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(4),
+                      color: const Color(0xFFE8F0EC),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: BoaColors.border),
                     ),
-                    child: Text('오늘', style: theme.textTheme.labelSmall),
+                    child: Text(
+                      '오늘',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: BoaColors.deepGreen,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 Expanded(
                   child: Column(

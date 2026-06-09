@@ -1,4 +1,5 @@
 import 'package:boa/core/auth/session_controller.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/auth/session_models.dart';
 import 'package:boa/core/push/device_token_registration.dart';
 import 'package:boa/features/calendar/calendar_tab.dart';
@@ -98,7 +99,12 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
         },
       ),
       body: IndexedStack(index: tabIndex, children: _tabs),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: BoaColors.card,
+          border: Border(top: BorderSide(color: BoaColors.border)),
+        ),
+        child: NavigationBar(
         selectedIndex: tabIndex,
         onDestinationSelected: (i) =>
             ref.read(shellTabIndexProvider.notifier).state = i,
@@ -124,6 +130,7 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
               selectedIcon: Icon(Icons.notifications),
               label: '알림'),
         ],
+        ),
       ),
     );
   }
