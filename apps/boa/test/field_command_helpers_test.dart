@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +72,11 @@ void main() {
     test('boundary times encode without date shift', () {
       expect(encodeScheduleDateTimeForApi(DateTime(2026, 6, 8, 0, 30)), '2026-06-08T00:30:00');
       expect(encodeScheduleDateTimeForApi(DateTime(2026, 6, 8, 23, 30)), '2026-06-08T23:30:00');
+    });
+
+    test('boaTimezoneLabelKo maps Seoul timezone to Korean label', () {
+      expect(boaTimezoneLabelKo('Asia/Seoul'), '한국 표준시');
+      expect(boaTimezoneLabelKo(''), '한국 표준시');
     });
   });
 

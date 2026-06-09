@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/web/crm_web_error_messages.dart';
 import 'package:boa/features/web/crm_web_portal_paths.dart';
 import 'package:boa/features/web/crm_web_route_meta.dart';
@@ -467,7 +468,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               ? PreferredSize(
                   preferredSize: const Size.fromHeight(3),
                   child: LinearProgressIndicator(
-                    backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                    backgroundColor: BoaColors.border,
                   ),
                 )
               : null,

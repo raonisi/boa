@@ -1,4 +1,6 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/more/push_preferences_logic.dart';
 import 'package:boa/features/more/push_preferences_provider.dart';
 import 'package:flutter/material.dart';
@@ -118,9 +120,10 @@ class PushPreferencesScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Card(
-            elevation: 0,
-            color: cs.primaryContainer.withValues(alpha: 0.25),
+          BoaSurfaceCard(
+            margin: EdgeInsets.zero,
+            highlight: true,
+            padding: EdgeInsets.zero,
             child: SwitchListTile(
               title: const Text('알림 받기'),
               subtitle: const Text('업무 알림을 한 번에 켜거나 끕니다. 알림을 끄면 오늘 업무 알림을 받지 못할 수 있습니다.'),
@@ -140,10 +143,11 @@ class PushPreferencesScreen extends ConsumerWidget {
           const SizedBox(height: 10),
           ..._workRows.map((row) {
             final value = _boolForKey(prefs, row.key);
-            return Card(
+            return BoaSurfaceCard(
               margin: const EdgeInsets.only(bottom: 8),
+              padding: EdgeInsets.zero,
               child: SwitchListTile(
-                secondary: Icon(row.icon, color: cs.primary),
+                secondary: Icon(row.icon, color: BoaColors.deepGreen),
                 title: Text(row.title),
                 subtitle: Text(row.subtitle, style: theme.textTheme.bodySmall),
                 value: value,
@@ -161,10 +165,10 @@ class PushPreferencesScreen extends ConsumerWidget {
             style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 10),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
-              child: Column(
+          BoaSurfaceCard(
+            margin: EdgeInsets.zero,
+            padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+            child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   SwitchListTile(
@@ -220,12 +224,11 @@ class PushPreferencesScreen extends ConsumerWidget {
                     ),
                   ],
                 ],
-              ),
             ),
           ),
           const SizedBox(height: 12),
           Text(
-            '타임존: ${prefs.timezone}',
+            '시간대: ${boaTimezoneLabelKo(prefs.timezone)}',
             style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
           ),
           const SizedBox(height: 8),
@@ -284,7 +287,7 @@ class _QuietTimeTile extends StatelessWidget {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return Material(
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.45),
+      color: BoaColors.ivory,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: enabled ? onTap : null,

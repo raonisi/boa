@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/notifications/notification_display_logic.dart';
 import 'package:boa/features/notifications/notification_navigation.dart';
@@ -63,9 +64,9 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
     final body = notificationBodyText(raw);
     final createdAt = formatNotificationDateTime(raw['createdAt']);
     final priorityAccent = switch (widget.priority) {
-      NotificationPriority.urgent => Colors.red.shade400,
-      NotificationPriority.today => Colors.orange.shade400,
-      NotificationPriority.general => Colors.blueGrey.shade400,
+      NotificationPriority.urgent => BoaColors.urgent,
+      NotificationPriority.today => BoaColors.todayAccent,
+      NotificationPriority.general => BoaColors.deepGreen,
     };
     final statusAccent = processStatusAccentColor(processStatus);
     final leftAccent = isRead ? statusAccent.withValues(alpha: 0.55) : priorityAccent;
@@ -74,7 +75,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
 
     return BoaSurfaceCard(
       margin: EdgeInsets.only(bottom: widget.compact ? 8 : 10),
-      color: isRead ? cs.surfaceContainerLowest : cs.surface,
+      color: BoaColors.card,
       padding: EdgeInsets.fromLTRB(10, widget.compact ? 10 : 12, 10, widget.compact ? 10 : 12),
       onTap: _markingRead
           ? null
@@ -150,7 +151,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
                         _MetaChip(
                           label: notificationTypeLabel(raw),
                           fg: cs.onSurfaceVariant,
-                          bg: cs.surfaceContainerHighest.withValues(alpha: 0.6),
+                          bg: BoaColors.ivory,
                         ),
                         _MetaChip(label: processStatus, fg: statusFg, bg: statusBg),
                         _PriorityBadge(priority: widget.priority),
@@ -233,9 +234,9 @@ class _PriorityBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, bg, fg) = switch (priority) {
-      NotificationPriority.urgent => ('긴급', Colors.red.shade100, Colors.red.shade700),
-      NotificationPriority.today => ('오늘 처리', Colors.orange.shade100, Colors.orange.shade700),
-      NotificationPriority.general => ('일반', Colors.blueGrey.shade100, Colors.blueGrey.shade700),
+      NotificationPriority.urgent => ('긴급', BoaColors.urgentBg, BoaColors.urgent),
+      NotificationPriority.today => ('오늘 처리', BoaColors.todayBg, BoaColors.todayAccent),
+      NotificationPriority.general => ('일반', const Color(0xFFF3F4F6), BoaColors.deepGreen),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

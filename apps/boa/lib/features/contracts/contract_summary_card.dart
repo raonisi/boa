@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_display_logic.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
@@ -43,10 +44,11 @@ class ContractSummaryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.35),
+                  color: const Color(0xFFE8EEF4),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: BoaColors.border),
                 ),
-                child: Icon(Icons.description_outlined, size: 18, color: cs.primary),
+                child: const Icon(Icons.description_outlined, size: 18, color: BoaColors.navy),
               ),
               const SizedBox(width: 12),
               Expanded(

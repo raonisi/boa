@@ -12,6 +12,17 @@ abstract final class BoaColors {
   static const textSecondary = Color(0xFF6B7280);
   static const border = Color(0xFFE5E7EB);
   static const borderLight = Color(0xFFF0F1F3);
+  static const urgent = Color(0xFFC62828);
+  static const urgentBg = Color(0xFFFFEBEE);
+  static const todayAccent = Color(0xFFE65100);
+  static const todayBg = Color(0xFFFFF3E0);
+}
+
+/// 사용자 화면용 시간대 표시.
+String boaTimezoneLabelKo(String? timezone) {
+  final value = (timezone ?? '').trim();
+  if (value.isEmpty || value == 'Asia/Seoul') return '한국 표준시';
+  return value;
 }
 
 /// Material 3 — 보험 지점관리 CRM 모바일. 밝고 세련된 프리미엄 SaaS 톤.

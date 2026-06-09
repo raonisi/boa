@@ -2,6 +2,7 @@ import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_agents_provider.dart';
@@ -233,12 +234,16 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
         children: [
           if (_selectedCustomerName != null && _selectedCustomerName!.trim().isNotEmpty)
             Material(
-              color: theme.colorScheme.primaryContainer.withValues(alpha: 0.35),
-              child: Padding(
+              color: BoaColors.ivory,
+              child: DecoratedBox(
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: BoaColors.border)),
+                ),
+                child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 child: Row(
                   children: [
-                    Icon(Icons.person_outline, size: 20, color: theme.colorScheme.primary),
+                    const Icon(Icons.person_outline, size: 20, color: BoaColors.navy),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
@@ -256,6 +261,7 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
                     ),
                   ],
                 ),
+              ),
               ),
             ),
           Expanded(

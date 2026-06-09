@@ -158,10 +158,30 @@ class _MoreDrawer extends StatelessWidget {
     return NavigationDrawer(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'BOA 지점관리',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: BoaColors.navy,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '현장 업무 메뉴',
+                style: theme.textTheme.bodySmall?.copyWith(color: BoaColors.textSecondary),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
           child: Text('빠른 이동',
               style: theme.textTheme.titleSmall
-                  ?.copyWith(color: theme.colorScheme.primary)),
+                  ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
         ),
         ListTile(
             leading: const Icon(Icons.home_outlined),
@@ -184,13 +204,13 @@ class _MoreDrawer extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
           child: Text('업무',
               style: theme.textTheme.titleSmall
-                  ?.copyWith(color: theme.colorScheme.primary)),
+                  ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
           child: Text('웹 보조 · 관리자',
               style: theme.textTheme.titleSmall
-                  ?.copyWith(color: theme.colorScheme.primary)),
+                  ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
         ),
         buildCrmWebDrawerTile(
           routeKey: 'pipeline',
@@ -221,7 +241,7 @@ class _MoreDrawer extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
             child: Text('조직 · 운영 로그',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(color: theme.colorScheme.primary)),
+                    ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
           ),
           buildCrmWebDrawerTile(
             routeKey: 'org',
@@ -237,7 +257,7 @@ class _MoreDrawer extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
             child: Text('지점장 · 고위험 업무',
                 style: theme.textTheme.titleSmall
-                    ?.copyWith(color: theme.colorScheme.primary)),
+                    ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
           ),
           buildCrmWebDrawerTile(
             routeKey: 'upload_history',

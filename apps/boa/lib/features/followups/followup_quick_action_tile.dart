@@ -1,4 +1,5 @@
 import 'package:boa/core/api/mobile_work_api.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
@@ -149,10 +150,14 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
                       margin: const EdgeInsets.only(right: 8, top: 2),
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade100,
-                        borderRadius: BorderRadius.circular(4),
+                        color: BoaColors.urgentBg,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: BoaColors.urgent.withValues(alpha: 0.2)),
                       ),
-                      child: Text('기한 임박', style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
+                      child: const Text(
+                        '기한 임박',
+                        style: TextStyle(fontSize: 10, color: BoaColors.urgent, fontWeight: FontWeight.w700),
+                      ),
                     ),
                   Expanded(
                     child: Column(

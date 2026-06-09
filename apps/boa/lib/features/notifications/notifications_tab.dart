@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
@@ -137,7 +138,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                     label: '긴급',
                     count: urgentCount,
                     selected: _priorityFilter == _NotificationFilter.urgent,
-                    toneColor: Colors.red,
+                    toneColor: BoaColors.urgent,
                     onTap: () {
                       setState(() {
                         _priorityFilter = _priorityFilter == _NotificationFilter.urgent
@@ -153,7 +154,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                     label: '오늘 처리',
                     count: todayCount,
                     selected: _priorityFilter == _NotificationFilter.today,
-                    toneColor: Colors.orange,
+                    toneColor: BoaColors.todayAccent,
                     onTap: () {
                       setState(() {
                         _priorityFilter = _priorityFilter == _NotificationFilter.today
@@ -169,7 +170,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                     label: '일반',
                     count: generalCount,
                     selected: _priorityFilter == _NotificationFilter.general,
-                    toneColor: Colors.blueGrey,
+                    toneColor: BoaColors.deepGreen,
                     onTap: () {
                       setState(() {
                         _priorityFilter = _priorityFilter == _NotificationFilter.general
@@ -300,13 +301,9 @@ class _PriorityChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = selected
-        ? toneColor.withValues(alpha: 0.12)
-        : Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45);
-    final border = selected
-        ? toneColor.withValues(alpha: 0.45)
-        : Theme.of(context).colorScheme.outline.withValues(alpha: 0.3);
-    final textColor = selected ? toneColor : Theme.of(context).colorScheme.onSurface;
+    final bg = selected ? toneColor.withValues(alpha: 0.1) : BoaColors.card;
+    final border = selected ? toneColor.withValues(alpha: 0.35) : BoaColors.border;
+    final textColor = selected ? toneColor : BoaColors.textPrimary;
 
     return InkWell(
       onTap: onTap,

@@ -426,17 +426,18 @@ class _TodayChecklistCard extends StatelessWidget {
 
     return BoaSurfaceCard(
       margin: EdgeInsets.zero,
+      highlight: true,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(Icons.fact_check_outlined, size: 20, color: cs.primary),
+              const Icon(Icons.fact_check_outlined, size: 20, color: BoaColors.deepGreen),
               const SizedBox(width: 8),
               Text(
                 '오늘 확인할 항목',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: BoaColors.navy),
               ),
             ],
           ),
@@ -459,7 +460,7 @@ class _TodayChecklistCard extends StatelessWidget {
             if (overdue.isNotEmpty) ...[
               Text(
                 '놓치면 안 되는 후속관리',
-                style: theme.textTheme.labelLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.w600),
+                style: theme.textTheme.labelLarge?.copyWith(color: BoaColors.urgent, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 6),
               ...overdue.map(
@@ -518,17 +519,18 @@ class _NextActionHubCard extends StatelessWidget {
 
     return BoaSurfaceCard(
       margin: EdgeInsets.zero,
+      highlight: true,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Icon(Icons.flag_outlined, size: 20, color: cs.primary),
+              const Icon(Icons.flag_outlined, size: 20, color: BoaColors.deepGreen),
               const SizedBox(width: 8),
               Text(
                 '다음 액션',
-                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: BoaColors.navy),
               ),
             ],
           ),
@@ -568,9 +570,8 @@ class _HubActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return Material(
-      color: cs.surface,
+      color: BoaColors.card,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -580,12 +581,13 @@ class _HubActionButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+            border: Border.all(color: BoaColors.border),
+            color: BoaColors.ivory.withValues(alpha: 0.55),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: cs.primary),
+              Icon(icon, size: 18, color: BoaColors.deepGreen),
               const SizedBox(width: 6),
               Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500)),
             ],

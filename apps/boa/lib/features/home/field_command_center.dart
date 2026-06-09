@@ -253,7 +253,7 @@ class _KpiMetricsRow extends StatelessWidget {
         unit: '건',
         hint: overdueFollowUpCount > 0 ? '연체 $overdueFollowUpCount건 포함' : '오늘 연락 예정',
         onTap: onOpenCalendar,
-        accent: overdueFollowUpCount > 0 ? Colors.red.shade700 : null,
+        accent: overdueFollowUpCount > 0 ? BoaColors.urgent : null,
       ),
       _KpiMetricData(
         icon: Icons.notifications_outlined,

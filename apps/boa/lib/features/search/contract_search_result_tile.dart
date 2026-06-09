@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_display_logic.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
@@ -47,10 +48,11 @@ class ContractSearchResultTile extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              color: cs.secondaryContainer.withValues(alpha: 0.4),
+              color: const Color(0xFFE8F0EC),
               borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: BoaColors.border),
             ),
-            child: Icon(Icons.description_outlined, size: 20, color: cs.secondary),
+            child: const Icon(Icons.description_outlined, size: 20, color: BoaColors.deepGreen),
           ),
           const SizedBox(width: 12),
           Expanded(

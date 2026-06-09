@@ -1,3 +1,4 @@
+import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/web/crm_web_route_meta.dart';
 import 'package:flutter/material.dart';
 
@@ -7,26 +8,31 @@ class CrmWebPcRecommendedBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Material(
-      color: cs.secondaryContainer.withValues(alpha: 0.55),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.computer_outlined, size: 20, color: cs.onSecondaryContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '이 화면은 대량·관리자 작업이 포함되어 PC 사용을 권장합니다.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onSecondaryContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
+      color: BoaColors.ivory,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: BoaColors.gold.withValues(alpha: 0.35))),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.computer_outlined, size: 20, color: BoaColors.deepGreen),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  '이 화면은 대량·관리자 작업이 포함되어 PC 사용을 권장합니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: BoaColors.textPrimary,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -41,26 +47,31 @@ class CrmWebHighRiskBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
     return Material(
-      color: cs.errorContainer.withValues(alpha: 0.45),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.warning_amber_rounded, size: 20, color: cs.onErrorContainer),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: cs.onErrorContainer,
-                      fontWeight: FontWeight.w600,
-                    ),
+      color: const Color(0xFFFFF8F6),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFF5C6C2))),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.warning_amber_rounded, size: 20, color: BoaColors.urgent),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: BoaColors.urgent,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -76,24 +87,27 @@ class CrmWebLoadingOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return ColoredBox(
-      color: cs.surface.withValues(alpha: 0.92),
+      color: BoaColors.canvas.withValues(alpha: 0.94),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
           child: Card(
             elevation: 0,
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
+            color: BoaColors.card,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: const BorderSide(color: BoaColors.border),
+            ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 36,
                     height: 36,
-                    child: CircularProgressIndicator(strokeWidth: 3, color: cs.primary),
+                    child: CircularProgressIndicator(strokeWidth: 3, color: BoaColors.navy),
                   ),
                   const SizedBox(height: 16),
                   Text(
@@ -105,7 +119,7 @@ class CrmWebLoadingOverlay extends StatelessWidget {
                   Text(
                     '잠시만 기다려 주세요. 연결이 느리면 네트워크 상태를 확인해 주세요.',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(color: BoaColors.textSecondary),
                   ),
                 ],
               ),
@@ -137,9 +151,8 @@ class CrmWebErrorPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return ColoredBox(
-      color: cs.surface,
+      color: BoaColors.canvas,
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -148,7 +161,15 @@ class CrmWebErrorPanel extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.cloud_off_outlined, size: 48, color: cs.error),
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: BoaColors.ivory,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: BoaColors.border),
+                  ),
+                  child: const Icon(Icons.cloud_off_outlined, size: 40, color: BoaColors.urgent),
+                ),
                 const SizedBox(height: 16),
                 Text(
                   '화면을 불러오지 못했습니다.',
@@ -159,14 +180,14 @@ class CrmWebErrorPanel extends StatelessWidget {
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+                  style: theme.textTheme.bodyMedium?.copyWith(color: BoaColors.textSecondary),
                 ),
                 if (showHttp2Hint) ...[
                   const SizedBox(height: 10),
                   Text(
                     '앱 내 화면과 서버 연결 방식 문제일 수 있습니다. 브라우저 탭으로 열기를 시도해 주세요.',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    style: theme.textTheme.bodySmall?.copyWith(color: BoaColors.textSecondary),
                   ),
                 ],
                 const SizedBox(height: 20),
@@ -215,9 +236,8 @@ class CrmWebDrawerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final cs = theme.colorScheme;
     return ListTile(
-      leading: Icon(icon),
+      leading: Icon(icon, color: BoaColors.navy),
       title: Text(title),
       subtitle: subtitle == null && category == null
           ? null
@@ -227,7 +247,7 @@ class CrmWebDrawerTile extends StatelessWidget {
                 if (subtitle != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle!, style: theme.textTheme.bodySmall),
+                    child: Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: BoaColors.textSecondary)),
                   ),
                 if (category != null)
                   Padding(
@@ -235,7 +255,7 @@ class CrmWebDrawerTile extends StatelessWidget {
                     child: Text(
                       crmWebCategoryLabel(category!),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: cs.primary,
+                        color: BoaColors.deepGreen,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
