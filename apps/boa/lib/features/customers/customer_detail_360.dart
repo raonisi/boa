@@ -1,4 +1,5 @@
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/calendar/schedule_work_logic.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
@@ -23,7 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 @Deprecated('Use refreshFieldWorkData')
 void invalidateCustomerDetail360(WidgetRef ref, int customerId) => refreshFieldWorkData(ref, customerId: customerId);
 
-/// 고객 상세 360° — 현장 상담 실행 허브.
+/// 고객 상세 360° — 상담·후속·일정·계약 허브.
 class CustomerDetail360View extends ConsumerWidget {
   const CustomerDetail360View({
     super.key,
@@ -67,40 +68,62 @@ class CustomerDetail360View extends ConsumerWidget {
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
         children: [
-          _HeroCard(
+          _ProfileHeroCard(
             theme: theme,
             name: name,
             consultStatus: consultStatus,
             priority: priority,
-            nextAction: nextAction,
             tags: tags,
             phone: phone,
             lastActivity: updatedAt != null ? fieldFmtDateTime(updatedAt.toIso8601String()) : null,
             onEditMeta: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 관리정보'),
           ),
-          const SizedBox(height: 14),
-          _QuickActionRow(
+          const SizedBox(height: 16),
+          _NextActionHubCard(
+            theme: theme,
+            nextAction: nextAction,
             onConsultation: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 상담기록'),
             onFollowUp: () => _openFollowUpDialog(context, ref, customerId),
             onSchedule: () => _openScheduleDialog(context, ref, customerId, name),
             onContract: () => _openContractCreate(context, ref, customerId, name),
             onPhone: phone == null ? null : () => _launchPhone(context, phone),
             onSms: phone == null ? null : () => _launchSms(context, phone),
-            onNotifications: () => ref.read(shellTabIndexProvider.notifier).state = 4,
           ),
-          if (nextAction != null && nextAction.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            _NextActionCard(theme: theme, nextAction: nextAction),
-          ],
+          const SizedBox(height: 22),
+          contractsAsync.when(
+            data: (contracts) => schedulesAsync.when(
+              data: (schedules) => followUpsAsync.when(
+                data: (followUps) => _ConsultationSection(
+                  theme: theme,
+                  entries: buildCustomerTimeline(
+                    followUps: followUps,
+                    contracts: contracts,
+                    schedules: schedules,
+                    limit: 12,
+                  ),
+                  onAddConsultation: () =>
+                      openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 상담기록'),
+                  onViewAll: () =>
+                      openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 활동'),
+                ),
+                loading: () => const _SectionLoading(title: '상담 기록'),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+              loading: () => const _SectionLoading(title: '상담 기록'),
+              error: (_, __) => const SizedBox.shrink(),
+            ),
+            loading: () => const _SectionLoading(title: '상담 기록'),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
           const SizedBox(height: 20),
           followUpsAsync.when(
             data: (rows) => _FollowUpPanel(theme: theme, customerId: customerId, customerName: name, followUps: rows),
-            loading: () => const _PanelLoading(title: '후속관리'),
-            error: (e, _) => _PanelError(title: '후속관리', message: '$e'),
+            loading: () => const _SectionLoading(title: '후속관리'),
+            error: (_, __) => const _SectionError(title: '후속관리'),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           schedulesAsync.when(
             data: (rows) => _SchedulePanel(
               theme: theme,
@@ -108,45 +131,22 @@ class CustomerDetail360View extends ConsumerWidget {
               customerName: name,
               schedules: rows,
               onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
+              onAddSchedule: () => _openScheduleDialog(context, ref, customerId, name),
             ),
-            loading: () => const _PanelLoading(title: '일정'),
-            error: (e, _) => _PanelError(title: '일정', message: '$e'),
+            loading: () => const _SectionLoading(title: '예정 일정'),
+            error: (_, __) => const _SectionError(title: '예정 일정'),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           contractsAsync.when(
             data: (rows) => _ContractPanel(
               theme: theme,
-              customerId: customerId,
-              customerName: name,
               contracts: rows,
               onCreate: () => _openContractCreate(context, ref, customerId, name),
             ),
-            loading: () => const _PanelLoading(title: '계약'),
-            error: (e, _) => _PanelError(title: '계약', message: '$e'),
+            loading: () => const _SectionLoading(title: '계약 요약'),
+            error: (_, __) => const _SectionError(title: '계약 요약'),
           ),
           const SizedBox(height: 16),
-          contractsAsync.when(
-            data: (contracts) => schedulesAsync.when(
-              data: (schedules) => followUpsAsync.when(
-                data: (followUps) => _TimelineSection(
-                  theme: theme,
-                  entries: buildCustomerTimeline(
-                    followUps: followUps,
-                    contracts: contracts,
-                    schedules: schedules,
-                  ),
-                  onOpenWebHistory: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 활동'),
-                ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-            ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-          const SizedBox(height: 12),
           _ActivitySummary(theme: theme, customer: customer),
         ],
       ),
@@ -205,13 +205,12 @@ class CustomerDetail360View extends ConsumerWidget {
   }
 }
 
-class _HeroCard extends StatelessWidget {
-  const _HeroCard({
+class _ProfileHeroCard extends StatelessWidget {
+  const _ProfileHeroCard({
     required this.theme,
     required this.name,
     required this.consultStatus,
     required this.priority,
-    required this.nextAction,
     required this.tags,
     required this.phone,
     required this.lastActivity,
@@ -222,7 +221,6 @@ class _HeroCard extends StatelessWidget {
   final String name;
   final String? consultStatus;
   final String priority;
-  final String? nextAction;
   final List<String> tags;
   final String? phone;
   final String? lastActivity;
@@ -231,144 +229,190 @@ class _HeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = theme.colorScheme;
-    return Card(
-      elevation: 0,
-      color: cs.primaryContainer.withValues(alpha: 0.3),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 12, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(name, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+    final initial = name.isNotEmpty ? name[0] : '?';
+
+    return BoaSurfaceCard(
+      margin: EdgeInsets.zero,
+      color: cs.primary.withValues(alpha: 0.04),
+      padding: const EdgeInsets.fromLTRB(18, 16, 12, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                radius: 28,
+                backgroundColor: cs.primaryContainer.withValues(alpha: 0.65),
+                child: Text(
+                  initial,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.primary,
+                  ),
                 ),
-                IconButton(
-                  tooltip: '상태·태그 수정',
-                  icon: const Icon(Icons.edit_outlined, size: 20),
-                  onPressed: onEditMeta,
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name,
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '고객 요약',
+                      style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              IconButton(
+                tooltip: '상태·태그 수정',
+                icon: const Icon(Icons.edit_outlined, size: 20),
+                onPressed: onEditMeta,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (consultStatus != null) _StatusChip(label: consultStatus!, color: cs.primary),
+              _StatusChip(label: '우선순위 $priority', color: cs.secondary),
+              if (phone != null) _StatusChip(label: phone!, color: cs.tertiary),
+            ],
+          ),
+          if (tags.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: [
-                if (consultStatus != null) _MetaChip(label: consultStatus!, color: cs.primary),
-                _MetaChip(label: '우선순위 $priority', color: cs.secondary),
-                if (phone != null) _MetaChip(label: phone!, color: cs.tertiary),
-              ],
+              children: tags
+                  .take(6)
+                  .map(
+                    (t) => Chip(
+                      label: Text(t, style: theme.textTheme.labelSmall),
+                      visualDensity: VisualDensity.compact,
+                      side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+                    ),
+                  )
+                  .toList(),
             ),
-            if (tags.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: tags.take(6).map((t) => Chip(label: Text(t, style: theme.textTheme.labelSmall), visualDensity: VisualDensity.compact)).toList(),
-              ),
-            ],
-            if (lastActivity != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '최근 활동 $lastActivity',
-                  style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                ),
-              ),
-            if (nextAction != null && nextAction!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  '다음 조치: $nextAction',
-                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
           ],
-        ),
+          if (lastActivity != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              '최근 활동 $lastActivity',
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
-class _MetaChip extends StatelessWidget {
-  const _MetaChip({required this.label, required this.color});
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
   final String label;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
     );
   }
 }
 
-class _QuickActionRow extends StatelessWidget {
-  const _QuickActionRow({
+class _NextActionHubCard extends StatelessWidget {
+  const _NextActionHubCard({
+    required this.theme,
+    required this.nextAction,
     required this.onConsultation,
     required this.onFollowUp,
     required this.onSchedule,
     required this.onContract,
     required this.onPhone,
     required this.onSms,
-    required this.onNotifications,
   });
 
+  final ThemeData theme;
+  final String? nextAction;
   final VoidCallback onConsultation;
   final VoidCallback onFollowUp;
   final VoidCallback onSchedule;
   final VoidCallback onContract;
   final VoidCallback? onPhone;
   final VoidCallback? onSms;
-  final VoidCallback onNotifications;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('빠른 등록', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
+    final cs = theme.colorScheme;
+
+    return BoaSurfaceCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             children: [
-              _QuickBtn(icon: Icons.edit_note_outlined, label: '상담기록', onTap: onConsultation),
+              Icon(Icons.flag_outlined, size: 20, color: cs.primary),
               const SizedBox(width: 8),
-              _QuickBtn(icon: Icons.add_task_outlined, label: '후속', onTap: onFollowUp),
-              const SizedBox(width: 8),
-              _QuickBtn(icon: Icons.event_outlined, label: '일정', onTap: onSchedule),
-              const SizedBox(width: 8),
-              _QuickBtn(icon: Icons.description_outlined, label: '계약', onTap: onContract),
-              if (onPhone != null) ...[
-                const SizedBox(width: 8),
-                _QuickBtn(icon: Icons.phone_outlined, label: '전화', onTap: onPhone!),
-              ],
-              if (onSms != null) ...[
-                const SizedBox(width: 8),
-                _QuickBtn(icon: Icons.sms_outlined, label: '문자', onTap: onSms!),
-              ],
-              const SizedBox(width: 8),
-              _QuickBtn(icon: Icons.notifications_outlined, label: '알림함', onTap: onNotifications),
+              Text(
+                '다음 액션',
+                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.primary),
+              ),
             ],
           ),
-        ),
-      ],
+          const SizedBox(height: 10),
+          if (nextAction != null && nextAction!.isNotEmpty)
+            Text(
+              nextAction!,
+              style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600, height: 1.35),
+            )
+          else
+            Text(
+              '등록된 다음 액션이 없습니다. 상담 후 후속관리를 등록해 주세요.',
+              style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant, height: 1.35),
+            ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _HubActionButton(icon: Icons.edit_note_outlined, label: '상담 기록', onTap: onConsultation),
+              _HubActionButton(icon: Icons.add_task_outlined, label: '후속 등록', onTap: onFollowUp),
+              _HubActionButton(icon: Icons.event_outlined, label: '일정 등록', onTap: onSchedule),
+              _HubActionButton(icon: Icons.description_outlined, label: '계약 등록', onTap: onContract),
+              if (onPhone != null)
+                _HubActionButton(icon: Icons.phone_outlined, label: '전화', onTap: onPhone!),
+              if (onSms != null)
+                _HubActionButton(icon: Icons.sms_outlined, label: '문자', onTap: onSms!),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _QuickBtn extends StatelessWidget {
-  const _QuickBtn({required this.icon, required this.label, required this.onTap});
+class _HubActionButton extends StatelessWidget {
+  const _HubActionButton({required this.icon, required this.label, required this.onTap});
+
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -376,23 +420,27 @@ class _QuickBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final cs = theme.colorScheme;
     return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      color: cs.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 76,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-            child: Column(
-              children: [
-                Icon(icon, size: 22, color: theme.colorScheme.primary),
-                const SizedBox(height: 4),
-                Text(label, textAlign: TextAlign.center, style: theme.textTheme.labelSmall, maxLines: 2),
-              ],
-            ),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: cs.primary),
+              const SizedBox(width: 6),
+              Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500)),
+            ],
           ),
         ),
       ),
@@ -400,18 +448,107 @@ class _QuickBtn extends StatelessWidget {
   }
 }
 
-class _NextActionCard extends StatelessWidget {
-  const _NextActionCard({required this.theme, required this.nextAction});
+class _ConsultationSection extends StatelessWidget {
+  const _ConsultationSection({
+    required this.theme,
+    required this.entries,
+    required this.onAddConsultation,
+    required this.onViewAll,
+  });
+
   final ThemeData theme;
-  final String nextAction;
+  final List<CustomerTimelineEntry> entries;
+  final VoidCallback onAddConsultation;
+  final VoidCallback onViewAll;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(Icons.flag_outlined, color: theme.colorScheme.primary),
-        title: const Text('다음 액션'),
-        subtitle: Text(nextAction, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+    final preview = entries.take(3).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        BoaSectionHeader(
+          title: '상담 기록',
+          actionLabel: entries.isNotEmpty ? '전체 보기' : '상담 기록 추가',
+          onAction: entries.isNotEmpty ? onViewAll : onAddConsultation,
+        ),
+        const SizedBox(height: 8),
+        if (preview.isEmpty)
+          BoaEmptyState(
+            icon: Icons.edit_note_outlined,
+            title: '아직 등록된 상담 기록이 없습니다',
+            message: '상담 내용을 기록하면 여기에 표시됩니다.',
+            actionLabel: '상담 기록 추가',
+            onAction: onAddConsultation,
+          )
+        else
+          ...preview.map((e) => _ActivityRecordCard(theme: theme, entry: e)),
+      ],
+    );
+  }
+}
+
+class _ActivityRecordCard extends StatelessWidget {
+  const _ActivityRecordCard({required this.theme, required this.entry});
+
+  final ThemeData theme;
+  final CustomerTimelineEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = theme.colorScheme;
+    final icon = switch (entry.kind) {
+      'contract' => Icons.description_outlined,
+      'schedule' => Icons.event_outlined,
+      _ => Icons.add_task_outlined,
+    };
+    final kindLabel = switch (entry.kind) {
+      'contract' => '계약',
+      'schedule' => '일정',
+      _ => '후속',
+    };
+
+    return BoaSurfaceCard(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: cs.primaryContainer.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: cs.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(kindLabel, style: theme.textTheme.labelSmall?.copyWith(color: cs.primary, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(
+                  entry.title,
+                  style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (entry.subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    entry.subtitle,
+                    style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -424,6 +561,7 @@ class _FollowUpPanel extends ConsumerWidget {
     required this.customerName,
     required this.followUps,
   });
+
   final ThemeData theme;
   final int customerId;
   final String customerName;
@@ -439,18 +577,18 @@ class _FollowUpPanel extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('후속관리', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary)),
+        const BoaSectionHeader(title: '후속관리'),
         const SizedBox(height: 8),
         if (open.isEmpty)
           const BoaEmptyState(
             icon: Icons.add_task_outlined,
-            title: '예정된 후속관리가 없습니다',
-            message: '빠른 등록에서 후속을 등록하세요.',
+            title: '처리할 후속관리가 없습니다',
+            message: '다음 액션 영역에서 후속을 등록할 수 있습니다.',
           )
         else ...[
           if (overdue.isNotEmpty) ...[
-            Text('연체', style: theme.textTheme.labelLarge?.copyWith(color: Colors.red.shade700)),
-            const SizedBox(height: 4),
+            Text('연체', style: theme.textTheme.labelLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
             ...overdue.map(
               (f) => FollowUpQuickActionTile(
                 key: ValueKey('fu-od-${f['id']}'),
@@ -460,12 +598,12 @@ class _FollowUpPanel extends ConsumerWidget {
                 customerContextName: customerName,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
           ],
           if (scheduled.isNotEmpty) ...[
-            Text('예정', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 4),
-            ...scheduled.take(6).map(
+            Text('예정', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
+            ...scheduled.take(5).map(
                   (f) => FollowUpQuickActionTile(
                     key: ValueKey('fu-${f['id']}'),
                     raw: f,
@@ -487,6 +625,7 @@ class _SchedulePanel extends ConsumerWidget {
     required this.customerName,
     required this.schedules,
     required this.onOpenCalendar,
+    required this.onAddSchedule,
   });
 
   final ThemeData theme;
@@ -494,30 +633,36 @@ class _SchedulePanel extends ConsumerWidget {
   final String customerName;
   final List<Map<String, dynamic>> schedules;
   final VoidCallback onOpenCalendar;
+  final VoidCallback onAddSchedule;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final now = DateTime.now();
     final today = todayOpenSchedules(schedules, now);
-    final upcoming = upcomingOpenSchedules(schedules, now).take(6).toList();
+    final upcoming = upcomingOpenSchedules(schedules, now).take(5).toList();
     final openCount = today.length + upcoming.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('일정', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary))),
-            TextButton(onPressed: onOpenCalendar, child: const Text('캘린더')),
-          ],
+        BoaSectionHeader(
+          title: '예정 일정',
+          actionLabel: openCount > 0 ? '캘린더' : '일정 등록',
+          onAction: openCount > 0 ? onOpenCalendar : onAddSchedule,
         ),
         const SizedBox(height: 8),
         if (openCount == 0)
-          const BoaEmptyState(icon: Icons.event_available_outlined, title: '연결된 일정이 없습니다', message: '일정을 등록하거나 캘린더에서 확인하세요.')
+          BoaEmptyState(
+            icon: Icons.event_available_outlined,
+            title: '예정된 일정이 없습니다',
+            message: '일정을 등록하면 여기에 표시됩니다.',
+            actionLabel: '일정 등록',
+            onAction: onAddSchedule,
+          )
         else ...[
           if (today.isNotEmpty) ...[
-            Text('오늘', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 4),
+            Text('오늘', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
             ...today.map(
               (s) => ScheduleQuickActionTile(
                 key: ValueKey('sch-today-${s['id']}'),
@@ -527,11 +672,11 @@ class _SchedulePanel extends ConsumerWidget {
                 showTodayBadge: true,
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
           ],
           if (upcoming.isNotEmpty) ...[
-            Text('예정', style: theme.textTheme.labelLarge),
-            const SizedBox(height: 4),
+            Text('다가오는 일정', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 6),
             ...upcoming.map(
               (s) => ScheduleQuickActionTile(
                 key: ValueKey('sch-up-${s['id']}'),
@@ -550,15 +695,11 @@ class _SchedulePanel extends ConsumerWidget {
 class _ContractPanel extends StatelessWidget {
   const _ContractPanel({
     required this.theme,
-    required this.customerId,
-    required this.customerName,
     required this.contracts,
     required this.onCreate,
   });
 
   final ThemeData theme;
-  final int customerId;
-  final String customerName;
   final List<BoaContractRow> contracts;
   final VoidCallback onCreate;
 
@@ -570,73 +711,36 @@ class _ContractPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(child: Text('계약', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.primary))),
-            FilledButton.tonalIcon(onPressed: onCreate, icon: const Icon(Icons.add, size: 18), label: const Text('등록')),
-          ],
+        BoaSectionHeader(
+          title: '계약 요약',
+          actionLabel: rows.isEmpty ? '계약 등록' : '계약 등록',
+          onAction: onCreate,
         ),
         if (rows.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 8, top: 4),
-            child: Text('월납 합계 ${fieldCommaInt(premSum)}원 · ${rows.length}건', style: theme.textTheme.bodySmall),
+            child: Text(
+              '월납 합계 ${fieldCommaInt(premSum)}원 · ${rows.length}건',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
           ),
+        const SizedBox(height: 4),
         if (rows.isEmpty)
-          const BoaEmptyState(icon: Icons.description_outlined, title: '등록된 계약이 없습니다', message: '신규 계약을 등록할 수 있습니다.')
+          BoaEmptyState(
+            icon: Icons.description_outlined,
+            title: '등록된 계약이 없습니다',
+            message: '계약 정보를 등록하면 여기에 표시됩니다.',
+            actionLabel: '계약 등록',
+            onAction: onCreate,
+          )
         else
-          ...rows.take(6).map(
+          ...rows.take(4).map(
                 (r) => ContractSummaryCard(
                   key: ValueKey('cust-contract-${r.id}'),
                   row: r,
                   compact: true,
                 ),
               ),
-      ],
-    );
-  }
-}
-
-class _TimelineSection extends StatelessWidget {
-  const _TimelineSection({required this.theme, required this.entries, required this.onOpenWebHistory});
-  final ThemeData theme;
-  final List<CustomerTimelineEntry> entries;
-  final VoidCallback onOpenWebHistory;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(child: Text('활동 타임라인', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600))),
-            TextButton(onPressed: onOpenWebHistory, child: const Text('상담기록·전체')),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (entries.isEmpty)
-          const BoaEmptyState(icon: Icons.history, title: '표시할 활동이 없습니다', message: '후속·일정·계약 활동이 여기에 표시됩니다.')
-        else
-          ...entries.map((e) {
-            final icon = switch (e.kind) {
-              'contract' => Icons.description_outlined,
-              'schedule' => Icons.event_outlined,
-              _ => Icons.add_task_outlined,
-            };
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                dense: true,
-                leading: Icon(icon, size: 20, color: theme.colorScheme.primary),
-                title: Text(e.title, maxLines: 2, overflow: TextOverflow.ellipsis),
-                subtitle: Text(
-                  [if (e.occurredAt != null) fieldFmtDateTime(e.occurredAt!.toIso8601String()), e.subtitle].where((s) => s.isNotEmpty).join(' · '),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            );
-          }),
       ],
     );
   }
@@ -662,15 +766,21 @@ class _ActivitySummary extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('고객 정보', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        const BoaSectionHeader(title: '고객 정보'),
         const SizedBox(height: 8),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: rows.map((r) => Padding(padding: const EdgeInsets.only(bottom: 6), child: Text(r, style: theme.textTheme.bodyMedium))).toList(),
-            ),
+        BoaSurfaceCard(
+          margin: EdgeInsets.zero,
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rows
+                .map(
+                  (r) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Text(r, style: theme.textTheme.bodyMedium, maxLines: 3, overflow: TextOverflow.ellipsis),
+                  ),
+                )
+                .toList(),
           ),
         ),
       ],
@@ -678,16 +788,19 @@ class _ActivitySummary extends StatelessWidget {
   }
 }
 
-class _PanelLoading extends StatelessWidget {
-  const _PanelLoading({required this.title});
+class _SectionLoading extends StatelessWidget {
+  const _SectionLoading({required this.title});
   final String title;
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleSmall),
+        Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text('불러오는 중입니다…', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         const SizedBox(height: 8),
         const LinearProgressIndicator(minHeight: 2),
       ],
@@ -695,19 +808,21 @@ class _PanelLoading extends StatelessWidget {
   }
 }
 
-class _PanelError extends StatelessWidget {
-  const _PanelError({required this.title, required this.message});
+class _SectionError extends StatelessWidget {
+  const _SectionError({required this.title});
   final String title;
-  final String message;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleSmall),
-        const SizedBox(height: 4),
-        Text(message, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error)),
+        Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        Text(
+          '잠시 후 다시 시도해 주세요.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+        ),
       ],
     );
   }

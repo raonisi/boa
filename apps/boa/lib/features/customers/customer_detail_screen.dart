@@ -38,14 +38,26 @@ class CustomerDetailScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(name.isEmpty ? '고객 상세' : name)),
       body: async.when(
         data: (customer) => CustomerDetail360View(customerId: customerId, customer: customer),
-        loading: () => const BoaListLoadingSkeleton(itemCount: 4),
+        loading: () => Center(
+          child: Padding(
+            padding: const EdgeInsets.all(32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 16),
+                Text('고객 정보를 불러오는 중입니다…', style: Theme.of(context).textTheme.bodyMedium),
+              ],
+            ),
+          ),
+        ),
         error: (e, _) => ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(24),
           children: [
             BoaErrorState(
               title: '고객 정보를 불러오지 못했습니다',
-              message: '$e',
+              message: '네트워크 상태를 확인한 뒤 잠시 후 다시 시도해 주세요.',
               onRetry: () => ref.invalidate(customerDetailProvider(customerId)),
             ),
           ],
