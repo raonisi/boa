@@ -1,5 +1,6 @@
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/customers/customer_detail_dialogs.dart';
@@ -131,11 +132,10 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
         ? (reason.isNotEmpty ? reason : '후속관리')
         : (customerName.isNotEmpty ? customerName : (reason.isNotEmpty ? reason : '후속관리'));
 
-    return Card(
+    return BoaSurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
-        child: Column(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             InkWell(
@@ -152,7 +152,7 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
                         color: Colors.red.shade100,
                         borderRadius: BorderRadius.circular(4),
                       ),
-                      child: Text('연체', style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
+                      child: Text('기한 임박', style: TextStyle(fontSize: 10, color: Colors.red.shade700, fontWeight: FontWeight.w700)),
                     ),
                   Expanded(
                     child: Column(
@@ -232,7 +232,7 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
                       onPressed: _openCustomerDetail,
                     ),
                   BoaWorkActionChip(
-                    label: '상담기록',
+                    label: '상담 기록',
                     icon: Icons.edit_note_outlined,
                     onPressed: _openConsultation,
                   ),
@@ -266,7 +266,6 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
             ],
           ],
         ),
-      ),
     );
   }
 }

@@ -221,13 +221,13 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
 
     if (!AppConfig.hasApiBase) {
       return Scaffold(
-        appBar: AppBar(title: const Text('신규 계약 등록')),
+        appBar: AppBar(title: const Text('계약 등록')),
         body: const BoaServerConfigHint(),
       );
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('신규 계약 등록')),
+      appBar: AppBar(title: const Text('계약 등록')),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

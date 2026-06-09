@@ -64,7 +64,7 @@ class PushPreferencesScreen extends ConsumerWidget {
                             final err = ref.read(pushPreferencesNotifierProvider).errorMessage;
                             if (err != null) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('저장하지 못했습니다. $err')),
+                                const SnackBar(content: Text('알림 설정을 저장하지 못했습니다')),
                               );
                             }
                           }
@@ -91,11 +91,21 @@ class PushPreferencesScreen extends ConsumerWidget {
     double bottomInset,
   ) {
     if (state.loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('알림 설정을 불러오는 중입니다…'),
+          ],
+        ),
+      );
     }
     if (state.errorMessage != null && state.prefs == null) {
       return BoaErrorState(
-        message: '알림 설정을 불러오지 못했습니다. 다시 시도해 주세요.',
+        title: '알림 설정을 불러오지 못했습니다',
+        message: '잠시 후 다시 시도해 주세요.',
         onRetry: notifier.load,
       );
     }
@@ -112,8 +122,8 @@ class PushPreferencesScreen extends ConsumerWidget {
             elevation: 0,
             color: cs.primaryContainer.withValues(alpha: 0.25),
             child: SwitchListTile(
-              title: const Text('업무 푸시 알림 전체'),
-              subtitle: const Text('아래 업무 유형 알림을 한 번에 켜거나 끕니다. 알림을 끄면 오늘 업무 알림을 받지 못할 수 있습니다.'),
+              title: const Text('알림 받기'),
+              subtitle: const Text('업무 알림을 한 번에 켜거나 끕니다. 알림을 끄면 오늘 업무 알림을 받지 못할 수 있습니다.'),
               value: prefs.allWorkNotificationsEnabled,
               onChanged: state.saving
                   ? null
@@ -170,7 +180,7 @@ class PushPreferencesScreen extends ConsumerWidget {
                         builder: (context, constraints) {
                           final stacked = constraints.maxWidth < 360;
                           final startTile = _QuietTimeTile(
-                            label: '시작',
+                            label: '시작 시간',
                             value: prefs.quietHoursStart,
                             enabled: !state.saving,
                             onTap: () => _pickTime(context, prefs.quietHoursStart, (t) {
@@ -180,7 +190,7 @@ class PushPreferencesScreen extends ConsumerWidget {
                             }),
                           );
                           final endTile = _QuietTimeTile(
-                            label: '종료',
+                            label: '종료 시간',
                             value: prefs.quietHoursEnd,
                             enabled: !state.saving,
                             onTap: () => _pickTime(context, prefs.quietHoursEnd, (t) {

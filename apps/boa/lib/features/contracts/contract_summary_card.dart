@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_display_logic.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:flutter/material.dart';
@@ -27,57 +28,70 @@ class ContractSummaryCard extends StatelessWidget {
     final statusColors = contractStatusColors(row.contractStatus);
     final paymentColors = paymentStatusColors(row.paymentStatus);
 
-    return Card(
+    final cs = theme.colorScheme;
+
+    return BoaSurfaceCard(
       margin: EdgeInsets.symmetric(horizontal: compact ? 0 : 16, vertical: compact ? 4 : 6),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(12, compact ? 10 : 12, 12, compact ? 10 : 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: EdgeInsets.fromLTRB(14, compact ? 10 : 12, 12, compact ? 10 : 12),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (showCustomerLine && customerName != null && customerName!.trim().isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              customerName!.trim(),
-                              style: theme.textTheme.labelMedium?.copyWith(color: theme.colorScheme.primary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        Text(
-                          title,
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 2,
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: cs.primaryContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(Icons.description_outlined, size: 18, color: cs.primary),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (showCustomerLine && customerName != null && customerName!.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          customerName!.trim(),
+                          style: theme.textTheme.labelMedium?.copyWith(color: cs.primary),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ],
+                      ),
+                    Text(
+                      '상품명',
+                      style: theme.textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant, fontWeight: FontWeight.w600),
                     ),
-                  ),
-                  if (row.contractStatus != null && row.contractStatus!.isNotEmpty) ...[
-                    const SizedBox(width: 8),
-                    _StatusBadge(label: row.contractStatus!, colors: statusColors),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
+              if (row.contractStatus != null && row.contractStatus!.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _StatusBadge(label: row.contractStatus!, colors: statusColors),
+              ],
+            ],
+          ),
               SizedBox(height: compact ? 8 : 10),
               Row(
                 children: [
@@ -101,23 +115,21 @@ class ContractSummaryCard extends StatelessWidget {
                   ),
                 ],
               ),
-              if (!compact && row.paymentStatus != null && row.paymentStatus!.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: _StatusBadge(label: row.paymentStatus!, colors: paymentColors, small: true),
-                ),
-              ],
-              if (onTap != null) ...[
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ],
-          ),
-        ),
+          if (!compact && row.paymentStatus != null && row.paymentStatus!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _StatusBadge(label: row.paymentStatus!, colors: paymentColors, small: true),
+            ),
+          ],
+          if (onTap != null) ...[
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: Icon(Icons.chevron_right, size: 20, color: cs.onSurfaceVariant),
+            ),
+          ],
+        ],
       ),
     );
   }

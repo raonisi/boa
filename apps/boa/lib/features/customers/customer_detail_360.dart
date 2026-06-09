@@ -773,7 +773,7 @@ class _FollowUpPanel extends ConsumerWidget {
           )
         else ...[
           if (overdue.isNotEmpty) ...[
-            Text('연체', style: theme.textTheme.labelLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.w600)),
+            Text('기한 임박', style: theme.textTheme.labelLarge?.copyWith(color: Colors.red.shade700, fontWeight: FontWeight.w600)),
             const SizedBox(height: 6),
             ...overdue.map(
               (f) => FollowUpQuickActionTile(

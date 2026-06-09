@@ -1,5 +1,6 @@
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/calendar/schedule_create_dialog.dart';
@@ -121,11 +122,10 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
     final isToday = widget.showTodayBadge ||
         (start != null && isSameCalendarDay(start, DateTime.now()));
 
-    return Card(
+    return BoaSurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
-        child: Column(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+      child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -179,12 +179,12 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
                   ),
                 if (_effectiveCustomerId != null)
                   BoaWorkActionChip(
-                    label: '상담기록',
+                    label: '상담 기록',
                     icon: Icons.edit_note_outlined,
                     onPressed: _openConsultation,
                   ),
                 BoaWorkActionChip(
-                  label: '일정 추가',
+                  label: '일정 등록',
                   icon: Icons.add_circle_outline,
                   onPressed: _openScheduleDialog,
                 ),
@@ -192,7 +192,6 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
             ),
           ],
         ),
-      ),
     );
   }
 }

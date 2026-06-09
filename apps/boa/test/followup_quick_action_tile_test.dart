@@ -30,7 +30,7 @@ void main() {
     expect(find.text('내일로 연기'), findsOneWidget);
     expect(find.text('3일 뒤 연기'), findsOneWidget);
     expect(find.text('고객 보기'), findsOneWidget);
-    expect(find.text('상담기록'), findsOneWidget);
+    expect(find.text('상담 기록'), findsOneWidget);
     expect(find.text('일정 등록'), findsOneWidget);
   });
 
@@ -56,7 +56,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('연체'), findsOneWidget);
+    expect(find.text('기한 임박'), findsOneWidget);
     expect(find.text('고객 보기'), findsNothing);
     expect(find.text('완료'), findsOneWidget);
   });

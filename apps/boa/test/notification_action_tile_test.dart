@@ -35,7 +35,7 @@ void main() {
     expect(find.text('일정'), findsOneWidget);
     expect(find.text('미확인'), findsOneWidget);
     expect(find.text('일정 보기'), findsOneWidget);
-    expect(find.text('확인 완료'), findsOneWidget);
+    expect(find.text('읽음'), findsOneWidget);
   });
 
   testWidgets('NotificationActionTile hides unread dot when read', (tester) async {
@@ -61,6 +61,6 @@ void main() {
     await tester.pump();
 
     expect(find.text('처리완료'), findsOneWidget);
-    expect(find.text('확인 완료'), findsNothing);
+    expect(find.text('읽음'), findsNothing);
   });
 }

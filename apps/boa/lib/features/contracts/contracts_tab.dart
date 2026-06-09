@@ -83,6 +83,20 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('계약', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(
+                  '보험사·상품명·월납보험료·계약 상태를 한곳에서 확인합니다.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.35),
+                ),
+              ],
+            ),
+          ),
+          Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             child: TextField(
               controller: _searchController,
@@ -131,7 +145,7 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
           }
         },
         icon: const Icon(Icons.add),
-        label: const Text('신규 계약'),
+        label: const Text('계약 등록'),
       ),
     );
   }
@@ -143,12 +157,21 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
     ContractListState listState,
   ) {
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return const BoaListLoadingSkeleton();
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: const [
+          SizedBox(height: 8),
+          Center(child: Text('계약 정보를 불러오는 중입니다…')),
+          SizedBox(height: 16),
+          BoaListLoadingSkeleton(itemCount: 3),
+        ],
+      );
     }
     if (listState.errorMessage != null && listState.items.isEmpty) {
       return BoaErrorState(
-        title: '계약 목록을 불러오지 못했습니다',
-        message: listState.errorMessage!,
+        title: '계약 정보를 불러오지 못했습니다',
+        message: '잠시 후 다시 시도해 주세요.',
         onRetry: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
       );
     }
@@ -164,10 +187,10 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
               height: MediaQuery.sizeOf(context).height * 0.65,
               child: BoaEmptyState(
                 icon: Icons.description_outlined,
-                title: appliedQuery.isNotEmpty ? '검색 결과가 없습니다.' : '계약 정보가 없습니다.',
+                title: appliedQuery.isNotEmpty ? '검색 결과가 없습니다' : '등록된 계약이 없습니다',
                 message: appliedQuery.isNotEmpty
                     ? '상품명·보험사·고객번호로 다시 검색해 보세요.'
-                    : '고객 상세 또는 신규 계약 버튼으로 등록할 수 있습니다.',
+                    : '고객 상세 또는 계약 등록으로 정보를 추가할 수 있습니다.',
               ),
             ),
           ],
@@ -187,20 +210,28 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
           itemBuilder: (context, i) {
             if (i == 0) {
               return Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '${rows.length}건 표시',
-                        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                child: BoaSurfaceCard(
+                  margin: EdgeInsets.zero,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.description_outlined, size: 22, color: theme.colorScheme.primary),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('계약 요약', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+                            Text(
+                              '${rows.length}건 · 월납 합계 ${fieldCommaInt(totalPremium)}원',
+                              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    Text(
-                      '월납 합계 ${fieldCommaInt(totalPremium)}원',
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }

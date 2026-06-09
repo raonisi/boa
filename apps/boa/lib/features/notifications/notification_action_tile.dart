@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/notifications/notification_display_logic.dart';
 import 'package:boa/features/notifications/notification_navigation.dart';
 import 'package:boa/features/notifications/notification_priority.dart';
@@ -71,25 +72,22 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
     final (statusBg, statusFg) = processStatusChipColors(processStatus);
     final categoryColor = notificationCategoryColor(category, cs);
 
-    return Card(
+    return BoaSurfaceCard(
       margin: EdgeInsets.only(bottom: widget.compact ? 8 : 10),
-      color: isRead ? cs.surfaceContainerLowest : null,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: _markingRead
-            ? null
-            : () async {
-                if (!isRead) {
-                  await _markRead(navigateAfter: nav.canNavigate);
-                } else if (nav.canNavigate) {
-                  await navigateFromNotification(context, ref, raw);
-                }
-              },
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(10, widget.compact ? 10 : 12, 10, widget.compact ? 10 : 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+      color: isRead ? cs.surfaceContainerLowest : cs.surface,
+      padding: EdgeInsets.fromLTRB(10, widget.compact ? 10 : 12, 10, widget.compact ? 10 : 12),
+      onTap: _markingRead
+          ? null
+          : () async {
+              if (!isRead) {
+                await _markRead(navigateAfter: nav.canNavigate);
+              } else if (nav.canNavigate) {
+                await navigateFromNotification(context, ref, raw);
+              }
+            },
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
               Container(
                 width: 4,
                 height: widget.compact ? 40 : 52,
@@ -190,7 +188,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
                                       height: 16,
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
-                                  : const Text('확인 완료'),
+                                  : const Text('읽음'),
                             ),
                         ],
                       ),
@@ -198,9 +196,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
                   ],
                 ),
               ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }

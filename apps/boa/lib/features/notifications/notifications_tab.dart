@@ -60,12 +60,22 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
     }
 
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return const BoaListLoadingSkeleton();
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: const [
+          SizedBox(height: 8),
+          Center(child: Text('알림을 불러오는 중입니다…')),
+          SizedBox(height: 16),
+          BoaListLoadingSkeleton(itemCount: 3),
+        ],
+      );
     }
 
     if (listState.errorMessage != null && listState.items.isEmpty) {
       return BoaErrorState(
-        message: '알림을 불러오지 못했습니다. 다시 시도해 주세요.',
+        title: '알림을 불러오지 못했습니다',
+        message: '잠시 후 다시 시도해 주세요.',
         onRetry: () => ref.read(notificationsListNotifierProvider.notifier).refresh(),
       );
     }
@@ -89,11 +99,11 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('알림센터', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                      Text('알림함', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 4),
                       unreadAsync.when(
                         data: (count) => Text(
-                          count > 0 ? '미확인 $count건 · 긴급 → 오늘 → 일반 순' : '확인할 업무가 없습니다.',
+                          count > 0 ? '미확인 알림 $count건 · 긴급 → 오늘 → 일반 순' : '아직 처리할 알림이 없습니다.',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
                         loading: () => Text(
@@ -259,7 +269,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
     }
     if (_readFilter == NotificationReadFilter.read) return '읽은 알림이 없습니다.';
     if (_priorityFilter != _NotificationFilter.all) return '선택한 우선순위 알림이 없습니다.';
-    return '확인할 업무가 없습니다.';
+    return '아직 처리할 알림이 없습니다';
   }
 
   String _emptyMessage() {
