@@ -199,8 +199,14 @@ describe("RBAC - list null scope guards", () => {
   it("returns empty contracts for team_leader without teamId", async () => {
     await expect(appRouter.createCaller(createCtx("team_leader", { teamId: null })).contracts.list()).resolves.toEqual([]);
   });
-  it("returns empty schedules for team_leader without teamId", async () => {
-    await expect(appRouter.createCaller(createCtx("team_leader", { teamId: null })).schedules.list()).resolves.toEqual([]);
+  it("returns own schedules for team_leader without teamId on default mine view", async () => {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([
+      { id: 3, name: "[TEST] Leader", role: "team_leader", accountStatus: "active", teamId: null, subBranchAdminId: 2 },
+    ] as any);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([] as any);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+
+    await expect(appRouter.createCaller(createCtx("team_leader", { teamId: null })).schedules.list()).resolves.toMatchObject({ schedules: [] });
   });
 });
 

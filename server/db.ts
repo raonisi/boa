@@ -1879,28 +1879,41 @@ export async function updateFollowUp(id: number, data: Partial<InsertFollowUp>, 
   await db.update(followUps).set(data).where(eq(followUps.id, id));
 }
 
-export async function getSchedules(filter: { userId?: number; userIds?: number[]; teamId?: number; subBranchAdminId?: number }) {
+export async function getSchedules(filter: {
+  userId?: number;
+  userIds?: number[];
+  teamId?: number;
+  subBranchAdminId?: number;
+  dateFrom?: Date;
+  dateTo?: Date;
+}) {
   const db = await getDb();
   if (!db) return [];
 
-  const baseCondition = eq(schedules.isActive, true);
+  const conditions = [eq(schedules.isActive, true)];
+  if (filter.dateFrom) conditions.push(gte(schedules.startTime, filter.dateFrom));
+  if (filter.dateTo) conditions.push(lte(schedules.startTime, filter.dateTo));
+
   if (filter.userIds !== undefined) {
     if (filter.userIds.length === 0) return [];
-    return db.select().from(schedules).where(and(baseCondition, or(...filter.userIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
-  } else if (filter.userId !== undefined) {
-    return db.select().from(schedules).where(and(baseCondition, eq(schedules.userId, filter.userId))).orderBy(schedules.startTime);
-  } else if (filter.teamId !== undefined) {
+    return db.select().from(schedules).where(and(...conditions, or(...filter.userIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
+  }
+  if (filter.userId !== undefined) {
+    return db.select().from(schedules).where(and(...conditions, eq(schedules.userId, filter.userId))).orderBy(schedules.startTime);
+  }
+  if (filter.teamId !== undefined) {
     const teamAgents = await db.select({ id: users.id }).from(users).where(eq(users.teamId, filter.teamId));
     const agentIds = teamAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    return db.select().from(schedules).where(and(baseCondition, or(...agentIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
-  } else if (filter.subBranchAdminId !== undefined) {
+    return db.select().from(schedules).where(and(...conditions, or(...agentIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
+  }
+  if (filter.subBranchAdminId !== undefined) {
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
     if (agentIds.length === 0) return [];
-    return db.select().from(schedules).where(and(baseCondition, or(...agentIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
+    return db.select().from(schedules).where(and(...conditions, or(...agentIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
   }
-  return db.select().from(schedules).where(baseCondition).orderBy(schedules.startTime);
+  return db.select().from(schedules).where(and(...conditions)).orderBy(schedules.startTime);
 }
 
 export async function createSchedule(data: InsertSchedule) {

@@ -14,9 +14,10 @@ import {
 } from "date-fns";
 import { ko } from "date-fns/locale";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Plus, Trash2, BellRing, CheckCircle2, AlertTriangle, ExternalLink, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { formatUserWithRole } from "@/lib/userRole";
 import {
   formatKstLocalDateTime,
   formatKstLocalDateTimeForInput,
@@ -26,7 +27,26 @@ import {
 
 type ViewMode = "month" | "week" | "day";
 type MobileRange = "today" | "week" | "month" | "all" | "custom";
+type ScheduleOwnerViewMode = "mine" | "user" | "team" | "organization";
 type CustomerOption = { id: number; name: string };
+type CalendarSchedule = {
+  id: number;
+  userId: number;
+  ownerUserId: number;
+  ownerName?: string;
+  title: string;
+  type: string;
+  status: string;
+  startTime: string | Date;
+  endTime?: string | Date | null;
+  memo?: string | null;
+  reminderOffsetMinutes?: number;
+  customerId?: number | null;
+  customerDisplayName?: string | null;
+  canViewCustomerDetail?: boolean;
+  canEdit?: boolean;
+  canDelete?: boolean;
+};
 
 const typeColors: Record<string, string> = {
   "고객상담": "bg-blue-500",
@@ -92,11 +112,17 @@ function ScheduleEmptyState({ title, description, onCreate }: { title: string; d
 function ScheduleWorkItem({
   schedule,
   customerName,
+  ownerName,
+  showOwnerName = false,
+  readOnly = false,
   onClick,
   onCustomerClick,
 }: {
-  schedule: any;
+  schedule: CalendarSchedule;
   customerName?: string;
+  ownerName?: string;
+  showOwnerName?: boolean;
+  readOnly?: boolean;
   onClick: () => void;
   onCustomerClick?: () => void;
 }) {
@@ -115,11 +141,17 @@ function ScheduleWorkItem({
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           <span>{schedule.type}</span>
           <StatusBadge status={schedule.status} />
+          {readOnly ? (
+            <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">조회 전용</span>
+          ) : null}
+          {showOwnerName && ownerName ? (
+            <span className="inline-flex items-center rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700">{ownerName}</span>
+          ) : null}
           {customerName ? (
             <span
               role={onCustomerClick ? "button" : undefined}
               tabIndex={onCustomerClick ? 0 : undefined}
-              className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700"
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${onCustomerClick ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}
               onClick={(e) => {
                 if (!onCustomerClick) return;
                 e.stopPropagation();
@@ -149,13 +181,112 @@ function ScheduleWorkItem({
   );
 }
 
+function ScheduleOwnerFilter({
+  ownerViewMode,
+  selectedOwnerUserId,
+  selectedTeamId,
+  ownerSearch,
+  scheduleViewUsers,
+  scheduleViewTeams,
+  organizationViewWarning,
+  onOwnerViewModeChange,
+  onSelectedOwnerUserIdChange,
+  onSelectedTeamIdChange,
+  onOwnerSearchChange,
+}: {
+  ownerViewMode: ScheduleOwnerViewMode;
+  selectedOwnerUserId: string;
+  selectedTeamId: string;
+  ownerSearch: string;
+  scheduleViewUsers: Array<{ userId: number; name: string | null; role: string; teamName: string | null }>;
+  scheduleViewTeams: Array<{ teamId: number; name: string }>;
+  organizationViewWarning?: string;
+  onOwnerViewModeChange: (value: ScheduleOwnerViewMode) => void;
+  onSelectedOwnerUserIdChange: (value: string) => void;
+  onSelectedTeamIdChange: (value: string) => void;
+  onOwnerSearchChange: (value: string) => void;
+}) {
+  const filteredUsers = scheduleViewUsers.filter((user) => {
+    const label = `${user.name ?? ""} ${user.teamName ?? ""}`.toLowerCase();
+    return label.includes(ownerSearch.trim().toLowerCase());
+  });
+
+  return (
+    <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+      <CardContent className="space-y-3 p-3">
+        <div>
+          <p className="text-xs font-semibold text-slate-700">일정 보기</p>
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">기본값은 내 일정입니다. 다른 조직원 일정은 조회만 가능합니다.</p>
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {([
+            ["mine", "내 일정"],
+            ["user", "직원 선택"],
+            ["team", "팀 일정"],
+            ["organization", "전체 일정"],
+          ] as const).map(([value, label]) => (
+            <Button
+              key={value}
+              type="button"
+              size="sm"
+              variant={ownerViewMode === value ? "default" : "outline"}
+              className="min-h-12 w-full"
+              onClick={() => onOwnerViewModeChange(value)}
+            >
+              {label}
+            </Button>
+          ))}
+        </div>
+        {ownerViewMode === "user" ? (
+          <div className="space-y-2">
+            <Input
+              value={ownerSearch}
+              onChange={(event) => onOwnerSearchChange(event.target.value)}
+              placeholder="이름 또는 팀 검색"
+              className="min-h-12"
+            />
+            <Select value={selectedOwnerUserId} onValueChange={onSelectedOwnerUserIdChange}>
+              <SelectTrigger className="min-h-12"><SelectValue placeholder="조회할 직원 선택" /></SelectTrigger>
+              <SelectContent>
+                {filteredUsers.map((user) => (
+                  <SelectItem key={user.userId} value={String(user.userId)}>
+                    {formatUserWithRole({ id: user.userId, name: user.name, role: user.role })}
+                    {user.teamName ? ` · ${user.teamName}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        {ownerViewMode === "team" ? (
+          <Select value={selectedTeamId} onValueChange={onSelectedTeamIdChange}>
+            <SelectTrigger className="min-h-12"><SelectValue placeholder="조회할 팀 선택" /></SelectTrigger>
+            <SelectContent>
+              {scheduleViewTeams.map((team) => (
+                <SelectItem key={team.teamId} value={String(team.teamId)}>{team.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : null}
+        {organizationViewWarning ? (
+          <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">{organizationViewWarning}</p>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showModal, setShowModal] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedSchedule, setSelectedSchedule] = useState<any>(null);
+  const [selectedSchedule, setSelectedSchedule] = useState<CalendarSchedule | null>(null);
   const [mobileRange, setMobileRange] = useState<MobileRange>("today");
+  const [ownerViewMode, setOwnerViewMode] = useState<ScheduleOwnerViewMode>("mine");
+  const [selectedOwnerUserId, setSelectedOwnerUserId] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState("");
+  const [ownerSearch, setOwnerSearch] = useState("");
   const [customStartDate, setCustomStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [customEndDate, setCustomEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [location, setLocation] = useLocation();
@@ -163,7 +294,21 @@ export default function Calendar() {
   const isMobile = useIsMobile();
 
   const utils = trpc.useUtils();
-  const { data: schedules } = trpc.schedules.list.useQuery();
+  const scheduleListInput = useMemo(() => {
+    if (ownerViewMode === "user" && !selectedOwnerUserId) return { viewMode: "mine" as const };
+    if (ownerViewMode === "team" && !selectedTeamId) return { viewMode: "mine" as const };
+    return {
+      viewMode: ownerViewMode,
+      ...(ownerViewMode === "user" && selectedOwnerUserId ? { ownerUserId: Number(selectedOwnerUserId) } : {}),
+      ...(ownerViewMode === "team" && selectedTeamId ? { teamId: Number(selectedTeamId) } : {}),
+    };
+  }, [ownerViewMode, selectedOwnerUserId, selectedTeamId]);
+  const { data: scheduleListData } = trpc.schedules.list.useQuery(scheduleListInput);
+  const schedules = (scheduleListData?.schedules ?? []) as CalendarSchedule[];
+  const scheduleViewUsers = scheduleListData?.users ?? [];
+  const scheduleViewTeams = scheduleListData?.teams ?? [];
+  const organizationViewWarning = scheduleListData?.organizationViewWarning;
+  const showOwnerName = ownerViewMode !== "mine";
   const { data: users } = trpc.users.list.useQuery({ activeOnly: true });
   const { data: customers } = trpc.customers.list.useQuery({});
   const customerOptions = (customers ?? []) as CustomerOption[];
@@ -174,9 +319,18 @@ export default function Calendar() {
   const queryAction = queryParams.get("action");
   const queryCustomerId = Number(queryParams.get("customerId"));
   const defaultCustomerId = Number.isFinite(queryCustomerId) && queryCustomerId > 0 ? queryCustomerId : undefined;
-  const getScheduleCustomer = (schedule: any) => schedule?.customerId ? customerMap.get(Number(schedule.customerId)) : undefined;
-  const openCustomerDetail = (customerId?: number | null) => {
-    if (customerId) setLocation(`/customers/${customerId}`);
+  const getScheduleCustomer = (schedule: CalendarSchedule) => schedule?.customerId ? customerMap.get(Number(schedule.customerId)) : undefined;
+  const getScheduleCustomerLabel = (schedule: CalendarSchedule) =>
+    schedule.customerDisplayName ?? getScheduleCustomer(schedule)?.name ?? null;
+  const canOpenCustomerDetail = (schedule: CalendarSchedule) =>
+    schedule.canViewCustomerDetail ?? !!getScheduleCustomer(schedule);
+  const openCustomerDetail = (schedule: CalendarSchedule) => {
+    if (canOpenCustomerDetail(schedule) && schedule.customerId) setLocation(`/customers/${schedule.customerId}`);
+  };
+  const handleOwnerViewModeChange = (value: ScheduleOwnerViewMode) => {
+    setOwnerViewMode(value);
+    if (value !== "user") setSelectedOwnerUserId("");
+    if (value !== "team") setSelectedTeamId("");
   };
 
   useEffect(() => {
@@ -277,6 +431,20 @@ export default function Calendar() {
             </CardContent>
           </Card>
 
+          <ScheduleOwnerFilter
+            ownerViewMode={ownerViewMode}
+            selectedOwnerUserId={selectedOwnerUserId}
+            selectedTeamId={selectedTeamId}
+            ownerSearch={ownerSearch}
+            scheduleViewUsers={scheduleViewUsers}
+            scheduleViewTeams={scheduleViewTeams}
+            organizationViewWarning={organizationViewWarning}
+            onOwnerViewModeChange={handleOwnerViewModeChange}
+            onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
+            onSelectedTeamIdChange={setSelectedTeamId}
+            onOwnerSearchChange={setOwnerSearch}
+          />
+
           <div className="grid grid-cols-2 gap-2">
             {summaryCards.map((item) => (
               <Card key={item.label} className="border-slate-200/80 bg-white/95 shadow-sm">
@@ -314,7 +482,10 @@ export default function Calendar() {
                     <div className="text-xs font-bold w-10 shrink-0">{formatScheduleTime(s.startTime)}</div>
                     <div className="flex-1 min-w-0">
                       <p className="line-clamp-2 text-sm font-semibold leading-5">{s.title}</p>
-                      <p className="text-xs font-medium opacity-90">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
+                      <p className="text-xs font-medium opacity-90">
+                        {showOwnerName && s.ownerName ? `${s.ownerName} · ` : ""}
+                        {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
+                      </p>
                       <p className="mt-1 text-xs leading-5 opacity-80">{s.type} · {getStatusLabel(s.status)} · 알림 {scheduleReminderText(s)}</p>
                     </div>
                   </div>
@@ -335,7 +506,10 @@ export default function Calendar() {
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="line-clamp-2 text-sm font-medium leading-5">{s.title}</p>
-                      <p className="text-xs text-slate-500">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
+                      <p className="text-xs text-slate-500">
+                        {showOwnerName && s.ownerName ? `${s.ownerName} · ` : ""}
+                        {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
+                      </p>
                       <p className="text-xs text-orange-600">종료: {s.endTime ? format(scheduleDate(s.endTime), "M/d HH:mm", { locale: ko }) : "-"}</p>
                     </div>
                     <span className="shrink-0 text-xs font-medium text-orange-600">{getStatusLabel(s.status)}</span>
@@ -371,8 +545,8 @@ export default function Calendar() {
             <CardContent className="space-y-2">
               {mobileList.length === 0 ? (
                 <ScheduleEmptyState
-                  title="조회 조건에 맞는 일정이 없습니다."
-                  description="필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
+                  title="선택한 조건에 해당하는 일정이 없습니다."
+                  description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
                   onCreate={() => { setSelectedDate(new Date()); setShowModal(true); }}
                 />
               ) : (
@@ -385,7 +559,8 @@ export default function Calendar() {
                     <div className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`} />
                     <div className="flex-1 min-w-0">
                       <p className="line-clamp-2 text-sm font-medium leading-5">{s.title}</p>
-                      <p className="text-xs text-emerald-700">{getScheduleCustomer(s)?.name ?? "연결 고객 없음"}</p>
+                      {showOwnerName && s.ownerName ? <p className="text-xs font-medium text-violet-700">{s.ownerName}</p> : null}
+                      <p className="text-xs text-emerald-700">{getScheduleCustomerLabel(s) ?? "연결 고객 없음"}</p>
                       <p className="text-xs text-muted-foreground">
                         {format(scheduleDate(s.startTime), "M/d (EEE) HH:mm", { locale: ko })}
                       </p>
@@ -403,7 +578,19 @@ export default function Calendar() {
         {/* 모달들 */}
         <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} defaultCustomerId={defaultCustomerId} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} customers={customerOptions} />
         {selectedSchedule && (
-          <ScheduleDetailModal schedule={selectedSchedule} customer={getScheduleCustomer(selectedSchedule)} customers={customerOptions} onViewCustomer={() => openCustomerDetail(selectedSchedule.customerId)} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
+          <ScheduleDetailModal
+            schedule={selectedSchedule}
+            customerName={getScheduleCustomerLabel(selectedSchedule)}
+            canEdit={selectedSchedule.canEdit ?? true}
+            canDelete={selectedSchedule.canDelete ?? true}
+            canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
+            customers={customerOptions}
+            onViewCustomer={() => openCustomerDetail(selectedSchedule)}
+            onClose={() => setSelectedSchedule(null)}
+            onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
+            onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })}
+            loading={deleteMutation.isPending || updateMutation.isPending}
+          />
         )}
       </DashboardLayout>
     );
@@ -438,6 +625,20 @@ export default function Calendar() {
           </div>
           </CardContent>
         </Card>
+
+        <ScheduleOwnerFilter
+          ownerViewMode={ownerViewMode}
+          selectedOwnerUserId={selectedOwnerUserId}
+          selectedTeamId={selectedTeamId}
+          ownerSearch={ownerSearch}
+          scheduleViewUsers={scheduleViewUsers}
+          scheduleViewTeams={scheduleViewTeams}
+          organizationViewWarning={organizationViewWarning}
+          onOwnerViewModeChange={handleOwnerViewModeChange}
+          onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
+          onSelectedTeamIdChange={setSelectedTeamId}
+          onOwnerSearchChange={setOwnerSearch}
+        />
 
         <div className="grid gap-3 md:grid-cols-4">
           {summaryCards.map((item) => (
@@ -500,7 +701,7 @@ export default function Calendar() {
                         <div className="space-y-0.5">
                           {daySchedules.slice(0, 3).map((s) => (
                             <div key={s.id} className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
-                              {formatScheduleTime(s.startTime)} {s.title}
+                              {formatScheduleTime(s.startTime)} {showOwnerName && s.ownerName ? `[${s.ownerName}] ` : ""}{s.title}
                             </div>
                           ))}
                           {daySchedules.length > 3 && <div className="text-[10px] text-muted-foreground pl-1">+{daySchedules.length - 3}개</div>}
@@ -545,7 +746,7 @@ export default function Calendar() {
                       <div className="p-1 min-h-[200px] space-y-1 cursor-pointer" onClick={() => { setSelectedDate(day); setCurrentDate(day); }}>
                         {daySchedules.map((s) => (
                           <div key={s.id} className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`} onClick={(e) => { e.stopPropagation(); setSelectedSchedule(s); }}>
-                            <div className="font-medium truncate">{s.title}</div>
+                            <div className="font-medium truncate">{showOwnerName && s.ownerName ? `[${s.ownerName}] ` : ""}{s.title}</div>
                             <div className="opacity-80">{formatScheduleTime(s.startTime)}</div>
                           </div>
                         ))}
@@ -566,7 +767,16 @@ export default function Calendar() {
                   />
                 ) : (
                   getSchedulesForDay(currentDate).map((s) => (
-                    <ScheduleWorkItem key={s.id} schedule={s} customerName={getScheduleCustomer(s)?.name} onCustomerClick={() => openCustomerDetail(s.customerId)} onClick={() => setSelectedSchedule(s)} />
+                    <ScheduleWorkItem
+                      key={s.id}
+                      schedule={s}
+                      customerName={getScheduleCustomerLabel(s) ?? undefined}
+                      ownerName={s.ownerName}
+                      showOwnerName={showOwnerName}
+                      readOnly={!(s.canEdit ?? true)}
+                      onCustomerClick={canOpenCustomerDetail(s) ? () => openCustomerDetail(s) : undefined}
+                      onClick={() => setSelectedSchedule(s)}
+                    />
                   ))
                 )}
               </div>
@@ -599,7 +809,16 @@ export default function Calendar() {
             ) : (
               <div className="space-y-2">
                 {selectedDaySchedules.map((s) => (
-                  <ScheduleWorkItem key={s.id} schedule={s} customerName={getScheduleCustomer(s)?.name} onCustomerClick={() => openCustomerDetail(s.customerId)} onClick={() => setSelectedSchedule(s)} />
+                  <ScheduleWorkItem
+                    key={s.id}
+                    schedule={s}
+                    customerName={getScheduleCustomerLabel(s) ?? undefined}
+                    ownerName={s.ownerName}
+                    showOwnerName={showOwnerName}
+                    readOnly={!(s.canEdit ?? true)}
+                    onCustomerClick={canOpenCustomerDetail(s) ? () => openCustomerDetail(s) : undefined}
+                    onClick={() => setSelectedSchedule(s)}
+                  />
                 ))}
               </div>
             )}
@@ -610,7 +829,19 @@ export default function Calendar() {
 
       <ScheduleModal open={showModal} onClose={() => setShowModal(false)} defaultDate={selectedDate} defaultCustomerId={defaultCustomerId} onSubmit={(data) => createMutation.mutate(data)} loading={createMutation.isPending} users={users} customers={customerOptions} />
       {selectedSchedule && (
-        <ScheduleDetailModal schedule={selectedSchedule} customer={getScheduleCustomer(selectedSchedule)} customers={customerOptions} onViewCustomer={() => openCustomerDetail(selectedSchedule.customerId)} onClose={() => setSelectedSchedule(null)} onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })} onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })} loading={deleteMutation.isPending || updateMutation.isPending} />
+        <ScheduleDetailModal
+          schedule={selectedSchedule}
+          customerName={getScheduleCustomerLabel(selectedSchedule)}
+          canEdit={selectedSchedule.canEdit ?? true}
+          canDelete={selectedSchedule.canDelete ?? true}
+          canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
+          customers={customerOptions}
+          onViewCustomer={() => openCustomerDetail(selectedSchedule)}
+          onClose={() => setSelectedSchedule(null)}
+          onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
+          onUpdate={(data) => updateMutation.mutate({ id: selectedSchedule.id, ...data })}
+          loading={deleteMutation.isPending || updateMutation.isPending}
+        />
       )}
     </DashboardLayout>
   );
@@ -739,8 +970,18 @@ function ScheduleModal({ open, onClose, defaultDate, defaultCustomerId, onSubmit
   );
 }
 
-function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, onClose, onDelete, onUpdate, loading }: {
-  schedule: any; customer?: CustomerOption; customers: CustomerOption[]; onViewCustomer: () => void; onClose: () => void; onDelete: () => void; onUpdate: (data: any) => void; loading: boolean;
+function ScheduleDetailModal({ schedule, customerName, canEdit, canDelete, canViewCustomerDetail, customers, onViewCustomer, onClose, onDelete, onUpdate, loading }: {
+  schedule: CalendarSchedule;
+  customerName?: string | null;
+  canEdit: boolean;
+  canDelete: boolean;
+  canViewCustomerDetail: boolean;
+  customers: CustomerOption[];
+  onViewCustomer: () => void;
+  onClose: () => void;
+  onDelete: () => void;
+  onUpdate: (data: any) => void;
+  loading: boolean;
 }) {
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({ category: "scheduleType" });
   const scheduleTypes = scheduleTypeOptions?.length ? scheduleTypeOptions.map((item) => item.value) : SCHEDULE_TYPES;
@@ -792,11 +1033,14 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
       <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
         <DialogHeader><DialogTitle>{schedule.title}</DialogTitle></DialogHeader>
         <div className="space-y-3 text-sm">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`h-3 w-3 rounded-full ${typeColors[schedule.type] ?? "bg-slate-400"}`} />
             <span>{schedule.type}</span>
             <StatusBadge status={schedule.status} />
+            {schedule.ownerName ? <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">담당: {schedule.ownerName}</span> : null}
+            {!canEdit ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">조회 전용</span> : null}
           </div>
+          {!canEdit ? <p className="text-xs leading-relaxed text-muted-foreground">이 일정은 조회만 가능합니다.</p> : null}
           <div><p className="text-xs text-muted-foreground">시작</p><p>{formatKstLocalDateTime(schedule.startTime, { seconds: false }).replace("T", " ")}</p></div>
           {schedule.endTime && <div><p className="text-xs text-muted-foreground">종료</p><p>{formatKstLocalDateTime(schedule.endTime, { seconds: false }).replace("T", " ")}</p></div>}
           <div>
@@ -807,18 +1051,22 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
             <p className="text-xs text-muted-foreground">연결 고객</p>
-            {customer ? (
+            {customerName ? (
               <div className="mt-1 flex items-center justify-between gap-2">
-                <p className="min-w-0 truncate text-sm font-semibold text-slate-950">{customer.name}</p>
-                <Button type="button" variant="outline" size="sm" className="min-h-12 shrink-0 md:h-8 md:min-h-8" onClick={onViewCustomer}>
-                  <ExternalLink className="mr-1 h-3.5 w-3.5" /> 고객 상세 보기
-                </Button>
+                <p className="min-w-0 truncate text-sm font-semibold text-slate-950">{customerName}</p>
+                {canViewCustomerDetail ? (
+                  <Button type="button" variant="outline" size="sm" className="min-h-12 shrink-0 md:h-8 md:min-h-8" onClick={onViewCustomer}>
+                    <ExternalLink className="mr-1 h-3.5 w-3.5" /> 고객 상세 보기
+                  </Button>
+                ) : (
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">고객 상세는 담당 권한이 있는 사용자만 볼 수 있습니다.</p>
+                )}
               </div>
             ) : (
               <p className="mt-1 text-sm text-slate-500">연결된 고객이 없습니다</p>
             )}
           </div>
-          {editing ? (
+          {canEdit && editing ? (
             <>
               <div>
                 <Label className="text-xs">제목</Label>
@@ -882,6 +1130,7 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
           ) : (
             <>
               {schedule.memo && <p className="text-xs text-muted-foreground">{schedule.memo}</p>}
+              {canEdit ? (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
                   {schedule.status !== "완료" && (
@@ -891,12 +1140,15 @@ function ScheduleDetailModal({ schedule, customer, customers, onViewCustomer, on
                   )}
                   <Button size="sm" className="min-h-12 md:min-h-10" onClick={() => setEditing(true)}>수정</Button>
                 </div>
+                {canDelete ? (
                 <div className="rounded-xl border border-red-100 bg-red-50/70 p-2 sm:flex sm:justify-end">
                   <Button variant="outline" size="sm" className="min-h-12 w-full border-red-200 bg-white text-destructive hover:bg-red-50 md:min-h-10 sm:w-auto" onClick={onDelete} disabled={loading}>
                     <Trash2 className="h-3.5 w-3.5 mr-1" /> 삭제
                   </Button>
                 </div>
+                ) : null}
               </div>
+              ) : null}
             </>
           )}
         </div>

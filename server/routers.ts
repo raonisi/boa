@@ -3,6 +3,7 @@ import { z } from "zod";
 import { buildFirstContactSlaInsights } from "./sla";
 import { buildTeamCompletionInsights } from "./teamCompletion";
 import { teamCoachingRouter } from "./teamCoaching";
+import { getAccessibleSchedules, listCalendarSchedules } from "./scheduleVisibility";
 import { onboardingAssignmentsRouter, onboardingTemplatesRouter } from "./onboarding";
 import { managementReportsRouter } from "./managementReports";
 import { customerDataQualityRouter } from "./customerDataQualityRouter";
@@ -1995,14 +1996,6 @@ async function buildPhoneDuplicateScope(user: {
     return { agentIds: await getHierarchyScopeUserIds(user) };
   }
   return { agentId: user.id };
-}
-
-async function getAccessibleSchedules(user: { id: number; role: string; teamId: number | null; accountStatus: string }) {
-  if (user.role === "branch_admin") return getSchedules({});
-  if (user.role === "sub_branch_admin" || user.role === "team_leader") {
-    return getSchedules({ userIds: await getHierarchyScopeUserIds(user) });
-  }
-  return getSchedules({ userId: user.id });
 }
 
 function parseScheduleDateTime(value: string, fieldName: string) {
@@ -6417,9 +6410,15 @@ export const appRouter = router({
   }),
 
   schedules: router({
-    list: activeUserProcedure.query(async ({ ctx }) => {
-      return getAccessibleSchedules(ctx.user);
-    }),
+    list: activeUserProcedure
+      .input(z.object({
+        dateFrom: z.string().optional(),
+        dateTo: z.string().optional(),
+        viewMode: z.enum(["mine", "user", "team", "organization"]).default("mine"),
+        ownerUserId: z.number().optional(),
+        teamId: z.number().optional(),
+      }).optional())
+      .query(async ({ ctx, input }) => listCalendarSchedules(ctx.user, input ?? { viewMode: "mine" })),
 
     create: activeUserProcedure
       .input(z.object({

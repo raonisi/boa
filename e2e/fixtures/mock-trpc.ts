@@ -112,11 +112,17 @@ const notificationsList = {
   hasMore: false,
 };
 
-const schedules = [
+const calendarSchedules = [
   {
     id: 301,
     userId: 4,
+    ownerUserId: 4,
+    ownerName: "[E2E] Member",
     customerId: customer.id,
+    customerDisplayName: customer.name,
+    canViewCustomerDetail: true,
+    canEdit: true,
+    canDelete: true,
     title: "[E2E] 고객 상담 일정",
     type: "고객상담",
     status: "예정",
@@ -124,12 +130,21 @@ const schedules = [
     endTime: oneHourAfterNow,
     memo: "[E2E] calendar customer context",
     reminderOffsetMinutes: 30,
-    isActive: true,
-    deletedAt: null,
-    createdAt: now,
-    updatedAt: now,
   },
 ];
+
+const scheduleListResponse = {
+  schedules: calendarSchedules,
+  users: users.map((user) => ({
+    userId: user.id,
+    name: user.name,
+    role: user.role,
+    teamId: user.teamId ?? null,
+    teamName: user.teamId === 10 ? "[E2E] Team" : null,
+    isActive: true as const,
+  })),
+  teams: [{ teamId: 10, name: "[E2E] Team" }],
+};
 
 const salesReport = {
   period: { dateFrom: "2026-05-01", dateTo: "2026-05-18", label: "E2E 기간" },
@@ -212,7 +227,7 @@ const defaults: Record<string, unknown> = {
   "performance.stats": { assigned: 1, contracts: 1, monthlyPremium: 120000 },
   "customers.list": [customer],
   "customers.get": customer,
-  "schedules.list": schedules,
+  "schedules.list": scheduleListResponse,
   "customers.downloadImportTemplate": {
     headers: ["name", "birthDate", "phone", "gender", "region", "expectedPremium", "availableTime", "source", "consultStatus", "memo", "agent"],
     csvContent: "name,birthDate,phone,gender,region,expectedPremium,availableTime,source,consultStatus,memo,agent",

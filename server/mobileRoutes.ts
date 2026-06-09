@@ -816,8 +816,8 @@ export function registerMobileRoutes(app: Express) {
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
     try {
-      const items = await caller.schedules.list();
-      res.json({ items });
+      const result = await caller.schedules.list({ viewMode: "mine" });
+      res.json({ items: "schedules" in result ? result.schedules : result });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to list schedules";
       res.status(400).json({ error: msg });
