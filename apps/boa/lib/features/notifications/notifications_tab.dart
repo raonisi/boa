@@ -1,6 +1,7 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/more/push_preferences_screen.dart';
@@ -29,6 +30,18 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
     if (n.metrics.pixels < n.metrics.maxScrollExtent - 240) return false;
     ref.read(notificationsListNotifierProvider.notifier).loadMore();
     return false;
+  }
+
+  Future<void> _refreshNotifications(BuildContext context) {
+    return BoaPullRefresh.runListRefresh(
+      context,
+      () async {
+        ref.invalidate(dashboardTodayWorkProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+        await ref.read(notificationsListNotifierProvider.notifier).refresh();
+      },
+      () => ref.read(notificationsListNotifierProvider).errorMessage != null,
+    );
   }
 
   @override
@@ -61,32 +74,38 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
     }
 
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: const [
-          SizedBox(height: 8),
-          Center(child: Text('알림을 불러오는 중입니다…')),
-          SizedBox(height: 16),
-          BoaListLoadingSkeleton(itemCount: 3),
-        ],
+      return RefreshIndicator(
+        onRefresh: () => _refreshNotifications(context),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: const Column(
+            children: [
+              SizedBox(height: 8),
+              Center(child: Text('알림을 불러오는 중입니다…')),
+              SizedBox(height: 16),
+              BoaListLoadingSkeleton(itemCount: 3),
+            ],
+          ),
+        ),
       );
     }
 
     if (listState.errorMessage != null && listState.items.isEmpty) {
-      return BoaErrorState(
-        title: '알림을 불러오지 못했습니다',
-        message: '잠시 후 다시 시도해 주세요.',
-        onRetry: () => ref.read(notificationsListNotifierProvider.notifier).refresh(),
+      return RefreshIndicator(
+        onRefresh: () => _refreshNotifications(context),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: BoaErrorState(
+            title: '알림을 불러오지 못했습니다',
+            message: '잠시 후 다시 시도해 주세요.',
+            onRetry: () => _refreshNotifications(context),
+          ),
+        ),
       );
     }
 
     return RefreshIndicator(
-      onRefresh: () async {
-        ref.invalidate(dashboardTodayWorkProvider);
-        ref.invalidate(unreadNotificationCountProvider);
-        await ref.read(notificationsListNotifierProvider.notifier).refresh();
-      },
+      onRefresh: () => _refreshNotifications(context),
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScrollNearEnd,
         child: ListView(

@@ -1,5 +1,6 @@
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/search/global_search_screen.dart';
@@ -47,7 +48,7 @@ class FieldCommandCenterView extends ConsumerWidget {
     final now = DateTime.now();
 
     return RefreshIndicator(
-      onRefresh: () async {
+      onRefresh: () => BoaPullRefresh.runFutureRefresh(context, () async {
         refreshFieldWorkData(ref);
         await Future.wait<void>([
           ref.read(dashboardTodayWorkProvider.future),
@@ -55,7 +56,7 @@ class FieldCommandCenterView extends ConsumerWidget {
           ref.read(performanceStatsProvider.future),
           ref.read(fieldRecentContractsProvider.future),
         ]);
-      },
+      }),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),

@@ -1,5 +1,6 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/calendar/schedule_create_dialog.dart';
@@ -12,6 +13,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class CalendarTab extends ConsumerWidget {
   const CalendarTab({super.key});
+
+  Future<void> _refreshCalendar(BuildContext context, WidgetRef ref) {
+    return BoaPullRefresh.runFutureRefresh(context, () async {
+      refreshFieldWorkData(ref);
+      await ref.read(calendarAgendaProvider.future);
+    });
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,10 +40,7 @@ class CalendarTab extends ConsumerWidget {
 
         return Scaffold(
           body: RefreshIndicator(
-            onRefresh: () async {
-              refreshFieldWorkData(ref);
-              await ref.read(calendarAgendaProvider.future);
-            },
+            onRefresh: () => _refreshCalendar(context, ref),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
@@ -140,31 +145,29 @@ class CalendarTab extends ConsumerWidget {
           ),
         );
       },
-      loading: () => ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: const [
-          SizedBox(height: 8),
-          Center(child: Text('일정 정보를 불러오는 중입니다…')),
-          SizedBox(height: 16),
-          BoaListLoadingSkeleton(itemCount: 3),
-        ],
+      loading: () => RefreshIndicator(
+        onRefresh: () => _refreshCalendar(context, ref),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: const Column(
+            children: [
+              SizedBox(height: 8),
+              Center(child: Text('일정 정보를 불러오는 중입니다…')),
+              SizedBox(height: 16),
+              BoaListLoadingSkeleton(itemCount: 3),
+            ],
+          ),
+        ),
       ),
       error: (e, _) => RefreshIndicator(
-        onRefresh: () async {
-          refreshFieldWorkData(ref);
-          await ref.read(calendarAgendaProvider.future);
-        },
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(24),
-          children: [
-            BoaErrorState(
-              title: '일정 정보를 불러오지 못했습니다',
-              message: '잠시 후 다시 시도해 주세요.',
-              onRetry: () => refreshFieldWorkData(ref),
-            ),
-          ],
+        onRefresh: () => _refreshCalendar(context, ref),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: BoaErrorState(
+            title: '일정 정보를 불러오지 못했습니다',
+            message: '잠시 후 다시 시도해 주세요.',
+            onRetry: () => _refreshCalendar(context, ref),
+          ),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/customers/customer_detail_logic.dart';
@@ -62,6 +63,14 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
     return false;
   }
 
+  Future<void> _refreshCustomers(BuildContext context) {
+    return BoaPullRefresh.runListRefresh(
+      context,
+      () => ref.read(customersListNotifierProvider.notifier).refresh(),
+      () => ref.read(customersListNotifierProvider).errorMessage != null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -119,19 +128,31 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
     CustomerListState listState,
   ) {
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return const BoaListLoadingSkeleton();
+      return RefreshIndicator(
+        onRefresh: () => _refreshCustomers(context),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: const BoaListLoadingSkeleton(),
+        ),
+      );
     }
     if (listState.errorMessage != null && listState.items.isEmpty) {
-      return BoaErrorState(
-        title: '고객 목록을 불러오지 못했습니다',
-        message: listState.errorMessage!,
-        onRetry: () => ref.read(customersListNotifierProvider.notifier).refresh(),
+      return RefreshIndicator(
+        onRefresh: () => _refreshCustomers(context),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: BoaErrorState(
+            title: '고객 목록을 불러오지 못했습니다',
+            message: listState.errorMessage!,
+            onRetry: () => _refreshCustomers(context),
+          ),
+        ),
       );
     }
     final rows = listState.items;
     if (rows.isEmpty) {
       return RefreshIndicator(
-        onRefresh: () => ref.read(customersListNotifierProvider.notifier).refresh(),
+        onRefresh: () => _refreshCustomers(context),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
@@ -151,7 +172,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
       );
     }
     return RefreshIndicator(
-      onRefresh: () => ref.read(customersListNotifierProvider.notifier).refresh(),
+      onRefresh: () => _refreshCustomers(context),
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScrollNearEnd,
         child: ListView.builder(

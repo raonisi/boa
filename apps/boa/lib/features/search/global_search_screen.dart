@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
@@ -128,6 +129,16 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     return '고객 선택';
   }
 
+  Future<void> _refreshSearch(BuildContext context, String query) {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return Future<void>.value();
+    return BoaPullRefresh.runListRefresh(
+      context,
+      () => ref.read(globalSearchNotifierProvider.notifier).search(trimmed),
+      () => ref.read(globalSearchNotifierProvider).errorMessage != null,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -183,9 +194,12 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
             const SizedBox(height: 12),
           ],
           Expanded(
-            child: NotificationListener<ScrollNotification>(
-              onNotification: _onScrollNearEnd,
-              child: _buildBody(context, theme, searchState, recent, hasQuery, bottomInset),
+            child: RefreshIndicator(
+              onRefresh: () => _refreshSearch(context, query),
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScrollNearEnd,
+                child: _buildBody(context, theme, searchState, recent, hasQuery, bottomInset),
+              ),
             ),
           ),
         ],
@@ -206,41 +220,40 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     }
 
     if (searchState.errorMessage != null && !searchState.hasAnyResults) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
-        children: [
-          BoaErrorState(
-            title: '검색 결과를 불러오지 못했습니다',
-            message: '네트워크 상태를 확인한 뒤 잠시 후 다시 시도해 주세요.',
-            onRetry: () => ref.read(globalSearchNotifierProvider.notifier).search(searchState.appliedQuery),
-          ),
-        ],
+      return boaRefreshScrollChild(
+        context: context,
+        child: BoaErrorState(
+          title: '검색 결과를 불러오지 못했습니다',
+          message: '네트워크 상태를 확인한 뒤 잠시 후 다시 시도해 주세요.',
+          onRetry: () => _refreshSearch(context, searchState.appliedQuery),
+        ),
       );
     }
 
     if (searchState.loading && !searchState.hasAnyResults) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
-        children: const [
-          SizedBox(height: 24),
-          Center(child: CircularProgressIndicator()),
-          SizedBox(height: 16),
-          Center(child: Text('검색 중입니다…')),
-          SizedBox(height: 24),
-          BoaListLoadingSkeleton(itemCount: 3),
-        ],
+      return boaRefreshScrollChild(
+        context: context,
+        child: const Column(
+          children: [
+            SizedBox(height: 24),
+            Center(child: CircularProgressIndicator()),
+            SizedBox(height: 16),
+            Center(child: Text('검색 중입니다…')),
+            SizedBox(height: 24),
+            BoaListLoadingSkeleton(itemCount: 3),
+          ],
+        ),
       );
     }
 
     final customers = searchState.items;
     final contracts = searchState.contractItems;
     if (!searchState.hasAnyResults) {
-      return ListView(
-        padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
-        children: [
-          BoaEmptyState(
+      return boaRefreshScrollChild(
+        context: context,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 8, 16, 16 + bottomInset),
+          child: BoaEmptyState(
             icon: Icons.person_search_outlined,
             title: '검색 결과가 없습니다',
             message: '고객명이나 연락처 일부를 다시 확인해 주세요.\n'
@@ -248,11 +261,12 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
             actionLabel: widget.pickOnly ? null : '고객 등록',
             onAction: widget.pickOnly ? null : () => openCustomerRegistrationWeb(context, ref),
           ),
-        ],
+        ),
       );
     }
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(bottom: 16 + bottomInset),
       children: [
         if (customers.isNotEmpty) ...[
@@ -299,19 +313,21 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
     double bottomInset,
   ) {
     if (recent.isEmpty) {
-      return ListView(
-        padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + bottomInset),
-        children: const [
-          BoaEmptyState(
+      return boaRefreshScrollChild(
+        context: context,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(16, 4, 16, 16 + bottomInset),
+          child: const BoaEmptyState(
             icon: Icons.search,
             title: '검색어를 입력해 주세요',
             message: '고객명을 입력하면 관련 고객과 계약을 함께 확인할 수 있습니다.',
           ),
-        ],
+        ),
       );
     }
 
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(bottom: 16 + bottomInset),
       children: [
         Padding(

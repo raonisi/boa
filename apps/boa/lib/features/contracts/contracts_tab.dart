@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_create_screen.dart';
 import 'package:boa/features/contracts/contract_data_refresh.dart';
@@ -63,6 +64,14 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
     if (n.metrics.pixels < n.metrics.maxScrollExtent - 240) return false;
     ref.read(contractsListNotifierProvider.notifier).loadMore();
     return false;
+  }
+
+  Future<void> _refreshContracts(BuildContext context) {
+    return BoaPullRefresh.runListRefresh(
+      context,
+      () => ref.read(contractsListNotifierProvider.notifier).refresh(),
+      () => ref.read(contractsListNotifierProvider).errorMessage != null,
+    );
   }
 
   @override
@@ -157,28 +166,38 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
     ContractListState listState,
   ) {
     if (listState.loadingInitial && listState.items.isEmpty) {
-      return ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16),
-        children: const [
-          SizedBox(height: 8),
-          Center(child: Text('계약 정보를 불러오는 중입니다…')),
-          SizedBox(height: 16),
-          BoaListLoadingSkeleton(itemCount: 3),
-        ],
+      return RefreshIndicator(
+        onRefresh: () => _refreshContracts(context),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: const Column(
+            children: [
+              SizedBox(height: 8),
+              Center(child: Text('계약 정보를 불러오는 중입니다…')),
+              SizedBox(height: 16),
+              BoaListLoadingSkeleton(itemCount: 3),
+            ],
+          ),
+        ),
       );
     }
     if (listState.errorMessage != null && listState.items.isEmpty) {
-      return BoaErrorState(
-        title: '계약 정보를 불러오지 못했습니다',
-        message: '잠시 후 다시 시도해 주세요.',
-        onRetry: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
+      return RefreshIndicator(
+        onRefresh: () => _refreshContracts(context),
+        child: boaRefreshScrollChild(
+          context: context,
+          child: BoaErrorState(
+            title: '계약 정보를 불러오지 못했습니다',
+            message: '잠시 후 다시 시도해 주세요.',
+            onRetry: () => _refreshContracts(context),
+          ),
+        ),
       );
     }
     final rows = listState.items;
     if (rows.isEmpty) {
       return RefreshIndicator(
-        onRefresh: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
+        onRefresh: () => _refreshContracts(context),
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: EdgeInsets.zero,
@@ -200,7 +219,7 @@ class _ContractsTabState extends ConsumerState<ContractsTab> {
     final totalPremium = sumMonthlyPremium(rows);
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(contractsListNotifierProvider.notifier).refresh(),
+      onRefresh: () => _refreshContracts(context),
       child: NotificationListener<ScrollNotification>(
         onNotification: _onScrollNearEnd,
         child: ListView.builder(
