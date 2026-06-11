@@ -1,6 +1,7 @@
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/home/field_command_center.dart';
 import 'package:boa/features/home/field_recent_contracts_provider.dart';
+import 'package:boa/features/more/goals_dashboard_provider.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
 import 'package:boa/features/notifications/unread_count_provider.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ List<Override> _fieldCommandOverrides() => [
       unreadNotificationCountProvider.overrideWith((ref) async => 0),
       fieldRecentContractsProvider.overrideWith((ref) async => []),
       performanceStatsProvider.overrideWith((ref) async => null),
+      goalsDashboardProvider.overrideWith((ref) async => null),
     ];
 
 DashboardTodayPayload _emptyPayload() => DashboardTodayPayload.fromJson({
@@ -95,6 +97,9 @@ void main() {
     expect(find.text('오늘의 업무 보드'), findsOneWidget);
     expect(find.text('[TEST] Agent님'), findsOneWidget);
     expect(find.text('오늘 확인할 일정과 후속관리를 정리했습니다.'), findsOneWidget);
+    expect(find.text('업무·실적 요약'), findsOneWidget);
+    expect(find.text('신규 계약'), findsOneWidget);
+    expect(find.text('월납보험료 실적'), findsOneWidget);
     expect(find.text('우선 처리 업무'), findsOneWidget);
     expect(find.text('아직 처리할 업무가 없습니다'), findsOneWidget);
     expect(find.text('처리할 후속관리가 없습니다'), findsOneWidget);
@@ -120,6 +125,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('미완료 후속'), findsOneWidget);
+    expect(find.text('오늘 연락 대상'), findsOneWidget);
     expect(find.text('[TEST] Choi'), findsWidgets);
     expect(find.text('[TEST] Park'), findsOneWidget);
     expect(find.text('[TEST] 미팅'), findsOneWidget);

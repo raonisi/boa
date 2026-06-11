@@ -1,6 +1,7 @@
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_layout_helpers.dart';
+import 'package:boa/core/widgets/boa_micro_viz.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
@@ -9,9 +10,11 @@ import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/contracts/contract_summary_card.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/followups/followup_quick_action_tile.dart';
+import 'package:boa/features/home/dashboard_micro_viz_logic.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:boa/features/home/field_recent_contracts_provider.dart';
+import 'package:boa/features/more/goals_dashboard_provider.dart';
 import 'package:boa/features/more/performance_screen.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
 import 'package:boa/features/notifications/notification_action_tile.dart';
@@ -41,11 +44,21 @@ class FieldCommandCenterView extends ConsumerWidget {
     final theme = Theme.of(context);
     final c = payload.cards;
     final unreadAsync = ref.watch(unreadNotificationCountProvider);
+    final performanceAsync = ref.watch(performanceStatsProvider);
+    final goalsAsync = ref.watch(goalsDashboardProvider);
     final contactQueue = fieldMergeContactQueue(
       overdue: payload.overdueFollowUps,
       today: payload.todayFollowUps,
     );
     final pendingFollowUpCount = c.overdueFollowUpCount + c.todayFollowUpCount;
+    final unreadCount = resolveUnreadCount(
+      unreadFromProvider: unreadAsync.maybeWhen(data: (n) => n, orElse: () => null),
+      pendingNotificationCount: c.pendingNotificationCount,
+    );
+    final goalRates = goalsAsync.maybeWhen(
+      data: (dash) => parseGoalPulseRates(dash),
+      orElse: () => (contractRate: null, premiumRate: null, goalCompletion: null),
+    );
     final now = DateTime.now();
 
     return RefreshIndicator(
@@ -55,6 +68,7 @@ class FieldCommandCenterView extends ConsumerWidget {
           ref.read(dashboardTodayWorkProvider.future),
           ref.read(unreadNotificationCountProvider.future),
           ref.read(performanceStatsProvider.future),
+          ref.read(goalsDashboardProvider.future),
           ref.read(fieldRecentContractsProvider.future),
         ]);
       }),
@@ -73,12 +87,20 @@ class FieldCommandCenterView extends ConsumerWidget {
             todayScheduleCount: c.todayScheduleCount,
             pendingFollowUpCount: pendingFollowUpCount,
             overdueFollowUpCount: c.overdueFollowUpCount,
-            pendingNotificationCount: c.pendingNotificationCount,
             monthlyContractCount: c.monthlyContractCount,
-            unreadAsync: unreadAsync,
+            unreadCount: unreadCount,
+            goalRates: goalRates,
             onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
             onOpenNotifications: () => ref.read(shellTabIndexProvider.notifier).state = 4,
             onOpenContracts: () => ref.read(shellTabIndexProvider.notifier).state = 2,
+          ),
+          const SizedBox(height: 16),
+          _DashboardWorkPulsePanel(
+            theme: theme,
+            cards: c,
+            unreadCount: unreadCount,
+            performanceStats: performanceAsync.maybeWhen(data: (s) => s, orElse: () => null),
+            goalsDash: goalsAsync.maybeWhen(data: (g) => g, orElse: () => null),
           ),
           const SizedBox(height: 22),
           _PriorityWorkSection(
@@ -153,7 +175,6 @@ class FieldCommandCenterView extends ConsumerWidget {
                 ),
           ],
           const SizedBox(height: 16),
-          _MonthlyPerformanceCard(theme: theme),
         ],
       ),
     );
@@ -246,9 +267,9 @@ class _KpiMetricsRow extends StatelessWidget {
     required this.todayScheduleCount,
     required this.pendingFollowUpCount,
     required this.overdueFollowUpCount,
-    required this.pendingNotificationCount,
     required this.monthlyContractCount,
-    required this.unreadAsync,
+    required this.unreadCount,
+    required this.goalRates,
     required this.onOpenCalendar,
     required this.onOpenNotifications,
     required this.onOpenContracts,
@@ -257,16 +278,15 @@ class _KpiMetricsRow extends StatelessWidget {
   final int todayScheduleCount;
   final int pendingFollowUpCount;
   final int overdueFollowUpCount;
-  final int pendingNotificationCount;
   final int monthlyContractCount;
-  final AsyncValue<int> unreadAsync;
+  final int unreadCount;
+  final ({double? contractRate, double? premiumRate, double? goalCompletion}) goalRates;
   final VoidCallback onOpenCalendar;
   final VoidCallback onOpenNotifications;
   final VoidCallback onOpenContracts;
 
   @override
   Widget build(BuildContext context) {
-    final unread = unreadAsync.maybeWhen(data: (n) => n, orElse: () => null);
     final metrics = <_KpiMetricData>[
       _KpiMetricData(
         icon: Icons.event_outlined,
@@ -274,6 +294,7 @@ class _KpiMetricsRow extends StatelessWidget {
         value: '$todayScheduleCount',
         unit: '건',
         hint: '예정된 일정',
+        progress: kpiCardPulseProgress(value: todayScheduleCount, kind: 'schedule'),
         onTap: onOpenCalendar,
         accent: null,
       ),
@@ -283,17 +304,19 @@ class _KpiMetricsRow extends StatelessWidget {
         value: '$pendingFollowUpCount',
         unit: '건',
         hint: overdueFollowUpCount > 0 ? '연체 $overdueFollowUpCount건 포함' : '오늘 연락 예정',
+        progress: kpiCardPulseProgress(value: pendingFollowUpCount, kind: 'followup'),
         onTap: onOpenCalendar,
         accent: overdueFollowUpCount > 0 ? BoaColors.urgent : null,
       ),
       _KpiMetricData(
         icon: Icons.notifications_outlined,
         label: '새 알림',
-        value: unread != null ? '$unread' : (pendingNotificationCount > 0 ? '$pendingNotificationCount' : '0'),
+        value: '$unreadCount',
         unit: '건',
         hint: '미확인 알림',
+        progress: kpiCardPulseProgress(value: unreadCount, kind: 'notification'),
         onTap: onOpenNotifications,
-        accent: (unread ?? pendingNotificationCount) > 0 ? null : null,
+        accent: null,
       ),
       _KpiMetricData(
         icon: Icons.description_outlined,
@@ -301,13 +324,18 @@ class _KpiMetricsRow extends StatelessWidget {
         value: '$monthlyContractCount',
         unit: '건',
         hint: '신규 계약',
+        progress: kpiCardPulseProgress(
+          value: monthlyContractCount,
+          kind: 'contract',
+          goalRate: goalRates.contractRate,
+        ),
         onTap: onOpenContracts,
         accent: null,
       ),
     ];
 
     return SizedBox(
-      height: 118,
+      height: 126,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: metrics.length,
@@ -326,6 +354,7 @@ class _KpiMetricData {
     required this.unit,
     required this.hint,
     required this.onTap,
+    this.progress,
     this.accent,
   });
 
@@ -335,6 +364,7 @@ class _KpiMetricData {
   final String unit;
   final String hint;
   final VoidCallback onTap;
+  final double? progress;
   final Color? accent;
 }
 
@@ -395,6 +425,13 @@ class _KpiMetricCard extends StatelessWidget {
                   ],
                 ),
                 const Spacer(),
+                if (data.progress != null) ...[
+                  BoaMicroTrack(
+                    progress: data.progress!,
+                    fillColor: data.accent ?? BoaColors.deepGreen,
+                  ),
+                  const SizedBox(height: 6),
+                ],
                 Text(
                   data.hint,
                   style: theme.textTheme.labelSmall?.copyWith(
@@ -408,6 +445,93 @@ class _KpiMetricCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DashboardWorkPulsePanel extends StatelessWidget {
+  const _DashboardWorkPulsePanel({
+    required this.theme,
+    required this.cards,
+    required this.unreadCount,
+    this.performanceStats,
+    this.goalsDash,
+  });
+
+  final ThemeData theme;
+  final DashboardCards cards;
+  final int unreadCount;
+  final Map<String, dynamic>? performanceStats;
+  final Map<String, dynamic>? goalsDash;
+
+  @override
+  Widget build(BuildContext context) {
+    final pendingFollowUpCount = cards.overdueFollowUpCount + cards.todayFollowUpCount;
+    final metrics = buildDashboardPulseMetrics(
+      monthlyContractCount: cards.monthlyContractCount,
+      monthlyPremiumSum: cards.monthlyPremiumSum,
+      todayContactCount: cards.todayFollowUpCount,
+      pendingFollowUpCount: pendingFollowUpCount,
+      overdueFollowUpCount: cards.overdueFollowUpCount,
+      unreadNotificationCount: unreadCount,
+      goalsDash: goalsDash,
+      performanceStats: performanceStats,
+    );
+    final hasAnyData = metrics.any((m) => m.hasData);
+
+    return BoaSurfaceCard(
+      margin: EdgeInsets.zero,
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  '업무·실적 요약',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: BoaColors.navy,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(builder: (_) => const PerformanceScreen()),
+                  );
+                },
+                child: const Text('상세 보기'),
+              ),
+            ],
+          ),
+          if (!hasAnyData)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                '이번 달 실적·오늘 업무 데이터가 아직 없습니다.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            )
+          else
+            ...metrics.map((m) {
+              final accent = m.label == '미처리 후속관리' && cards.overdueFollowUpCount > 0
+                  ? BoaColors.urgent
+                  : null;
+              return BoaMicroPulseRow(
+                label: m.label,
+                valueText: m.valueText,
+                hint: m.hint,
+                progress: m.progress,
+                progressLabel: m.progressLabel,
+                accentColor: accent,
+              );
+            }),
+        ],
       ),
     );
   }
@@ -658,59 +782,6 @@ class _LongUnmanagedCustomerTile extends StatelessWidget {
           Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurfaceVariant),
         ],
       ),
-    );
-  }
-}
-
-class _MonthlyPerformanceCard extends ConsumerWidget {
-  const _MonthlyPerformanceCard({required this.theme});
-
-  final ThemeData theme;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(performanceStatsProvider);
-    return async.when(
-      data: (stats) {
-        if (stats == null) return const SizedBox.shrink();
-        final contracts = stats['newContractCount'] ?? stats['contractCount'];
-        final contractStr = contracts == null ? '—' : '$contracts';
-        final prem = stats['monthlyPremiumSum'] ?? stats['monthlyPremiumTotal'];
-        String premStr = '—';
-        if (prem is int) premStr = '${fieldCommaInt(prem)}원';
-        if (prem is num) premStr = '${fieldCommaInt(prem.round())}원';
-
-        return BoaSurfaceCard(
-          margin: EdgeInsets.zero,
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      '이번 달 실적',
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600, color: BoaColors.navy),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.of(context).push<void>(
-                        MaterialPageRoute<void>(builder: (_) => const PerformanceScreen()),
-                      );
-                    },
-                    child: const Text('상세 보기'),
-                  ),
-                ],
-              ),
-              Text('신규 계약 $contractStr건 · 월납 $premStr', style: theme.textTheme.bodyMedium),
-            ],
-          ),
-        );
-      },
-      loading: () => const Padding(padding: EdgeInsets.only(top: 4), child: LinearProgressIndicator(minHeight: 2)),
-      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }
