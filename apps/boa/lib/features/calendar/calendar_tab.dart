@@ -26,7 +26,10 @@ class CalendarTab extends ConsumerWidget {
     final theme = Theme.of(context);
 
     if (!AppConfig.hasApiBase) {
-      return const BoaServerConfigHint();
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: const [BoaServerConfigHint()],
+      );
     }
 
     final async = ref.watch(calendarAgendaProvider);
