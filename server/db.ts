@@ -733,7 +733,10 @@ export async function getCustomers(filter: {
   } else if (filter.subBranchAdminId !== undefined) {
     const branchAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
     const agentIds = branchAgents.map((u) => u.id);
-    const branchConditions = [eq(customers.subBranchAdminId, filter.subBranchAdminId) as any];
+    const branchConditions = [
+      eq(customers.subBranchAdminId, filter.subBranchAdminId) as any,
+      eq(customers.agentId, filter.subBranchAdminId) as any
+    ];
     if (agentIds.length > 0) branchConditions.push(...agentIds.map((id) => eq(customers.agentId, id) as any));
     conditions.push(or(...branchConditions) as any);
   }
@@ -1629,7 +1632,8 @@ export async function getAllContracts(filter: { agentId?: number; agentIds?: num
     // 부지점장 산하 팀원들의 계약
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
-    if (agentIds.length === 0) return [];
+      if (typeof filter !== 'undefined' && filter.subBranchAdminId && !agentIds.includes(filter.subBranchAdminId)) agentIds.push(filter.subBranchAdminId);
+      if (agentIds.length === 0) return [];
     return db.select().from(contracts).where(and(baseCondition, or(...agentIds.map((id) => eq(contracts.agentId, id))))).orderBy(desc(contracts.createdAt));
   }
   return db.select().from(contracts).where(baseCondition).orderBy(desc(contracts.createdAt));
@@ -1914,7 +1918,8 @@ export async function getSchedules(filter: {
   if (filter.subBranchAdminId !== undefined) {
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
-    if (agentIds.length === 0) return [];
+      if (typeof filter !== 'undefined' && filter.subBranchAdminId && !agentIds.includes(filter.subBranchAdminId)) agentIds.push(filter.subBranchAdminId);
+      if (agentIds.length === 0) return [];
     return db.select().from(schedules).where(and(...conditions, or(...agentIds.map((id) => eq(schedules.userId, id))))).orderBy(schedules.startTime);
   }
   return db.select().from(schedules).where(and(...conditions)).orderBy(schedules.startTime);
@@ -2358,7 +2363,8 @@ export async function getActivityLogs(limit = 500, subBranchAdminId?: number, te
     // 부지점장: 본인 산하 팀원들의 로그만
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
-    if (agentIds.length === 0) return [];
+      if (subBranchAdminId && !agentIds.includes(subBranchAdminId)) agentIds.push(subBranchAdminId);
+      if (agentIds.length === 0) return [];
     return db.select().from(activityLogs)
       .where(or(...agentIds.map((id) => eq(activityLogs.userId, id))))
       .orderBy(desc(activityLogs.createdAt)).limit(limit);
@@ -2993,7 +2999,8 @@ export async function getPerformanceStats(filter: {
   } else if (filter.subBranchAdminId !== undefined) {
     const subAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
     const agentIds = subAgents.map((u) => u.id);
-    if (agentIds.length > 0) {
+      if (typeof filter !== 'undefined' && filter.subBranchAdminId && !agentIds.includes(filter.subBranchAdminId)) agentIds.push(filter.subBranchAdminId);
+      if (agentIds.length > 0) {
       customerList = await db.select().from(customers).where(and(or(...agentIds.map((id) => eq(customers.agentId, id))), activeCondition));
       contractList = await db.select().from(contracts).where(and(or(...agentIds.map((id) => eq(contracts.agentId, id))), ...dateConditions));
     }
