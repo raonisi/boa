@@ -799,11 +799,31 @@ export function registerMobileRoutes(app: Express) {
       }
       throw e;
     }
+    const scheduleListQuery = z.object({
+      viewMode: z.enum(["mine", "user", "team", "organization"]).default("mine"),
+      ownerUserId: z.coerce.number().int().positive().optional(),
+      teamId: z.coerce.number().int().positive().optional(),
+    });
+    const parsedQuery = scheduleListQuery.safeParse(req.query);
+    if (!parsedQuery.success) {
+      res.status(400).json({ error: "Invalid query", details: parsedQuery.error.flatten() });
+      return;
+    }
     const ctx: TrpcContext = { req, res, user };
     const caller = appRouter.createCaller(ctx);
     try {
-      const result = await caller.schedules.list({ viewMode: "mine" });
-      res.json({ items: "schedules" in result ? result.schedules : result });
+      const q = parsedQuery.data;
+      const result = await caller.schedules.list({
+        viewMode: q.viewMode,
+        ...(q.ownerUserId != null ? { ownerUserId: q.ownerUserId } : {}),
+        ...(q.teamId != null ? { teamId: q.teamId } : {}),
+      });
+      res.json({
+        items: result.schedules,
+        users: result.users,
+        teams: result.teams,
+        organizationViewWarning: result.organizationViewWarning ?? null,
+      });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Failed to list schedules";
       res.status(400).json({ error: msg });

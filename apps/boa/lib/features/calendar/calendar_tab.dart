@@ -4,6 +4,7 @@ import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
+import 'package:boa/features/calendar/calendar_scope_selector.dart';
 import 'package:boa/features/calendar/schedule_create_dialog.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/calendar/schedule_work_logic.dart';
@@ -41,6 +42,7 @@ class CalendarTab extends ConsumerWidget {
         final todaySchedules = todayOpenSchedules(agenda.schedules, now);
         final upcomingSchedules = upcomingOpenSchedules(agenda.schedules, now);
         final openFollowUpCount = agenda.followUpsOverdue.length + agenda.followUpsToday.length;
+        final showOwnerName = agenda.appliedScope.showsOwnerName;
 
         return Scaffold(
           body: RefreshIndicator(
@@ -60,6 +62,8 @@ class CalendarTab extends ConsumerWidget {
                   '오늘 일정과 다가오는 일정, 후속관리를 한곳에서 확인합니다.',
                   style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.35),
                 ),
+                const SizedBox(height: 14),
+                CalendarScopeSelector(agenda: agenda),
                 const SizedBox(height: 14),
                 BoaSurfaceCard(
                   margin: EdgeInsets.zero,
@@ -92,6 +96,7 @@ class CalendarTab extends ConsumerWidget {
                       key: ValueKey('sch-today-${s['id']}'),
                       raw: s,
                       showTodayBadge: true,
+                      showOwnerName: showOwnerName,
                     ),
                   ),
                 const SizedBox(height: 22),
@@ -105,7 +110,11 @@ class CalendarTab extends ConsumerWidget {
                   )
                 else
                   ...upcomingSchedules.take(30).map(
-                        (s) => ScheduleQuickActionTile(key: ValueKey('sch-up-${s['id']}'), raw: s),
+                        (s) => ScheduleQuickActionTile(
+                          key: ValueKey('sch-up-${s['id']}'),
+                          raw: s,
+                          showOwnerName: showOwnerName,
+                        ),
                       ),
                 const SizedBox(height: 22),
                 const BoaSectionHeader(title: '후속관리'),

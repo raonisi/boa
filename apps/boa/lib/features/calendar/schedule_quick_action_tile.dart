@@ -4,6 +4,7 @@ import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
+import 'package:boa/features/calendar/calendar_schedule_scope.dart';
 import 'package:boa/features/calendar/schedule_create_dialog.dart';
 import 'package:boa/features/calendar/schedule_work_logic.dart';
 import 'package:boa/features/customers/customer_detail_dialogs.dart';
@@ -36,12 +37,14 @@ class ScheduleQuickActionTile extends ConsumerStatefulWidget {
     this.customerContextId,
     this.customerContextName,
     this.showTodayBadge = false,
+    this.showOwnerName = false,
   });
 
   final Map<String, dynamic> raw;
   final int? customerContextId;
   final String? customerContextName;
   final bool showTodayBadge;
+  final bool showOwnerName;
 
   @override
   ConsumerState<ScheduleQuickActionTile> createState() => _ScheduleQuickActionTileState();
@@ -121,7 +124,8 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
     final start = parseScheduleStart(raw);
     final whenLabel = fieldFmtDateTime(raw['startTime']);
     final timeLabel = fieldFmtTime(raw['startTime']);
-    final canComplete = scheduleId != null && !fieldIsFinishedSchedule(status);
+    final canComplete = scheduleId != null && !fieldIsFinishedSchedule(status) && scheduleCanEdit(raw);
+    final ownerName = (raw['ownerName'] as String?)?.trim();
     final isToday = widget.showTodayBadge ||
         (start != null && isSameCalendarDay(start, DateTime.now()));
 
@@ -158,7 +162,12 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
                       Text(title, style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 2),
                       Text(
-                        [if (timeLabel.isNotEmpty) timeLabel else whenLabel, if (typ.isNotEmpty) typ, if (status.isNotEmpty) status]
+                        [
+                          if (widget.showOwnerName && ownerName != null && ownerName.isNotEmpty) ownerName,
+                          if (timeLabel.isNotEmpty) timeLabel else whenLabel,
+                          if (typ.isNotEmpty) typ,
+                          if (status.isNotEmpty) status,
+                        ]
                             .where((e) => e.isNotEmpty)
                             .join(' · '),
                         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),

@@ -130,6 +130,50 @@ describe("mobile contracts search", () => {
   });
 });
 
+describe("mobile schedules scope", () => {
+  it("forwards viewMode query params to schedules.list", async () => {
+    const listMock = vi.fn().mockResolvedValue({
+      schedules: [{ id: 1, title: "[TEST] Schedule", userId: 7 }],
+      users: [],
+      teams: [],
+    });
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
+    vi.spyOn(appRouter, "createCaller").mockReturnValue({
+      schedules: { list: listMock },
+    } as ReturnType<typeof appRouter.createCaller>);
+
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(
+        `${baseUrl}/api/mobile/schedules?viewMode=user&ownerUserId=12`,
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(listMock).toHaveBeenCalledWith({ viewMode: "user", ownerUserId: 12 });
+      expect(body.items).toHaveLength(1);
+      expect(body.users).toEqual([]);
+    });
+  });
+
+  it("defaults to mine when query is omitted", async () => {
+    const listMock = vi.fn().mockResolvedValue({
+      schedules: [],
+      users: [],
+      teams: [],
+    });
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
+    vi.spyOn(appRouter, "createCaller").mockReturnValue({
+      schedules: { list: listMock },
+    } as ReturnType<typeof appRouter.createCaller>);
+
+    await withMobileServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/mobile/schedules`);
+      expect(response.status).toBe(200);
+      expect(listMock).toHaveBeenCalledWith({ viewMode: "mine" });
+    });
+  });
+});
+
 describe("mobile auth.me", () => {
   it("returns a serialized active user", async () => {
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
