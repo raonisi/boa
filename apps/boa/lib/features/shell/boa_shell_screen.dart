@@ -100,7 +100,9 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
         },
       ),
       body: IndexedStack(index: tabIndex, children: _tabs),
-      bottomNavigationBar: DecoratedBox(
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: DecoratedBox(
         decoration: const BoxDecoration(
           color: BoaColors.card,
           border: Border(top: BorderSide(color: BoaColors.border)),
@@ -134,6 +136,7 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
               selectedIcon: Icon(Icons.notifications),
               label: '알림'),
         ],
+        ),
         ),
       ),
     );

@@ -227,7 +227,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(c.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
+                        Text(c.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 4),
                         Text(
                           subtitle.isEmpty ? '탭하여 상세 보기' : subtitle,

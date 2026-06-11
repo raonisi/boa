@@ -31,6 +31,8 @@ class BoaSectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: theme.textTheme.titleSmall?.copyWith(
               fontWeight: FontWeight.w600,
               color: BoaColors.textPrimary,
@@ -40,8 +42,16 @@ class BoaSectionHeader extends StatelessWidget {
         if (actionLabel != null && onAction != null)
           TextButton(
             onPressed: onAction,
-            style: TextButton.styleFrom(foregroundColor: BoaColors.deepGreen),
-            child: Text(actionLabel!),
+            style: TextButton.styleFrom(
+              foregroundColor: BoaColors.deepGreen,
+              minimumSize: const Size(48, 40),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            child: Text(
+              actionLabel!,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
       ],
     );

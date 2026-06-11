@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/api/plain_dio.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/auth/session_models.dart';
@@ -114,82 +115,112 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 56),
-              Center(
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: BoaColors.ivory,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: BoaColors.border),
-                  ),
-                  child: const Icon(Icons.business_center_outlined, size: 40, color: BoaColors.navy),
-                ),
-              ),
-              const SizedBox(height: 24),
-              Text(
-                'BOA 지점관리',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, color: BoaColors.navy),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '보험 설계사·지점 실무용 모바일 CRM',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 28),
-                Material(
-                  color: cs.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(Icons.info_outline, size: 20, color: cs.onErrorContainer),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _error!,
-                            style: theme.textTheme.bodyMedium?.copyWith(color: cs.onErrorContainer),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = BoaLayout.isCompact(context);
+            final horizontal = BoaLayout.horizontalPadding(context);
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(horizontal, compact ? 24 : 36, horizontal, 24),
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight - (compact ? 48 : 72)),
+                child: IntrinsicHeight(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(height: compact ? 16 : 32),
+                      Center(
+                        child: Container(
+                          width: compact ? 72 : 80,
+                          height: compact ? 72 : 80,
+                          decoration: BoxDecoration(
+                            color: BoaColors.ivory,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: BoaColors.border),
+                          ),
+                          child: Icon(
+                            Icons.business_center_outlined,
+                            size: compact ? 36 : 40,
+                            color: BoaColors.navy,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: compact ? 18 : 24),
+                      Text(
+                        'BOA 지점관리',
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: BoaColors.navy,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        '보험 설계사·지점 실무용 모바일 CRM',
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                      if (_error != null) ...[
+                        SizedBox(height: compact ? 20 : 28),
+                        Material(
+                          color: cs.errorContainer,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(Icons.info_outline, size: 20, color: cs.onErrorContainer),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: theme.textTheme.bodyMedium?.copyWith(color: cs.onErrorContainer),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ],
-                    ),
+                      const Spacer(),
+                      FilledButton.icon(
+                        onPressed: _busy ? null : _onGoogleSignIn,
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                        icon: _busy
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Icon(Icons.login),
+                        label: Text(
+                          _busy ? '로그인 중…' : 'Google 계정으로 로그인',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        '사전 등록된 계정만 로그인할 수 있습니다.',
+                        style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      SizedBox(height: compact ? 16 : 24),
+                    ],
                   ),
                 ),
-              ],
-              const Spacer(),
-              FilledButton.icon(
-                onPressed: _busy ? null : _onGoogleSignIn,
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                icon: _busy
-                    ? const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.login),
-                label: Text(_busy ? '로그인 중…' : 'Google 계정으로 로그인'),
               ),
-              const SizedBox(height: 14),
-              Text(
-                '사전 등록된 계정만 로그인할 수 있습니다.',
-                style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 36),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

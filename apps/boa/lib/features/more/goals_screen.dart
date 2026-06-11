@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/more/goals_dashboard_provider.dart';
@@ -42,7 +43,7 @@ class GoalsScreen extends ConsumerWidget {
           final itemList = items is List ? items : const [];
 
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: BoaLayout.listPadding(context, horizontal: 16, top: 16, extraBottom: 16),
             children: [
               Text('$year년 $month월', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
               if (sumMap != null) ...[
@@ -50,11 +51,15 @@ class GoalsScreen extends ConsumerWidget {
                 Text(
                   '목표 ${sumMap['totalGoals'] ?? 0}건 · 달성 ${sumMap['achievedGoals'] ?? 0} · 진행 ${sumMap['pendingGoals'] ?? 0}',
                   style: theme.textTheme.bodyMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 if (sumMap['averageContractRate'] != null || sumMap['averagePremiumRate'] != null)
                   Text(
                     '평균 달성률: 계약 ${sumMap['averageContractRate'] ?? '—'}% · 보험료 ${sumMap['averagePremiumRate'] ?? '—'}%',
                     style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
               ],
               const SizedBox(height: 16),

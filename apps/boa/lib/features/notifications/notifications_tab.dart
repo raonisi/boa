@@ -1,6 +1,7 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
@@ -110,7 +111,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
         onNotification: _onScrollNearEnd,
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: BoaLayout.listPadding(context, horizontal: 16, top: 16, extraBottom: 8),
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -125,6 +126,8 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                         data: (count) => Text(
                           count > 0 ? '미확인 알림 $count건 · 긴급 → 오늘 → 일반 순' : '아직 처리할 알림이 없습니다.',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         loading: () => Text(
                           '미확인 알림을 불러오는 중…',
@@ -150,59 +153,64 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
               ],
             ),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: _PriorityChip(
-                    label: '긴급',
-                    count: urgentCount,
-                    selected: _priorityFilter == _NotificationFilter.urgent,
-                    toneColor: BoaColors.urgent,
-                    onTap: () {
-                      boaSelectionHaptic();
-                      setState(() {
-                        _priorityFilter = _priorityFilter == _NotificationFilter.urgent
-                            ? _NotificationFilter.all
-                            : _NotificationFilter.urgent;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _PriorityChip(
-                    label: '오늘 처리',
-                    count: todayCount,
-                    selected: _priorityFilter == _NotificationFilter.today,
-                    toneColor: BoaColors.todayAccent,
-                    onTap: () {
-                      boaSelectionHaptic();
-                      setState(() {
-                        _priorityFilter = _priorityFilter == _NotificationFilter.today
-                            ? _NotificationFilter.all
-                            : _NotificationFilter.today;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _PriorityChip(
-                    label: '일반',
-                    count: generalCount,
-                    selected: _priorityFilter == _NotificationFilter.general,
-                    toneColor: BoaColors.deepGreen,
-                    onTap: () {
-                      boaSelectionHaptic();
-                      setState(() {
-                        _priorityFilter = _priorityFilter == _NotificationFilter.general
-                            ? _NotificationFilter.all
-                            : _NotificationFilter.general;
-                      });
-                    },
-                  ),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final maxW = constraints.maxWidth;
+                final threeCol = maxW >= 360 && !BoaLayout.isLargeText(context);
+                final itemWidth = threeCol ? (maxW - 16) / 3 : (maxW - 8) / 2;
+                Widget chipBox(Widget chip) => SizedBox(width: threeCol ? itemWidth : itemWidth, child: chip);
+                return Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    chipBox(_PriorityChip(
+                      label: '긴급',
+                      count: urgentCount,
+                      selected: _priorityFilter == _NotificationFilter.urgent,
+                      toneColor: BoaColors.urgent,
+                      onTap: () {
+                        boaSelectionHaptic();
+                        setState(() {
+                          _priorityFilter = _priorityFilter == _NotificationFilter.urgent
+                              ? _NotificationFilter.all
+                              : _NotificationFilter.urgent;
+                        });
+                      },
+                    )),
+                    chipBox(_PriorityChip(
+                      label: '오늘 처리',
+                      count: todayCount,
+                      selected: _priorityFilter == _NotificationFilter.today,
+                      toneColor: BoaColors.todayAccent,
+                      onTap: () {
+                        boaSelectionHaptic();
+                        setState(() {
+                          _priorityFilter = _priorityFilter == _NotificationFilter.today
+                              ? _NotificationFilter.all
+                              : _NotificationFilter.today;
+                        });
+                      },
+                    )),
+                    SizedBox(
+                      width: threeCol ? itemWidth : maxW,
+                      child: _PriorityChip(
+                        label: '일반',
+                        count: generalCount,
+                        selected: _priorityFilter == _NotificationFilter.general,
+                        toneColor: BoaColors.deepGreen,
+                        onTap: () {
+                          boaSelectionHaptic();
+                          setState(() {
+                            _priorityFilter = _priorityFilter == _NotificationFilter.general
+                                ? _NotificationFilter.all
+                                : _NotificationFilter.general;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -352,7 +360,7 @@ class _PriorityChip extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 11, color: textColor)),
+            Text(label, style: TextStyle(fontSize: 11, color: textColor), maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 2),
             Text('$count', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: textColor)),
           ],

@@ -1,4 +1,5 @@
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
@@ -49,7 +50,7 @@ class PerformanceScreen extends ConsumerWidget {
             ('해지·실효 수', stats['canceledContracts']),
           ];
           return ListView(
-            padding: const EdgeInsets.all(16),
+            padding: BoaLayout.listPadding(context, horizontal: 16, top: 16, extraBottom: 16),
             children: [
               Text('이번 달 (계약일 기준)', style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.primary)),
               const SizedBox(height: 12),
@@ -59,8 +60,17 @@ class PerformanceScreen extends ConsumerWidget {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
-                    title: Text(r.$1),
-                    trailing: Text(text, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    title: Text(r.$1, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 120),
+                      child: Text(
+                        text,
+                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
+                    ),
                   ),
                 );
               }),

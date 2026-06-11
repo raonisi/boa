@@ -490,33 +490,36 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
             ),
           ],
         ),
-        body: _http2ChromeTabHandoff
-            ? _buildChromeTabHandoffBody(context)
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ..._buildContextBanners(),
-                  Expanded(
-                    child: Stack(
-                      children: [
-                        WebViewWidget(controller: _controller),
-                        if (_loading && _rawError == null)
-                          CrmWebLoadingOverlay(title: '${widget.title} 불러오는 중…'),
-                        if (_rawError != null)
-                          CrmWebErrorPanel(
-                            message: _displayError,
-                            showHttp2Hint: _showHttp2Hint,
-                            onRetry: _retryLoad,
-                            onOpenChromeTab: _showHttp2Hint
-                                ? () => unawaited(_openChromeTabAndEnterHandoff())
-                                : null,
-                            onOpenExternalBrowser: _openInExternalBrowser,
-                          ),
-                      ],
+        body: SafeArea(
+          top: false,
+          child: _http2ChromeTabHandoff
+              ? _buildChromeTabHandoffBody(context)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    ..._buildContextBanners(),
+                    Expanded(
+                      child: Stack(
+                        children: [
+                          WebViewWidget(controller: _controller),
+                          if (_loading && _rawError == null)
+                            CrmWebLoadingOverlay(title: '${widget.title} 불러오는 중…'),
+                          if (_rawError != null)
+                            CrmWebErrorPanel(
+                              message: _displayError,
+                              showHttp2Hint: _showHttp2Hint,
+                              onRetry: _retryLoad,
+                              onOpenChromeTab: _showHttp2Hint
+                                  ? () => unawaited(_openChromeTabAndEnterHandoff())
+                                  : null,
+                              onOpenExternalBrowser: _openInExternalBrowser,
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
       ),
     );
   }

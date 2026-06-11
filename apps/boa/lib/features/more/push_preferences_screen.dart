@@ -1,4 +1,5 @@
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/more/push_preferences_logic.dart';
@@ -51,6 +52,7 @@ class PushPreferencesScreen extends ConsumerWidget {
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
                 child: FilledButton(
+                  style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   onPressed: state.saving
                       ? null
                       : () async {
@@ -115,7 +117,12 @@ class PushPreferencesScreen extends ConsumerWidget {
     final cs = theme.colorScheme;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, 96 + bottomInset),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        BoaLayout.bottomSafeInset(context, extra: 96) + bottomInset,
+      ),
       keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

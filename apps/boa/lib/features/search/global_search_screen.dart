@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
@@ -157,7 +158,11 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(_screenTitle),
+        title: Text(
+          _screenTitle,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           if (_controller.text.isNotEmpty)
             IconButton(

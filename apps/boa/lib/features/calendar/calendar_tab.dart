@@ -1,5 +1,6 @@
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
@@ -43,7 +44,12 @@ class CalendarTab extends ConsumerWidget {
             onRefresh: () => _refreshCalendar(context, ref),
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                BoaLayout.bottomSafeInset(context, extra: 88),
+              ),
               children: [
                 Text('일정', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),

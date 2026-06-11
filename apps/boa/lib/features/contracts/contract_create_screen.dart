@@ -485,6 +485,7 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: FilledButton(
             onPressed: _saving ? null : _submit,
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
             child: _saving
                 ? const SizedBox(
                     width: 22,

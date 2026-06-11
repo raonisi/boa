@@ -1,5 +1,6 @@
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
 import 'package:boa/features/calendar/schedule_work_logic.dart';
@@ -72,7 +73,12 @@ class CustomerDetail360View extends ConsumerWidget {
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
+        padding: EdgeInsets.fromLTRB(
+          BoaLayout.horizontalPadding(context),
+          12,
+          BoaLayout.horizontalPadding(context),
+          BoaLayout.bottomSafeInset(context, extra: 28),
+        ),
         children: [
           _ProfileHeroCard(
             theme: theme,
@@ -589,7 +595,7 @@ class _HubActionButton extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: BoaColors.deepGreen),
               const SizedBox(width: 6),
-              Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500)),
+              Text(label, style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w500), maxLines: 2, overflow: TextOverflow.ellipsis),
             ],
           ),
         ),

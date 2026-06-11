@@ -1,5 +1,6 @@
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
@@ -59,7 +60,12 @@ class FieldCommandCenterView extends ConsumerWidget {
       }),
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+        padding: EdgeInsets.fromLTRB(
+          BoaLayout.horizontalPadding(context),
+          16,
+          BoaLayout.horizontalPadding(context),
+          BoaLayout.bottomSafeInset(context, extra: 24),
+        ),
         children: [
           _DashboardHeader(theme: theme, userName: userName, date: now),
           const SizedBox(height: 18),
@@ -168,6 +174,9 @@ class _DashboardHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = theme.colorScheme;
+    final compact = BoaLayout.isCompactWidth(context);
+    final dateLabel = fieldKoreanDateHeader(date);
+
     return BoaSurfaceCard(
       margin: EdgeInsets.zero,
       highlight: true,
@@ -175,29 +184,50 @@ class _DashboardHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
+          if (compact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   '오늘의 업무 보드',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: BoaColors.navy,
                   ),
                 ),
-              ),
-              Text(
-                fieldKoreanDateHeader(date),
-                style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
-              ),
-            ],
-          ),
+                const SizedBox(height: 4),
+                Text(
+                  dateLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ],
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    '오늘의 업무 보드',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: BoaColors.navy,
+                    ),
+                  ),
+                ),
+                Text(
+                  dateLabel,
+                  style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
+                ),
+              ],
+            ),
           if (userName != null) ...[
             const SizedBox(height: 6),
             Text(
               '$userName님',
               style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
           const SizedBox(height: 8),
