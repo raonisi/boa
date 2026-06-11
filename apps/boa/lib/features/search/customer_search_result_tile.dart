@@ -1,4 +1,5 @@
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_customer_hero.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/customers/customer_detail_logic.dart';
 import 'package:boa/features/customers/customers_providers.dart';
@@ -24,7 +25,6 @@ class CustomerSearchResultTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final cs = theme.colorScheme;
-    final initial = customer.name.isNotEmpty ? customer.name[0] : '?';
 
     return BoaSurfaceCard(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -36,15 +36,14 @@ class CustomerSearchResultTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              BoaCustomerAvatarHero(
+                customerId: customer.id,
+                lane: BoaCustomerHeroLane.globalSearch,
                 radius: 22,
-                backgroundColor: const Color(0xFFE8EEF4),
-                child: Text(
-                  initial,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: BoaColors.navy,
-                  ),
+                displayName: customer.name,
+                textStyle: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: BoaColors.navy,
                 ),
               ),
               const SizedBox(width: 12),
@@ -52,11 +51,12 @@ class CustomerSearchResultTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      customer.name,
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                    BoaCustomerNameHero(
+                      customerId: customer.id,
+                      lane: BoaCustomerHeroLane.globalSearch,
+                      name: customer.name,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 6),
                     Wrap(

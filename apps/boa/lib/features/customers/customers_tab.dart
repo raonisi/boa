@@ -6,6 +6,7 @@ import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/customers/customer_detail_logic.dart';
+import 'package:boa/core/widgets/boa_customer_hero.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:flutter/material.dart';
@@ -203,23 +204,23 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
             return BoaSurfaceCard(
               onTap: () {
                 boaSelectionHaptic();
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (context) => CustomerDetailScreen(customerId: c.id),
-                  ),
+                pushCustomerDetailScreen(
+                  context,
+                  customerId: c.id,
+                  heroLane: BoaCustomerHeroLane.customersList,
+                  displayName: c.name,
                 );
               },
               child: Row(
                 children: [
-                  CircleAvatar(
+                  BoaCustomerAvatarHero(
+                    customerId: c.id,
+                    lane: BoaCustomerHeroLane.customersList,
                     radius: 22,
-                    backgroundColor: const Color(0xFFE8EEF4),
-                    child: Text(
-                      c.name.isNotEmpty ? c.name[0] : '?',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: BoaColors.navy,
-                      ),
+                    displayName: c.name,
+                    textStyle: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: BoaColors.navy,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -227,7 +228,12 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(c.name, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+                        BoaCustomerNameHero(
+                          customerId: c.id,
+                          lane: BoaCustomerHeroLane.customersList,
+                          name: c.name,
+                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                        ),
                         const SizedBox(height: 4),
                         Text(
                           subtitle.isEmpty ? '탭하여 상세 보기' : subtitle,

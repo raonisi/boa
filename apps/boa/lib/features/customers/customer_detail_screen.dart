@@ -1,4 +1,5 @@
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_customer_hero.dart';
 import 'package:boa/features/customers/customer_detail_360.dart';
 import 'package:boa/features/customers/customer_detail_provider.dart';
 import 'package:boa/features/customers/customers_providers.dart';
@@ -6,10 +7,36 @@ import 'package:boa/features/search/recent_customers_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+/// Hero 전환과 함께 고객 상세로 이동한다.
+void pushCustomerDetailScreen(
+  BuildContext context, {
+  required int customerId,
+  required String heroLane,
+  String? displayName,
+}) {
+  if (customerId <= 0) return;
+  Navigator.of(context).push<void>(
+    MaterialPageRoute<void>(
+      builder: (_) => CustomerDetailScreen(
+        customerId: customerId,
+        heroLane: heroLane,
+        heroDisplayName: displayName,
+      ),
+    ),
+  );
+}
+
 class CustomerDetailScreen extends ConsumerWidget {
-  const CustomerDetailScreen({super.key, required this.customerId});
+  const CustomerDetailScreen({
+    super.key,
+    required this.customerId,
+    this.heroLane = BoaCustomerHeroLane.customersList,
+    this.heroDisplayName,
+  });
 
   final int customerId;
+  final String heroLane;
+  final String? heroDisplayName;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,23 +60,20 @@ class CustomerDetailScreen extends ConsumerWidget {
       });
     });
     final name = async.maybeWhen(data: (c) => '${c['name'] ?? ''}'.trim(), orElse: () => '');
+    final titleName = name.isEmpty ? (heroDisplayName?.trim().isNotEmpty == true ? heroDisplayName!.trim() : '고객 상세') : name;
 
     return Scaffold(
-      appBar: AppBar(title: Text(name.isEmpty ? '고객 상세' : name)),
+      appBar: AppBar(title: Text(titleName, maxLines: 1, overflow: TextOverflow.ellipsis)),
       body: async.when(
-        data: (customer) => CustomerDetail360View(customerId: customerId, customer: customer),
-        loading: () => Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const CircularProgressIndicator(),
-                const SizedBox(height: 16),
-                Text('고객 정보를 불러오는 중입니다…', style: Theme.of(context).textTheme.bodyMedium),
-              ],
-            ),
-          ),
+        data: (customer) => CustomerDetail360View(
+          customerId: customerId,
+          customer: customer,
+          heroLane: heroLane,
+        ),
+        loading: () => CustomerDetailHeroPlaceholder(
+          customerId: customerId,
+          heroLane: heroLane,
+          displayName: heroDisplayName ?? name,
         ),
         error: (e, _) => ListView(
           physics: const AlwaysScrollableScrollPhysics(),

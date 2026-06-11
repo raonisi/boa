@@ -1,5 +1,6 @@
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
+import 'package:boa/core/widgets/boa_customer_hero.dart';
 import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/calendar/schedule_quick_action_tile.dart';
@@ -32,10 +33,12 @@ class CustomerDetail360View extends ConsumerWidget {
     super.key,
     required this.customerId,
     required this.customer,
+    this.heroLane = BoaCustomerHeroLane.customersList,
   });
 
   final int customerId;
   final Map<String, dynamic> customer;
+  final String heroLane;
 
   String? _str(dynamic v) {
     if (v == null) return null;
@@ -82,6 +85,8 @@ class CustomerDetail360View extends ConsumerWidget {
         children: [
           _ProfileHeroCard(
             theme: theme,
+            customerId: customerId,
+            heroLane: heroLane,
             name: name,
             consultStatus: consultStatus,
             priority: priority,
@@ -248,6 +253,8 @@ class CustomerDetail360View extends ConsumerWidget {
 class _ProfileHeroCard extends StatelessWidget {
   const _ProfileHeroCard({
     required this.theme,
+    required this.customerId,
+    required this.heroLane,
     required this.name,
     required this.consultStatus,
     required this.priority,
@@ -261,6 +268,8 @@ class _ProfileHeroCard extends StatelessWidget {
   });
 
   final ThemeData theme;
+  final int customerId;
+  final String heroLane;
   final String name;
   final String? consultStatus;
   final String priority;
@@ -275,7 +284,6 @@ class _ProfileHeroCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = theme.colorScheme;
-    final initial = name.isNotEmpty ? name[0] : '?';
 
     return BoaSurfaceCard(
       margin: EdgeInsets.zero,
@@ -287,15 +295,14 @@ class _ProfileHeroCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              CircleAvatar(
+              BoaCustomerAvatarHero(
+                customerId: customerId,
+                lane: heroLane,
                 radius: 28,
-                backgroundColor: const Color(0xFFE8EEF4),
-                child: Text(
-                  initial,
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: BoaColors.navy,
-                  ),
+                displayName: name,
+                textStyle: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: BoaColors.navy,
                 ),
               ),
               const SizedBox(width: 14),
@@ -303,11 +310,12 @@ class _ProfileHeroCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                    BoaCustomerNameHero(
+                      customerId: customerId,
+                      lane: heroLane,
+                      name: name,
                       maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 4),
                     Text(

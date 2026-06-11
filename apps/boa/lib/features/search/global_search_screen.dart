@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
-import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_pull_refresh.dart';
 import 'package:boa/core/widgets/boa_quick_create_strip.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
+import 'package:boa/core/widgets/boa_customer_hero.dart';
 import 'package:boa/features/customers/customer_detail_screen.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:boa/features/search/contract_search_result_tile.dart';
@@ -106,8 +106,11 @@ class _GlobalSearchScreenState extends ConsumerState<GlobalSearchScreen> {
       Navigator.of(context).pop(customer);
       return;
     }
-    Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: customer.id)),
+    pushCustomerDetailScreen(
+      context,
+      customerId: customer.id,
+      heroLane: BoaCustomerHeroLane.globalSearch,
+      displayName: customer.name,
     );
   }
 
