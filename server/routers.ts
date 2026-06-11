@@ -1610,12 +1610,12 @@ function assignmentTypeForActor(actorRole: string) {
   return actorRole === "branch_admin" ? "branch_to_agent" : actorRole === "sub_branch_admin" ? "sub_branch_to_agent" : "reassignment";
 }
 
-function nextAssignmentScopeForUser(target: { role: string; teamId: number | null; subBranchAdminId: number | null }) {
+function nextAssignmentScopeForUser(target: { id?: number; role: string; teamId: number | null; subBranchAdminId: number | null }) {
   return {
     teamId: target.role === "team_leader" || target.role === "member" ? target.teamId ?? null : null,
     subBranchAdminId:
       target.role === "sub_branch_admin"
-        ? null
+        ? target.id ?? null
         : target.role === "team_leader" || target.role === "member"
           ? target.subBranchAdminId ?? null
           : null,

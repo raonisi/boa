@@ -731,7 +731,11 @@ export async function getCustomers(filter: {
     if (agentIds.length > 0) teamConditions.push(...agentIds.map((id) => eq(customers.agentId, id) as any));
     conditions.push(or(...teamConditions) as any);
   } else if (filter.subBranchAdminId !== undefined) {
-    conditions.push(eq(customers.subBranchAdminId, filter.subBranchAdminId));
+    const branchAgents = await db.select({ id: users.id }).from(users).where(eq(users.subBranchAdminId, filter.subBranchAdminId));
+    const agentIds = branchAgents.map((u) => u.id);
+    const branchConditions = [eq(customers.subBranchAdminId, filter.subBranchAdminId) as any];
+    if (agentIds.length > 0) branchConditions.push(...agentIds.map((id) => eq(customers.agentId, id) as any));
+    conditions.push(or(...branchConditions) as any);
   }
 
   if (filter.assignmentStatus) conditions.push(eq(customers.assignmentStatus, filter.assignmentStatus as any));
