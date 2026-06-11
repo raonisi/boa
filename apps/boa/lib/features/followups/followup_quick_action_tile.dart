@@ -71,6 +71,7 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
   void _openCustomerDetail() {
     final cid = _effectiveCustomerId;
     if (cid == null) return;
+    boaSelectionHaptic();
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: cid)),
     );
@@ -99,6 +100,7 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
     if (!mounted || ok != true) return;
     refreshFieldWorkData(ref, customerId: cid);
     if (!mounted) return;
+    boaLightSuccessHaptic();
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('일정을 등록했습니다.')));
   }
 

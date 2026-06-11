@@ -159,6 +159,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                     selected: _priorityFilter == _NotificationFilter.urgent,
                     toneColor: BoaColors.urgent,
                     onTap: () {
+                      boaSelectionHaptic();
                       setState(() {
                         _priorityFilter = _priorityFilter == _NotificationFilter.urgent
                             ? _NotificationFilter.all
@@ -175,6 +176,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                     selected: _priorityFilter == _NotificationFilter.today,
                     toneColor: BoaColors.todayAccent,
                     onTap: () {
+                      boaSelectionHaptic();
                       setState(() {
                         _priorityFilter = _priorityFilter == _NotificationFilter.today
                             ? _NotificationFilter.all
@@ -191,6 +193,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                     selected: _priorityFilter == _NotificationFilter.general,
                     toneColor: BoaColors.deepGreen,
                     onTap: () {
+                      boaSelectionHaptic();
                       setState(() {
                         _priorityFilter = _priorityFilter == _NotificationFilter.general
                             ? _NotificationFilter.all
@@ -208,17 +211,29 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                 ChoiceChip(
                   label: const Text('전체'),
                   selected: _readFilter == NotificationReadFilter.all,
-                  onSelected: (_) => setState(() => _readFilter = NotificationReadFilter.all),
+                  onSelected: (_) {
+                    if (_readFilter == NotificationReadFilter.all) return;
+                    boaSelectionHaptic();
+                    setState(() => _readFilter = NotificationReadFilter.all);
+                  },
                 ),
                 ChoiceChip(
                   label: Text('미확인${unreadInList > 0 ? ' ($unreadInList)' : ''}'),
                   selected: _readFilter == NotificationReadFilter.unread,
-                  onSelected: (_) => setState(() => _readFilter = NotificationReadFilter.unread),
+                  onSelected: (_) {
+                    if (_readFilter == NotificationReadFilter.unread) return;
+                    boaSelectionHaptic();
+                    setState(() => _readFilter = NotificationReadFilter.unread);
+                  },
                 ),
                 ChoiceChip(
                   label: const Text('읽음'),
                   selected: _readFilter == NotificationReadFilter.read,
-                  onSelected: (_) => setState(() => _readFilter = NotificationReadFilter.read),
+                  onSelected: (_) {
+                    if (_readFilter == NotificationReadFilter.read) return;
+                    boaSelectionHaptic();
+                    setState(() => _readFilter = NotificationReadFilter.read);
+                  },
                 ),
               ],
             ),

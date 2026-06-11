@@ -1,4 +1,5 @@
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_display_logic.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
@@ -34,7 +35,12 @@ class ContractSummaryCard extends StatelessWidget {
     return BoaSurfaceCard(
       margin: EdgeInsets.symmetric(horizontal: compact ? 0 : 16, vertical: compact ? 4 : 6),
       padding: EdgeInsets.fromLTRB(14, compact ? 10 : 12, 12, compact ? 10 : 12),
-      onTap: onTap,
+      onTap: onTap == null
+          ? null
+          : () {
+              boaSelectionHaptic();
+              onTap!();
+            },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

@@ -1,4 +1,5 @@
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/notifications/notification_display_logic.dart';
 import 'package:boa/features/notifications/notification_navigation.dart';
@@ -37,6 +38,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
     setState(() => _markingRead = true);
     try {
       await markMobileNotificationRead(ref, id);
+      boaLightSuccessHaptic();
       widget.onAfterRead?.call();
       if (!mounted) return;
       if (navigateAfter) {
@@ -80,6 +82,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
       onTap: _markingRead
           ? null
           : () async {
+              boaSelectionHaptic();
               if (!isRead) {
                 await _markRead(navigateAfter: nav.canNavigate);
               } else if (nav.canNavigate) {
@@ -171,6 +174,7 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
                               onPressed: _markingRead
                                   ? null
                                   : () async {
+                                      boaSelectionHaptic();
                                       if (!isRead) {
                                         await _markRead(navigateAfter: true);
                                       } else {
@@ -182,7 +186,12 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
                             ),
                           if (!isRead)
                             TextButton(
-                              onPressed: _markingRead ? null : () => _markRead(),
+                              onPressed: _markingRead
+                                  ? null
+                                  : () {
+                                      boaSelectionHaptic();
+                                      _markRead();
+                                    },
                               child: _markingRead
                                   ? const SizedBox(
                                       width: 16,

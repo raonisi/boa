@@ -73,6 +73,7 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
   void _openCustomerDetail() {
     final cid = _effectiveCustomerId;
     if (cid == null) return;
+    boaSelectionHaptic();
     Navigator.of(context).push<void>(
       MaterialPageRoute<void>(builder: (_) => CustomerDetailScreen(customerId: cid)),
     );
@@ -105,6 +106,7 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
     if (!mounted || ok != true) return;
     refreshFieldWorkData(ref, customerId: cid);
     if (!mounted) return;
+    boaLightSuccessHaptic();
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('일정을 등록했습니다.')));
   }
 
@@ -126,6 +128,7 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
     return BoaSurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+      onTap: _effectiveCustomerId == null ? null : _openCustomerDetail,
       child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:boa/core/api/dio_provider.dart';
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/api/plain_dio.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/auth/session_models.dart';
@@ -24,6 +25,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   String? _error;
 
   Future<void> _onGoogleSignIn() async {
+    boaSelectionHaptic();
     setState(() {
       _error = null;
       _busy = true;
@@ -87,6 +89,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
       await ref.read(sessionProvider.notifier).signInFromServer(token, user);
       if (!mounted) return;
+      boaLightSuccessHaptic();
       final dio = ref.read(dioProvider);
       unawaited(registerDeviceTokenWithRetry(dio));
       bindFcmTokenRefresh(dio);

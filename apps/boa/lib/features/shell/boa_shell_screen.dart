@@ -1,5 +1,6 @@
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/auth/session_models.dart';
 import 'package:boa/core/push/device_token_registration.dart';
 import 'package:boa/features/calendar/calendar_tab.dart';
@@ -106,8 +107,11 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
         ),
         child: NavigationBar(
         selectedIndex: tabIndex,
-        onDestinationSelected: (i) =>
-            ref.read(shellTabIndexProvider.notifier).state = i,
+        onDestinationSelected: (i) {
+          if (i == tabIndex) return;
+          boaSelectionHaptic();
+          ref.read(shellTabIndexProvider.notifier).state = i;
+        },
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.home_outlined),

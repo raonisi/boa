@@ -202,6 +202,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
             ].join(' · ');
             return BoaSurfaceCard(
               onTap: () {
+                boaSelectionHaptic();
                 Navigator.of(context).push<void>(
                   MaterialPageRoute<void>(
                     builder: (context) => CustomerDetailScreen(customerId: c.id),

@@ -2,9 +2,31 @@ import 'package:boa/core/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+DateTime? _lastBoaHapticAt;
+const _boaHapticMinGap = Duration(milliseconds: 80);
+
+void _runBoaHaptic(void Function() feedback) {
+  final now = DateTime.now();
+  if (_lastBoaHapticAt != null && now.difference(_lastBoaHapticAt!) < _boaHapticMinGap) {
+    return;
+  }
+  _lastBoaHapticAt = now;
+  feedback();
+}
+
+/// 탭·필터·카드 선택 등 상태/선택 변화에만 사용.
+void boaSelectionHaptic() {
+  _runBoaHaptic(HapticFeedback.selectionClick);
+}
+
 /// 저장·완료 등 긍정 액션에만 가벼운 햅틱 (과도한 진동 금지).
 void boaLightSuccessHaptic() {
-  HapticFeedback.lightImpact();
+  _runBoaHaptic(HapticFeedback.lightImpact);
+}
+
+/// @visibleForTesting
+void resetBoaHapticThrottleForTest() {
+  _lastBoaHapticAt = null;
 }
 
 class BoaListLoadingSkeleton extends StatelessWidget {
