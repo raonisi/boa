@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { formatUserWithRole } from "@/lib/userRole";
+import { formatUserWithRole, getRoleLabel } from "@/lib/userRole";
 import { Activity, Target, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -19,6 +19,20 @@ const targetTypeLabels: Record<string, string> = {
   team: "팀",
   user: "개인",
 };
+
+const personalGoalRoles = ["branch_admin", "sub_branch_admin", "team_leader", "member"] as const;
+type PersonalGoalRoleFilter = "all" | "self" | (typeof personalGoalRoles)[number];
+
+function buildPersonalGoalUserLabel(
+  item: { id: number; name?: string | null; role?: string | null; teamId?: number | null },
+  teamNameById: Map<number, string>,
+  currentUserId?: number,
+) {
+  const roleLabel = getRoleLabel(item.role);
+  const teamLabel = item.teamId ? teamNameById.get(item.teamId) : null;
+  const selfSuffix = item.id === currentUserId ? " · 나" : "";
+  return `${item.name ?? `사용자 #${item.id}`} · ${roleLabel}${teamLabel ? ` · ${teamLabel}` : ""}${selfSuffix}`;
+}
 
 function formatWon(value: number | undefined | null) {
   return `${Number(value ?? 0).toLocaleString()}원`;
@@ -44,11 +58,18 @@ export default function PerformanceGoals() {
   const [targetId, setTargetId] = useState<string>("none");
   const [contractCountGoal, setContractCountGoal] = useState(0);
   const [monthlyPremiumGoal, setMonthlyPremiumGoal] = useState(0);
+  const [personalTargetSearch, setPersonalTargetSearch] = useState("");
+  const [personalTargetRoleFilter, setPersonalTargetRoleFilter] = useState<PersonalGoalRoleFilter>("all");
 
   const { data: dashboard } = trpc.performanceGoals.dashboard.useQuery({ year, month });
   const { data: workRhythm } = trpc.workRhythm.summary.useQuery({ period: "month" });
-  const { data: users } = trpc.users.list.useQuery(undefined, { enabled: user?.role === "branch_admin" });
+  const { data: users } = trpc.users.list.useQuery({ activeOnly: true }, { enabled: user?.role === "branch_admin" });
   const { data: teams } = trpc.users.teams.useQuery(undefined, { enabled: user?.role === "branch_admin" });
+
+  const teamNameById = useMemo(
+    () => new Map((teams ?? []).map((team: any) => [team.id, team.name] as const)),
+    [teams],
+  );
 
   const targetOptions = useMemo(() => {
     if (targetType === "branch") return [];
@@ -56,10 +77,26 @@ export default function PerformanceGoals() {
     if (targetType === "sub_branch") return (users ?? [])
       .filter((item: any) => item.role === "sub_branch_admin" && item.accountStatus === "active")
       .map((item: any) => ({ id: item.id, label: formatUserWithRole(item) }));
-    return (users ?? [])
-      .filter((item: any) => (item.role === "branch_admin" || item.role === "team_leader" || item.role === "member") && item.accountStatus === "active")
-      .map((item: any) => ({ id: item.id, label: formatUserWithRole(item) }));
-  }, [targetType, teams, users]);
+    const activePersonalUsers = (users ?? []).filter(
+      (item: any) => personalGoalRoles.includes(item.role) && item.accountStatus === "active",
+    );
+    const searchQuery = personalTargetSearch.trim().toLowerCase();
+    return activePersonalUsers
+      .filter((item: any) => {
+        if (personalTargetRoleFilter === "self") return item.id === user?.id;
+        if (personalTargetRoleFilter !== "all") return item.role === personalTargetRoleFilter;
+        return true;
+      })
+      .filter((item: any) => {
+        if (!searchQuery) return true;
+        const label = buildPersonalGoalUserLabel(item, teamNameById, user?.id).toLowerCase();
+        return label.includes(searchQuery);
+      })
+      .map((item: any) => ({
+        id: item.id,
+        label: buildPersonalGoalUserLabel(item, teamNameById, user?.id),
+      }));
+  }, [personalTargetRoleFilter, personalTargetSearch, targetType, teamNameById, teams, user?.id, users]);
 
   const createMutation = trpc.performanceGoals.create.useMutation({
     onSuccess: () => {
@@ -254,7 +291,12 @@ export default function PerformanceGoals() {
               </div>
               <div>
                 <Label className="text-xs">대상 유형</Label>
-                <Select value={targetType} onValueChange={(value) => { setTargetType(value as any); setTargetId("none"); }}>
+                <Select value={targetType} onValueChange={(value) => {
+                  setTargetType(value as any);
+                  setTargetId("none");
+                  setPersonalTargetSearch("");
+                  setPersonalTargetRoleFilter("all");
+                }}>
                   <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="branch">지점</SelectItem>
@@ -265,14 +307,42 @@ export default function PerformanceGoals() {
                 </Select>
               </div>
               {targetType !== "branch" && (
-                <div>
-                  <Label className="text-xs">대상</Label>
+                <div className={targetType === "user" ? "md:col-span-2 space-y-2" : ""}>
+                  <Label className="text-xs">{targetType === "user" ? "개인 목표 대상자" : "대상"}</Label>
+                  {targetType === "user" ? (
+                    <>
+                      <Input
+                        value={personalTargetSearch}
+                        onChange={(event) => setPersonalTargetSearch(event.target.value)}
+                        placeholder="이름, 직책, 팀명 검색"
+                        className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"
+                      />
+                      <Select value={personalTargetRoleFilter} onValueChange={(value) => setPersonalTargetRoleFilter(value as PersonalGoalRoleFilter)}>
+                        <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="직책 필터" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">전체</SelectItem>
+                          <SelectItem value="branch_admin">지점장</SelectItem>
+                          <SelectItem value="sub_branch_admin">부지점장</SelectItem>
+                          <SelectItem value="team_leader">팀장</SelectItem>
+                          <SelectItem value="member">팀원</SelectItem>
+                          <SelectItem value="self">나</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </>
+                  ) : null}
                   <Select value={targetId} onValueChange={setTargetId}>
                     <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"><SelectValue placeholder="대상 선택" /></SelectTrigger>
                     <SelectContent>
-                      {targetOptions.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.label}</SelectItem>)}
+                      {targetOptions.length === 0 ? (
+                        <SelectItem value="none" disabled>선택 가능한 대상이 없습니다</SelectItem>
+                      ) : targetOptions.map((option) => <SelectItem key={option.id} value={String(option.id)}>{option.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
+                  {targetType === "user" ? (
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      지점장, 부지점장, 팀장, 팀원, 본인을 개인매출 목표 대상으로 선택할 수 있습니다.
+                    </p>
+                  ) : null}
                 </div>
               )}
               <div>

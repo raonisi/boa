@@ -4086,6 +4086,49 @@ describe("PR10-4 performance goals", () => {
     expect(dashboardSpy).toHaveBeenCalledWith(expect.objectContaining({ id: 4, role: "member" }), 2026, 5);
     await expect(appRouter.createCaller(createInactiveCtx()).performanceGoals.dashboard({ year: 2026, month: 5 })).rejects.toThrow();
   });
+
+  it.each([
+    ["branch_admin", 1],
+    ["sub_branch_admin", 2],
+    ["team_leader", 3],
+    ["member", 4],
+  ] as const)("allows branch_admin to create personal goals for %s", async (role, userId) => {
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: userId, role, accountStatus: "active", teamId: role === "member" || role === "team_leader" ? 10 : null } as any);
+    vi.spyOn(db, "getActivePerformanceGoal").mockResolvedValue(null);
+    vi.spyOn(db, "createPerformanceGoal").mockResolvedValue({ ...goal, targetId: userId });
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).performanceGoals.create({
+      year: 2026,
+      month: 6,
+      targetType: "user",
+      targetId: userId,
+      contractCountGoal: 5,
+      monthlyPremiumGoal: 1000000,
+    })).resolves.toEqual(expect.objectContaining({ targetId: userId }));
+  });
+
+  it("blocks personal goals for inactive users and non-admin creators", async () => {
+    vi.spyOn(db, "getUserById").mockResolvedValue({ id: 5, role: "member", accountStatus: "inactive", teamId: 10 } as any);
+
+    await expect(appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).performanceGoals.create({
+      year: 2026,
+      month: 6,
+      targetType: "user",
+      targetId: 5,
+      contractCountGoal: 5,
+      monthlyPremiumGoal: 1000000,
+    })).rejects.toThrow("비활성 또는 퇴사 사용자");
+
+    await expect(appRouter.createCaller(createCtx("team_leader", { userId: 3 })).performanceGoals.create({
+      year: 2026,
+      month: 6,
+      targetType: "user",
+      targetId: 4,
+      contractCountGoal: 5,
+      monthlyPremiumGoal: 1000000,
+    })).rejects.toThrow();
+  });
 });
 
 describe("PR11 consultation tools", () => {

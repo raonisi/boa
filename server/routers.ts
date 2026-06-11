@@ -7034,7 +7034,15 @@ export const appRouter = router({
           const targetUser = await getUserById(targetId);
           if (!targetUser) throw new TRPCError({ code: "NOT_FOUND", message: "사용자를 찾을 수 없습니다." });
           if (input.targetType === "sub_branch" && targetUser.role !== "sub_branch_admin") throw new TRPCError({ code: "BAD_REQUEST", message: "부지점 목표 대상은 sub_branch_admin이어야 합니다." });
-          if (input.targetType === "user" && targetUser.role !== "team_leader" && targetUser.role !== "member") throw new TRPCError({ code: "BAD_REQUEST", message: "개인 목표 대상은 team_leader 또는 member여야 합니다." });
+          if (input.targetType === "user") {
+            const personalGoalRoles = new Set(["branch_admin", "sub_branch_admin", "team_leader", "member"]);
+            if (!personalGoalRoles.has(targetUser.role)) {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "개인 목표 대상은 지점장, 부지점장, 팀장, 팀원만 설정할 수 있습니다." });
+            }
+            if (targetUser.accountStatus !== "active") {
+              throw new TRPCError({ code: "BAD_REQUEST", message: "비활성 또는 퇴사 사용자에게는 개인 목표를 설정할 수 없습니다." });
+            }
+          }
         }
         const duplicate = await getActivePerformanceGoal({ year: input.year, month: input.month, targetType: input.targetType, targetId });
         if (duplicate) throw new TRPCError({ code: "BAD_REQUEST", message: "같은 월과 대상의 active 목표가 이미 있습니다." });
