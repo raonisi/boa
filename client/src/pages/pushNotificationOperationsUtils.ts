@@ -52,13 +52,19 @@ export function assertNoDeviceTokenInPushLogRow(row: Record<string, unknown>) {
   for (const [key, value] of Object.entries(row)) {
     if (typeof value !== "string") continue;
     const lower = key.toLowerCase();
-    if (lower.includes("token") && value.length > 12 && !lower.includes("inactive")) {
+    if (
+      lower.includes("token") &&
+      value.length > 12 &&
+      !lower.includes("inactive")
+    ) {
       throw new Error(`Unexpected token-like field in push log row: ${key}`);
     }
   }
 }
 
-export function formatPushLogUserLabel(log: Pick<PushLogListItem, "userName" | "userId" | "userRole">) {
+export function formatPushLogUserLabel(
+  log: Pick<PushLogListItem, "userName" | "userId" | "userRole">
+) {
   const name = log.userName?.trim();
   const role = log.userRole?.trim();
   if (name && role) return `${name} (${role})`;

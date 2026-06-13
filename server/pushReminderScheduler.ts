@@ -5,7 +5,12 @@ let inFlight = false;
 let intervalTimer: NodeJS.Timeout | null = null;
 let initialTimer: NodeJS.Timeout | null = null;
 
-function toBoundedInteger(value: string | undefined, fallback: number, min: number, max: number) {
+function toBoundedInteger(
+  value: string | undefined,
+  fallback: number,
+  min: number,
+  max: number
+) {
   const parsed = Number(value);
   if (!Number.isInteger(parsed)) return fallback;
   return Math.min(Math.max(parsed, min), max);
@@ -13,7 +18,9 @@ function toBoundedInteger(value: string | undefined, fallback: number, min: numb
 
 async function runAutomaticPushReminderTick(lookbackMinutes: number) {
   if (inFlight) {
-    console.info("[push-scheduler] automatic tick skipped", { reason: "in_flight" });
+    console.info("[push-scheduler] automatic tick skipped", {
+      reason: "in_flight",
+    });
     return;
   }
   inFlight = true;
@@ -39,14 +46,31 @@ async function runAutomaticPushReminderTick(lookbackMinutes: number) {
 export function startPushReminderScheduler() {
   if (schedulerStarted || process.env.NODE_ENV === "test") return;
   if (process.env.PUSH_REMINDER_SCHEDULER_ENABLED === "false") {
-    console.info("[push-scheduler] automatic scheduler disabled", { reason: "env_disabled" });
+    console.info("[push-scheduler] automatic scheduler disabled", {
+      reason: "env_disabled",
+    });
     return;
   }
 
   schedulerStarted = true;
-  const intervalMs = toBoundedInteger(process.env.PUSH_REMINDER_SCHEDULER_INTERVAL_MS, 5 * 60 * 1000, 60 * 1000, 30 * 60 * 1000);
-  const initialDelayMs = toBoundedInteger(process.env.PUSH_REMINDER_SCHEDULER_INITIAL_DELAY_MS, 15 * 1000, 1 * 1000, intervalMs);
-  const lookbackMinutes = toBoundedInteger(process.env.PUSH_REMINDER_LOOKBACK_MINUTES, 10, 1, 30);
+  const intervalMs = toBoundedInteger(
+    process.env.PUSH_REMINDER_SCHEDULER_INTERVAL_MS,
+    5 * 60 * 1000,
+    60 * 1000,
+    30 * 60 * 1000
+  );
+  const initialDelayMs = toBoundedInteger(
+    process.env.PUSH_REMINDER_SCHEDULER_INITIAL_DELAY_MS,
+    15 * 1000,
+    1 * 1000,
+    intervalMs
+  );
+  const lookbackMinutes = toBoundedInteger(
+    process.env.PUSH_REMINDER_LOOKBACK_MINUTES,
+    10,
+    1,
+    30
+  );
 
   console.info("[push-scheduler] automatic scheduler started", {
     intervalMs,

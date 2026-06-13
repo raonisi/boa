@@ -5,26 +5,31 @@ Use this framework for reviews, audits, release checks, and merge decisions. Kee
 ## Review Levels
 
 ### Quick Review
+
 - Scope: docs, copy, narrow UI, or low-risk helper changes.
 - Evidence: changed files, focused diff, one relevant check.
 - Output: verdict, risks, remaining work.
 
 ### Feature Review
+
 - Scope: new workflow, API behavior, UI behavior, or notification behavior.
 - Evidence: role impact, happy path, edge cases, tests, UI proof if visual.
 - Output: score when useful, P0/P1/P2/P3 issues, tests, rollout notes.
 
 ### Hotfix Review
+
 - Scope: urgent production bug, notification gap, auth/RBAC defect, or deployment issue.
 - Evidence: root cause, minimal fix, regression test, rollback path.
 - Output: merge readiness and production verification boundary.
 
 ### Full Operational Audit
+
 - Scope: cross-module behavior, branch workflow, notifications, RBAC, DB, mobile, or deployment.
 - Evidence: route/API map, role matrix, tests, screenshots, known external gaps.
 - Output: operational verdict and prioritized remediation plan.
 
 ### Pre-release Audit
+
 - Scope: readiness for broader branch/team use.
 - Evidence: check/test/build, e2e when relevant, mobile smoke, RBAC, DB/migration, deployment plan, rollback.
 - Output: go/no-go decision.
@@ -32,6 +37,7 @@ Use this framework for reviews, audits, release checks, and merge decisions. Kee
 ## Required Output
 
 Every review should include:
+
 - final verdict
 - score, if useful
 - P0/P1/P2/P3 issues

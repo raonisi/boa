@@ -70,9 +70,7 @@
       "compositePrimaryKeys": {
         "activity_logs_id": {
           "name": "activity_logs_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -146,9 +144,7 @@
       "compositePrimaryKeys": {
         "consultations_id": {
           "name": "consultations_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -259,9 +255,7 @@
       "compositePrimaryKeys": {
         "contracts_id": {
           "name": "contracts_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -408,9 +402,7 @@
       "compositePrimaryKeys": {
         "customers_id": {
           "name": "customers_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -490,9 +482,7 @@
       "compositePrimaryKeys": {
         "notifications_id": {
           "name": "notifications_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -582,9 +572,7 @@
       "compositePrimaryKeys": {
         "schedules_id": {
           "name": "schedules_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -628,9 +616,7 @@
       "compositePrimaryKeys": {
         "teams_id": {
           "name": "teams_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -720,17 +706,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}

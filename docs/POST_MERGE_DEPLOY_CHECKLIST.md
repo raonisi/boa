@@ -1,11 +1,13 @@
 # BOA CRM Post-Merge Deploy Checklist
 
 ## 0) Preconditions
+
 - PR merged into `main`
 - Railway project connected to latest `main`
 - Required env vars already configured in Railway
 
 ## 1) GitHub / Branch Sanity
+
 - Confirm PR is merged and green.
 - Confirm merge commit includes:
   - notification priority consistency updates
@@ -14,6 +16,7 @@
   - tests/docs updates
 
 ## 2) Railway Deploy Flow (Expected)
+
 - Build command:
   - `pnpm install && pnpm build`
 - Pre-deploy command:
@@ -22,6 +25,7 @@
   - `pnpm start`
 
 ## 3) Deploy Log Checks (Must Pass)
+
 - Build logs:
   - install succeeded
   - build finished without fatal errors
@@ -33,6 +37,7 @@
   - no repeated crash/restart loop
 
 ## 4) Production Smoke Tests
+
 - Open: `https://raonisis.kr`
 - Login and verify:
   - dashboard loads
@@ -44,6 +49,7 @@
   - read/process actions update immediately
 
 ## 5) Role-based Smoke Tests
+
 - `branch_admin`: full visibility in allowed scope
 - `sub_branch_admin`: subordinate-only scope
 - `team_leader`: team-only scope
@@ -51,6 +57,7 @@
 - Ensure no cross-scope data exposure by direct navigation
 
 ## 6) Mobile Smoke Tests
+
 - Open app home tab:
   - immediate notification section visible
   - priority pills filter correctly
@@ -59,6 +66,7 @@
   - mark-read works and reflects after refresh
 
 ## 7) Incident Fallback
+
 - If critical issue found:
   1. Stop further rollout announcements.
   2. Revert the merged PR commit on `main`.
@@ -66,6 +74,7 @@
   4. Re-run smoke tests.
 
 ## 8) Release Note Template
+
 - What changed:
   - unified field-priority notification workflow across web/mobile
   - unread-first sorting within priority buckets
@@ -74,4 +83,3 @@
   - Low (UI/UX + utility refactor, no schema migration)
 - Validation:
   - `pnpm check`, `pnpm test`, `pnpm build` passed
-

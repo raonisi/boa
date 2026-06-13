@@ -3,16 +3,41 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
-import { KeyRound, LogOut, Plus, ShieldCheck, ShieldX, UserCog } from "lucide-react";
+import {
+  KeyRound,
+  LogOut,
+  Plus,
+  ShieldCheck,
+  ShieldX,
+  UserCog,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -62,39 +87,65 @@ export default function UserManagement() {
   const [allLogoutOpen, setAllLogoutOpen] = useState(false);
   const [allLogoutReason, setAllLogoutReason] = useState("");
   const [allLogoutConfirm, setAllLogoutConfirm] = useState("");
-  const { data: loginHistory } = trpc.adminSecurity.loginHistory.useQuery({ limit: 50 });
+  const { data: loginHistory } = trpc.adminSecurity.loginHistory.useQuery({
+    limit: 50,
+  });
 
   const updateRoleMutation = trpc.users.updateRole.useMutation({
-    onSuccess: () => { toast.success("권한이 변경되었습니다."); utils.users.list.invalidate(); setEditUser(null); },
+    onSuccess: () => {
+      toast.success("권한이 변경되었습니다.");
+      utils.users.list.invalidate();
+      setEditUser(null);
+    },
     onError: () => toast.error("권한 변경에 실패했습니다."),
   });
 
-  const updateAccountStatusMutation = trpc.users.updateAccountStatus.useMutation({
-    onSuccess: () => { toast.success("계정 상태가 변경되었습니다."); utils.users.list.invalidate(); },
-    onError: () => toast.error("상태 변경에 실패했습니다."),
-  });
+  const updateAccountStatusMutation =
+    trpc.users.updateAccountStatus.useMutation({
+      onSuccess: () => {
+        toast.success("계정 상태가 변경되었습니다.");
+        utils.users.list.invalidate();
+      },
+      onError: () => toast.error("상태 변경에 실패했습니다."),
+    });
 
   const updateTeamMutation = trpc.users.updateTeam.useMutation({
-    onSuccess: () => { toast.success("팀이 변경되었습니다."); utils.users.list.invalidate(); },
+    onSuccess: () => {
+      toast.success("팀이 변경되었습니다.");
+      utils.users.list.invalidate();
+    },
   });
 
   const updateSubBranchMutation = trpc.users.updateSubBranchAdmin.useMutation({
-    onSuccess: () => { toast.success("소속 부지점장이 변경되었습니다."); utils.users.list.invalidate(); },
-    onError: (err) => toast.error(err.message || "변경에 실패했습니다."),
+    onSuccess: () => {
+      toast.success("소속 부지점장이 변경되었습니다.");
+      utils.users.list.invalidate();
+    },
+    onError: err => toast.error(err.message || "변경에 실패했습니다."),
   });
 
   const createUserMutation = trpc.users.create.useMutation({
-    onSuccess: () => { toast.success("사용자가 추가되었습니다."); utils.users.list.invalidate(); setShowCreate(false); },
-    onError: (err) => toast.error(err.message || "사용자 추가에 실패했습니다."),
+    onSuccess: () => {
+      toast.success("사용자가 추가되었습니다.");
+      utils.users.list.invalidate();
+      setShowCreate(false);
+    },
+    onError: err => toast.error(err.message || "사용자 추가에 실패했습니다."),
   });
 
   const updatePermissionMutation = trpc.users.updatePermission.useMutation({
-    onSuccess: () => { toast.success("세부 권한이 변경되었습니다."); utils.users.list.invalidate(); },
-    onError: (err) => toast.error(err.message || "세부 권한 변경에 실패했습니다."),
+    onSuccess: () => {
+      toast.success("세부 권한이 변경되었습니다.");
+      utils.users.list.invalidate();
+    },
+    onError: err =>
+      toast.error(err.message || "세부 권한 변경에 실패했습니다."),
   });
 
   const toggleBulkImportPermission = (targetUser: any) => {
-    const enabled = !(targetUser.permissions ?? []).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
+    const enabled = !(targetUser.permissions ?? []).includes(
+      CUSTOMER_BULK_IMPORT_PERMISSION
+    );
     updatePermissionMutation.mutate({
       userId: targetUser.id,
       permission: CUSTOMER_BULK_IMPORT_PERMISSION,
@@ -109,7 +160,7 @@ export default function UserManagement() {
       setForceLogoutUser(null);
       setForceLogoutReason("");
     },
-    onError: (err) => toast.error(err.message || "강제 로그아웃에 실패했습니다."),
+    onError: err => toast.error(err.message || "강제 로그아웃에 실패했습니다."),
   });
 
   const forceLogoutAllMutation = trpc.adminSecurity.forceLogoutAll.useMutation({
@@ -120,7 +171,7 @@ export default function UserManagement() {
       setAllLogoutReason("");
       setAllLogoutConfirm("");
     },
-    onError: (err) => toast.error(err.message || "전체 로그아웃에 실패했습니다."),
+    onError: err => toast.error(err.message || "전체 로그아웃에 실패했습니다."),
   });
 
   const resetOAuthMutation = trpc.adminSecurity.resetOAuthLink.useMutation({
@@ -132,7 +183,7 @@ export default function UserManagement() {
       setOauthResetReason("");
       setOauthResetConfirm("");
     },
-    onError: (err) => toast.error(err.message || "OAuth 초기화에 실패했습니다."),
+    onError: err => toast.error(err.message || "OAuth 초기화에 실패했습니다."),
   });
 
   const handleBlock = (userId: number) => {
@@ -141,14 +192,26 @@ export default function UserManagement() {
     }
   };
 
-  const subBranchAdmins = (users ?? []).filter((u) => u.role === "sub_branch_admin" && (u as any).accountStatus === "active");
+  const subBranchAdmins = (users ?? []).filter(
+    u => u.role === "sub_branch_admin" && (u as any).accountStatus === "active"
+  );
 
-  const handleSubBranchChange = (userId: number, currentTeamId: number | null, newSubBranchAdminId: string) => {
-    const newId = newSubBranchAdminId === "none" ? null : Number(newSubBranchAdminId);
+  const handleSubBranchChange = (
+    userId: number,
+    currentTeamId: number | null,
+    newSubBranchAdminId: string
+  ) => {
+    const newId =
+      newSubBranchAdminId === "none" ? null : Number(newSubBranchAdminId);
     if (currentTeamId && newId !== null) {
-      const team = (teams ?? []).find((t) => t.id === currentTeamId);
+      const team = (teams ?? []).find(t => t.id === currentTeamId);
       if (team && (team as any).subBranchAdminId !== newId) {
-        if (!confirm(`이 사용자는 현재 팀(${team.name})에 소속되어 있습니다.\n부지점장 산하를 변경하면 팀 소속이 해제됩니다.\n계속하시겠습니까?`)) return;
+        if (
+          !confirm(
+            `이 사용자는 현재 팀(${team.name})에 소속되어 있습니다.\n부지점장 산하를 변경하면 팀 소속이 해제됩니다.\n계속하시겠습니까?`
+          )
+        )
+          return;
         updateTeamMutation.mutate({ userId, teamId: null });
       }
     }
@@ -160,14 +223,25 @@ export default function UserManagement() {
       <div className="space-y-5">
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Users & Security</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">사용자 관리</h1>
-            <p className="mt-1 text-sm text-slate-500">총 {users?.length ?? 0}명 · 강제 로그아웃/OAuth 초기화는 활동 로그에 기록됩니다.</p>
-          </div>
-          <Button size="sm" className="min-h-12 w-full sm:w-auto sm:min-h-8" onClick={() => setShowCreate(true)}>
-            <Plus className="h-4 w-4 mr-1" /> 사용자 추가
-          </Button>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+                Users & Security
+              </p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">
+                사용자 관리
+              </h1>
+              <p className="mt-1 text-sm text-slate-500">
+                총 {users?.length ?? 0}명 · 강제 로그아웃/OAuth 초기화는 활동
+                로그에 기록됩니다.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              className="min-h-12 w-full sm:w-auto sm:min-h-8"
+              onClick={() => setShowCreate(true)}
+            >
+              <Plus className="h-4 w-4 mr-1" /> 사용자 추가
+            </Button>
           </CardContent>
         </Card>
 
@@ -179,13 +253,19 @@ export default function UserManagement() {
                   사용자가 없습니다.
                 </div>
               ) : (
-                (users ?? []).map((u) => {
-                  const team = teams?.find((t) => t.id === u.teamId);
-                  const sba = (users ?? []).find((s) => s.id === (u as any).subBranchAdminId);
+                (users ?? []).map(u => {
+                  const team = teams?.find(t => t.id === u.teamId);
+                  const sba = (users ?? []).find(
+                    s => s.id === (u as any).subBranchAdminId
+                  );
                   const isInactive = (u as any).accountStatus !== "active";
-                  const canAssignSubBranch = u.role === "team_leader" || u.role === "member";
-                  const canManageBulkImport = u.role === "sub_branch_admin" || u.role === "team_leader";
-                  const hasBulkImportPermission = ((u as any).permissions ?? []).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
+                  const canAssignSubBranch =
+                    u.role === "team_leader" || u.role === "member";
+                  const canManageBulkImport =
+                    u.role === "sub_branch_admin" || u.role === "team_leader";
+                  const hasBulkImportPermission = (
+                    (u as any).permissions ?? []
+                  ).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
                   const loginStatus = (u as any).loginStatus ?? "linked";
                   return (
                     <div
@@ -194,101 +274,176 @@ export default function UserManagement() {
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">{u.name ?? "-"}</p>
-                          <p className="mt-1 break-all text-xs leading-5 text-muted-foreground">{u.email ?? "-"}</p>
+                          <p className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
+                            {u.name ?? "-"}
+                          </p>
+                          <p className="mt-1 break-all text-xs leading-5 text-muted-foreground">
+                            {u.email ?? "-"}
+                          </p>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}
+                        >
                           {getUserStatusLabel((u as any).accountStatus)}
                         </span>
                       </div>
 
                       <div className="mt-3 flex flex-wrap gap-2">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}
+                        >
                           {getRoleLabel(u.role)}
                         </span>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}
+                        >
                           {loginStatusLabels[loginStatus] ?? loginStatus}
                         </span>
-                        {u.role === "branch_admin" && <Badge variant="secondary" className="px-2.5 py-1 text-xs">일괄등록 기본 허용</Badge>}
+                        {u.role === "branch_admin" && (
+                          <Badge
+                            variant="secondary"
+                            className="px-2.5 py-1 text-xs"
+                          >
+                            일괄등록 기본 허용
+                          </Badge>
+                        )}
                       </div>
 
                       <div className="mt-4 grid gap-2 text-xs leading-5 text-slate-600">
                         <div className="grid grid-cols-[5rem_1fr] gap-2">
                           <span className="text-muted-foreground">연락처</span>
-                          <span className="min-w-0 break-words">{(u as any).phone ?? "-"}</span>
+                          <span className="min-w-0 break-words">
+                            {(u as any).phone ?? "-"}
+                          </span>
                         </div>
                         <div className="grid grid-cols-[5rem_1fr] gap-2">
                           <span className="text-muted-foreground">팀</span>
-                          <span className="min-w-0 break-words">{team?.name ?? "-"}</span>
+                          <span className="min-w-0 break-words">
+                            {team?.name ?? "-"}
+                          </span>
                         </div>
                         <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <span className="text-muted-foreground">상위 조직</span>
-                          <span className="min-w-0 break-words">{sba?.name ?? "-"}</span>
+                          <span className="text-muted-foreground">
+                            상위 조직
+                          </span>
+                          <span className="min-w-0 break-words">
+                            {sba?.name ?? "-"}
+                          </span>
                         </div>
                         <div className="grid grid-cols-[5rem_1fr] gap-2">
                           <span className="text-muted-foreground">가입일</span>
-                          <span>{u.createdAt ? new Date(u.createdAt).toLocaleDateString("ko-KR") : "-"}</span>
+                          <span>
+                            {u.createdAt
+                              ? new Date(u.createdAt).toLocaleDateString(
+                                  "ko-KR"
+                                )
+                              : "-"}
+                          </span>
                         </div>
                       </div>
 
                       <div className="mt-4 grid gap-2">
                         <Select
                           value={String(u.teamId ?? "none")}
-                          onValueChange={(v) => updateTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}
+                          onValueChange={v =>
+                            updateTeamMutation.mutate({
+                              userId: u.id,
+                              teamId: v === "none" ? null : Number(v),
+                            })
+                          }
                         >
                           <SelectTrigger className="min-h-12 w-full rounded-xl bg-slate-50 text-xs">
                             <SelectValue placeholder="팀 없음" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">팀 없음</SelectItem>
-                            {(teams ?? []).map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                            {(teams ?? []).map(t => (
+                              <SelectItem key={t.id} value={String(t.id)}>
+                                {t.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
 
                         {canAssignSubBranch ? (
                           <Select
-                            value={String((u as any).subBranchAdminId ?? "none")}
-                            onValueChange={(v) => handleSubBranchChange(u.id, u.teamId, v)}
+                            value={String(
+                              (u as any).subBranchAdminId ?? "none"
+                            )}
+                            onValueChange={v =>
+                              handleSubBranchChange(u.id, u.teamId, v)
+                            }
                           >
                             <SelectTrigger className="min-h-12 w-full rounded-xl bg-slate-50 text-xs">
                               <SelectValue placeholder="미배정" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="none">미배정</SelectItem>
-                              {subBranchAdmins.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                              {subBranchAdmins.map(s => (
+                                <SelectItem key={s.id} value={String(s.id)}>
+                                  {s.name}
+                                </SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         ) : null}
 
                         {canManageBulkImport ? (
                           <Button
-                            variant={hasBulkImportPermission ? "secondary" : "outline"}
+                            variant={
+                              hasBulkImportPermission ? "secondary" : "outline"
+                            }
                             size="sm"
                             className="min-h-12 w-full rounded-xl text-xs"
-                            disabled={isInactive || updatePermissionMutation.isPending}
+                            disabled={
+                              isInactive || updatePermissionMutation.isPending
+                            }
                             onClick={() => toggleBulkImportPermission(u)}
                           >
-                            일괄등록 {hasBulkImportPermission ? "허용" : "미허용"}
+                            일괄등록{" "}
+                            {hasBulkImportPermission ? "허용" : "미허용"}
                           </Button>
                         ) : null}
                       </div>
 
                       <div className="mt-4 space-y-3">
-                        <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl text-xs" onClick={() => setEditUser(u)}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="min-h-12 w-full rounded-xl text-xs"
+                          onClick={() => setEditUser(u)}
+                        >
                           <UserCog className="h-4 w-4" /> 권한/상태
                         </Button>
                         <div className="rounded-2xl border border-red-100 bg-red-50/70 p-3">
-                          <p className="text-[11px] font-semibold text-red-700">보안/접근 차단</p>
+                          <p className="text-[11px] font-semibold text-red-700">
+                            보안/접근 차단
+                          </p>
                           <div className="mt-3 grid gap-2">
                             {(u as any).accountStatus === "active" && (
-                              <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl border-red-200 bg-white text-xs text-destructive hover:bg-red-50 hover:text-destructive" onClick={() => handleBlock(u.id)}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="min-h-12 w-full rounded-xl border-red-200 bg-white text-xs text-destructive hover:bg-red-50 hover:text-destructive"
+                                onClick={() => handleBlock(u.id)}
+                              >
                                 <ShieldX className="h-4 w-4" /> 퇴사 처리
                               </Button>
                             )}
-                            <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50" onClick={() => setForceLogoutUser(u)}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50"
+                              onClick={() => setForceLogoutUser(u)}
+                            >
                               <LogOut className="h-4 w-4" /> 로그아웃
                             </Button>
-                            <Button variant="outline" size="sm" className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50" onClick={() => setOauthResetUser(u)}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50"
+                              onClick={() => setOauthResetUser(u)}
+                            >
                               <KeyRound className="h-4 w-4" /> OAuth 초기화
                             </Button>
                           </div>
@@ -319,99 +474,188 @@ export default function UserManagement() {
                 <TableBody>
                   {(users ?? []).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">사용자가 없습니다.</TableCell>
+                      <TableCell
+                        colSpan={11}
+                        className="text-center text-muted-foreground py-8"
+                      >
+                        사용자가 없습니다.
+                      </TableCell>
                     </TableRow>
                   ) : (
-                    (users ?? []).map((u) => {
-                      const team = teams?.find((t) => t.id === u.teamId);
-                      const sba = (users ?? []).find((s) => s.id === (u as any).subBranchAdminId);
+                    (users ?? []).map(u => {
+                      const team = teams?.find(t => t.id === u.teamId);
+                      const sba = (users ?? []).find(
+                        s => s.id === (u as any).subBranchAdminId
+                      );
                       const isInactive = (u as any).accountStatus !== "active";
-                      const canAssignSubBranch = u.role === "team_leader" || u.role === "member";
-                      const canManageBulkImport = u.role === "sub_branch_admin" || u.role === "team_leader";
-                      const hasBulkImportPermission = ((u as any).permissions ?? []).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
+                      const canAssignSubBranch =
+                        u.role === "team_leader" || u.role === "member";
+                      const canManageBulkImport =
+                        u.role === "sub_branch_admin" ||
+                        u.role === "team_leader";
+                      const hasBulkImportPermission = (
+                        (u as any).permissions ?? []
+                      ).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
                       const loginStatus = (u as any).loginStatus ?? "linked";
                       return (
-                        <TableRow key={u.id} className={isInactive ? "opacity-50" : ""}>
-                          <TableCell className="font-medium">{u.name ?? "-"}</TableCell>
-                          <TableCell className="text-xs">{u.email ?? "-"}</TableCell>
-                          <TableCell className="text-xs">{(u as any).phone ?? "-"}</TableCell>
+                        <TableRow
+                          key={u.id}
+                          className={isInactive ? "opacity-50" : ""}
+                        >
+                          <TableCell className="font-medium">
+                            {u.name ?? "-"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {u.email ?? "-"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {(u as any).phone ?? "-"}
+                          </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}
+                            >
                               {getRoleLabel(u.role)}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}
+                            >
                               {getUserStatusLabel((u as any).accountStatus)}
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}
+                            >
                               {loginStatusLabels[loginStatus] ?? loginStatus}
                             </span>
                           </TableCell>
                           <TableCell>
                             {u.role === "branch_admin" ? (
-                              <Badge variant="secondary" className="text-xs">기본 허용</Badge>
+                              <Badge variant="secondary" className="text-xs">
+                                기본 허용
+                              </Badge>
                             ) : canManageBulkImport ? (
                               <Button
-                                variant={hasBulkImportPermission ? "secondary" : "outline"}
+                                variant={
+                                  hasBulkImportPermission
+                                    ? "secondary"
+                                    : "outline"
+                                }
                                 size="sm"
                                 className="h-7 px-2 text-xs"
-                                disabled={isInactive || updatePermissionMutation.isPending}
+                                disabled={
+                                  isInactive ||
+                                  updatePermissionMutation.isPending
+                                }
                                 onClick={() => toggleBulkImportPermission(u)}
                               >
                                 {hasBulkImportPermission ? "허용" : "미허용"}
                               </Button>
                             ) : (
-                              <span className="text-xs text-muted-foreground">불가</span>
+                              <span className="text-xs text-muted-foreground">
+                                불가
+                              </span>
                             )}
                           </TableCell>
                           <TableCell>
                             <Select
                               value={String(u.teamId ?? "none")}
-                              onValueChange={(v) => updateTeamMutation.mutate({ userId: u.id, teamId: v === "none" ? null : Number(v) })}
+                              onValueChange={v =>
+                                updateTeamMutation.mutate({
+                                  userId: u.id,
+                                  teamId: v === "none" ? null : Number(v),
+                                })
+                              }
                             >
-                              <SelectTrigger className="h-7 text-xs w-28"><SelectValue placeholder="팀 없음" /></SelectTrigger>
+                              <SelectTrigger className="h-7 text-xs w-28">
+                                <SelectValue placeholder="팀 없음" />
+                              </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="none">팀 없음</SelectItem>
-                                {(teams ?? []).map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                                {(teams ?? []).map(t => (
+                                  <SelectItem key={t.id} value={String(t.id)}>
+                                    {t.name}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </TableCell>
                           <TableCell>
                             {canAssignSubBranch ? (
                               <Select
-                                value={String((u as any).subBranchAdminId ?? "none")}
-                                onValueChange={(v) => handleSubBranchChange(u.id, u.teamId, v)}
+                                value={String(
+                                  (u as any).subBranchAdminId ?? "none"
+                                )}
+                                onValueChange={v =>
+                                  handleSubBranchChange(u.id, u.teamId, v)
+                                }
                               >
-                                <SelectTrigger className="h-7 text-xs w-28"><SelectValue placeholder="미배정" /></SelectTrigger>
+                                <SelectTrigger className="h-7 text-xs w-28">
+                                  <SelectValue placeholder="미배정" />
+                                </SelectTrigger>
                                 <SelectContent>
                                   <SelectItem value="none">미배정</SelectItem>
-                                  {subBranchAdmins.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                                  {subBranchAdmins.map(s => (
+                                    <SelectItem key={s.id} value={String(s.id)}>
+                                      {s.name}
+                                    </SelectItem>
+                                  ))}
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <span className="text-xs text-muted-foreground">{sba?.name ?? "-"}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {sba?.name ?? "-"}
+                              </span>
                             )}
                           </TableCell>
                           <TableCell className="text-xs text-muted-foreground">
-                            {u.createdAt ? new Date(u.createdAt).toLocaleDateString("ko-KR") : "-"}
+                            {u.createdAt
+                              ? new Date(u.createdAt).toLocaleDateString(
+                                  "ko-KR"
+                                )
+                              : "-"}
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setEditUser(u)} title="권한 변경">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => setEditUser(u)}
+                                title="권한 변경"
+                              >
                                 <UserCog className="h-3.5 w-3.5" />
                               </Button>
                               {(u as any).accountStatus === "active" && (
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => handleBlock(u.id)} title="퇴사 처리">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                  onClick={() => handleBlock(u.id)}
+                                  title="퇴사 처리"
+                                >
                                   <ShieldX className="h-3.5 w-3.5" />
                                 </Button>
                               )}
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setForceLogoutUser(u)} title="강제 로그아웃">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => setForceLogoutUser(u)}
+                                title="강제 로그아웃"
+                              >
                                 <LogOut className="h-3.5 w-3.5" />
                               </Button>
-                              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setOauthResetUser(u)} title="OAuth 초기화">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => setOauthResetUser(u)}
+                                title="OAuth 초기화"
+                              >
                                 <KeyRound className="h-3.5 w-3.5" />
                               </Button>
                             </div>
@@ -432,14 +676,20 @@ export default function UserManagement() {
               <CardTitle className="text-sm flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4" /> 보안 관리
               </CardTitle>
-              <Button size="sm" variant="outline" className="min-h-12 sm:min-h-8" onClick={() => setAllLogoutOpen(true)}>
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-12 sm:min-h-8"
+                onClick={() => setAllLogoutOpen(true)}
+              >
                 전체 로그아웃
               </Button>
             </div>
           </CardHeader>
           <CardContent>
             <p className="text-xs text-muted-foreground mb-3">
-              Google OAuth 연결 초기화, 세션 무효화, 로그인 보안 이력을 관리합니다. 토큰과 비밀값은 표시하지 않습니다.
+              Google OAuth 연결 초기화, 세션 무효화, 로그인 보안 이력을
+              관리합니다. 토큰과 비밀값은 표시하지 않습니다.
             </p>
             <div className="space-y-2 md:hidden">
               {(loginHistory ?? []).slice(0, 10).length === 0 ? (
@@ -447,25 +697,38 @@ export default function UserManagement() {
                   로그인 보안 이력이 없습니다.
                 </div>
               ) : (
-                (loginHistory ?? []).slice(0, 10).map((entry) => (
-                  <div key={entry.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+                (loginHistory ?? []).slice(0, 10).map(entry => (
+                  <div
+                    key={entry.id}
+                    className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">{securityActionLabels[entry.action] ?? "보안 작업"}</p>
+                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">
+                          {securityActionLabels[entry.action] ?? "보안 작업"}
+                        </p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {entry.createdAt ? new Date(entry.createdAt).toLocaleString("ko-KR") : "-"}
+                          {entry.createdAt
+                            ? new Date(entry.createdAt).toLocaleString("ko-KR")
+                            : "-"}
                         </p>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-xs">감사</Badge>
+                      <Badge variant="secondary" className="shrink-0 text-xs">
+                        감사
+                      </Badge>
                     </div>
                     <div className="mt-3 grid gap-1 text-xs leading-5 text-slate-600">
                       <div className="grid grid-cols-[4rem_1fr] gap-2">
                         <span className="text-muted-foreground">사용자</span>
-                        <span className="min-w-0 break-words">{entry.user?.name ?? "-"} · {entry.user?.email ?? "-"}</span>
+                        <span className="min-w-0 break-words">
+                          {entry.user?.name ?? "-"} · {entry.user?.email ?? "-"}
+                        </span>
                       </div>
                       <div className="grid grid-cols-[4rem_1fr] gap-2">
                         <span className="text-muted-foreground">처리자</span>
-                        <span className="min-w-0 break-words">{entry.actor?.name ?? "-"}</span>
+                        <span className="min-w-0 break-words">
+                          {entry.actor?.name ?? "-"}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -485,20 +748,35 @@ export default function UserManagement() {
                 <TableBody>
                   {(loginHistory ?? []).slice(0, 10).length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center text-muted-foreground py-6">로그인 보안 이력이 없습니다.</TableCell>
+                      <TableCell
+                        colSpan={4}
+                        className="text-center text-muted-foreground py-6"
+                      >
+                        로그인 보안 이력이 없습니다.
+                      </TableCell>
                     </TableRow>
                   ) : (
-                    (loginHistory ?? []).slice(0, 10).map((entry) => (
+                    (loginHistory ?? []).slice(0, 10).map(entry => (
                       <TableRow key={entry.id}>
                         <TableCell className="text-xs text-muted-foreground">
-                          {entry.createdAt ? new Date(entry.createdAt).toLocaleString("ko-KR") : "-"}
+                          {entry.createdAt
+                            ? new Date(entry.createdAt).toLocaleString("ko-KR")
+                            : "-"}
                         </TableCell>
                         <TableCell className="text-xs">
-                          <div className="font-medium">{entry.user?.name ?? "-"}</div>
-                          <div className="text-muted-foreground">{entry.user?.email ?? "-"}</div>
+                          <div className="font-medium">
+                            {entry.user?.name ?? "-"}
+                          </div>
+                          <div className="text-muted-foreground">
+                            {entry.user?.email ?? "-"}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-xs font-medium">{securityActionLabels[entry.action] ?? "보안 작업"}</TableCell>
-                        <TableCell className="text-xs">{entry.actor?.name ?? "-"}</TableCell>
+                        <TableCell className="text-xs font-medium">
+                          {securityActionLabels[entry.action] ?? "보안 작업"}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {entry.actor?.name ?? "-"}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -509,13 +787,21 @@ export default function UserManagement() {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">팀 목록</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">팀 목록</CardTitle>
+          </CardHeader>
           <CardContent>
             {(teams ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">등록된 팀이 없습니다.</p>
+              <p className="text-sm text-muted-foreground">
+                등록된 팀이 없습니다.
+              </p>
             ) : (
               <div className="flex flex-wrap gap-2">
-                {(teams ?? []).map((t) => <Badge key={t.id} variant="secondary">{t.name}</Badge>)}
+                {(teams ?? []).map(t => (
+                  <Badge key={t.id} variant="secondary">
+                    {t.name}
+                  </Badge>
+                ))}
               </div>
             )}
           </CardContent>
@@ -528,7 +814,7 @@ export default function UserManagement() {
           teams={teams ?? []}
           subBranchAdmins={subBranchAdmins}
           onClose={() => setShowCreate(false)}
-          onSubmit={(data) => createUserMutation.mutate(data)}
+          onSubmit={data => createUserMutation.mutate(data)}
           loading={createUserMutation.isPending}
         />
       )}
@@ -537,12 +823,24 @@ export default function UserManagement() {
       {editUser && (
         <Dialog open={true} onOpenChange={() => setEditUser(null)}>
           <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <DialogHeader><DialogTitle>권한/상태 변경 - {editUser.name}</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>권한/상태 변경 - {editUser.name}</DialogTitle>
+            </DialogHeader>
             <div className="space-y-4">
               <div>
                 <p className="text-xs text-muted-foreground mb-2">역할 변경</p>
-                <Select defaultValue={editUser.role} onValueChange={(v) => updateRoleMutation.mutate({ userId: editUser.id, role: v as any })}>
-                  <SelectTrigger className="min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
+                <Select
+                  defaultValue={editUser.role}
+                  onValueChange={v =>
+                    updateRoleMutation.mutate({
+                      userId: editUser.id,
+                      role: v as any,
+                    })
+                  }
+                >
+                  <SelectTrigger className="min-h-12 md:h-9 md:min-h-9">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="branch_admin">지점장</SelectItem>
                     <SelectItem value="sub_branch_admin">부지점장</SelectItem>
@@ -552,9 +850,21 @@ export default function UserManagement() {
                 </Select>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground mb-2">계정 상태 변경</p>
-                <Select defaultValue={(editUser as any).accountStatus ?? "active"} onValueChange={(v) => updateAccountStatusMutation.mutate({ userId: editUser.id, accountStatus: v as any })}>
-                  <SelectTrigger className="min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
+                <p className="text-xs text-muted-foreground mb-2">
+                  계정 상태 변경
+                </p>
+                <Select
+                  defaultValue={(editUser as any).accountStatus ?? "active"}
+                  onValueChange={v =>
+                    updateAccountStatusMutation.mutate({
+                      userId: editUser.id,
+                      accountStatus: v as any,
+                    })
+                  }
+                >
+                  <SelectTrigger className="min-h-12 md:h-9 md:min-h-9">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="active">활성</SelectItem>
                     <SelectItem value="inactive">비활성</SelectItem>
@@ -562,7 +872,14 @@ export default function UserManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <Button variant="outline" size="sm" className="min-h-12 w-full md:min-h-8" onClick={() => setEditUser(null)}>닫기</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-12 w-full md:min-h-8"
+                onClick={() => setEditUser(null)}
+              >
+                닫기
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -571,22 +888,44 @@ export default function UserManagement() {
       {forceLogoutUser && (
         <Dialog open={true} onOpenChange={() => setForceLogoutUser(null)}>
           <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <DialogHeader><DialogTitle>사용자 강제 로그아웃</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>사용자 강제 로그아웃</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {forceLogoutUser.name} 사용자의 현재 세션을 무효화합니다. 사용자는 다시 Google 로그인을 해야 합니다.
+                {forceLogoutUser.name} 사용자의 현재 세션을 무효화합니다.
+                사용자는 다시 Google 로그인을 해야 합니다.
               </p>
               <div>
                 <Label className="text-xs">사유 *</Label>
-                <Textarea value={forceLogoutReason} onChange={(e) => setForceLogoutReason(e.target.value)} rows={3} className="mt-1 min-h-24" />
+                <Textarea
+                  value={forceLogoutReason}
+                  onChange={e => setForceLogoutReason(e.target.value)}
+                  rows={3}
+                  className="mt-1 min-h-24"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={() => setForceLogoutUser(null)}>취소</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-12 md:min-h-8"
+                  onClick={() => setForceLogoutUser(null)}
+                >
+                  취소
+                </Button>
                 <Button
                   size="sm"
                   className="min-h-12 md:min-h-8"
-                  disabled={!forceLogoutReason.trim() || forceLogoutMutation.isPending}
-                  onClick={() => forceLogoutMutation.mutate({ userId: forceLogoutUser.id, reason: forceLogoutReason.trim() })}
+                  disabled={
+                    !forceLogoutReason.trim() || forceLogoutMutation.isPending
+                  }
+                  onClick={() =>
+                    forceLogoutMutation.mutate({
+                      userId: forceLogoutUser.id,
+                      reason: forceLogoutReason.trim(),
+                    })
+                  }
                 >
                   강제 로그아웃
                 </Button>
@@ -599,26 +938,54 @@ export default function UserManagement() {
       {allLogoutOpen && (
         <Dialog open={true} onOpenChange={() => setAllLogoutOpen(false)}>
           <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <DialogHeader><DialogTitle>전체 사용자 강제 로그아웃</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>전체 사용자 강제 로그아웃</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                모든 사용자의 세션을 무효화합니다. 현재 접속 중인 사용자도 다시 로그인해야 할 수 있습니다.
+                모든 사용자의 세션을 무효화합니다. 현재 접속 중인 사용자도 다시
+                로그인해야 할 수 있습니다.
               </p>
               <div>
                 <Label className="text-xs">사유 *</Label>
-                <Textarea value={allLogoutReason} onChange={(e) => setAllLogoutReason(e.target.value)} rows={3} className="mt-1 min-h-24" />
+                <Textarea
+                  value={allLogoutReason}
+                  onChange={e => setAllLogoutReason(e.target.value)}
+                  rows={3}
+                  className="mt-1 min-h-24"
+                />
               </div>
               <div>
                 <Label className="text-xs">확인 문구: 전체로그아웃</Label>
-                <Input value={allLogoutConfirm} onChange={(e) => setAllLogoutConfirm(e.target.value)} className="mt-1 min-h-12 md:h-9 md:min-h-9" />
+                <Input
+                  value={allLogoutConfirm}
+                  onChange={e => setAllLogoutConfirm(e.target.value)}
+                  className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={() => setAllLogoutOpen(false)}>취소</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-12 md:min-h-8"
+                  onClick={() => setAllLogoutOpen(false)}
+                >
+                  취소
+                </Button>
                 <Button
                   size="sm"
                   className="min-h-12 md:min-h-8"
-                  disabled={!allLogoutReason.trim() || allLogoutConfirm !== "전체로그아웃" || forceLogoutAllMutation.isPending}
-                  onClick={() => forceLogoutAllMutation.mutate({ reason: allLogoutReason.trim(), confirmText: allLogoutConfirm })}
+                  disabled={
+                    !allLogoutReason.trim() ||
+                    allLogoutConfirm !== "전체로그아웃" ||
+                    forceLogoutAllMutation.isPending
+                  }
+                  onClick={() =>
+                    forceLogoutAllMutation.mutate({
+                      reason: allLogoutReason.trim(),
+                      confirmText: allLogoutConfirm,
+                    })
+                  }
                 >
                   전체 로그아웃
                 </Button>
@@ -631,26 +998,55 @@ export default function UserManagement() {
       {oauthResetUser && (
         <Dialog open={true} onOpenChange={() => setOauthResetUser(null)}>
           <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <DialogHeader><DialogTitle>OAuth 연결 초기화</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>OAuth 연결 초기화</DialogTitle>
+            </DialogHeader>
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                {oauthResetUser.name} 사용자의 Google 계정 연결을 초기화합니다. 권한과 계정 상태는 변경하지 않습니다.
+                {oauthResetUser.name} 사용자의 Google 계정 연결을 초기화합니다.
+                권한과 계정 상태는 변경하지 않습니다.
               </p>
               <div>
                 <Label className="text-xs">사유 *</Label>
-                <Textarea value={oauthResetReason} onChange={(e) => setOauthResetReason(e.target.value)} rows={3} className="mt-1 min-h-24" />
+                <Textarea
+                  value={oauthResetReason}
+                  onChange={e => setOauthResetReason(e.target.value)}
+                  rows={3}
+                  className="mt-1 min-h-24"
+                />
               </div>
               <div>
                 <Label className="text-xs">확인 문구: OAuth초기화</Label>
-                <Input value={oauthResetConfirm} onChange={(e) => setOauthResetConfirm(e.target.value)} className="mt-1 min-h-12 md:h-9 md:min-h-9" />
+                <Input
+                  value={oauthResetConfirm}
+                  onChange={e => setOauthResetConfirm(e.target.value)}
+                  className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={() => setOauthResetUser(null)}>취소</Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-12 md:min-h-8"
+                  onClick={() => setOauthResetUser(null)}
+                >
+                  취소
+                </Button>
                 <Button
                   size="sm"
                   className="min-h-12 md:min-h-8"
-                  disabled={!oauthResetReason.trim() || oauthResetConfirm !== "OAuth초기화" || resetOAuthMutation.isPending}
-                  onClick={() => resetOAuthMutation.mutate({ userId: oauthResetUser.id, reason: oauthResetReason.trim(), confirmText: oauthResetConfirm })}
+                  disabled={
+                    !oauthResetReason.trim() ||
+                    oauthResetConfirm !== "OAuth초기화" ||
+                    resetOAuthMutation.isPending
+                  }
+                  onClick={() =>
+                    resetOAuthMutation.mutate({
+                      userId: oauthResetUser.id,
+                      reason: oauthResetReason.trim(),
+                      confirmText: oauthResetConfirm,
+                    })
+                  }
                 >
                   OAuth 초기화
                 </Button>
@@ -663,24 +1059,40 @@ export default function UserManagement() {
   );
 }
 
-function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }: {
-  teams: any[]; subBranchAdmins: any[];
-  onClose: () => void; onSubmit: (data: any) => void; loading: boolean;
+function CreateUserModal({
+  teams,
+  subBranchAdmins,
+  onClose,
+  onSubmit,
+  loading,
+}: {
+  teams: any[];
+  subBranchAdmins: any[];
+  onClose: () => void;
+  onSubmit: (data: any) => void;
+  loading: boolean;
 }) {
   const [form, setForm] = useState({
     name: "",
     email: "",
     phone: "",
     memo: "",
-    role: "member" as "branch_admin" | "sub_branch_admin" | "team_leader" | "member",
+    role: "member" as
+      | "branch_admin"
+      | "sub_branch_admin"
+      | "team_leader"
+      | "member",
     accountStatus: "active" as "active" | "inactive" | "resigned",
     teamId: "none",
     subBranchAdminId: "none",
   });
 
   const handleTeamChange = (teamId: string) => {
-    const team = teams.find((t) => t.id === Number(teamId));
-    const autoSubBranchAdminId = team && (team as any).subBranchAdminId ? String((team as any).subBranchAdminId) : "none";
+    const team = teams.find(t => t.id === Number(teamId));
+    const autoSubBranchAdminId =
+      team && (team as any).subBranchAdminId
+        ? String((team as any).subBranchAdminId)
+        : "none";
     setForm({ ...form, teamId, subBranchAdminId: autoSubBranchAdminId });
   };
 
@@ -697,31 +1109,56 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
       role: form.role,
       accountStatus: form.accountStatus,
       teamId: form.teamId !== "none" ? Number(form.teamId) : null,
-      subBranchAdminId: form.subBranchAdminId !== "none" ? Number(form.subBranchAdminId) : null,
+      subBranchAdminId:
+        form.subBranchAdminId !== "none" ? Number(form.subBranchAdminId) : null,
     });
   };
 
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <DialogHeader><DialogTitle>사용자 추가</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>사용자 추가</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div>
             <Label className="text-xs">이름 *</Label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" placeholder="홍길동" />
+            <Input
+              value={form.name}
+              onChange={e => setForm({ ...form, name: e.target.value })}
+              className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              placeholder="홍길동"
+            />
           </div>
           <div>
             <Label className="text-xs">이메일 * (로그인 시 매핑 기준)</Label>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" placeholder="user@example.com" />
+            <Input
+              type="email"
+              value={form.email}
+              onChange={e => setForm({ ...form, email: e.target.value })}
+              className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              placeholder="user@example.com"
+            />
           </div>
           <div>
             <Label className="text-xs">연락처</Label>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="mt-1 min-h-12 md:h-9 md:min-h-9" placeholder="010-0000-0000" maxLength={20} />
+            <Input
+              value={form.phone}
+              onChange={e => setForm({ ...form, phone: e.target.value })}
+              className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              placeholder="010-0000-0000"
+              maxLength={20}
+            />
           </div>
           <div>
             <Label className="text-xs">계정 상태</Label>
-            <Select value={form.accountStatus} onValueChange={(v) => setForm({ ...form, accountStatus: v as any })}>
-              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
+            <Select
+              value={form.accountStatus}
+              onValueChange={v => setForm({ ...form, accountStatus: v as any })}
+            >
+              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">활성</SelectItem>
                 <SelectItem value="inactive">비활성</SelectItem>
@@ -730,8 +1167,20 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
           </div>
           <div>
             <Label className="text-xs">역할</Label>
-            <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as any, teamId: "none", subBranchAdminId: "none" })}>
-              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue /></SelectTrigger>
+            <Select
+              value={form.role}
+              onValueChange={v =>
+                setForm({
+                  ...form,
+                  role: v as any,
+                  teamId: "none",
+                  subBranchAdminId: "none",
+                })
+              }
+            >
+              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="branch_admin">지점장</SelectItem>
                 <SelectItem value="sub_branch_admin">부지점장</SelectItem>
@@ -744,22 +1193,41 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
             <div>
               <Label className="text-xs">소속 팀 (선택)</Label>
               <Select value={form.teamId} onValueChange={handleTeamChange}>
-                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue placeholder="팀 없음" /></SelectTrigger>
+                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                  <SelectValue placeholder="팀 없음" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">팀 없음 (미배정)</SelectItem>
-                  {teams.map((t) => <SelectItem key={t.id} value={String(t.id)}>{t.name}</SelectItem>)}
+                  {teams.map(t => (
+                    <SelectItem key={t.id} value={String(t.id)}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           )}
           {showSubBranch && (
             <div>
-              <Label className="text-xs">소속 부지점장 {form.teamId !== "none" ? "(팀 선택 시 자동 설정)" : "(선택)"}</Label>
-              <Select value={form.subBranchAdminId} onValueChange={(v) => setForm({ ...form, subBranchAdminId: v })} disabled={form.teamId !== "none"}>
-                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9"><SelectValue placeholder="미배정" /></SelectTrigger>
+              <Label className="text-xs">
+                소속 부지점장{" "}
+                {form.teamId !== "none" ? "(팀 선택 시 자동 설정)" : "(선택)"}
+              </Label>
+              <Select
+                value={form.subBranchAdminId}
+                onValueChange={v => setForm({ ...form, subBranchAdminId: v })}
+                disabled={form.teamId !== "none"}
+              >
+                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                  <SelectValue placeholder="미배정" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">미배정</SelectItem>
-                  {subBranchAdmins.map((u) => <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>)}
+                  {subBranchAdmins.map(u => (
+                    <SelectItem key={u.id} value={String(u.id)}>
+                      {u.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -768,19 +1236,35 @@ function CreateUserModal({ teams, subBranchAdmins, onClose, onSubmit, loading }:
             <Label className="text-xs">메모 (선택)</Label>
             <Textarea
               value={form.memo}
-              onChange={(e) => setForm({ ...form, memo: e.target.value })}
+              onChange={e => setForm({ ...form, memo: e.target.value })}
               className="mt-1 min-h-24 resize-none text-sm"
               rows={2}
               placeholder="내부 메모 (선택)"
             />
-            <p className="text-[10px] text-muted-foreground mt-1">⚠️ 메모에는 주민번호, 민감 병력, 금융 비밀번호 등 민감정보를 입력하지 마세요.</p>
+            <p className="text-[10px] text-muted-foreground mt-1">
+              ⚠️ 메모에는 주민번호, 민감 병력, 금융 비밀번호 등 민감정보를
+              입력하지 마세요.
+            </p>
           </div>
           <p className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
-            ℹ️ 사용자는 이메일로 로그인 시 자동으로 이 계정에 연결됩니다. 로그인 전까지 "초대됨" 상태로 표시됩니다.
+            ℹ️ 사용자는 이메일로 로그인 시 자동으로 이 계정에 연결됩니다. 로그인
+            전까지 "초대됨" 상태로 표시됩니다.
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <Button variant="outline" size="sm" className="min-h-12 md:min-h-8" onClick={onClose}>취소</Button>
-            <Button size="sm" className="min-h-12 md:min-h-8" disabled={!form.name || !form.email || loading} onClick={handleSubmit}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-12 md:min-h-8"
+              onClick={onClose}
+            >
+              취소
+            </Button>
+            <Button
+              size="sm"
+              className="min-h-12 md:min-h-8"
+              disabled={!form.name || !form.email || loading}
+              onClick={handleSubmit}
+            >
               {loading ? "추가 중..." : "사용자 추가"}
             </Button>
           </div>

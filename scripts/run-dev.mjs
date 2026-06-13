@@ -23,4 +23,4 @@ const child = spawn(process.execPath, childArgs, {
   env: { ...process.env, NODE_ENV: "development" },
 });
 
-child.on("exit", (code) => process.exit(code ?? 0));
+child.on("exit", code => process.exit(code ?? 0));

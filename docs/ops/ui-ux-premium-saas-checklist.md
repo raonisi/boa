@@ -15,6 +15,7 @@ BOA CRM is an internal insurance branch CRM. Premium SaaS quality means practica
 ## Practical Insurance Branch Fit
 
 Screens should support:
+
 - customer lookup
 - consultation preparation
 - contract review
@@ -28,6 +29,7 @@ Do not hide essential operational context behind excessive clicks.
 ## Mobile Usability
 
 Check:
+
 - no horizontal scrolling in normal workflows
 - usable touch targets
 - reachable bottom navigation and quick actions
@@ -39,6 +41,7 @@ Check:
 ## Dashboard Clarity
 
 The dashboard should answer:
+
 - What needs attention today?
 - Which customer or work item is next?
 - What is urgent?
@@ -48,6 +51,7 @@ The dashboard should answer:
 ## Tables, Filters, Search, Bulk Actions
 
 Required:
+
 - visible filter state
 - useful empty state
 - loading state
@@ -66,6 +70,7 @@ Required:
 ## Accessibility Basics
 
 Check:
+
 - keyboard-reachable controls
 - visible focus where relevant
 - sufficient color contrast
@@ -83,6 +88,7 @@ Check:
 ## Evidence Required
 
 For UI/UX approval, include:
+
 - desktop screenshot or browser evidence
 - mobile screenshot or mobile viewport evidence
 - tested route names

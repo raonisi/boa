@@ -5,7 +5,9 @@ import { registerMobileRoutes } from "./mobileRoutes";
 import { sdk } from "./_core/sdk";
 import { appRouter } from "./routers";
 
-function testUser(accountStatus: "active" | "inactive" | "resigned" = "active") {
+function testUser(
+  accountStatus: "active" | "inactive" | "resigned" = "active"
+) {
   return {
     id: 7,
     openId: `test-${accountStatus}`,
@@ -27,16 +29,17 @@ async function withMobileServer<T>(handler: (baseUrl: string) => Promise<T>) {
   const app = express();
   app.use(express.json());
   registerMobileRoutes(app);
-  const server: Server = await new Promise((resolve) => {
+  const server: Server = await new Promise(resolve => {
     const listening = app.listen(0, "127.0.0.1", () => resolve(listening));
   });
   try {
     const address = server.address();
-    if (!address || typeof address === "string") throw new Error("Missing test server address");
+    if (!address || typeof address === "string")
+      throw new Error("Missing test server address");
     return await handler(`http://127.0.0.1:${address.port}`);
   } finally {
     await new Promise<void>((resolve, reject) => {
-      server.close((error) => error ? reject(error) : resolve());
+      server.close(error => (error ? reject(error) : resolve()));
     });
   }
 }
@@ -47,7 +50,7 @@ afterEach(() => {
 
 describe("mobile push preferences", () => {
   it("requires authentication for preference reads", async () => {
-    await withMobileServer(async (baseUrl) => {
+    await withMobileServer(async baseUrl => {
       const response = await fetch(`${baseUrl}/api/mobile/push-preferences`);
       const body = await response.json();
 
@@ -59,12 +62,15 @@ describe("mobile push preferences", () => {
 
 describe("mobile contract create", () => {
   it("rejects invalid customer id before auth", async () => {
-    await withMobileServer(async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/mobile/customers/not-a-number/contracts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company: "[TEST] insurer" }),
-      });
+    await withMobileServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/mobile/customers/not-a-number/contracts`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ company: "[TEST] insurer" }),
+        }
+      );
       const body = await response.json();
 
       expect(response.status).toBe(400);
@@ -75,17 +81,19 @@ describe("mobile contract create", () => {
 
 describe("mobile customers search", () => {
   it("forwards search query to scoped customers.list", async () => {
-    const listMock = vi.fn().mockResolvedValue([
-      { id: 101, name: "[TEST] Alpha", consultStatus: "미상담" },
-    ]);
+    const listMock = vi
+      .fn()
+      .mockResolvedValue([
+        { id: 101, name: "[TEST] Alpha", consultStatus: "미상담" },
+      ]);
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
     vi.spyOn(appRouter, "createCaller").mockReturnValue({
       customers: { list: listMock },
     } as ReturnType<typeof appRouter.createCaller>);
 
-    await withMobileServer(async (baseUrl) => {
+    await withMobileServer(async baseUrl => {
       const response = await fetch(
-        `${baseUrl}/api/mobile/customers?search=${encodeURIComponent("[TEST] Alpha")}&limit=10`,
+        `${baseUrl}/api/mobile/customers?search=${encodeURIComponent("[TEST] Alpha")}&limit=10`
       );
       const body = await response.json();
 
@@ -98,8 +106,10 @@ describe("mobile customers search", () => {
   it("rejects overlong search query", async () => {
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
 
-    await withMobileServer(async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/mobile/customers?search=${"x".repeat(101)}`);
+    await withMobileServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/mobile/customers?search=${"x".repeat(101)}`
+      );
       const body = await response.json();
       expect(response.status).toBe(400);
       expect(body).toEqual({ error: "Invalid search query" });
@@ -110,16 +120,28 @@ describe("mobile customers search", () => {
 describe("mobile contracts search", () => {
   it("filters scoped contracts before pagination", async () => {
     const listMock = vi.fn().mockResolvedValue([
-      { id: 1, productName: "[TEST] Alpha Plan", company: "Insurer A", contractStatus: "유지" },
-      { id: 2, productName: "[TEST] Beta Plan", company: "Insurer B", contractStatus: "유지" },
+      {
+        id: 1,
+        productName: "[TEST] Alpha Plan",
+        company: "Insurer A",
+        contractStatus: "유지",
+      },
+      {
+        id: 2,
+        productName: "[TEST] Beta Plan",
+        company: "Insurer B",
+        contractStatus: "유지",
+      },
     ]);
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
     vi.spyOn(appRouter, "createCaller").mockReturnValue({
       contracts: { list: listMock },
     } as ReturnType<typeof appRouter.createCaller>);
 
-    await withMobileServer(async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/mobile/contracts?search=beta&limit=10`);
+    await withMobileServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/mobile/contracts?search=beta&limit=10`
+      );
       const body = await response.json();
 
       expect(response.status).toBe(200);
@@ -142,14 +164,17 @@ describe("mobile schedules scope", () => {
       schedules: { list: listMock },
     } as ReturnType<typeof appRouter.createCaller>);
 
-    await withMobileServer(async (baseUrl) => {
+    await withMobileServer(async baseUrl => {
       const response = await fetch(
-        `${baseUrl}/api/mobile/schedules?viewMode=user&ownerUserId=12`,
+        `${baseUrl}/api/mobile/schedules?viewMode=user&ownerUserId=12`
       );
       const body = await response.json();
 
       expect(response.status).toBe(200);
-      expect(listMock).toHaveBeenCalledWith({ viewMode: "user", ownerUserId: 12 });
+      expect(listMock).toHaveBeenCalledWith({
+        viewMode: "user",
+        ownerUserId: 12,
+      });
       expect(body.items).toHaveLength(1);
       expect(body.users).toEqual([]);
     });
@@ -166,7 +191,7 @@ describe("mobile schedules scope", () => {
       schedules: { list: listMock },
     } as ReturnType<typeof appRouter.createCaller>);
 
-    await withMobileServer(async (baseUrl) => {
+    await withMobileServer(async baseUrl => {
       const response = await fetch(`${baseUrl}/api/mobile/schedules`);
       expect(response.status).toBe(200);
       expect(listMock).toHaveBeenCalledWith({ viewMode: "mine" });
@@ -178,24 +203,28 @@ describe("mobile auth.me", () => {
   it("returns a serialized active user", async () => {
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
 
-    await withMobileServer(async (baseUrl) => {
+    await withMobileServer(async baseUrl => {
       const response = await fetch(`${baseUrl}/api/mobile/auth/me`);
       const body = await response.json();
 
       expect(response.status).toBe(200);
-      expect(body.user).toEqual(expect.objectContaining({
-        id: 7,
-        role: "member",
-        accountStatus: "active",
-      }));
+      expect(body.user).toEqual(
+        expect.objectContaining({
+          id: 7,
+          role: "member",
+          accountStatus: "active",
+        })
+      );
     });
   });
 
   it("does not return user payloads when stale inactive or resigned sessions are rejected", async () => {
     for (const accountStatus of ["inactive", "resigned"] as const) {
-      vi.spyOn(sdk, "authenticateRequest").mockRejectedValueOnce(new Error("Account is inactive"));
+      vi.spyOn(sdk, "authenticateRequest").mockRejectedValueOnce(
+        new Error("Account is inactive")
+      );
 
-      await withMobileServer(async (baseUrl) => {
+      await withMobileServer(async baseUrl => {
         const response = await fetch(`${baseUrl}/api/mobile/auth/me`);
         const body = await response.json();
 

@@ -18,9 +18,20 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }).unique(),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["branch_admin", "sub_branch_admin", "team_leader", "member"]).default("member").notNull(),
-  accountStatus: mysqlEnum("accountStatus", ["active", "inactive", "resigned"]).default("active").notNull(),
-  loginStatus: mysqlEnum("loginStatus", ["invited", "linked"]).default("linked"),
+  role: mysqlEnum("role", [
+    "branch_admin",
+    "sub_branch_admin",
+    "team_leader",
+    "member",
+  ])
+    .default("member")
+    .notNull(),
+  accountStatus: mysqlEnum("accountStatus", ["active", "inactive", "resigned"])
+    .default("active")
+    .notNull(),
+  loginStatus: mysqlEnum("loginStatus", ["invited", "linked"]).default(
+    "linked"
+  ),
   phone: varchar("phone", { length: 20 }),
   memo: text("memo"),
   parentUserId: int("parentUserId"),
@@ -34,15 +45,22 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
-export const userPermissions = mysqlTable("user_permissions", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  permission: varchar("permission", { length: 100 }).notNull(),
-  grantedBy: int("grantedBy"),
-  grantedAt: timestamp("grantedAt").defaultNow().notNull(),
-}, (table) => ({
-  uniqueUserPermission: unique("uq_user_permissions_user_permission").on(table.userId, table.permission),
-}));
+export const userPermissions = mysqlTable(
+  "user_permissions",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    permission: varchar("permission", { length: 100 }).notNull(),
+    grantedBy: int("grantedBy"),
+    grantedAt: timestamp("grantedAt").defaultNow().notNull(),
+  },
+  table => ({
+    uniqueUserPermission: unique("uq_user_permissions_user_permission").on(
+      table.userId,
+      table.permission
+    ),
+  })
+);
 export type UserPermission = typeof userPermissions.$inferSelect;
 
 // ─── Teams ───────────────────────────────────────────────────────────────────
@@ -87,15 +105,33 @@ export const customers = mysqlTable("customers", {
   assignedTeamId: int("assignedTeamId"),
   assignedAt: timestamp("assignedAt"),
   subBranchAdminId: int("subBranchAdminId"),
-  assignmentStatus: mysqlEnum("assignmentStatus", ["unassigned", "assigned_to_sub_branch", "assigned_to_agent"]).default("unassigned").notNull(),
+  assignmentStatus: mysqlEnum("assignmentStatus", [
+    "unassigned",
+    "assigned_to_sub_branch",
+    "assigned_to_agent",
+  ])
+    .default("unassigned")
+    .notNull(),
   importBatchId: varchar("importBatchId", { length: 100 }),
   importedBy: int("importedBy"),
   importedAt: timestamp("importedAt"),
   consultStatus: mysqlEnum("consultStatus", [
-    "미상담", "부재", "통화완료", "상담예정", "설계중",
-    "계약", "보류", "거절", "해지관리", "재상담필요",
-  ]).default("미상담").notNull(),
-  priority: mysqlEnum("priority", ["A", "B", "C", "D", "unclassified"]).default("unclassified").notNull(),
+    "미상담",
+    "부재",
+    "통화완료",
+    "상담예정",
+    "설계중",
+    "계약",
+    "보류",
+    "거절",
+    "해지관리",
+    "재상담필요",
+  ])
+    .default("미상담")
+    .notNull(),
+  priority: mysqlEnum("priority", ["A", "B", "C", "D", "unclassified"])
+    .default("unclassified")
+    .notNull(),
   customerTags: text("customerTags"),
   nextAction: varchar("nextAction", { length: 100 }),
   memo: text("memo"),
@@ -145,8 +181,16 @@ export const consultations = mysqlTable("consultations", {
   customerId: int("customerId").notNull(),
   agentId: int("agentId").notNull(),
   status: mysqlEnum("status", [
-    "미상담", "부재", "통화완료", "상담예정", "설계중",
-    "계약", "보류", "거절", "해지관리", "재상담필요",
+    "미상담",
+    "부재",
+    "통화완료",
+    "상담예정",
+    "설계중",
+    "계약",
+    "보류",
+    "거절",
+    "해지관리",
+    "재상담필요",
   ]).notNull(),
   consultationType: varchar("consultationType", { length: 100 }),
   customerNeed: varchar("customerNeed", { length: 100 }),
@@ -167,7 +211,17 @@ export const consultationChecklists = mysqlTable("consultation_checklists", {
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description"),
   phase: mysqlEnum("phase", ["before", "during", "after"]).notNull(),
-  category: mysqlEnum("category", ["basic", "needs", "coverage", "premium", "family", "follow_up", "compliance"]).default("basic").notNull(),
+  category: mysqlEnum("category", [
+    "basic",
+    "needs",
+    "coverage",
+    "premium",
+    "family",
+    "follow_up",
+    "compliance",
+  ])
+    .default("basic")
+    .notNull(),
   sortOrder: int("sortOrder").default(0).notNull(),
   isRequired: boolean("isRequired").default(false).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
@@ -178,31 +232,47 @@ export const consultationChecklists = mysqlTable("consultation_checklists", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type ConsultationChecklist = typeof consultationChecklists.$inferSelect;
-export type InsertConsultationChecklist = typeof consultationChecklists.$inferInsert;
+export type InsertConsultationChecklist =
+  typeof consultationChecklists.$inferInsert;
 
-export const consultationCheckResults = mysqlTable("consultation_check_results", {
-  id: int("id").autoincrement().primaryKey(),
-  customerId: int("customerId").notNull(),
-  checklistId: int("checklistId").notNull(),
-  consultationId: int("consultationId"),
-  checked: boolean("checked").default(false).notNull(),
-  checkedAt: timestamp("checkedAt"),
-  checkedBy: int("checkedBy"),
-  memo: text("memo"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
-export type ConsultationCheckResult = typeof consultationCheckResults.$inferSelect;
-export type InsertConsultationCheckResult = typeof consultationCheckResults.$inferInsert;
+export const consultationCheckResults = mysqlTable(
+  "consultation_check_results",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    customerId: int("customerId").notNull(),
+    checklistId: int("checklistId").notNull(),
+    consultationId: int("consultationId"),
+    checked: boolean("checked").default(false).notNull(),
+    checkedAt: timestamp("checkedAt"),
+    checkedBy: int("checkedBy"),
+    memo: text("memo"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  }
+);
+export type ConsultationCheckResult =
+  typeof consultationCheckResults.$inferSelect;
+export type InsertConsultationCheckResult =
+  typeof consultationCheckResults.$inferInsert;
 
 export const messageTemplates = mysqlTable("message_templates", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 200 }).notNull(),
   situation: mysqlEnum("situation", [
-    "missed_call", "proposal_follow_up", "pre_contract_check", "post_contract_care", "long_unmanaged",
-    "birthday", "follow_up_schedule", "document_request", "after_consultation", "general_check",
+    "missed_call",
+    "proposal_follow_up",
+    "pre_contract_check",
+    "post_contract_care",
+    "long_unmanaged",
+    "birthday",
+    "follow_up_schedule",
+    "document_request",
+    "after_consultation",
+    "general_check",
   ]).notNull(),
-  channel: mysqlEnum("channel", ["kakao", "sms", "both"]).default("both").notNull(),
+  channel: mysqlEnum("channel", ["kakao", "sms", "both"])
+    .default("both")
+    .notNull(),
   body: text("body").notNull(),
   complianceNote: text("complianceNote"),
   isActive: boolean("isActive").default(true).notNull(),
@@ -218,10 +288,21 @@ export type InsertMessageTemplate = typeof messageTemplates.$inferInsert;
 export const customerHandoffNotes = mysqlTable("customer_handoff_notes", {
   id: int("id").autoincrement().primaryKey(),
   customerId: int("customerId").notNull(),
-  noteType: mysqlEnum("noteType", ["handoff", "caution", "approach", "avoid", "relationship", "next_action"]).default("handoff").notNull(),
+  noteType: mysqlEnum("noteType", [
+    "handoff",
+    "caution",
+    "approach",
+    "avoid",
+    "relationship",
+    "next_action",
+  ])
+    .default("handoff")
+    .notNull(),
   title: varchar("title", { length: 200 }).notNull(),
   body: text("body").notNull(),
-  visibility: mysqlEnum("visibility", ["internal"]).default("internal").notNull(),
+  visibility: mysqlEnum("visibility", ["internal"])
+    .default("internal")
+    .notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   createdBy: int("createdBy").notNull(),
   updatedBy: int("updatedBy"),
@@ -230,14 +311,23 @@ export const customerHandoffNotes = mysqlTable("customer_handoff_notes", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type CustomerHandoffNote = typeof customerHandoffNotes.$inferSelect;
-export type InsertCustomerHandoffNote = typeof customerHandoffNotes.$inferInsert;
+export type InsertCustomerHandoffNote =
+  typeof customerHandoffNotes.$inferInsert;
 
 export const consultationScripts = mysqlTable("consultation_scripts", {
   id: int("id").autoincrement().primaryKey(),
   title: varchar("title", { length: 200 }).notNull(),
   category: mysqlEnum("category", [
-    "first_call", "missed_call", "premium_burden", "coverage_concern", "family_responsibility",
-    "surrender_risk", "proposal_follow_up", "post_contract_care", "long_unmanaged", "general_check",
+    "first_call",
+    "missed_call",
+    "premium_burden",
+    "coverage_concern",
+    "family_responsibility",
+    "surrender_risk",
+    "proposal_follow_up",
+    "post_contract_care",
+    "long_unmanaged",
+    "general_check",
   ]).notNull(),
   scriptBody: text("scriptBody").notNull(),
   complianceNote: text("complianceNote"),
@@ -262,8 +352,19 @@ export const contracts = mysqlTable("contracts", {
   productGroup: varchar("productGroup", { length: 100 }),
   contractDate: date("contractDate"),
   monthlyPremium: int("monthlyPremium"),
-  paymentStatus: mysqlEnum("paymentStatus", ["정상", "미납", "실효", "해지"]).default("정상"),
-  contractStatus: mysqlEnum("contractStatus", ["청약", "성립", "철회", "유지", "해지"]).default("청약"),
+  paymentStatus: mysqlEnum("paymentStatus", [
+    "정상",
+    "미납",
+    "실효",
+    "해지",
+  ]).default("정상"),
+  contractStatus: mysqlEnum("contractStatus", [
+    "청약",
+    "성립",
+    "철회",
+    "유지",
+    "해지",
+  ]).default("청약"),
   memo: text("memo"),
   isActive: boolean("isActive").default(true).notNull(),
   deletedAt: timestamp("deletedAt"),
@@ -283,8 +384,17 @@ export const importBatches = mysqlTable("import_batches", {
   successRows: int("successRows").default(0).notNull(),
   failedRows: int("failedRows").default(0).notNull(),
   duplicateRows: int("duplicateRows").default(0).notNull(),
-  blockedForbiddenColumn: boolean("blockedForbiddenColumn").default(false).notNull(),
-  status: mysqlEnum("status", ["active", "cancelled", "partially_cancelled", "failed"]).default("active").notNull(),
+  blockedForbiddenColumn: boolean("blockedForbiddenColumn")
+    .default(false)
+    .notNull(),
+  status: mysqlEnum("status", [
+    "active",
+    "cancelled",
+    "partially_cancelled",
+    "failed",
+  ])
+    .default("active")
+    .notNull(),
   cancelledBy: int("cancelledBy"),
   cancelledAt: timestamp("cancelledAt"),
   cancelReason: text("cancelReason"),
@@ -296,15 +406,23 @@ export type InsertImportBatch = typeof importBatches.$inferInsert;
 
 export const deleteRequests = mysqlTable("delete_requests", {
   id: int("id").autoincrement().primaryKey(),
-  requestType: mysqlEnum("requestType", ["contract_delete"]).default("contract_delete").notNull(),
-  targetType: mysqlEnum("targetType", ["contract"]).default("contract").notNull(),
+  requestType: mysqlEnum("requestType", ["contract_delete"])
+    .default("contract_delete")
+    .notNull(),
+  targetType: mysqlEnum("targetType", ["contract"])
+    .default("contract")
+    .notNull(),
   targetId: int("targetId").notNull(),
   customerId: int("customerId").notNull(),
   requestedBy: int("requestedBy").notNull(),
   requestReason: varchar("requestReason", { length: 100 }).notNull(),
   requestMemo: text("requestMemo"),
-  expectedImpact: mysqlEnum("expectedImpact", ["performance_exclusion"]).default("performance_exclusion").notNull(),
-  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"]).default("pending").notNull(),
+  expectedImpact: mysqlEnum("expectedImpact", ["performance_exclusion"])
+    .default("performance_exclusion")
+    .notNull(),
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "cancelled"])
+    .default("pending")
+    .notNull(),
   reviewedBy: int("reviewedBy"),
   reviewedAt: timestamp("reviewedAt"),
   reviewComment: text("reviewComment"),
@@ -323,8 +441,27 @@ export const followUps = mysqlTable("follow_ups", {
   subBranchAdminId: int("subBranchAdminId"),
   nextContactDate: timestamp("nextContactDate").notNull(),
   reason: varchar("reason", { length: 200 }).notNull(),
-  nextAction: mysqlEnum("nextAction", ["전화", "카톡", "문자", "방문", "설계안 발송", "계약 확인", "보장분석", "사후관리", "기타"]).default("전화").notNull(),
-  status: mysqlEnum("status", ["scheduled", "completed", "postponed", "cancelled"]).default("scheduled").notNull(),
+  nextAction: mysqlEnum("nextAction", [
+    "전화",
+    "카톡",
+    "문자",
+    "방문",
+    "설계안 발송",
+    "계약 확인",
+    "보장분석",
+    "사후관리",
+    "기타",
+  ])
+    .default("전화")
+    .notNull(),
+  status: mysqlEnum("status", [
+    "scheduled",
+    "completed",
+    "postponed",
+    "cancelled",
+  ])
+    .default("scheduled")
+    .notNull(),
   memo: text("memo"),
   completedAt: timestamp("completedAt"),
   completedBy: int("completedBy"),
@@ -344,10 +481,22 @@ export const schedules = mysqlTable("schedules", {
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description"),
   type: mysqlEnum("type", [
-    "고객상담", "재통화", "계약예정", "보장분석", "해지방어",
-    "팀회의", "교육", "외근", "휴무", "기타",
-  ]).default("기타").notNull(),
-  status: mysqlEnum("status", ["예정", "완료", "취소", "변경", "노쇼", "보류"]).default("예정").notNull(),
+    "고객상담",
+    "재통화",
+    "계약예정",
+    "보장분석",
+    "해지방어",
+    "팀회의",
+    "교육",
+    "외근",
+    "휴무",
+    "기타",
+  ])
+    .default("기타")
+    .notNull(),
+  status: mysqlEnum("status", ["예정", "완료", "취소", "변경", "노쇼", "보류"])
+    .default("예정")
+    .notNull(),
   startTime: timestamp("startTime").notNull(),
   endTime: timestamp("endTime"),
   completedAt: timestamp("completedAt"),
@@ -366,55 +515,95 @@ export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
 
 // ─── Reminders ────────────────────────────────────────────────────────────────
-export const reminders = mysqlTable("reminders", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  type: mysqlEnum("type", [
-    "contract_90", "contract_180", "contract_365",
-    "birthday",
-    "uncontacted_3days", "long_unmanaged_90",
-    "reconsult", "unpaid_lapse",
-    "schedule_1day", "schedule_today", "schedule_1hour", "schedule_incomplete",
-  ]).notNull(),
-  title: varchar("title", { length: 200 }).notNull(),
-  message: text("message").notNull(),
-  relatedType: varchar("relatedType", { length: 50 }),
-  relatedId: int("relatedId"),
-  dueAt: timestamp("dueAt"),
-  isRead: boolean("isRead").default(false).notNull(),
-  isSent: boolean("isSent").default(false).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-},
-(table) => ({
-  uniqueReminder: unique("uq_reminder").on(table.userId, table.type, table.relatedType, table.relatedId, table.dueAt),
-}));
+export const reminders = mysqlTable(
+  "reminders",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    type: mysqlEnum("type", [
+      "contract_90",
+      "contract_180",
+      "contract_365",
+      "birthday",
+      "uncontacted_3days",
+      "long_unmanaged_90",
+      "reconsult",
+      "unpaid_lapse",
+      "schedule_1day",
+      "schedule_today",
+      "schedule_1hour",
+      "schedule_incomplete",
+    ]).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    message: text("message").notNull(),
+    relatedType: varchar("relatedType", { length: 50 }),
+    relatedId: int("relatedId"),
+    dueAt: timestamp("dueAt"),
+    isRead: boolean("isRead").default(false).notNull(),
+    isSent: boolean("isSent").default(false).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    uniqueReminder: unique("uq_reminder").on(
+      table.userId,
+      table.type,
+      table.relatedType,
+      table.relatedId,
+      table.dueAt
+    ),
+  })
+);
 export type Reminder = typeof reminders.$inferSelect;
 export type InsertReminder = typeof reminders.$inferInsert;
 
 // ─── Notifications ────────────────────────────────────────────────────────────
-export const notifications = mysqlTable("notifications", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  type: mysqlEnum("type", [
-    "contract_90", "contract_180", "contract_365",
-    "birthday",
-    "uncontacted_3days", "long_unmanaged_90",
-    "reconsult", "unpaid_lapse",
-    "schedule_1day", "schedule_today", "schedule_1hour", "schedule_incomplete",
-    "customer_assigned", "general",
-  ]).notNull(),
-  title: varchar("title", { length: 200 }).notNull(),
-  message: text("message").notNull(),
-  relatedType: varchar("relatedType", { length: 50 }),
-  relatedId: int("relatedId"),
-  dueAt: timestamp("dueAt"),
-  isRead: boolean("isRead").default(false).notNull(),
-  processStatus: mysqlEnum("processStatus", ["미확인", "확인", "처리완료", "보류"]).default("미확인").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-},
-(table) => ({
-  uniqueNotif: unique("uq_notification").on(table.userId, table.type, table.relatedType, table.relatedId, table.dueAt),
-}));
+export const notifications = mysqlTable(
+  "notifications",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    type: mysqlEnum("type", [
+      "contract_90",
+      "contract_180",
+      "contract_365",
+      "birthday",
+      "uncontacted_3days",
+      "long_unmanaged_90",
+      "reconsult",
+      "unpaid_lapse",
+      "schedule_1day",
+      "schedule_today",
+      "schedule_1hour",
+      "schedule_incomplete",
+      "customer_assigned",
+      "general",
+    ]).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    message: text("message").notNull(),
+    relatedType: varchar("relatedType", { length: 50 }),
+    relatedId: int("relatedId"),
+    dueAt: timestamp("dueAt"),
+    isRead: boolean("isRead").default(false).notNull(),
+    processStatus: mysqlEnum("processStatus", [
+      "미확인",
+      "확인",
+      "처리완료",
+      "보류",
+    ])
+      .default("미확인")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    uniqueNotif: unique("uq_notification").on(
+      table.userId,
+      table.type,
+      table.relatedType,
+      table.relatedId,
+      table.dueAt
+    ),
+  })
+);
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
 
@@ -430,7 +619,10 @@ export const assignmentHistory = mysqlTable("assignment_history", {
   newAgentId: int("newAgentId"),
   assignedBy: int("assignedBy").notNull(),
   assignmentType: mysqlEnum("assignmentType", [
-    "branch_to_sub_branch", "sub_branch_to_agent", "branch_to_agent", "reassignment",
+    "branch_to_sub_branch",
+    "sub_branch_to_agent",
+    "branch_to_agent",
+    "reassignment",
   ]),
   assignmentReason: varchar("assignmentReason", { length: 300 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -444,13 +636,31 @@ export const handoffHistories = mysqlTable("handoff_histories", {
   targetUserId: int("targetUserId").notNull(),
   executedBy: int("executedBy").notNull(),
   reason: varchar("reason", { length: 300 }).notNull(),
-  transferredCustomerCount: int("transferredCustomerCount").default(0).notNull(),
-  transferredContractCount: int("transferredContractCount").default(0).notNull(),
-  transferredFollowUpCount: int("transferredFollowUpCount").default(0).notNull(),
-  transferredScheduleCount: int("transferredScheduleCount").default(0).notNull(),
-  transferredNotificationCount: int("transferredNotificationCount").default(0).notNull(),
-  sourceAccountStatusBefore: mysqlEnum("sourceAccountStatusBefore", ["active", "inactive", "resigned"]).notNull(),
-  sourceAccountStatusAfter: mysqlEnum("sourceAccountStatusAfter", ["active", "inactive", "resigned"]).notNull(),
+  transferredCustomerCount: int("transferredCustomerCount")
+    .default(0)
+    .notNull(),
+  transferredContractCount: int("transferredContractCount")
+    .default(0)
+    .notNull(),
+  transferredFollowUpCount: int("transferredFollowUpCount")
+    .default(0)
+    .notNull(),
+  transferredScheduleCount: int("transferredScheduleCount")
+    .default(0)
+    .notNull(),
+  transferredNotificationCount: int("transferredNotificationCount")
+    .default(0)
+    .notNull(),
+  sourceAccountStatusBefore: mysqlEnum("sourceAccountStatusBefore", [
+    "active",
+    "inactive",
+    "resigned",
+  ]).notNull(),
+  sourceAccountStatusAfter: mysqlEnum("sourceAccountStatusAfter", [
+    "active",
+    "inactive",
+    "resigned",
+  ]).notNull(),
   forceLogoutSource: boolean("forceLogoutSource").default(false).notNull(),
   resetOAuthSource: boolean("resetOAuthSource").default(false).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -462,7 +672,12 @@ export const performanceGoals = mysqlTable("performance_goals", {
   id: int("id").autoincrement().primaryKey(),
   year: int("year").notNull(),
   month: int("month").notNull(),
-  targetType: mysqlEnum("targetType", ["branch", "sub_branch", "team", "user"]).notNull(),
+  targetType: mysqlEnum("targetType", [
+    "branch",
+    "sub_branch",
+    "team",
+    "user",
+  ]).notNull(),
   targetId: int("targetId"),
   contractCountGoal: int("contractCountGoal").default(0).notNull(),
   monthlyPremiumGoal: int("monthlyPremiumGoal").default(0).notNull(),
@@ -507,81 +722,119 @@ export type ActivityLog = typeof activityLogs.$inferSelect;
 export type InsertActivityLog = typeof activityLogs.$inferInsert;
 
 // ─── Device Tokens (FCM 준비) ────────────────────────────────────────────────
-export const userDeviceTokens = mysqlTable("user_device_tokens", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  platform: mysqlEnum("platform", ["android"]).default("android").notNull(),
-  token: varchar("token", { length: 512 }).notNull(),
-  deviceId: varchar("deviceId", { length: 128 }),
-  appVersion: varchar("appVersion", { length: 50 }),
-  deviceModel: varchar("deviceModel", { length: 200 }),
-  osVersion: varchar("osVersion", { length: 100 }),
-  isActive: boolean("isActive").default(true).notNull(),
-  lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  revokedAt: timestamp("revokedAt"),
-},
-(table) => ({
-  uniqueUserToken: unique("uq_user_device_token").on(table.userId, table.token),
-}));
+export const userDeviceTokens = mysqlTable(
+  "user_device_tokens",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    platform: mysqlEnum("platform", ["android"]).default("android").notNull(),
+    token: varchar("token", { length: 512 }).notNull(),
+    deviceId: varchar("deviceId", { length: 128 }),
+    appVersion: varchar("appVersion", { length: 50 }),
+    deviceModel: varchar("deviceModel", { length: 200 }),
+    osVersion: varchar("osVersion", { length: 100 }),
+    isActive: boolean("isActive").default(true).notNull(),
+    lastSeenAt: timestamp("lastSeenAt").defaultNow().notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    revokedAt: timestamp("revokedAt"),
+  },
+  table => ({
+    uniqueUserToken: unique("uq_user_device_token").on(
+      table.userId,
+      table.token
+    ),
+  })
+);
 export type UserDeviceToken = typeof userDeviceTokens.$inferSelect;
 export type InsertUserDeviceToken = typeof userDeviceTokens.$inferInsert;
 
-export const pushNotificationLogs = mysqlTable("push_notification_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  type: varchar("type", { length: 80 }).notNull(),
-  userId: int("userId").notNull(),
-  sourceType: varchar("sourceType", { length: 50 }),
-  sourceId: int("sourceId"),
-  dedupeKey: varchar("dedupeKey", { length: 200 }).notNull(),
-  status: mysqlEnum("status", [
-    "sent",
-    "skipped",
-    "failed",
-    "skipped_no_token",
-    "skipped_disabled",
-    "skipped_quiet_hours",
-    "skipped_missing_config",
-    "duplicate_skipped",
-    "invalid_token_deactivated",
-  ]).default("skipped").notNull(),
-  errorCode: varchar("errorCode", { length: 100 }),
-  sentAt: timestamp("sentAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-},
-(table) => ({
-  uniquePushDedupe: unique("uq_push_notification_dedupe").on(table.dedupeKey),
-}));
+export const pushNotificationLogs = mysqlTable(
+  "push_notification_logs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    type: varchar("type", { length: 80 }).notNull(),
+    userId: int("userId").notNull(),
+    sourceType: varchar("sourceType", { length: 50 }),
+    sourceId: int("sourceId"),
+    dedupeKey: varchar("dedupeKey", { length: 200 }).notNull(),
+    status: mysqlEnum("status", [
+      "sent",
+      "skipped",
+      "failed",
+      "skipped_no_token",
+      "skipped_disabled",
+      "skipped_quiet_hours",
+      "skipped_missing_config",
+      "duplicate_skipped",
+      "invalid_token_deactivated",
+    ])
+      .default("skipped")
+      .notNull(),
+    errorCode: varchar("errorCode", { length: 100 }),
+    sentAt: timestamp("sentAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    uniquePushDedupe: unique("uq_push_notification_dedupe").on(table.dedupeKey),
+  })
+);
 export type PushNotificationLog = typeof pushNotificationLogs.$inferSelect;
-export type InsertPushNotificationLog = typeof pushNotificationLogs.$inferInsert;
+export type InsertPushNotificationLog =
+  typeof pushNotificationLogs.$inferInsert;
 
-export const pushNotificationPreferences = mysqlTable("push_notification_preferences", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("userId").notNull(),
-  followUpTodayEnabled: boolean("followUpTodayEnabled").default(true).notNull(),
-  scheduleReminderEnabled: boolean("scheduleReminderEnabled").default(true).notNull(),
-  deleteRequestEnabled: boolean("deleteRequestEnabled").default(true).notNull(),
-  testNotificationEnabled: boolean("testNotificationEnabled").default(true).notNull(),
-  quietHoursEnabled: boolean("quietHoursEnabled").default(true).notNull(),
-  quietHoursStart: varchar("quietHoursStart", { length: 5 }).default("21:00").notNull(),
-  quietHoursEnd: varchar("quietHoursEnd", { length: 5 }).default("08:00").notNull(),
-  timezone: varchar("timezone", { length: 64 }).default("Asia/Seoul").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-},
-(table) => ({
-  uniquePushPreferenceUser: unique("uq_push_notification_preferences_user").on(table.userId),
-}));
-export type PushNotificationPreference = typeof pushNotificationPreferences.$inferSelect;
-export type InsertPushNotificationPreference = typeof pushNotificationPreferences.$inferInsert;
+export const pushNotificationPreferences = mysqlTable(
+  "push_notification_preferences",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    followUpTodayEnabled: boolean("followUpTodayEnabled")
+      .default(true)
+      .notNull(),
+    scheduleReminderEnabled: boolean("scheduleReminderEnabled")
+      .default(true)
+      .notNull(),
+    deleteRequestEnabled: boolean("deleteRequestEnabled")
+      .default(true)
+      .notNull(),
+    testNotificationEnabled: boolean("testNotificationEnabled")
+      .default(true)
+      .notNull(),
+    quietHoursEnabled: boolean("quietHoursEnabled").default(true).notNull(),
+    quietHoursStart: varchar("quietHoursStart", { length: 5 })
+      .default("21:00")
+      .notNull(),
+    quietHoursEnd: varchar("quietHoursEnd", { length: 5 })
+      .default("08:00")
+      .notNull(),
+    timezone: varchar("timezone", { length: 64 })
+      .default("Asia/Seoul")
+      .notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniquePushPreferenceUser: unique(
+      "uq_push_notification_preferences_user"
+    ).on(table.userId),
+  })
+);
+export type PushNotificationPreference =
+  typeof pushNotificationPreferences.$inferSelect;
+export type InsertPushNotificationPreference =
+  typeof pushNotificationPreferences.$inferInsert;
 
 // ─── Onboarding Checklists ───────────────────────────────────────────────────
 export const onboardingTemplates = mysqlTable("onboarding_templates", {
   id: int("id").autoincrement().primaryKey(),
   name: varchar("name", { length: 200 }).notNull(),
   description: text("description"),
-  targetRole: mysqlEnum("targetRole", ["branch_admin", "sub_branch_admin", "team_leader", "member"]).notNull(),
+  targetRole: mysqlEnum("targetRole", [
+    "branch_admin",
+    "sub_branch_admin",
+    "team_leader",
+    "member",
+  ]).notNull(),
   isActive: boolean("isActive").default(true).notNull(),
   createdBy: int("createdBy").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -599,7 +852,9 @@ export const onboardingTemplateItems = mysqlTable("onboarding_template_items", {
   description: text("description"),
   category: varchar("category", { length: 100 }).notNull(),
   required: boolean("required").default(true).notNull(),
-  requiresManagerApproval: boolean("requiresManagerApproval").default(false).notNull(),
+  requiresManagerApproval: boolean("requiresManagerApproval")
+    .default(false)
+    .notNull(),
   practiceRequired: boolean("practiceRequired").default(false).notNull(),
   relatedMenu: varchar("relatedMenu", { length: 200 }),
   completionCriteria: text("completionCriteria"),
@@ -609,73 +864,128 @@ export const onboardingTemplateItems = mysqlTable("onboarding_template_items", {
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
-export type OnboardingTemplateItem = typeof onboardingTemplateItems.$inferSelect;
-export type InsertOnboardingTemplateItem = typeof onboardingTemplateItems.$inferInsert;
+export type OnboardingTemplateItem =
+  typeof onboardingTemplateItems.$inferSelect;
+export type InsertOnboardingTemplateItem =
+  typeof onboardingTemplateItems.$inferInsert;
 
-export const userOnboardingAssignments = mysqlTable("user_onboarding_assignments", {
-  id: int("id").autoincrement().primaryKey(),
-  targetUserId: int("targetUserId").notNull(),
-  templateId: int("templateId").notNull(),
-  assignedBy: int("assignedBy").notNull(),
-  trainerUserId: int("trainerUserId"),
-  startedAt: timestamp("startedAt").notNull(),
-  dueAt: timestamp("dueAt").notNull(),
-  completedAt: timestamp("completedAt"),
-  status: mysqlEnum("status", ["assigned", "in_progress", "completed", "overdue", "archived"]).default("assigned").notNull(),
-  progressPercent: int("progressPercent").default(0).notNull(),
-  requiredPendingCount: int("requiredPendingCount").default(0).notNull(),
-  approvalPendingCount: int("approvalPendingCount").default(0).notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  archivedAt: timestamp("archivedAt"),
-  archivedBy: int("archivedBy"),
-});
-export type UserOnboardingAssignment = typeof userOnboardingAssignments.$inferSelect;
-export type InsertUserOnboardingAssignment = typeof userOnboardingAssignments.$inferInsert;
+export const userOnboardingAssignments = mysqlTable(
+  "user_onboarding_assignments",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    targetUserId: int("targetUserId").notNull(),
+    templateId: int("templateId").notNull(),
+    assignedBy: int("assignedBy").notNull(),
+    trainerUserId: int("trainerUserId"),
+    startedAt: timestamp("startedAt").notNull(),
+    dueAt: timestamp("dueAt").notNull(),
+    completedAt: timestamp("completedAt"),
+    status: mysqlEnum("status", [
+      "assigned",
+      "in_progress",
+      "completed",
+      "overdue",
+      "archived",
+    ])
+      .default("assigned")
+      .notNull(),
+    progressPercent: int("progressPercent").default(0).notNull(),
+    requiredPendingCount: int("requiredPendingCount").default(0).notNull(),
+    approvalPendingCount: int("approvalPendingCount").default(0).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    archivedAt: timestamp("archivedAt"),
+    archivedBy: int("archivedBy"),
+  }
+);
+export type UserOnboardingAssignment =
+  typeof userOnboardingAssignments.$inferSelect;
+export type InsertUserOnboardingAssignment =
+  typeof userOnboardingAssignments.$inferInsert;
 
-export const userOnboardingItemProgress = mysqlTable("user_onboarding_item_progress", {
-  id: int("id").autoincrement().primaryKey(),
-  assignmentId: int("assignmentId").notNull(),
-  itemId: int("itemId").notNull(),
-  status: mysqlEnum("status", ["pending", "needs_approval", "approved", "rejected", "skipped"]).default("pending").notNull(),
-  completedAt: timestamp("completedAt"),
-  completedBy: int("completedBy"),
-  approvedAt: timestamp("approvedAt"),
-  approvedBy: int("approvedBy"),
-  note: text("note"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-},
-(table) => ({
-  uniqueAssignmentItemProgress: unique("uq_onboarding_assignment_item").on(table.assignmentId, table.itemId),
-}));
-export type UserOnboardingItemProgress = typeof userOnboardingItemProgress.$inferSelect;
-export type InsertUserOnboardingItemProgress = typeof userOnboardingItemProgress.$inferInsert;
+export const userOnboardingItemProgress = mysqlTable(
+  "user_onboarding_item_progress",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    assignmentId: int("assignmentId").notNull(),
+    itemId: int("itemId").notNull(),
+    status: mysqlEnum("status", [
+      "pending",
+      "needs_approval",
+      "approved",
+      "rejected",
+      "skipped",
+    ])
+      .default("pending")
+      .notNull(),
+    completedAt: timestamp("completedAt"),
+    completedBy: int("completedBy"),
+    approvedAt: timestamp("approvedAt"),
+    approvedBy: int("approvedBy"),
+    note: text("note"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueAssignmentItemProgress: unique("uq_onboarding_assignment_item").on(
+      table.assignmentId,
+      table.itemId
+    ),
+  })
+);
+export type UserOnboardingItemProgress =
+  typeof userOnboardingItemProgress.$inferSelect;
+export type InsertUserOnboardingItemProgress =
+  typeof userOnboardingItemProgress.$inferInsert;
 
 // ─── Coaching Notes ──────────────────────────────────────────────────────────
-export const teamMemberCoachingNotes = mysqlTable("team_member_coaching_notes", {
-  id: int("id").autoincrement().primaryKey(),
-  targetUserId: int("targetUserId").notNull(),
-  authorUserId: int("authorUserId").notNull(),
-  category: mysqlEnum("category", [
-    "praise", "improvement", "follow_up_delay", "notification_unread", 
-    "customer_care_gap", "goal_gap", "training", "one_on_one", "general"
-  ]).default("general").notNull(),
-  title: varchar("title", { length: 200 }).notNull(),
-  note: text("note").notNull(),
-  actionItems: text("actionItems"),
-  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium").notNull(),
-  status: mysqlEnum("status", ["open", "resolved", "archived"]).default("open").notNull(),
-  visibility: mysqlEnum("visibility", ["private_admin", "manager_visible", "member_visible"]).default("manager_visible").notNull(),
-  nextReviewAt: timestamp("nextReviewAt"),
-  linkedMetricType: varchar("linkedMetricType", { length: 100 }),
-  linkedMetricSnapshotJson: json("linkedMetricSnapshotJson"),
-  isArchived: boolean("isArchived").default(false).notNull(),
-  archivedAt: timestamp("archivedAt"),
-  archivedBy: int("archivedBy"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  deletedAt: timestamp("deletedAt"),
-});
-export type TeamMemberCoachingNote = typeof teamMemberCoachingNotes.$inferSelect;
-export type InsertTeamMemberCoachingNote = typeof teamMemberCoachingNotes.$inferInsert;
+export const teamMemberCoachingNotes = mysqlTable(
+  "team_member_coaching_notes",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    targetUserId: int("targetUserId").notNull(),
+    authorUserId: int("authorUserId").notNull(),
+    category: mysqlEnum("category", [
+      "praise",
+      "improvement",
+      "follow_up_delay",
+      "notification_unread",
+      "customer_care_gap",
+      "goal_gap",
+      "training",
+      "one_on_one",
+      "general",
+    ])
+      .default("general")
+      .notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    note: text("note").notNull(),
+    actionItems: text("actionItems"),
+    priority: mysqlEnum("priority", ["low", "medium", "high"])
+      .default("medium")
+      .notNull(),
+    status: mysqlEnum("status", ["open", "resolved", "archived"])
+      .default("open")
+      .notNull(),
+    visibility: mysqlEnum("visibility", [
+      "private_admin",
+      "manager_visible",
+      "member_visible",
+    ])
+      .default("manager_visible")
+      .notNull(),
+    nextReviewAt: timestamp("nextReviewAt"),
+    linkedMetricType: varchar("linkedMetricType", { length: 100 }),
+    linkedMetricSnapshotJson: json("linkedMetricSnapshotJson"),
+    isArchived: boolean("isArchived").default(false).notNull(),
+    archivedAt: timestamp("archivedAt"),
+    archivedBy: int("archivedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    deletedAt: timestamp("deletedAt"),
+  }
+);
+export type TeamMemberCoachingNote =
+  typeof teamMemberCoachingNotes.$inferSelect;
+export type InsertTeamMemberCoachingNote =
+  typeof teamMemberCoachingNotes.$inferInsert;

@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import { AlertCircle, Inbox, Loader2, LockKeyhole, type LucideIcon } from "lucide-react";
+import {
+  AlertCircle,
+  Inbox,
+  Loader2,
+  LockKeyhole,
+  type LucideIcon,
+} from "lucide-react";
 import React from "react";
 
 interface EmptyStateProps {
@@ -23,27 +29,30 @@ export function EmptyState({
   variant = "empty",
   className,
 }: EmptyStateProps) {
-  const StateIcon = Icon ?? {
-    empty: Inbox,
-    error: AlertCircle,
-    forbidden: LockKeyhole,
-    loading: Loader2,
-  }[variant];
+  const StateIcon =
+    Icon ??
+    {
+      empty: Inbox,
+      error: AlertCircle,
+      forbidden: LockKeyhole,
+      loading: Loader2,
+    }[variant];
   const tone = {
     empty: "bg-muted/60 text-muted-foreground/70",
     error: "bg-destructive/10 text-destructive",
     forbidden: "bg-amber-500/10 text-amber-700",
     loading: "bg-primary/10 text-primary",
   }[variant];
-  const defaultAction = actionLabel && onAction ? (
-    <button
-      type="button"
-      onClick={onAction}
-      className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
-    >
-      {actionLabel}
-    </button>
-  ) : null;
+  const defaultAction =
+    actionLabel && onAction ? (
+      <button
+        type="button"
+        onClick={onAction}
+        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+      >
+        {actionLabel}
+      </button>
+    ) : null;
 
   return (
     <div
@@ -56,14 +65,23 @@ export function EmptyState({
       )}
     >
       {StateIcon && (
-        <div className={cn("flex h-12 w-12 shrink-0 items-center justify-center rounded-full", tone)}>
-          <StateIcon className={cn("h-6 w-6", variant === "loading" && "animate-spin")} />
+        <div
+          className={cn(
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
+            tone
+          )}
+        >
+          <StateIcon
+            className={cn("h-6 w-6", variant === "loading" && "animate-spin")}
+          />
         </div>
       )}
       <div className="space-y-1 max-w-xs">
         <p className="text-sm font-semibold text-foreground">{title}</p>
         {description && (
-          <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {description}
+          </p>
         )}
       </div>
       {(action || defaultAction) && (

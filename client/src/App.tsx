@@ -26,30 +26,56 @@ import SalesFunnelAnalytics from "./pages/SalesFunnelAnalytics";
 
 const CustomerAssign = lazy(() => import("./pages/CustomerAssign"));
 const CustomerBulkImport = lazy(() => import("./pages/CustomerBulkImport"));
-const CustomerMergeManagement = lazy(() => import("./pages/CustomerMergeManagement"));
-const ImportBatchManagement = lazy(() => import("./pages/ImportBatchManagement"));
+const CustomerMergeManagement = lazy(
+  () => import("./pages/CustomerMergeManagement")
+);
+const ImportBatchManagement = lazy(
+  () => import("./pages/ImportBatchManagement")
+);
 const PerformanceGoals = lazy(() => import("./pages/PerformanceGoals"));
 const UserManagement = lazy(() => import("./pages/UserManagement"));
-const OrganizationManagement = lazy(() => import("./pages/OrganizationManagement"));
-const UserHandoffManagement = lazy(() => import("./pages/UserHandoffManagement"));
+const OrganizationManagement = lazy(
+  () => import("./pages/OrganizationManagement")
+);
+const UserHandoffManagement = lazy(
+  () => import("./pages/UserHandoffManagement")
+);
 const TeamManagement = lazy(() => import("./pages/TeamManagement"));
 const ActivityLog = lazy(() => import("./pages/ActivityLog"));
 const Download = lazy(() => import("./pages/Download"));
 const Settings = lazy(() => import("./pages/Settings"));
-const PushNotificationPreferences = lazy(() => import("./pages/PushNotificationPreferences"));
-const PushNotificationOperations = lazy(() => import("./pages/PushNotificationOperations"));
-const ConsultationToolsManagement = lazy(() => import("./pages/ConsultationToolsManagement"));
-const DeletedDataManagement = lazy(() => import("./pages/DeletedDataManagement"));
+const PushNotificationPreferences = lazy(
+  () => import("./pages/PushNotificationPreferences")
+);
+const PushNotificationOperations = lazy(
+  () => import("./pages/PushNotificationOperations")
+);
+const ConsultationToolsManagement = lazy(
+  () => import("./pages/ConsultationToolsManagement")
+);
+const DeletedDataManagement = lazy(
+  () => import("./pages/DeletedDataManagement")
+);
 const OperationRiskCenter = lazy(() => import("./pages/OperationRiskCenter"));
 const TeamInsights = lazy(() => import("./pages/TeamInsights"));
-const FirstContactSlaDashboard = lazy(() => import("./pages/FirstContactSlaDashboard"));
-const TeamCompletionDashboard = lazy(() => import("./pages/TeamCompletionDashboard"));
-const TeamCoachingDashboard = lazy(() => import("./pages/TeamCoachingDashboard"));
+const FirstContactSlaDashboard = lazy(
+  () => import("./pages/FirstContactSlaDashboard")
+);
+const TeamCompletionDashboard = lazy(
+  () => import("./pages/TeamCompletionDashboard")
+);
+const TeamCoachingDashboard = lazy(
+  () => import("./pages/TeamCoachingDashboard")
+);
 const AftercareCampaigns = lazy(() => import("./pages/AftercareCampaigns"));
 const OnboardingDashboard = lazy(() => import("./pages/OnboardingDashboard"));
-const AdminOperationsCenter = lazy(() => import("./pages/AdminOperationsCenter"));
+const AdminOperationsCenter = lazy(
+  () => import("./pages/AdminOperationsCenter")
+);
 const ManagementReports = lazy(() => import("./pages/ManagementReports"));
-const CustomerDataQualityDashboard = lazy(() => import("./pages/CustomerDataQualityDashboard"));
+const CustomerDataQualityDashboard = lazy(
+  () => import("./pages/CustomerDataQualityDashboard")
+);
 
 function RouteFallback() {
   return (
@@ -59,14 +85,21 @@ function RouteFallback() {
           <div className="flex items-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin text-[#b99b5f]" />
             <div>
-              <p className="text-sm font-semibold text-slate-950">화면을 준비하고 있습니다</p>
-              <p className="mt-1 text-xs text-slate-500">권한 확인 후 필요한 관리 화면만 불러옵니다.</p>
+              <p className="text-sm font-semibold text-slate-950">
+                화면을 준비하고 있습니다
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                권한 확인 후 필요한 관리 화면만 불러옵니다.
+              </p>
             </div>
           </div>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
-          {[0, 1, 2].map((item) => (
-            <div key={item} className="h-24 animate-pulse rounded-2xl border border-slate-200/80 bg-white/80 shadow-sm" />
+          {[0, 1, 2].map(item => (
+            <div
+              key={item}
+              className="h-24 animate-pulse rounded-2xl border border-slate-200/80 bg-white/80 shadow-sm"
+            />
           ))}
         </div>
       </div>
@@ -82,7 +115,9 @@ function LoginConfigurationNotice({ message }: { message: string }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">로그인 설정 확인 필요</h1>
+        <h1 className="text-xl font-semibold tracking-tight">
+          로그인 설정 확인 필요
+        </h1>
         <p className="mt-3 text-sm text-muted-foreground">{message}</p>
         <p className="mt-2 text-sm text-muted-foreground">
           관리자에게 VITE_GOOGLE_CLIENT_ID 환경변수 설정을 요청해주세요.
@@ -113,7 +148,13 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
       return <LoginConfigurationNotice message={loginUrl.message} />;
     }
 
-    return <BrandedLogin onLogin={() => { window.location.href = loginUrl.url; }} />;
+    return (
+      <BrandedLogin
+        onLogin={() => {
+          window.location.href = loginUrl.url;
+        }}
+      />
+    );
   }
 
   if (user.accountStatus !== "active") {
@@ -145,7 +186,12 @@ function BulkImportGuard({ children }: { children: React.ReactNode }) {
 
 function ManagerGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin" && user.role !== "team_leader")) {
+  if (
+    !user ||
+    (user.role !== "branch_admin" &&
+      user.role !== "sub_branch_admin" &&
+      user.role !== "team_leader")
+  ) {
     return (
       <ForbiddenState description="이 화면은 관리자 또는 팀 리더 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
     );
@@ -153,9 +199,16 @@ function ManagerGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function SubBranchAdminOrAboveGuard({ children }: { children: React.ReactNode }) {
+function SubBranchAdminOrAboveGuard({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user } = useAuth();
-  if (!user || (user.role !== "branch_admin" && user.role !== "sub_branch_admin")) {
+  if (
+    !user ||
+    (user.role !== "branch_admin" && user.role !== "sub_branch_admin")
+  ) {
     return (
       <ForbiddenState description="이 화면은 지점 관리자 또는 부지점장 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
     );
@@ -233,7 +286,7 @@ function Router() {
         </AuthGuard>
       </Route>
       <Route path="/customers/:id">
-        {(params) => (
+        {params => (
           <AuthGuard>
             <CustomerDetail id={Number(params.id)} />
           </AuthGuard>

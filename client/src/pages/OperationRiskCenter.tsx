@@ -6,8 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { redactAuditDisplayText } from "@/lib/auditRedaction";
 import { trpc } from "@/lib/trpc";
@@ -77,7 +90,10 @@ const categoryIcons = {
   unresolved: ClipboardList,
 } as const;
 
-const riskActionMeta: Record<string, { owner: string; deadline: string; nextAction: string }> = {
+const riskActionMeta: Record<
+  string,
+  { owner: string; deadline: string; nextAction: string }
+> = {
   download: {
     owner: "지점장",
     deadline: "오늘 중",
@@ -91,7 +107,8 @@ const riskActionMeta: Record<string, { owner: string; deadline: string; nextActi
   account: {
     owner: "관리자",
     deadline: "즉시",
-    nextAction: "차단 로그인, OAuth 초기화, 강제 로그아웃 이력을 사용자 관리와 함께 점검",
+    nextAction:
+      "차단 로그인, OAuth 초기화, 강제 로그아웃 이력을 사용자 관리와 함께 점검",
   },
   handoff: {
     owner: "조직 관리자",
@@ -111,16 +128,19 @@ const riskActionMeta: Record<string, { owner: string; deadline: string; nextActi
 };
 
 export function getRiskActionMeta(category: string) {
-  return riskActionMeta[category] ?? {
-    owner: "운영 담당",
-    deadline: "오늘 중",
-    nextAction: "상세 로그에서 원인과 담당자를 확인",
-  };
+  return (
+    riskActionMeta[category] ?? {
+      owner: "운영 담당",
+      deadline: "오늘 중",
+      nextAction: "상세 로그에서 원인과 담당자를 확인",
+    }
+  );
 }
 
 export function getGuideMeta(title: string) {
   if (title.includes("다운로드")) return riskActionMeta.download;
-  if (title.includes("퇴사자") || title.includes("미처리")) return riskActionMeta.handoff;
+  if (title.includes("퇴사자") || title.includes("미처리"))
+    return riskActionMeta.handoff;
   if (title.includes("푸시")) return riskActionMeta.push;
   if (title.includes("삭제")) return riskActionMeta.deletion;
   return getRiskActionMeta("default");
@@ -186,7 +206,9 @@ function getActionLabel(action: string) {
 
 function getTabFromLocation(location: string): OperationRiskTab {
   const [, queryString] = location.split("?");
-  const tab = new URLSearchParams(queryString ?? "").get("tab") as OperationRiskTab | null;
+  const tab = new URLSearchParams(queryString ?? "").get(
+    "tab"
+  ) as OperationRiskTab | null;
   return tab && validTabs.includes(tab) ? tab : "summary";
 }
 
@@ -211,15 +233,29 @@ function ManagerScopedRiskView({
       <Card className="border-slate-200/80 bg-white shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Scoped Risk Summary</p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">{data?.scope?.label ?? "산하 조직 리스크"}</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+              Scoped Risk Summary
+            </p>
+            <h1 className="mt-1 text-2xl font-bold text-slate-950">
+              {data?.scope?.label ?? "산하 조직 리스크"}
+            </h1>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-              권한 범위 안에서 조치 가능한 고객, 후속관리, 일정, 알림 리스크만 read-only로 확인합니다.
-              운영 감사 로그와 위험 작업 상세는 지점장 전용으로 보호됩니다.
+              권한 범위 안에서 조치 가능한 고객, 후속관리, 일정, 알림 리스크만
+              read-only로 확인합니다. 운영 감사 로그와 위험 작업 상세는 지점장
+              전용으로 보호됩니다.
             </p>
           </div>
-          <Button type="button" variant="outline" onClick={onRefresh} disabled={isLoading}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={onRefresh}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCcw className="mr-2 h-4 w-4" />
+            )}
             새로고침
           </Button>
         </CardContent>
@@ -235,7 +271,12 @@ function ManagerScopedRiskView({
       ) : isLoading ? (
         <Card className="border-slate-200/80 bg-white shadow-sm">
           <CardContent className="grid gap-3 p-5 md:grid-cols-3">
-            {[0, 1, 2].map((item) => <div key={item} className="h-28 animate-pulse rounded-xl bg-slate-100" />)}
+            {[0, 1, 2].map(item => (
+              <div
+                key={item}
+                className="h-28 animate-pulse rounded-xl bg-slate-100"
+              />
+            ))}
           </CardContent>
         </Card>
       ) : (
@@ -243,18 +284,42 @@ function ManagerScopedRiskView({
           <Card className="border-slate-200/80 bg-white shadow-sm">
             <CardContent className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr]">
               <div>
-                <p className="text-sm font-semibold text-slate-500">종합 상태</p>
+                <p className="text-sm font-semibold text-slate-500">
+                  종합 상태
+                </p>
                 <div className="mt-2 flex items-center gap-3">
-                  <ShieldCheck className={cn("h-6 w-6", level === "danger" ? "text-destructive" : level === "warning" || level === "caution" ? "text-amber-700" : "text-boa-green")} />
-                  <span className="text-3xl font-bold text-slate-950">{levelLabels[level]}</span>
-                  <Badge className={cn("border", levelClasses[level])}>점수 {data?.overall?.score ?? 0}</Badge>
+                  <ShieldCheck
+                    className={cn(
+                      "h-6 w-6",
+                      level === "danger"
+                        ? "text-destructive"
+                        : level === "warning" || level === "caution"
+                          ? "text-amber-700"
+                          : "text-boa-green"
+                    )}
+                  />
+                  <span className="text-3xl font-bold text-slate-950">
+                    {levelLabels[level]}
+                  </span>
+                  <Badge className={cn("border", levelClasses[level])}>
+                    점수 {data?.overall?.score ?? 0}
+                  </Badge>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">{data?.overall?.message}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  {data?.overall?.message}
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold text-slate-500">검토 범위</p>
-                <p className="mt-1 text-sm font-bold text-slate-900">{data?.scope?.label ?? "-"}</p>
-                <p className="mt-2 text-xs text-slate-500">권한 범위 안의 업무 리스크만 집계하며, 고객 상세 전문이나 감사 로그 원문은 포함하지 않습니다.</p>
+                <p className="text-xs font-semibold text-slate-500">
+                  검토 범위
+                </p>
+                <p className="mt-1 text-sm font-bold text-slate-900">
+                  {data?.scope?.label ?? "-"}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  권한 범위 안의 업무 리스크만 집계하며, 고객 상세 전문이나 감사
+                  로그 원문은 포함하지 않습니다.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -263,21 +328,39 @@ function ManagerScopedRiskView({
             {cards.map((card: any) => {
               const cardLevel = (card.level ?? "normal") as RiskLevel;
               return (
-                <Card key={card.title} className="border-slate-200/80 bg-white shadow-sm">
+                <Card
+                  key={card.title}
+                  className="border-slate-200/80 bg-white shadow-sm"
+                >
                   <CardContent className="flex h-full flex-col p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">{card.title}</p>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-500">{card.description}</p>
+                        <p className="text-sm font-semibold text-slate-900">
+                          {card.title}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                          {card.description}
+                        </p>
                       </div>
-                      <Badge className={cn("border", levelClasses[cardLevel])}>{levelLabels[cardLevel]}</Badge>
+                      <Badge className={cn("border", levelClasses[cardLevel])}>
+                        {levelLabels[cardLevel]}
+                      </Badge>
                     </div>
                     <div className="mt-4 flex items-end justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500">대상</p>
-                        <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">{formatNumber(card.count)}</p>
+                        <p className="text-xs font-semibold text-slate-500">
+                          대상
+                        </p>
+                        <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">
+                          {formatNumber(card.count)}
+                        </p>
                       </div>
-                      <Button type="button" variant="outline" size="sm" onClick={() => setLocation(card.href)}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocation(card.href)}
+                      >
                         {card.actionLabel}
                         <ArrowRight className="h-4 w-4" />
                       </Button>
@@ -289,7 +372,10 @@ function ManagerScopedRiskView({
           </div>
 
           {cards.length === 0 ? (
-            <EmptyState title="확인할 리스크가 없습니다." description="현재 산하 범위에서 조치가 필요한 업무 리스크가 없습니다." />
+            <EmptyState
+              title="확인할 리스크가 없습니다."
+              description="현재 산하 범위에서 조치가 필요한 업무 리스크가 없습니다."
+            />
           ) : null}
         </>
       )}
@@ -312,37 +398,70 @@ export default function OperationRiskCenter() {
 
   const activeTab = getTabFromLocation(location);
   const isBranchAdmin = user?.role === "branch_admin";
-  const reportInput = useMemo(() => ({
-    period,
-    dateFrom: period === "custom" && dateFrom ? dateFrom : undefined,
-    dateTo: period === "custom" && dateTo ? dateTo : undefined,
-  }), [dateFrom, dateTo, period]);
+  const reportInput = useMemo(
+    () => ({
+      period,
+      dateFrom: period === "custom" && dateFrom ? dateFrom : undefined,
+      dateTo: period === "custom" && dateTo ? dateTo : undefined,
+    }),
+    [dateFrom, dateTo, period]
+  );
 
-  const { data, isLoading, isFetching, isError, refetch } = trpc.operationRisk.summary.useQuery(reportInput, {
-    enabled: isBranchAdmin,
-    placeholderData: (previous) => previous,
-  });
-  const { data: scopedSummary, isLoading: isScopedLoading, isError: isScopedError, refetch: refetchScoped } = trpc.operationRisk.scopedSummary.useQuery(reportInput, {
+  const { data, isLoading, isFetching, isError, refetch } =
+    trpc.operationRisk.summary.useQuery(reportInput, {
+      enabled: isBranchAdmin,
+      placeholderData: previous => previous,
+    });
+  const {
+    data: scopedSummary,
+    isLoading: isScopedLoading,
+    isError: isScopedError,
+    refetch: refetchScoped,
+  } = trpc.operationRisk.scopedSummary.useQuery(reportInput, {
     enabled: !isBranchAdmin,
-    placeholderData: (previous) => previous,
+    placeholderData: previous => previous,
   });
-  const { data: auditSummary } = trpc.adminAudit.summary.useQuery(undefined, { enabled: isBranchAdmin });
-  const { data: auditLogs, isFetching: isAuditFetching } = trpc.adminAudit.logSearch.useQuery({
-    datePreset: auditDatePreset,
-    category: auditCategory === "all" ? undefined : auditCategory as "download" | "delete" | "security" | "customer" | "contract" | "user",
-    targetType: auditTargetType === "all" ? undefined : auditTargetType,
-    action: auditAction.trim() || undefined,
-    search: auditSearch.trim() || undefined,
-    riskOnly: auditRiskOnly,
-    limit: 50,
-  }, {
+  const { data: auditSummary } = trpc.adminAudit.summary.useQuery(undefined, {
     enabled: isBranchAdmin,
   });
+  const { data: auditLogs, isFetching: isAuditFetching } =
+    trpc.adminAudit.logSearch.useQuery(
+      {
+        datePreset: auditDatePreset,
+        category:
+          auditCategory === "all"
+            ? undefined
+            : (auditCategory as
+                | "download"
+                | "delete"
+                | "security"
+                | "customer"
+                | "contract"
+                | "user"),
+        targetType: auditTargetType === "all" ? undefined : auditTargetType,
+        action: auditAction.trim() || undefined,
+        search: auditSearch.trim() || undefined,
+        riskOnly: auditRiskOnly,
+        limit: 50,
+      },
+      {
+        enabled: isBranchAdmin,
+      }
+    );
 
   const overallLevel = (data?.overall.level ?? "normal") as RiskLevel;
-  const metric = (key: keyof NonNullable<typeof auditSummary>["cards"]) => Number(auditSummary?.cards?.[key] ?? 0);
-  const cautionCount = metric("unreadNotifications") + metric("inactiveUsers") + metric("softDeletedCustomers") + metric("softDeletedContracts");
-  const riskCount = metric("recentDownloads") + metric("recentDeleteRestore") + metric("recentLoginBlocked") + metric("recentSecurityActions");
+  const metric = (key: keyof NonNullable<typeof auditSummary>["cards"]) =>
+    Number(auditSummary?.cards?.[key] ?? 0);
+  const cautionCount =
+    metric("unreadNotifications") +
+    metric("inactiveUsers") +
+    metric("softDeletedCustomers") +
+    metric("softDeletedContracts");
+  const riskCount =
+    metric("recentDownloads") +
+    metric("recentDeleteRestore") +
+    metric("recentLoginBlocked") +
+    metric("recentSecurityActions");
 
   if (!isBranchAdmin) {
     return (
@@ -364,14 +483,29 @@ export default function OperationRiskCenter() {
         <Card className="border-slate-200/80 bg-white shadow-sm">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">Operation Risk Center</p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">운영 리스크 센터</h1>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+                Operation Risk Center
+              </p>
+              <h1 className="mt-1 text-2xl font-bold text-slate-950">
+                운영 리스크 센터
+              </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-                운영 위험을 한곳에서 확인하고 필요한 조치 화면으로 이동합니다. 운영점검의 상세 감사 로그와 운영 상태도 이 화면에서 함께 확인합니다.
+                운영 위험을 한곳에서 확인하고 필요한 조치 화면으로 이동합니다.
+                운영점검의 상세 감사 로그와 운영 상태도 이 화면에서 함께
+                확인합니다.
               </p>
             </div>
-            <Button type="button" variant="outline" onClick={() => refetch()} disabled={isFetching}>
-              {isFetching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCcw className="mr-2 h-4 w-4" />}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => refetch()}
+              disabled={isFetching}
+            >
+              {isFetching ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCcw className="mr-2 h-4 w-4" />
+              )}
               새로고침
             </Button>
           </CardContent>
@@ -381,7 +515,10 @@ export default function OperationRiskCenter() {
           <CardContent className="grid gap-3 p-4 md:grid-cols-[180px_1fr_1fr_auto] md:items-end">
             <div className="space-y-1">
               <Label>기간</Label>
-              <Select value={period} onValueChange={(value) => setPeriod(value as Period)}>
+              <Select
+                value={period}
+                onValueChange={value => setPeriod(value as Period)}
+              >
                 <SelectTrigger className="h-10 rounded-xl bg-slate-50">
                   <SelectValue />
                 </SelectTrigger>
@@ -396,13 +533,27 @@ export default function OperationRiskCenter() {
             </div>
             <div className="space-y-1">
               <Label>시작일</Label>
-              <Input type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} disabled={period !== "custom"} className="h-10 rounded-xl bg-slate-50" />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={event => setDateFrom(event.target.value)}
+                disabled={period !== "custom"}
+                className="h-10 rounded-xl bg-slate-50"
+              />
             </div>
             <div className="space-y-1">
               <Label>종료일</Label>
-              <Input type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} disabled={period !== "custom"} className="h-10 rounded-xl bg-slate-50" />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={event => setDateTo(event.target.value)}
+                disabled={period !== "custom"}
+                className="h-10 rounded-xl bg-slate-50"
+              />
             </div>
-            <p className="text-xs text-slate-500">{data?.period.label ?? "최근 7일"} 기준</p>
+            <p className="text-xs text-slate-500">
+              {data?.period.label ?? "최근 7일"} 기준
+            </p>
           </CardContent>
         </Card>
 
@@ -418,18 +569,38 @@ export default function OperationRiskCenter() {
           </Card>
         ) : null}
 
-        <Tabs value={activeTab} onValueChange={(value) => setLocation(`/operation-risk?tab=${value}`)} className="space-y-4">
-          <div data-testid="operation-risk-tab-scroll" className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 pb-1 sm:mx-0 sm:max-w-full sm:px-0">
+        <Tabs
+          value={activeTab}
+          onValueChange={value => setLocation(`/operation-risk?tab=${value}`)}
+          className="space-y-4"
+        >
+          <div
+            data-testid="operation-risk-tab-scroll"
+            className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 pb-1 sm:mx-0 sm:max-w-full sm:px-0"
+          >
             <TabsList className="h-auto min-w-max flex-nowrap justify-start gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-full sm:min-w-0 sm:flex-wrap">
-              <TabsTrigger value="summary" className="flex-none shrink-0 px-3">요약</TabsTrigger>
-              <TabsTrigger value="actions" className="flex-none shrink-0 px-3">조치 필요</TabsTrigger>
-              <TabsTrigger value="logs" className="flex-none shrink-0 px-3">상세 운영 로그</TabsTrigger>
-              <TabsTrigger value="status" className="flex-none shrink-0 px-3">운영 상태</TabsTrigger>
+              <TabsTrigger value="summary" className="flex-none shrink-0 px-3">
+                요약
+              </TabsTrigger>
+              <TabsTrigger value="actions" className="flex-none shrink-0 px-3">
+                조치 필요
+              </TabsTrigger>
+              <TabsTrigger value="logs" className="flex-none shrink-0 px-3">
+                상세 운영 로그
+              </TabsTrigger>
+              <TabsTrigger value="status" className="flex-none shrink-0 px-3">
+                운영 상태
+              </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="summary" className="space-y-4">
-            <SummaryTab data={data} isLoading={isLoading} overallLevel={overallLevel} setLocation={setLocation} />
+            <SummaryTab
+              data={data}
+              isLoading={isLoading}
+              overallLevel={overallLevel}
+              setLocation={setLocation}
+            />
           </TabsContent>
 
           <TabsContent value="actions" className="space-y-4">
@@ -456,7 +627,12 @@ export default function OperationRiskCenter() {
           </TabsContent>
 
           <TabsContent value="status" className="space-y-4">
-            <StatusTab metric={metric} cautionCount={cautionCount} riskCount={riskCount} setLocation={setLocation} />
+            <StatusTab
+              metric={metric}
+              cautionCount={cautionCount}
+              riskCount={riskCount}
+              setLocation={setLocation}
+            />
           </TabsContent>
         </Tabs>
 
@@ -464,7 +640,9 @@ export default function OperationRiskCenter() {
           <CardContent className="flex items-start gap-3 p-4 text-sm text-emerald-900">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              이 화면은 운영 리스크 탐지와 가시화만 제공합니다. 자동 제재, 자동 권한 변경, 자동 인수인계, 다운로드/export 확장, push 발송 정책 변경은 포함하지 않습니다.
+              이 화면은 운영 리스크 탐지와 가시화만 제공합니다. 자동 제재, 자동
+              권한 변경, 자동 인수인계, 다운로드/export 확장, push 발송 정책
+              변경은 포함하지 않습니다.
             </p>
           </CardContent>
         </Card>
@@ -473,7 +651,12 @@ export default function OperationRiskCenter() {
   );
 }
 
-function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
+function SummaryTab({
+  data,
+  isLoading,
+  overallLevel,
+  setLocation,
+}: {
   data: any;
   isLoading: boolean;
   overallLevel: RiskLevel;
@@ -486,57 +669,121 @@ function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
           <CardContent className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-500">종합 리스크 등급</p>
+                <p className="text-sm font-semibold text-slate-500">
+                  종합 리스크 등급
+                </p>
                 <div className="mt-2 flex items-center gap-2">
-                  <ShieldCheck className={cn("h-6 w-6", overallLevel === "danger" ? "text-red-600" : overallLevel === "warning" ? "text-orange-600" : overallLevel === "caution" ? "text-amber-600" : "text-emerald-700")} />
-                  <span className="text-3xl font-bold text-slate-950">{levelLabels[overallLevel]}</span>
+                  <ShieldCheck
+                    className={cn(
+                      "h-6 w-6",
+                      overallLevel === "danger"
+                        ? "text-red-600"
+                        : overallLevel === "warning"
+                          ? "text-orange-600"
+                          : overallLevel === "caution"
+                            ? "text-amber-600"
+                            : "text-emerald-700"
+                    )}
+                  />
+                  <span className="text-3xl font-bold text-slate-950">
+                    {levelLabels[overallLevel]}
+                  </span>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">{data?.overall.message ?? "운영 리스크 데이터를 계산하고 있습니다."}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  {data?.overall.message ??
+                    "운영 리스크 데이터를 계산하고 있습니다."}
+                </p>
               </div>
-              <Badge className={cn("border", levelClasses[overallLevel])}>{levelLabels[overallLevel]}</Badge>
+              <Badge className={cn("border", levelClasses[overallLevel])}>
+                {levelLabels[overallLevel]}
+              </Badge>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold text-slate-500">리스크 점수</p>
-              <p className="mt-1 text-4xl font-bold tabular-nums text-slate-950">{isLoading ? "-" : data?.overall.score ?? 0}</p>
-              <p className="mt-1 text-xs text-slate-500">0점에 가까울수록 안정적이며, 70점 이상은 즉시 확인을 권장합니다.</p>
+              <p className="text-xs font-semibold text-slate-500">
+                리스크 점수
+              </p>
+              <p className="mt-1 text-4xl font-bold tabular-nums text-slate-950">
+                {isLoading ? "-" : (data?.overall.score ?? 0)}
+              </p>
+              <p className="mt-1 text-xs text-slate-500">
+                0점에 가까울수록 안정적이며, 70점 이상은 즉시 확인을 권장합니다.
+              </p>
             </div>
           </CardContent>
         </Card>
 
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {(data?.riskCards ?? []).map((card: any) => {
-            const Icon = categoryIcons[card.category as keyof typeof categoryIcons] ?? AlertTriangle;
+            const Icon =
+              categoryIcons[card.category as keyof typeof categoryIcons] ??
+              AlertTriangle;
             const level = card.level as RiskLevel;
             const actionMeta = getRiskActionMeta(card.category);
             return (
-              <Card key={card.category} className="border-slate-200/80 bg-white shadow-sm">
+              <Card
+                key={card.category}
+                className="border-slate-200/80 bg-white shadow-sm"
+              >
                 <CardContent className="flex h-full flex-col p-4">
                   <div className="flex items-start justify-between gap-3">
-                    <span className={cn("flex h-10 w-10 items-center justify-center rounded-xl", level === "danger" ? "bg-red-100 text-red-700" : level === "warning" ? "bg-orange-100 text-orange-700" : level === "caution" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-700")}>
+                    <span
+                      className={cn(
+                        "flex h-10 w-10 items-center justify-center rounded-xl",
+                        level === "danger"
+                          ? "bg-red-100 text-red-700"
+                          : level === "warning"
+                            ? "bg-orange-100 text-orange-700"
+                            : level === "caution"
+                              ? "bg-amber-100 text-amber-800"
+                              : "bg-emerald-100 text-emerald-700"
+                      )}
+                    >
                       <Icon className="h-5 w-5" />
                     </span>
-                    <Badge className={cn("border", levelClasses[level])}>{levelLabels[level]}</Badge>
+                    <Badge className={cn("border", levelClasses[level])}>
+                      {levelLabels[level]}
+                    </Badge>
                   </div>
-                  <p className="mt-3 text-sm font-semibold text-slate-900">{card.title}</p>
+                  <p className="mt-3 text-sm font-semibold text-slate-900">
+                    {card.title}
+                  </p>
                   <div className="mt-2 flex items-end justify-between gap-3">
-                    <p className="text-3xl font-bold tabular-nums text-slate-950">{formatNumber(card.count)}</p>
-                    <p className="text-xs font-semibold text-slate-500">점수 {formatNumber(card.score)}</p>
+                    <p className="text-3xl font-bold tabular-nums text-slate-950">
+                      {formatNumber(card.count)}
+                    </p>
+                    <p className="text-xs font-semibold text-slate-500">
+                      점수 {formatNumber(card.score)}
+                    </p>
                   </div>
-                  <p className="mt-2 min-h-10 text-xs leading-relaxed text-slate-500">{card.description}</p>
+                  <p className="mt-2 min-h-10 text-xs leading-relaxed text-slate-500">
+                    {card.description}
+                  </p>
                   <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <p className="font-semibold text-slate-500">Owner</p>
-                        <p className="mt-0.5 font-bold text-slate-900">{actionMeta.owner}</p>
+                        <p className="mt-0.5 font-bold text-slate-900">
+                          {actionMeta.owner}
+                        </p>
                       </div>
                       <div>
                         <p className="font-semibold text-slate-500">Deadline</p>
-                        <p className="mt-0.5 font-bold text-slate-900">{actionMeta.deadline}</p>
+                        <p className="mt-0.5 font-bold text-slate-900">
+                          {actionMeta.deadline}
+                        </p>
                       </div>
                     </div>
-                    <p className="mt-2 leading-relaxed">{actionMeta.nextAction}</p>
+                    <p className="mt-2 leading-relaxed">
+                      {actionMeta.nextAction}
+                    </p>
                   </div>
-                  <Button type="button" variant="outline" size="sm" className="mt-auto min-h-10" onClick={() => setLocation(card.href)}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-auto min-h-10"
+                    onClick={() => setLocation(card.href)}
+                  >
                     조치하기: {card.actionLabel}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
@@ -544,35 +791,64 @@ function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
               </Card>
             );
           })}
-          {isLoading ? Array.from({ length: 6 }).map((_, index) => (
-            <Card key={index} className="border-slate-200/80 bg-white shadow-sm">
-              <CardContent className="p-4">
-                <div className="h-32 animate-pulse rounded-xl bg-slate-100" />
-              </CardContent>
-            </Card>
-          )) : null}
+          {isLoading
+            ? Array.from({ length: 6 }).map((_, index) => (
+                <Card
+                  key={index}
+                  className="border-slate-200/80 bg-white shadow-sm"
+                >
+                  <CardContent className="p-4">
+                    <div className="h-32 animate-pulse rounded-xl bg-slate-100" />
+                  </CardContent>
+                </Card>
+              ))
+            : null}
         </div>
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
         <Card className="border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">다운로드 리스크</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">다운로드 리스크</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-3 gap-2 text-center">
             <Metric label="총 다운로드" value={data?.downloadRisk.total} />
-            <Metric label="반복 사용자" value={data?.downloadRisk.repeatedUserCount} />
-            <Metric label="사유 확인" value={data?.downloadRisk.shortReasonCount} />
+            <Metric
+              label="반복 사용자"
+              value={data?.downloadRisk.repeatedUserCount}
+            />
+            <Metric
+              label="사유 확인"
+              value={data?.downloadRisk.shortReasonCount}
+            />
           </CardContent>
         </Card>
         <Card className="border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">인수인계 리스크</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">인수인계 리스크</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-3 gap-2 text-center">
-            <Metric label="잔여 업무" value={data?.handoffRisk.unresolvedCount} />
-            <Metric label="담당 고객" value={data?.handoffRisk.inactiveCustomerCount} />
-            <Metric label="후속/일정" value={(data?.handoffRisk.inactiveFollowUpCount ?? 0) + (data?.handoffRisk.inactiveScheduleCount ?? 0)} />
+            <Metric
+              label="잔여 업무"
+              value={data?.handoffRisk.unresolvedCount}
+            />
+            <Metric
+              label="담당 고객"
+              value={data?.handoffRisk.inactiveCustomerCount}
+            />
+            <Metric
+              label="후속/일정"
+              value={
+                (data?.handoffRisk.inactiveFollowUpCount ?? 0) +
+                (data?.handoffRisk.inactiveScheduleCount ?? 0)
+              }
+            />
           </CardContent>
         </Card>
         <Card className="border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="pb-2"><CardTitle className="text-sm">푸시 알림 리스크</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">푸시 알림 리스크</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-3 gap-2 text-center">
             <Metric label="실패" value={data?.pushRisk.failed} />
             <Metric label="skip" value={data?.pushRisk.skipped} />
@@ -584,7 +860,13 @@ function SummaryTab({ data, isLoading, overallLevel, setLocation }: {
   );
 }
 
-function ActionsTab({ data, setLocation }: { data: any; setLocation: (path: string) => void }) {
+function ActionsTab({
+  data,
+  setLocation,
+}: {
+  data: any;
+  setLocation: (path: string) => void;
+}) {
   return (
     <>
       <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">
@@ -603,10 +885,15 @@ function ActionsTab({ data, setLocation }: { data: any; setLocation: (path: stri
         {(data?.guides ?? []).map((guide: any) => {
           const meta = getGuideMeta(guide.title);
           return (
-            <Card key={guide.title} className="border-slate-200/80 bg-slate-50/70 shadow-sm">
+            <Card
+              key={guide.title}
+              className="border-slate-200/80 bg-slate-50/70 shadow-sm"
+            >
               <CardContent className="flex h-full flex-col p-4">
                 <p className="font-semibold text-slate-950">{guide.title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">{guide.description}</p>
+                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                  {guide.description}
+                </p>
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 text-xs">
                   <div>
                     <p className="text-slate-500">담당</p>
@@ -617,8 +904,15 @@ function ActionsTab({ data, setLocation }: { data: any; setLocation: (path: stri
                     <p className="font-bold text-slate-900">{meta.deadline}</p>
                   </div>
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">{meta.nextAction}</p>
-                <Button type="button" variant="ghost" className="mt-auto min-h-10 justify-start px-0 text-slate-900" onClick={() => setLocation(guide.href)}>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {meta.nextAction}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-auto min-h-10 justify-start px-0 text-slate-900"
+                  onClick={() => setLocation(guide.href)}
+                >
                   조치 화면 열기
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -658,8 +952,15 @@ function AuditLogsTab(props: {
         <div className="grid gap-2 md:grid-cols-6">
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-500">기간</Label>
-            <Select value={props.auditDatePreset} onValueChange={(value) => props.onDatePresetChange(value as AuditPeriod)}>
-              <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue /></SelectTrigger>
+            <Select
+              value={props.auditDatePreset}
+              onValueChange={value =>
+                props.onDatePresetChange(value as AuditPeriod)
+              }
+            >
+              <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="today">오늘</SelectItem>
                 <SelectItem value="7d">최근 7일</SelectItem>
@@ -670,17 +971,31 @@ function AuditLogsTab(props: {
           </div>
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-500">분류</Label>
-            <Select value={props.auditCategory} onValueChange={props.onCategoryChange}>
-              <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="분류" /></SelectTrigger>
+            <Select
+              value={props.auditCategory}
+              onValueChange={props.onCategoryChange}
+            >
+              <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+                <SelectValue placeholder="분류" />
+              </SelectTrigger>
               <SelectContent>
-                {Object.entries(auditCategoryLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                {Object.entries(auditCategoryLabels).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-500">대상</Label>
-            <Select value={props.auditTargetType} onValueChange={props.onTargetTypeChange}>
-              <SelectTrigger className="h-10 rounded-xl bg-slate-50"><SelectValue placeholder="대상" /></SelectTrigger>
+            <Select
+              value={props.auditTargetType}
+              onValueChange={props.onTargetTypeChange}
+            >
+              <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+                <SelectValue placeholder="대상" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">전체 대상</SelectItem>
                 <SelectItem value="user">user</SelectItem>
@@ -694,20 +1009,37 @@ function AuditLogsTab(props: {
           </div>
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-500">Action</Label>
-            <Input value={props.auditAction} onChange={(event) => props.onActionChange(event.target.value)} className="h-10 rounded-xl bg-slate-50" placeholder="예: DATA_DOWNLOAD" />
+            <Input
+              value={props.auditAction}
+              onChange={event => props.onActionChange(event.target.value)}
+              className="h-10 rounded-xl bg-slate-50"
+              placeholder="예: DATA_DOWNLOAD"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-[11px] text-slate-500">검색</Label>
-            <Input value={props.auditSearch} onChange={(event) => props.onSearchChange(event.target.value)} className="h-10 rounded-xl bg-slate-50" placeholder="작업자, 대상, 사유" />
+            <Input
+              value={props.auditSearch}
+              onChange={event => props.onSearchChange(event.target.value)}
+              className="h-10 rounded-xl bg-slate-50"
+              placeholder="작업자, 대상, 사유"
+            />
           </div>
           <div className="flex items-end">
-            <Button variant={props.auditRiskOnly ? "default" : "outline"} onClick={() => props.onRiskOnlyChange(!props.auditRiskOnly)} className="h-10 w-full">
+            <Button
+              variant={props.auditRiskOnly ? "default" : "outline"}
+              onClick={() => props.onRiskOnlyChange(!props.auditRiskOnly)}
+              className="h-10 w-full"
+            >
               위험 작업만
             </Button>
           </div>
         </div>
         <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
-          <span>표시 {props.auditLogs?.items.length ?? 0}건 / 전체 {props.auditLogs?.total ?? 0}건</span>
+          <span>
+            표시 {props.auditLogs?.items.length ?? 0}건 / 전체{" "}
+            {props.auditLogs?.total ?? 0}건
+          </span>
           <Button
             type="button"
             variant="ghost"
@@ -725,7 +1057,11 @@ function AuditLogsTab(props: {
             필터 초기화
           </Button>
         </div>
-        {props.isAuditFetching ? <p className="text-xs text-slate-500">운영 로그를 갱신하고 있습니다.</p> : null}
+        {props.isAuditFetching ? (
+          <p className="text-xs text-slate-500">
+            운영 로그를 갱신하고 있습니다.
+          </p>
+        ) : null}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader className="bg-slate-50/80">
@@ -741,53 +1077,129 @@ function AuditLogsTab(props: {
             <TableBody>
               {(props.auditLogs?.items ?? []).length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
-                    조건에 맞는 운영 로그가 없습니다. 필터를 초기화하거나 기간을 넓혀 보세요.
+                  <TableCell
+                    colSpan={6}
+                    className="py-8 text-center text-sm text-muted-foreground"
+                  >
+                    조건에 맞는 운영 로그가 없습니다. 필터를 초기화하거나 기간을
+                    넓혀 보세요.
                   </TableCell>
                 </TableRow>
               ) : (
                 props.auditLogs?.items.map((entry: any) => (
                   <TableRow key={entry.id}>
-                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{formatDateTime(entry.createdAt)}</TableCell>
-                    <TableCell className="text-xs">
-                      <div className="font-medium">{entry.actor?.name ?? "-"}</div>
-                      <div className="text-muted-foreground">{entry.actor?.email ?? "-"}</div>
+                    <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                      {formatDateTime(entry.createdAt)}
                     </TableCell>
                     <TableCell className="text-xs">
-                      <div className="font-semibold text-slate-900">{getActionLabel(entry.action)}</div>
+                      <div className="font-medium">
+                        {entry.actor?.name ?? "-"}
+                      </div>
+                      <div className="text-muted-foreground">
+                        {entry.actor?.email ?? "-"}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{getTargetTypeLabel(entry.targetType)}{entry.targetId ? ` #${entry.targetId}` : ""}</TableCell>
-                    <TableCell className="max-w-sm truncate text-xs text-muted-foreground">{redactAuditDisplayText(entry.reason ?? entry.summary ?? "-", 160)}</TableCell>
-                    <TableCell><Badge className={eventLevelClasses[entry.riskLevel] ?? eventLevelClasses.normal}>{eventLevelLabels[entry.riskLevel] ?? eventLevelLabels.normal}</Badge></TableCell>
+                    <TableCell className="text-xs">
+                      <div className="font-semibold text-slate-900">
+                        {getActionLabel(entry.action)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {getTargetTypeLabel(entry.targetType)}
+                      {entry.targetId ? ` #${entry.targetId}` : ""}
+                    </TableCell>
+                    <TableCell className="max-w-sm truncate text-xs text-muted-foreground">
+                      {redactAuditDisplayText(
+                        entry.reason ?? entry.summary ?? "-",
+                        160
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        className={
+                          eventLevelClasses[entry.riskLevel] ??
+                          eventLevelClasses.normal
+                        }
+                      >
+                        {eventLevelLabels[entry.riskLevel] ??
+                          eventLevelLabels.normal}
+                      </Badge>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
         </div>
-        <p className="text-xs text-muted-foreground">표시 {props.auditLogs?.items.length ?? 0}건 / 전체 {props.auditLogs?.total ?? 0}건</p>
+        <p className="text-xs text-muted-foreground">
+          표시 {props.auditLogs?.items.length ?? 0}건 / 전체{" "}
+          {props.auditLogs?.total ?? 0}건
+        </p>
       </CardContent>
     </Card>
   );
 }
 
-function StatusTab({ metric, cautionCount, riskCount, setLocation }: {
+function StatusTab({
+  metric,
+  cautionCount,
+  riskCount,
+  setLocation,
+}: {
   metric: (key: any) => number;
   cautionCount: number;
   riskCount: number;
   setLocation: (path: string) => void;
 }) {
-  const health = riskCount >= 10
-    ? { label: "위험", className: "bg-red-100 text-red-700", helper: "위험 작업이 많습니다. 상세 운영 로그와 조치 필요 탭을 확인하세요." }
-    : cautionCount > 0 || riskCount > 0
-      ? { label: "주의", className: "bg-amber-100 text-amber-800", helper: "확인이 필요한 운영 항목이 있습니다." }
-      : { label: "정상", className: "bg-emerald-100 text-emerald-700", helper: "현재 주요 운영 위험이 안정적입니다." };
+  const health =
+    riskCount >= 10
+      ? {
+          label: "위험",
+          className: "bg-red-100 text-red-700",
+          helper:
+            "위험 작업이 많습니다. 상세 운영 로그와 조치 필요 탭을 확인하세요.",
+        }
+      : cautionCount > 0 || riskCount > 0
+        ? {
+            label: "주의",
+            className: "bg-amber-100 text-amber-800",
+            helper: "확인이 필요한 운영 항목이 있습니다.",
+          }
+        : {
+            label: "정상",
+            className: "bg-emerald-100 text-emerald-700",
+            helper: "현재 주요 운영 위험이 안정적입니다.",
+          };
 
   const cautionCards = [
-    { key: "unreadNotifications", label: "미확인 알림", helper: "알림 센터에서 처리하세요.", icon: Bell, href: "/notifications" },
-    { key: "inactiveUsers", label: "비활성 사용자", helper: "계정 상태를 확인하세요.", icon: Users, href: "/users" },
-    { key: "softDeletedCustomers", label: "삭제 처리 고객", helper: "복구/정리 정책을 확인하세요.", icon: Database, href: "/deleted-data" },
-    { key: "softDeletedContracts", label: "삭제 처리 계약", helper: "삭제 요청 이력을 확인하세요.", icon: Database, href: "/deleted-data" },
+    {
+      key: "unreadNotifications",
+      label: "미확인 알림",
+      helper: "알림 센터에서 처리하세요.",
+      icon: Bell,
+      href: "/notifications",
+    },
+    {
+      key: "inactiveUsers",
+      label: "비활성 사용자",
+      helper: "계정 상태를 확인하세요.",
+      icon: Users,
+      href: "/users",
+    },
+    {
+      key: "softDeletedCustomers",
+      label: "삭제 처리 고객",
+      helper: "복구/정리 정책을 확인하세요.",
+      icon: Database,
+      href: "/deleted-data",
+    },
+    {
+      key: "softDeletedContracts",
+      label: "삭제 처리 계약",
+      helper: "삭제 요청 이력을 확인하세요.",
+      icon: Database,
+      href: "/deleted-data",
+    },
   ] as const;
 
   const systemCards = [
@@ -806,10 +1218,14 @@ function StatusTab({ metric, cautionCount, riskCount, setLocation }: {
           <CardContent className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500">운영 건강도</p>
+                <p className="text-xs font-semibold text-slate-500">
+                  운영 건강도
+                </p>
                 <div className="mt-2 flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-emerald-700" />
-                  <span className="text-2xl font-bold text-slate-950">{health.label}</span>
+                  <span className="text-2xl font-bold text-slate-950">
+                    {health.label}
+                  </span>
                 </div>
                 <p className="mt-2 text-sm text-slate-500">{health.helper}</p>
               </div>
@@ -818,32 +1234,58 @@ function StatusTab({ metric, cautionCount, riskCount, setLocation }: {
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
                 <p className="text-xs text-amber-800">주의 필요</p>
-                <p className="mt-1 text-2xl font-bold text-amber-900">{cautionCount}</p>
+                <p className="mt-1 text-2xl font-bold text-amber-900">
+                  {cautionCount}
+                </p>
               </div>
               <div className="rounded-xl border border-red-100 bg-red-50/70 p-3">
                 <p className="text-xs text-red-700">위험 작업</p>
-                <p className="mt-1 text-2xl font-bold text-red-800">{riskCount}</p>
+                <p className="mt-1 text-2xl font-bold text-red-800">
+                  {riskCount}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200/80 bg-white shadow-sm">
-          <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><AlertTriangle className="h-4 w-4 text-amber-500" />주의 필요</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-sm">
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+              주의 필요
+            </CardTitle>
+          </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            {cautionCards.map((card) => {
+            {cautionCards.map(card => {
               const Icon = card.icon;
               const value = metric(card.key);
               return (
-                <div key={card.key} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+                <div
+                  key={card.key}
+                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+                >
                   <div className="flex items-center justify-between gap-2">
                     <Icon className="h-4 w-4 text-slate-600" />
-                    {value > 0 && <Badge className="bg-amber-100 text-amber-800">확인 필요</Badge>}
+                    {value > 0 && (
+                      <Badge className="bg-amber-100 text-amber-800">
+                        확인 필요
+                      </Badge>
+                    )}
                   </div>
                   <p className="mt-3 text-xs text-slate-500">{card.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">{value}</p>
-                  <p className="mt-1 min-h-8 text-xs text-slate-500">{card.helper}</p>
-                  <Button type="button" size="sm" variant="outline" className="mt-3 min-h-10 w-full" onClick={() => setLocation(card.href)}>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">
+                    {value}
+                  </p>
+                  <p className="mt-1 min-h-8 text-xs text-slate-500">
+                    {card.helper}
+                  </p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="mt-3 min-h-10 w-full"
+                    onClick={() => setLocation(card.href)}
+                  >
                     관련 화면
                   </Button>
                 </div>
@@ -854,13 +1296,25 @@ function StatusTab({ metric, cautionCount, riskCount, setLocation }: {
       </div>
 
       <Card className="border-slate-200/80 bg-white shadow-sm">
-        <CardHeader className="pb-2"><CardTitle className="flex items-center gap-2 text-sm"><Activity className="h-4 w-4 text-slate-700" />시스템 상태</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm">
+            <Activity className="h-4 w-4 text-slate-700" />
+            시스템 상태
+          </CardTitle>
+        </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {systemCards.map((card) => (
-            <div key={card.key} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
+          {systemCards.map(card => (
+            <div
+              key={card.key}
+              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+            >
               <p className="text-xs text-slate-500">{card.period}</p>
-              <p className="mt-1 text-sm font-medium text-slate-900">{card.label}</p>
-              <p className="mt-2 text-2xl font-bold text-slate-950">{metric(card.key)}</p>
+              <p className="mt-1 text-sm font-medium text-slate-900">
+                {card.label}
+              </p>
+              <p className="mt-2 text-2xl font-bold text-slate-950">
+                {metric(card.key)}
+              </p>
             </div>
           ))}
         </CardContent>
@@ -895,19 +1349,41 @@ function RiskEventsTable({ events }: { events: any[] }) {
               </TableCell>
             </TableRow>
           ) : (
-            events.map((event) => (
+            events.map(event => (
               <TableRow key={event.id}>
-                <TableCell className="whitespace-nowrap text-xs text-slate-500">{formatDateTime(event.createdAt)}</TableCell>
-                <TableCell className="text-xs">
-                  <div className="font-semibold text-slate-900">{getActionLabel(event.action)}</div>
+                <TableCell className="whitespace-nowrap text-xs text-slate-500">
+                  {formatDateTime(event.createdAt)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  <div className="font-medium text-slate-900">{event.actor?.name ?? "-"}</div>
-                  <div className="text-slate-400">{getRoleLabel(event.actor?.role)}</div>
+                  <div className="font-semibold text-slate-900">
+                    {getActionLabel(event.action)}
+                  </div>
                 </TableCell>
-                <TableCell className="text-xs text-slate-500">{getTargetTypeLabel(event.targetType)}{event.targetId ? ` #${event.targetId}` : ""}</TableCell>
-                <TableCell className="max-w-sm truncate text-xs text-slate-500">{event.reason ?? event.summary ?? "-"}</TableCell>
-                <TableCell><Badge className={eventLevelClasses[event.riskLevel] ?? eventLevelClasses.normal}>{eventLevelLabels[event.riskLevel] ?? "일반"}</Badge></TableCell>
+                <TableCell className="text-xs">
+                  <div className="font-medium text-slate-900">
+                    {event.actor?.name ?? "-"}
+                  </div>
+                  <div className="text-slate-400">
+                    {getRoleLabel(event.actor?.role)}
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs text-slate-500">
+                  {getTargetTypeLabel(event.targetType)}
+                  {event.targetId ? ` #${event.targetId}` : ""}
+                </TableCell>
+                <TableCell className="max-w-sm truncate text-xs text-slate-500">
+                  {event.reason ?? event.summary ?? "-"}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    className={
+                      eventLevelClasses[event.riskLevel] ??
+                      eventLevelClasses.normal
+                    }
+                  >
+                    {eventLevelLabels[event.riskLevel] ?? "일반"}
+                  </Badge>
+                </TableCell>
               </TableRow>
             ))
           )}
@@ -917,11 +1393,19 @@ function RiskEventsTable({ events }: { events: any[] }) {
   );
 }
 
-function Metric({ label, value }: { label: string; value: number | null | undefined }) {
+function Metric({
+  label,
+  value,
+}: {
+  label: string;
+  value: number | null | undefined;
+}) {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
       <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">{formatNumber(value)}</p>
+      <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
+        {formatNumber(value)}
+      </p>
     </div>
   );
 }

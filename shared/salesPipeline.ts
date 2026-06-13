@@ -51,7 +51,9 @@ export const SALES_PIPELINE_COLUMNS = [
   },
 ] as const;
 
-export type SalesPipelineColumnId = (typeof SALES_PIPELINE_COLUMNS)[number]["id"] | "other";
+export type SalesPipelineColumnId =
+  | (typeof SALES_PIPELINE_COLUMNS)[number]["id"]
+  | "other";
 
 const STATUS_TO_COLUMN = new Map<string, SalesPipelineColumnId>();
 for (const col of SALES_PIPELINE_COLUMNS) {
@@ -61,13 +63,17 @@ for (const col of SALES_PIPELINE_COLUMNS) {
 }
 
 /** Map DB status → Kanban column (unmapped → `other`). */
-export function consultStatusToPipelineColumn(status: string | null | undefined): SalesPipelineColumnId {
+export function consultStatusToPipelineColumn(
+  status: string | null | undefined
+): SalesPipelineColumnId {
   if (!status) return "new";
   return STATUS_TO_COLUMN.get(status) ?? "other";
 }
 
 /** Primary DB status when a card is dropped on a pipeline column. */
-export function pipelineColumnToConsultStatus(columnId: SalesPipelineColumnId): ConsultStatus {
+export function pipelineColumnToConsultStatus(
+  columnId: SalesPipelineColumnId
+): ConsultStatus {
   switch (columnId) {
     case "new":
       return "미상담";

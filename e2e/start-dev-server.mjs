@@ -7,7 +7,11 @@ async function assertPortFree(targetPort) {
   await new Promise((resolve, reject) => {
     const server = net.createServer();
     server.once("error", () => {
-      reject(new Error(`E2E dev server port ${targetPort} is already in use. Stop the stale server or set E2E_PORT.`));
+      reject(
+        new Error(
+          `E2E dev server port ${targetPort} is already in use. Stop the stale server or set E2E_PORT.`
+        )
+      );
     });
     server.listen(targetPort, "127.0.0.1", () => {
       server.close(resolve);
@@ -17,8 +21,10 @@ async function assertPortFree(targetPort) {
 
 await assertPortFree(port);
 
-const command = process.platform === "win32" ? "node scripts/run-dev.mjs once" : "node";
-const args = process.platform === "win32" ? [] : ["scripts/run-dev.mjs", "once"];
+const command =
+  process.platform === "win32" ? "node scripts/run-dev.mjs once" : "node";
+const args =
+  process.platform === "win32" ? [] : ["scripts/run-dev.mjs", "once"];
 const child = spawn(command, args, {
   cwd: process.cwd(),
   env: {

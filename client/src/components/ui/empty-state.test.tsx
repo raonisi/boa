@@ -22,7 +22,10 @@ describe("shared state components", () => {
 
   it("renders recoverable errors without technical details", () => {
     const html = renderToStaticMarkup(
-      <ErrorState description="잠시 후 다시 시도해 주세요." onRetry={() => undefined} />
+      <ErrorState
+        description="잠시 후 다시 시도해 주세요."
+        onRetry={() => undefined}
+      />
     );
 
     expect(html).toContain("데이터를 불러오지 못했습니다.");

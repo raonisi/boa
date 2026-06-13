@@ -13,12 +13,14 @@ Use this checklist for changes touching customers, contracts, consultations, fol
 ## Customer Data Visibility
 
 Allowed in authorized operational screens when needed:
+
 - customer name
 - phone number
 - birthdate
 - assigned workflow context
 
 Forbidden or restricted everywhere:
+
 - resident registration number
 - policy/certificate number
 - ID-card upload
@@ -32,6 +34,7 @@ Push payloads and push logs must not contain customer names, phone numbers, birt
 ## Scope Checks
 
 Verify server-side scope on:
+
 - list, detail, create, update, delete, and restore APIs
 - dashboard aggregates
 - notifications and push candidates
@@ -44,6 +47,7 @@ UI filtering alone is not enough.
 ## Admin-only Actions
 
 Require `branch_admin` server enforcement for:
+
 - user role changes
 - permanent delete workflows
 - delete request approval
@@ -55,6 +59,7 @@ Require `branch_admin` server enforcement for:
 ## Bulk Import / Export Risk
 
 Required controls:
+
 - permission check
 - reason or confirmation where applicable
 - audit log
@@ -64,6 +69,7 @@ Required controls:
 ## Unsafe Permission Broadening
 
 Stop and report before:
+
 - adding `branch_admin` fallback logic
 - treating empty scope as "all"
 - sharing branch aggregates with lower roles
@@ -73,6 +79,7 @@ Stop and report before:
 ## Auditability
 
 High-risk actions should record:
+
 - actor user id
 - target type/id
 - action type
@@ -84,6 +91,7 @@ Do not log raw tokens, credentials, detailed illness data, product details, prem
 ## Tests Required
 
 For RBAC-sensitive changes, include:
+
 - allowed role positive test
 - disallowed role negative test
 - direct API access negative test

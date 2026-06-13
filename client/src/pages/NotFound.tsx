@@ -13,7 +13,9 @@ export default function NotFound() {
         </div>
         <div className="space-y-2">
           <p className="text-5xl font-bold tabular-nums text-foreground">404</p>
-          <h1 className="text-lg font-semibold text-foreground">페이지를 찾을 수 없습니다</h1>
+          <h1 className="text-lg font-semibold text-foreground">
+            페이지를 찾을 수 없습니다
+          </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
             요청하신 페이지가 존재하지 않거나 삭제되었습니다.
             <br />

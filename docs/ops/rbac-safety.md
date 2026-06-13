@@ -4,12 +4,12 @@ BOA CRM is an internal insurance sales CRM. RBAC correctness and customer-data p
 
 ## Roles
 
-| Internal value | Korean label | Access scope |
-| --- | --- | --- |
-| `branch_admin` | 지점장 | Full access |
-| `sub_branch_admin` | 부지점장 | Assigned subordinate scope |
-| `team_leader` | 팀장 | Own team scope |
-| `member` | 팀원 | Own assigned data |
+| Internal value          | Korean label  | Access scope                    |
+| ----------------------- | ------------- | ------------------------------- |
+| `branch_admin`          | 지점장        | Full access                     |
+| `sub_branch_admin`      | 부지점장      | Assigned subordinate scope      |
+| `team_leader`           | 팀장          | Own team scope                  |
+| `member`                | 팀원          | Own assigned data               |
 | `inactive` / `resigned` | 비활성 / 퇴사 | Login and protected API blocked |
 
 DB/API enum values must remain English. Korean role labels belong in UI display helpers only.

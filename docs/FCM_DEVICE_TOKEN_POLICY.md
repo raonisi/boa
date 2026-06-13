@@ -86,7 +86,7 @@ PR19-2는 알림 발송 문구를 만들지 않습니다. PR19-3 이후 실제 �
 - device token 기반 알림 대상 조회 API
 - Play Store 배포
 - APK/keystore 커밋
- 
+
 ## Firebase SDK add step verification
 
 The Firebase Console Android "Add Firebase SDK" step is covered by the current Capacitor Android Gradle setup:

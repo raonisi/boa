@@ -9,12 +9,7 @@
       "accountStatus": "active"
     }
   ],
-  "messages": [
-    "branch_admin_count",
-    "1",
-    "old_inactive_count",
-    "0"
-  ],
+  "messages": ["branch_admin_count", "1", "old_inactive_count", "0"],
   "stdout": "id\tname\trole\taccountStatus\n1\t도현 이\tbranch_admin\tactive\nbranch_admin_count\n1\nold_inactive_count\n0\n",
   "stderr": "",
   "execution_time_ms": 2334

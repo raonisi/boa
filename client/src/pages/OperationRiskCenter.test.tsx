@@ -16,8 +16,12 @@ describe("operation risk action metadata", () => {
   });
 
   it("maps action guide titles to the matching operational guidance", () => {
-    expect(getGuideMeta("다운로드 사유 점검")).toMatchObject({ owner: "지점장" });
-    expect(getGuideMeta("푸시 실패 점검")).toMatchObject({ owner: "운영 담당" });
+    expect(getGuideMeta("다운로드 사유 점검")).toMatchObject({
+      owner: "지점장",
+    });
+    expect(getGuideMeta("푸시 실패 점검")).toMatchObject({
+      owner: "운영 담당",
+    });
     expect(getGuideMeta("삭제 요청 검토")).toMatchObject({ owner: "지점장" });
   });
 });

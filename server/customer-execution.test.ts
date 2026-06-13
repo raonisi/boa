@@ -7,7 +7,11 @@ describe("customer next best action execution score", () => {
       customer: {
         consultStatus: "미상담",
         priority: "unclassified",
-        customerTags: JSON.stringify(["해지위험", "리밸런싱필요", "사후관리필요"]),
+        customerTags: JSON.stringify([
+          "해지위험",
+          "리밸런싱필요",
+          "사후관리필요",
+        ]),
         expectedPremium: 200000,
       },
       latestConsult: null,
@@ -19,7 +23,7 @@ describe("customer next best action execution score", () => {
     expect(result.score).toBe(100);
     expect(result.grade).toBe("최우선 관리");
     expect(result.actionTitle).toBe("기존 기준 점검 연락 필요");
-    expect(result.reasons.map((reason) => reason.label)).toContain("장기 미관리");
+    expect(result.reasons.map(reason => reason.label)).toContain("장기 미관리");
   });
 
   it("recommends first consultation for unconsulted customers", () => {
@@ -41,18 +45,29 @@ describe("customer next best action execution score", () => {
     });
 
     expect(result.actionTitle).toBe("다음 연락일 설정 필요");
-    expect(result.reasons).toContainEqual({ label: "다음 연락일 없음", points: 15 });
+    expect(result.reasons).toContainEqual({
+      label: "다음 연락일 없음",
+      points: 15,
+    });
   });
 
   it("does not persist or require DB fields for retention-risk tags", () => {
     const result = buildCustomerExecutionScore({
-      customer: { consultStatus: "TA", priority: "A", customerTags: "해지위험", expectedPremium: 0 },
+      customer: {
+        consultStatus: "TA",
+        priority: "A",
+        customerTags: "해지위험",
+        expectedPremium: 0,
+      },
       latestConsult: {},
       nextFollowUp: {},
     });
 
     expect(result.actionTitle).toBe("유지 관리 우선 필요");
-    expect(result.reasons).toContainEqual({ label: "해지위험 태그", points: 20 });
+    expect(result.reasons).toContainEqual({
+      label: "해지위험 태그",
+      points: 20,
+    });
   });
 
   it("uses recommendation score when it is higher than local UI signals", () => {

@@ -42,6 +42,7 @@ See [Codex Workflow Standard](docs/ops/codex-workflow.md) and [Codex Agent Roles
 If `.codegraph/` is available, use CodeGraph only as a structural exploration aid before broad file reads.
 
 Prefer CodeGraph for:
+
 - symbol lookup
 - caller/callee tracing
 - impact analysis
@@ -50,6 +51,7 @@ Prefer CodeGraph for:
 Use native grep/read for exact text, logs, comments, config values, and already-identified files.
 
 CodeGraph never overrides BOA CRM rules:
+
 - follow `docs/ops/*`
 - preserve RBAC and customer data isolation
 - avoid destructive DB actions
@@ -73,6 +75,7 @@ For schema work, use [Database Migration Safety](docs/ops/database-migration-saf
 Run checks appropriate to the change and do not skip required verification to save tokens.
 
 Preferred baseline:
+
 - `pnpm.cmd check`
 - `pnpm.cmd test`
 - `pnpm.cmd build`

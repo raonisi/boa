@@ -11,17 +11,17 @@
 
 ## 🛠 기술 스택
 
-| 계층 | 기술 |
-|---|---|
-| **Frontend** | React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui |
-| **Backend** | Express 4 + tRPC 11 + Node.js |
-| **Database** | MySQL/TiDB + Drizzle ORM |
-| **Authentication** | Google OAuth 2.0 Web Server Flow |
-| **Testing** | Vitest + React Testing Library |
-| **Build** | Vite + pnpm |
-| **Deployment** | Railway / Node.js hosting |
-| **Pilot field mobile app** | Flutter (`apps/boa`) — Native + WebView hybrid |
-| **Legacy mobile shell** | Capacitor (`capacitor.config.ts`, root `android/app`) — fallback, not removed yet |
+| 계층                       | 기술                                                                              |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| **Frontend**               | React 19 + TypeScript + Tailwind CSS 4 + shadcn/ui                                |
+| **Backend**                | Express 4 + tRPC 11 + Node.js                                                     |
+| **Database**               | MySQL/TiDB + Drizzle ORM                                                          |
+| **Authentication**         | Google OAuth 2.0 Web Server Flow                                                  |
+| **Testing**                | Vitest + React Testing Library                                                    |
+| **Build**                  | Vite + pnpm                                                                       |
+| **Deployment**             | Railway / Node.js hosting                                                         |
+| **Pilot field mobile app** | Flutter (`apps/boa`) — Native + WebView hybrid                                    |
+| **Legacy mobile shell**    | Capacitor (`capacitor.config.ts`, root `android/app`) — fallback, not removed yet |
 
 모바일 앱 역할 분리·보안·로드맵은 [docs/MOBILE_APP_ARCHITECTURE.md](docs/MOBILE_APP_ARCHITECTURE.md)를 기준으로 한다.
 
@@ -47,6 +47,7 @@ cp .env.example .env.local
 ### 2. 환경변수 설정
 
 필수 환경변수 (`.env.local`):
+
 ```
 DATABASE_URL=mysql://user:password@host:3306/insurance_crm
 JWT_SECRET=your_secret_key
@@ -189,6 +190,7 @@ insurance-crm/
 ## ✅ 현재 구현 완료 기능
 
 ### 1단계: 기본 기능 (v1)
+
 - [x] 사용자 인증 (Google OAuth 2.0 direct)
 - [x] 역할 기반 접근 제어 (RBAC): branch_admin, sub_branch_admin, team_leader, member
 - [x] 고객 DB 관리 (CRUD)
@@ -200,6 +202,7 @@ insurance-crm/
 - [x] 활동 로그
 
 ### 2단계: 고도화 (v2-v7)
+
 - [x] 조직 계층 구조 (지점장 → 부지점장 → 팀장 → 팀원)
 - [x] DB 배정 기능 (지점장 → 부지점장, 부지점장 → 팀)
 - [x] 고객 상세 정보 (기본정보/상담기록/계약정보/배정이력/상태변경이력)
@@ -212,6 +215,7 @@ insurance-crm/
 - [x] 사용자 관리 UI (권한, 팀, 부지점장 배치)
 
 ### 3단계: 고객 DB 일괄 업로드 (v10) ✅ NEW
+
 - [x] 서버 라우터 (previewImport, bulkImport, downloadImportTemplate)
 - [x] 프론트 UI (파일 선택 → 검증 → 등록)
 - [x] 14가지 검증 로직 (필수값, 형식, 중복, 금지 컬럼, 조직 정합성)
@@ -227,20 +231,20 @@ insurance-crm/
 
 ## 📝 DB 스키마 주요 테이블
 
-| 테이블 | 목적 | 주요 컬럼 |
-|---|---|---|
-| `users` | 사용자 | id, email, name, role, accountStatus, teamId, subBranchAdminId, phone, memo, loginStatus |
-| `teams` | 팀 | id, name, subBranchAdminId, description, isActive |
-| `customers` | 고객 | id, name, phone, birthDate, gender, region, expectedPremium, consultationStatus, assignedUserId, assignedTeamId, subBranchAdminId, assignmentStatus, importBatchId |
-| `consultations` | 상담 기록 | id, customerId, consultationType, notes, nextFollowUpAt |
-| `contracts` | 계약 | id, customerId, productName, insuranceCompany, contractDate, paymentStatus, ownerUserId |
-| `schedules` | 일정 | id, title, startTime, endTime, teamId, userId, completed, reminder |
-| `notifications` | 알림 | id, userId, title, content, type, processStatus, isRead |
-| `activity_logs` | 활동 로그 | id, userId, action, entityType, entityId, before, after |
-| `settings` | 설정 | id, key, value |
-| `status_history` | 상담상태 변경 이력 | id, customerId, previousStatus, newStatus, changedAt |
-| `assignment_history` | 배정 이력 | id, customerId, previousAssignee, newAssignee, assignedAt |
-| `contract_history` | 계약 변경 이력 | id, contractId, fieldName, before, after, changedAt |
+| 테이블               | 목적               | 주요 컬럼                                                                                                                                                          |
+| -------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `users`              | 사용자             | id, email, name, role, accountStatus, teamId, subBranchAdminId, phone, memo, loginStatus                                                                           |
+| `teams`              | 팀                 | id, name, subBranchAdminId, description, isActive                                                                                                                  |
+| `customers`          | 고객               | id, name, phone, birthDate, gender, region, expectedPremium, consultationStatus, assignedUserId, assignedTeamId, subBranchAdminId, assignmentStatus, importBatchId |
+| `consultations`      | 상담 기록          | id, customerId, consultationType, notes, nextFollowUpAt                                                                                                            |
+| `contracts`          | 계약               | id, customerId, productName, insuranceCompany, contractDate, paymentStatus, ownerUserId                                                                            |
+| `schedules`          | 일정               | id, title, startTime, endTime, teamId, userId, completed, reminder                                                                                                 |
+| `notifications`      | 알림               | id, userId, title, content, type, processStatus, isRead                                                                                                            |
+| `activity_logs`      | 활동 로그          | id, userId, action, entityType, entityId, before, after                                                                                                            |
+| `settings`           | 설정               | id, key, value                                                                                                                                                     |
+| `status_history`     | 상담상태 변경 이력 | id, customerId, previousStatus, newStatus, changedAt                                                                                                               |
+| `assignment_history` | 배정 이력          | id, customerId, previousAssignee, newAssignee, assignedAt                                                                                                          |
+| `contract_history`   | 계약 변경 이력     | id, contractId, fieldName, before, after, changedAt                                                                                                                |
 
 ---
 
@@ -248,17 +252,17 @@ insurance-crm/
 
 ### 역할별 권한
 
-| 기능 | 지점장 | 부지점장 | 팀장 | 팀원 |
-|---|---|---|---|---|
-| 대시보드 | 전체 | 산하 팀 | 팀 | 본인 |
-| 고객 조회 | 전체 | 산하 팀 | 팀 | 본인 배정 |
-| 고객 추가 | ✅ | ✅ | ✅ | ❌ |
-| 고객 일괄 등록 | ✅ | ❌ | ❌ | ❌ |
-| DB 배정 | ✅ | ✅ | ❌ | ❌ |
-| 사용자 관리 | ✅ | ❌ | ❌ | ❌ |
-| 팀 관리 | ✅ | ❌ | ❌ | ❌ |
-| 데이터 다운로드 | ✅ | ❌ | ❌ | ❌ |
-| 활동 로그 조회 | ✅ | ✅ | ✅ | ❌ |
+| 기능            | 지점장 | 부지점장 | 팀장 | 팀원      |
+| --------------- | ------ | -------- | ---- | --------- |
+| 대시보드        | 전체   | 산하 팀  | 팀   | 본인      |
+| 고객 조회       | 전체   | 산하 팀  | 팀   | 본인 배정 |
+| 고객 추가       | ✅     | ✅       | ✅   | ❌        |
+| 고객 일괄 등록  | ✅     | ❌       | ❌   | ❌        |
+| DB 배정         | ✅     | ✅       | ❌   | ❌        |
+| 사용자 관리     | ✅     | ❌       | ❌   | ❌        |
+| 팀 관리         | ✅     | ❌       | ❌   | ❌        |
+| 데이터 다운로드 | ✅     | ❌       | ❌   | ❌        |
+| 활동 로그 조회  | ✅     | ✅       | ✅   | ❌        |
 
 ### 서버 미들웨어
 
@@ -296,7 +300,7 @@ insurance-crm/
 9. **팀**: 부지점장 산하 팀 확인
 10. **담당자**: 팀 산하 팀원 확인 (role=member, accountStatus=active)
 11. **assignmentStatus**: 자동 계산 (담당자 있음→assigned_to_agent, 부지점장만→assigned_to_sub_branch, 없음→unassigned)
-12. **importBatchId**: 고유 배치 ID 생성 (batch_${timestamp}_${random})
+12. **importBatchId**: 고유 배치 ID 생성 (batch*${timestamp}*${random})
 13. **로그 기록**: CUSTOMER_BULK_IMPORTED, DATA_IMPORT 로그
 14. **재검증**: 최종 저장 전 서버에서 재검증
 
@@ -309,7 +313,7 @@ customers.downloadImportTemplate()
 
 // 파일 검증 및 미리보기
 customers.previewImport({ rows: ParsedRow[] })
-→ { 
+→ {
     totalRows: number,
     successRows: number,
     failedRows: number,
@@ -361,26 +365,31 @@ pnpm test --coverage
 ## ⚠️ 주의사항
 
 ### 1. 권한 검증
+
 - 모든 라우터에서 `ctx.user` 검증 필수
 - 고객 조회 시 소유권 검증 (customerId → userId 매핑)
 - 팀 관리 시 부지점장 범위 검증
 
 ### 2. 조직 정합성
+
 - 사용자 이동 시 팀/부지점장 동기화 필요
 - 팀 변경 시 부지점장 자동 업데이트
 - 부지점장 변경 시 기존 팀 해제 후 처리
 
 ### 3. 데이터 보안
+
 - 민감정보 (주민번호, 증권번호 등) 절대 저장 금지
 - 파일 업로드 시 서버 검증 필수
 - CSV 내 금지 컬럼 감지 로직 필수
 
 ### 4. 연락처 정규화
+
 - 모든 연락처는 숫자만 추출하여 저장
 - 중복 검증 시 정규화된 연락처 기준
 - 국제 전화번호 지원 (선택사항)
 
 ### 5. 배치 작업
+
 - importBatchId로 일괄 등록 추적 가능
 - 실패한 행은 별도 저장 및 재업로드 가능
 - 로그 기록 (CUSTOMER_BULK_IMPORTED, DATA_IMPORT)
@@ -390,6 +399,7 @@ pnpm test --coverage
 ## 📊 최근 검수 결과 (v10)
 
 ### 완료된 항목
+
 - ✅ 서버 라우터 3개 구현 (previewImport, bulkImport, downloadImportTemplate)
 - ✅ 프론트 UI 구현 (450줄, 3단계 워크플로우)
 - ✅ 14가지 검증 로직 구현
@@ -397,6 +407,7 @@ pnpm test --coverage
 - ✅ 기존 기능 회귀 테스트 통과
 
 ### 알려진 제한사항
+
 - CSV 파싱만 구현 (XLSX는 향후 구현)
 - 파일 크기 제한 5MB
 - 한 번에 최대 1000행 추천 (성능상)
@@ -406,6 +417,7 @@ pnpm test --coverage
 ## 📋 남은 작업 (Codex 인수인계)
 
 ### 높은 우선순위 (즉시 필요)
+
 - [ ] XLSX 파일 지원 추가 (xlsx 패키지)
 - [ ] 오류 행 CSV 다운로드 기능
 - [ ] 일괄 등록 진행률 표시 (대용량 파일)
@@ -413,6 +425,7 @@ pnpm test --coverage
 - [ ] 일괄 등록 취소 기능
 
 ### 중간 우선순위 (1-2주)
+
 - [ ] 고객 수정 UI 개선 (CustomerDetail 기본정보 탭)
 - [ ] 상담기록 수정 기능 강화
 - [ ] 계약 관리 필터 확장
@@ -420,6 +433,7 @@ pnpm test --coverage
 - [ ] 모바일 UI 최적화
 
 ### 낮은 우선순위 (향후)
+
 - [ ] 고급 분석 대시보드
 - [ ] 자동 재상담 알림
 - [ ] 이메일 연동
@@ -431,6 +445,7 @@ pnpm test --coverage
 ## 🔧 문제 해결
 
 ### 개발 서버 시작 안 됨
+
 ```bash
 # 포트 충돌 확인
 lsof -i :3000
@@ -444,6 +459,7 @@ pnpm store prune
 ```
 
 ### 데이터베이스 연결 실패
+
 ```bash
 # DATABASE_URL 확인
 echo $DATABASE_URL
@@ -456,6 +472,7 @@ mysql -u user -p < drizzle/migrations/0001_init.sql
 ```
 
 ### 테스트 실패
+
 ```bash
 # 테스트 로그 확인
 pnpm test --reporter=verbose
@@ -472,6 +489,7 @@ pnpm tsc --noEmit
 ## 📞 Codex 첫 작업 지시문
 
 ### 1단계: 환경 설정 (1시간)
+
 1. 저장소 클론
 2. 의존성 설치 (`pnpm install`)
 3. 환경변수 설정 (`.env.local`)
@@ -479,6 +497,7 @@ pnpm tsc --noEmit
 5. 개발 서버 실행 (`pnpm dev`)
 
 ### 2단계: 기능 검증 (2시간)
+
 1. 로그인 테스트 (OAuth)
 2. 고객 목록 조회
 3. 고객 일괄 등록 (`/customers/bulk-import`)
@@ -488,6 +507,7 @@ pnpm tsc --noEmit
 4. 기존 기능 회귀 테스트
 
 ### 3단계: XLSX 지원 추가 (4시간)
+
 1. `xlsx` 패키지 설치
 2. `client/src/pages/CustomerBulkImport.tsx` 수정
    - XLSX 파일 파싱 추가
@@ -496,11 +516,13 @@ pnpm tsc --noEmit
 4. 샘플 XLSX 파일 생성
 
 ### 4단계: 오류 행 다운로드 기능 (2시간)
+
 1. `server/routers.ts`에 `customers.downloadFailedRows` 라우터 추가
 2. `client/src/pages/CustomerBulkImport.tsx`에 다운로드 버튼 추가
 3. 테스트 작성
 
 ### 5단계: 배치 이력 조회 페이지 (4시간)
+
 1. 새 페이지 `client/src/pages/BulkImportHistory.tsx` 생성
 2. `server/routers.ts`에 `customers.getBulkImportHistory` 라우터 추가
 3. DashboardLayout에 메뉴 추가

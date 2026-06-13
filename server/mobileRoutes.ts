@@ -90,7 +90,17 @@ const scheduleCreateBody = z.object({
   reminderDayBefore: z.boolean().optional(),
   reminderSameDay: z.boolean().optional(),
   reminderOneHourBefore: z.boolean().optional(),
-  reminderOffsetMinutes: z.union([z.literal(-1), z.literal(0), z.literal(30), z.literal(60), z.literal(120), z.literal(180), z.literal(1440)]).optional(),
+  reminderOffsetMinutes: z
+    .union([
+      z.literal(-1),
+      z.literal(0),
+      z.literal(30),
+      z.literal(60),
+      z.literal(120),
+      z.literal(180),
+      z.literal(1440),
+    ])
+    .optional(),
 });
 
 const pushPrefsPatchBody = z.object({
@@ -350,7 +360,9 @@ export function registerMobileRoutes(app: Express) {
       }
       const pageSize = pageSizeParsed.data;
       const offset = offsetParsed.data;
-      const rows = await caller.customers.list(q !== undefined ? { search: q } : {});
+      const rows = await caller.customers.list(
+        q !== undefined ? { search: q } : {}
+      );
       const page = paginateMobileList(rows, offset, pageSize);
       res.json({
         items: page.items,
@@ -437,7 +449,8 @@ export function registerMobileRoutes(app: Express) {
         });
         res.json({ success: true });
       } catch (e: unknown) {
-        const msg = e instanceof Error ? e.message : "Failed to create contract";
+        const msg =
+          e instanceof Error ? e.message : "Failed to create contract";
         res.status(400).json({ error: msg });
       }
     }
@@ -462,13 +475,13 @@ export function registerMobileRoutes(app: Express) {
         const users = await caller.users.list({ activeOnly: true });
         const items = users
           .filter(
-            (u) =>
+            u =>
               u.accountStatus === "active" &&
               (u.role === "branch_admin" ||
                 u.role === "team_leader" ||
                 u.role === "member")
           )
-          .map((u) => ({
+          .map(u => ({
             id: u.id,
             name: u.name,
             role: u.role,
@@ -800,13 +813,17 @@ export function registerMobileRoutes(app: Express) {
       throw e;
     }
     const scheduleListQuery = z.object({
-      viewMode: z.enum(["mine", "user", "team", "organization"]).default("mine"),
+      viewMode: z
+        .enum(["mine", "user", "team", "organization"])
+        .default("mine"),
       ownerUserId: z.coerce.number().int().positive().optional(),
       teamId: z.coerce.number().int().positive().optional(),
     });
     const parsedQuery = scheduleListQuery.safeParse(req.query);
     if (!parsedQuery.success) {
-      res.status(400).json({ error: "Invalid query", details: parsedQuery.error.flatten() });
+      res
+        .status(400)
+        .json({ error: "Invalid query", details: parsedQuery.error.flatten() });
       return;
     }
     const ctx: TrpcContext = { req, res, user };

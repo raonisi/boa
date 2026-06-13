@@ -14,8 +14,10 @@ type LoginUrlFailure = {
 export type LoginUrlResult = LoginUrlSuccess | LoginUrlFailure;
 
 const GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const REQUIRED_GOOGLE_CLIENT_MESSAGE = "Google OAuth Client ID 설정이 필요합니다.";
-const INVALID_GOOGLE_LOGIN_MESSAGE = "Google 로그인 URL 설정이 올바르지 않습니다.";
+const REQUIRED_GOOGLE_CLIENT_MESSAGE =
+  "Google OAuth Client ID 설정이 필요합니다.";
+const INVALID_GOOGLE_LOGIN_MESSAGE =
+  "Google 로그인 URL 설정이 올바르지 않습니다.";
 
 const getGoogleClientId = () => {
   const value = import.meta.env.VITE_GOOGLE_CLIENT_ID;

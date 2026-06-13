@@ -12,18 +12,18 @@
 
 ## 사용자 화면 표시명
 
-| 내부 값 | 화면 표시 |
-|---|---|
-| `branch_admin` | 지점장 |
-| `sub_branch_admin` | 부지점장 |
-| `team_leader` | 팀장 |
-| `member` | 팀원 |
-| `active` | 활성 |
-| `inactive` | 비활성 |
-| `resigned` | 퇴사자 |
-| `managed` | 산하 전체 |
-| `mine` | 내 담당 고객 |
-| `member` scope | 조직원별 |
+| 내부 값            | 화면 표시    |
+| ------------------ | ------------ |
+| `branch_admin`     | 지점장       |
+| `sub_branch_admin` | 부지점장     |
+| `team_leader`      | 팀장         |
+| `member`           | 팀원         |
+| `active`           | 활성         |
+| `inactive`         | 비활성       |
+| `resigned`         | 퇴사자       |
+| `managed`          | 산하 전체    |
+| `mine`             | 내 담당 고객 |
+| `member` scope     | 조직원별     |
 
 표시명 변경은 화면 렌더링 전용이며 DB 저장값, API payload, 라우터 권한 조건, 테스트 fixture enum 값은 변경하지 않습니다.
 
@@ -61,23 +61,24 @@
 
 ## 위험 작업 권한표
 
-| 작업 | 허용 역할 | 서버 검증 기준 |
-|---|---|---|
-| 삭제 데이터 조회 | branch_admin | branch admin procedure |
-| 복구 | branch_admin | branch admin procedure |
-| 완전삭제 | branch_admin | branch admin procedure, soft delete 상태와 확인 문구 검증 |
-| 계약 삭제 요청 생성 | sub_branch_admin / team_leader / member | 계약 접근 범위 검증 |
-| 삭제 요청 승인/반려 | branch_admin | branch admin procedure |
-| 업로드 이력 조회 | branch_admin | branch admin procedure |
-| batch 취소 | branch_admin | branch admin procedure, 연결 운영 이력 검증 |
-| 운영 점검 / 고급 감사 검색 | branch_admin | branch admin procedure |
-| 데이터 다운로드 | branch_admin | branch admin procedure, 사유 필수 |
-| 강제 로그아웃 / OAuth 초기화 | branch_admin | branch admin procedure, 확인 문구와 사유 검증 |
-| 후속관리 / 상담기록 / 고객 관리 메타 수정 | 권한 범위 내 active 사용자 | 고객 접근 범위 검증 |
+| 작업                                      | 허용 역할                               | 서버 검증 기준                                            |
+| ----------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
+| 삭제 데이터 조회                          | branch_admin                            | branch admin procedure                                    |
+| 복구                                      | branch_admin                            | branch admin procedure                                    |
+| 완전삭제                                  | branch_admin                            | branch admin procedure, soft delete 상태와 확인 문구 검증 |
+| 계약 삭제 요청 생성                       | sub_branch_admin / team_leader / member | 계약 접근 범위 검증                                       |
+| 삭제 요청 승인/반려                       | branch_admin                            | branch admin procedure                                    |
+| 업로드 이력 조회                          | branch_admin                            | branch admin procedure                                    |
+| batch 취소                                | branch_admin                            | branch admin procedure, 연결 운영 이력 검증               |
+| 운영 점검 / 고급 감사 검색                | branch_admin                            | branch admin procedure                                    |
+| 데이터 다운로드                           | branch_admin                            | branch admin procedure, 사유 필수                         |
+| 강제 로그아웃 / OAuth 초기화              | branch_admin                            | branch admin procedure, 확인 문구와 사유 검증             |
+| 후속관리 / 상담기록 / 고객 관리 메타 수정 | 권한 범위 내 active 사용자              | 고객 접근 범위 검증                                       |
 
 ## 모바일 메뉴
 
 모바일 하단 메뉴와 더보기 메뉴는 데스크톱과 동일한 역할 조건을 사용합니다. 관리자 전용 메뉴가 표시되더라도 서버 라우터 권한 검증이 최종 방어선입니다.
+
 ## Permanent Delete Safeguard Policy
 
 Customer and contract permanent delete is retained as a branch_admin-only high-risk operation. It is not removed, and the system is not forced into archive-only mode.

@@ -88,7 +88,12 @@ describe("Bulk Import Functions", () => {
         담당자: "",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       // If organization fields are empty, it should be valid
       // If there are errors, they should not be about required fields
       if (result.errors.length > 0) {
@@ -104,9 +109,14 @@ describe("Bulk Import Functions", () => {
         생년월일: "1990-01-15",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("이름"))).toBe(true);
+      expect(result.errors.some(e => e.includes("이름"))).toBe(true);
     });
 
     it("should reject row with missing phone", async () => {
@@ -116,9 +126,14 @@ describe("Bulk Import Functions", () => {
         생년월일: "1990-01-15",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("연락처"))).toBe(true);
+      expect(result.errors.some(e => e.includes("연락처"))).toBe(true);
     });
 
     it("should reject row with short phone number", async () => {
@@ -128,9 +143,14 @@ describe("Bulk Import Functions", () => {
         생년월일: "1990-01-15",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("연락처"))).toBe(true);
+      expect(result.errors.some(e => e.includes("연락처"))).toBe(true);
     });
 
     it("should reject row with duplicate phone in DB", async () => {
@@ -143,9 +163,14 @@ describe("Bulk Import Functions", () => {
         담당자: "",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("기존 DB에 존재"))).toBe(true);
+      expect(result.errors.some(e => e.includes("기존 DB에 존재"))).toBe(true);
     });
 
     it("should reject row with duplicate phone in file", async () => {
@@ -160,9 +185,14 @@ describe("Bulk Import Functions", () => {
 
       filePhones.add("01099999999");
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("파일 내 중복"))).toBe(true);
+      expect(result.errors.some(e => e.includes("파일 내 중복"))).toBe(true);
     });
 
     it("should reject row with invalid birth date format", async () => {
@@ -175,9 +205,14 @@ describe("Bulk Import Functions", () => {
         담당자: "",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("생년월일"))).toBe(true);
+      expect(result.errors.some(e => e.includes("생년월일"))).toBe(true);
     });
 
     it("should reject row with invalid expected premium", async () => {
@@ -191,9 +226,14 @@ describe("Bulk Import Functions", () => {
         담당자: "",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, filePhones);
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        filePhones
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("예상보험료"))).toBe(true);
+      expect(result.errors.some(e => e.includes("예상보험료"))).toBe(true);
     });
 
     it("should accept valid gender values", async () => {
@@ -207,14 +247,28 @@ describe("Bulk Import Functions", () => {
           성별: gender,
         };
 
-        const result = await validateBulkImportRow(row, 0, new Set(), new Set());
+        const result = await validateBulkImportRow(
+          row,
+          0,
+          new Set(),
+          new Set()
+        );
         // Should not have gender-related errors
-        expect(result.errors.some((e) => e.includes("성별"))).toBe(false);
+        expect(result.errors.some(e => e.includes("성별"))).toBe(false);
       }
     });
 
     it("should accept valid consultation status values", async () => {
-      const validStatuses = ["미상담", "부재", "통화완료", "상담예정", "설계중", "계약", "보류", "거절"];
+      const validStatuses = [
+        "미상담",
+        "부재",
+        "통화완료",
+        "상담예정",
+        "설계중",
+        "계약",
+        "보류",
+        "거절",
+      ];
 
       for (const status of validStatuses) {
         const row = {
@@ -224,9 +278,14 @@ describe("Bulk Import Functions", () => {
           상담상태: status,
         };
 
-        const result = await validateBulkImportRow(row, 0, new Set(), new Set());
+        const result = await validateBulkImportRow(
+          row,
+          0,
+          new Set(),
+          new Set()
+        );
         // Should not have status-related errors
-        expect(result.errors.some((e) => e.includes("상담상태"))).toBe(false);
+        expect(result.errors.some(e => e.includes("상담상태"))).toBe(false);
       }
     });
 
@@ -243,7 +302,14 @@ describe("Bulk Import Functions", () => {
 
       const result = await validateBulkImportRow(row, 0, new Set(), new Set());
       // Should not have errors for missing optional fields
-      expect(result.errors.filter((e) => !e.includes("부지점장") && !e.includes("팀") && !e.includes("담당자")).length).toBe(0);
+      expect(
+        result.errors.filter(
+          e =>
+            !e.includes("부지점장") &&
+            !e.includes("팀") &&
+            !e.includes("담당자")
+        ).length
+      ).toBe(0);
     });
 
     it("should reject row with missing birth date", async () => {
@@ -254,7 +320,7 @@ describe("Bulk Import Functions", () => {
 
       const result = await validateBulkImportRow(row, 0, new Set(), new Set());
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("생년월일"))).toBe(true);
+      expect(result.errors.some(e => e.includes("생년월일"))).toBe(true);
     });
 
     it("should normalize phone before checking duplicates", async () => {
@@ -267,9 +333,14 @@ describe("Bulk Import Functions", () => {
         담당자: "",
       };
 
-      const result = await validateBulkImportRow(row, 0, existingPhones, new Set());
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        existingPhones,
+        new Set()
+      );
       expect(result.isValid).toBe(false);
-      expect(result.errors.some((e) => e.includes("기존 DB에 존재"))).toBe(true);
+      expect(result.errors.some(e => e.includes("기존 DB에 존재"))).toBe(true);
     });
   });
 
@@ -378,7 +449,12 @@ describe("Bulk Import Functions", () => {
         담당자: "",
       };
 
-      const result = await validateBulkImportRow(row, 0, largePhoneSet, new Set());
+      const result = await validateBulkImportRow(
+        row,
+        0,
+        largePhoneSet,
+        new Set()
+      );
       expect(result.isValid).toBe(true);
     });
 
@@ -400,7 +476,12 @@ describe("Bulk Import Functions", () => {
         생년월일: "1990-01-15",
       };
 
-      const result = await validateBulkImportRow(row, 9999, new Set(), new Set());
+      const result = await validateBulkImportRow(
+        row,
+        9999,
+        new Set(),
+        new Set()
+      );
       expect(result.rowIndex).toBe(9999);
     });
   });
@@ -428,13 +509,17 @@ describe("Bulk Import Functions", () => {
     it("converts manwon input to stored won", () => {
       expect(expectedPremiumStoredWonFromManwonInput("5")).toBe(50_000);
       expect(expectedPremiumStoredWonFromManwonInput("12.5")).toBe(125_000);
-      expect(expectedPremiumStoredWonFromManwonInput("  1,000  ")).toBe(10_000_000);
+      expect(expectedPremiumStoredWonFromManwonInput("  1,000  ")).toBe(
+        10_000_000
+      );
       expect(expectedPremiumStoredWonFromManwonInput("")).toBeUndefined();
     });
 
     it("formats stored won for UI", () => {
       expect(formatExpectedPremiumManwon(500_000)).toBe("50만원");
-      expect(expectedPremiumManwonFormStringFromStoredWon(125_000)).toBe("12.5");
+      expect(expectedPremiumManwonFormStringFromStoredWon(125_000)).toBe(
+        "12.5"
+      );
     });
   });
 });

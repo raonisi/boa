@@ -38,7 +38,12 @@ export type AdminCardSection =
 
 export type RiskLevel = "normal" | "caution" | "high" | "branch_admin_only";
 
-export type CardStatus = "available" | "beta" | "coming_soon" | "branch_admin_only" | "production_ready";
+export type CardStatus =
+  | "available"
+  | "beta"
+  | "coming_soon"
+  | "branch_admin_only"
+  | "production_ready";
 
 export type AdminOperationCard = {
   id: string;
@@ -82,7 +87,8 @@ export const PERMISSION_DENIED_TITLE = "접근 권한이 없습니다";
 export const PERMISSION_DENIED_DESCRIPTION =
   "관리자 운영센터는 지점장, 부지점장, 팀장만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요.";
 
-export const NO_VISIBLE_CARDS_TITLE = "현재 권한으로는 이 기능을 사용할 수 없습니다.";
+export const NO_VISIBLE_CARDS_TITLE =
+  "현재 권한으로는 이 기능을 사용할 수 없습니다.";
 
 export const NO_VISIBLE_CARDS_DESCRIPTION =
   "필요한 경우 지점장에게 권한 또는 담당 범위를 확인해 주세요.";
@@ -92,16 +98,22 @@ export const HIGH_RISK_NOTICE = [
   "처리 전 대상과 사유를 반드시 확인해 주세요.",
 ] as const;
 
-export const ADMIN_OPERATION_SECTIONS: Array<{ id: AdminCardSection; title: string; description: string }> = [
+export const ADMIN_OPERATION_SECTIONS: Array<{
+  id: AdminCardSection;
+  title: string;
+  description: string;
+}> = [
   {
     id: "organization-users",
     title: "조직·사용자 관리",
-    description: "직원 계정, 조직 구조, 담당자 변경, 인수인계와 계정 보안을 관리합니다.",
+    description:
+      "직원 계정, 조직 구조, 담당자 변경, 인수인계와 계정 보안을 관리합니다.",
   },
   {
     id: "customer-db",
     title: "고객·DB 운영",
-    description: "고객 DB 조회, 배정, 병합, 삭제 데이터와 업로드 이력을 운영합니다.",
+    description:
+      "고객 DB 조회, 배정, 병합, 삭제 데이터와 업로드 이력을 운영합니다.",
   },
   {
     id: "team-work",
@@ -111,7 +123,8 @@ export const ADMIN_OPERATION_SECTIONS: Array<{ id: AdminCardSection; title: stri
   {
     id: "operations-security",
     title: "운영·보안 관리",
-    description: "운영 점검, 활동 로그, 위험 작업과 다운로드 사유를 확인합니다.",
+    description:
+      "운영 점검, 활동 로그, 위험 작업과 다운로드 사유를 확인합니다.",
   },
   {
     id: "notifications-push",
@@ -141,8 +154,10 @@ export const CARD_STATUS_LABELS: Record<CardStatus, string> = {
 };
 
 export const ROLE_SCOPE_HINTS: Record<ManagerRole, string> = {
-  branch_admin: "전체 조직의 고객, 계약, 실적, 권한, 위험 작업을 통합 관리합니다.",
-  sub_branch_admin: "산하 조직의 고객관리, 팀장 업무, 후속관리 누락을 확인합니다.",
+  branch_admin:
+    "전체 조직의 고객, 계약, 실적, 권한, 위험 작업을 통합 관리합니다.",
+  sub_branch_admin:
+    "산하 조직의 고객관리, 팀장 업무, 후속관리 누락을 확인합니다.",
   team_leader: "산하 팀원의 고객관리, 일정, 후속관리, 실적 흐름을 점검합니다.",
 };
 
@@ -216,7 +231,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "customer-db",
     title: "고객 DB 관리",
-    description: "전체 고객과 내 담당 고객을 조회합니다. 고객 상세에서 30초 퀵 상담, 접점 타임라인을 함께 사용할 수 있습니다.",
+    description:
+      "전체 고객과 내 담당 고객을 조회합니다. 고객 상세에서 30초 퀵 상담, 접점 타임라인을 함께 사용할 수 있습니다.",
     section: "customer-db",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/customers",
@@ -282,7 +298,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "customer-data-quality",
     title: "고객 데이터 품질 점검",
-    description: "전화번호 누락, 담당자 없음, 후속관리 공백, 중복 가능 고객 등 고객 DB의 보완 필요 항목을 확인합니다.",
+    description:
+      "전화번호 누락, 담당자 없음, 후속관리 공백, 중복 가능 고객 등 고객 DB의 보완 필요 항목을 확인합니다.",
     section: "customer-db",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/customer-data-quality",
@@ -293,7 +310,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "team-insights",
     title: "관리자 밀착 대시보드",
-    description: "팀원별 미상담 DB, 후속관리 지연, 일정 미완료를 한눈에 확인합니다.",
+    description:
+      "팀원별 미상담 DB, 후속관리 지연, 일정 미완료를 한눈에 확인합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/team-insights",
@@ -337,7 +355,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "onboarding-checklists",
     title: "온보딩 체크리스트",
-    description: "신규 직원의 CRM 교육 항목, 진행률, 승인 대기 상태를 관리합니다.",
+    description:
+      "신규 직원의 CRM 교육 항목, 진행률, 승인 대기 상태를 관리합니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/onboarding-checklists",
@@ -348,7 +367,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "aftercare-campaigns",
     title: "사후관리 캠페인",
-    description: "계약 점검, 생일, 장기 미관리 고객을 사후관리 대상으로 확인하고 후속관리로 연결합니다. 자동 발송은 포함하지 않습니다.",
+    description:
+      "계약 점검, 생일, 장기 미관리 고객을 사후관리 대상으로 확인하고 후속관리로 연결합니다. 자동 발송은 포함하지 않습니다.",
     section: "team-work",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/aftercare-campaigns",
@@ -370,7 +390,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "operation-risk-dashboard",
     title: "운영 점검 대시보드",
-    description: "운영 위험, 오류, 푸시 실패, 권한 차단 등 운영 상태를 점검합니다.",
+    description:
+      "운영 위험, 오류, 푸시 실패, 권한 차단 등 운영 상태를 점검합니다.",
     section: "operations-security",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/operation-risk",
@@ -381,7 +402,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "activity-logs",
     title: "활동 로그",
-    description: "사용자별 조회, 수정, 삭제, 다운로드 등 주요 행동을 추적합니다.",
+    description:
+      "사용자별 조회, 수정, 삭제, 다운로드 등 주요 행동을 추적합니다.",
     section: "operations-security",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/logs",
@@ -392,7 +414,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "operation-risk-report",
     title: "운영자용 장애·오류 리포트",
-    description: "운영 위험, 오류, 푸시 실패, 권한 차단 등 운영 상태를 점검합니다.",
+    description:
+      "운영 위험, 오류, 푸시 실패, 권한 차단 등 운영 상태를 점검합니다.",
     section: "operations-security",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/operation-risk",
@@ -469,7 +492,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "push-logs",
     title: "발송 로그",
-    description: "sent, failed, skipped 상태를 기준으로 푸시 이력을 확인합니다.",
+    description:
+      "sent, failed, skipped 상태를 기준으로 푸시 이력을 확인합니다.",
     section: "notifications-push",
     allowedRoles: ["branch_admin"],
     route: "/push-notifications",
@@ -480,7 +504,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "push-skip-reasons",
     title: "미수신 원인 확인",
-    description: "token 없음, 설정 OFF, 조용한 시간대, 중복 차단 여부를 확인합니다.",
+    description:
+      "token 없음, 설정 OFF, 조용한 시간대, 중복 차단 여부를 확인합니다.",
     section: "notifications-push",
     allowedRoles: ["branch_admin"],
     route: "/push-notifications",
@@ -513,7 +538,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "work-rhythm",
     title: "업무 리듬 리포트",
-    description: "상담, 후속관리, 일정, 실적 흐름을 업무 리듬 기준으로 확인합니다.",
+    description:
+      "상담, 후속관리, 일정, 실적 흐름을 업무 리듬 기준으로 확인합니다.",
     section: "goals-performance",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/performance/goals",
@@ -524,7 +550,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "management-reports",
     title: "관리자 보고서",
-    description: "일일·주간·월간 기준으로 팀장·부지점장 운영 보고서를 생성합니다.",
+    description:
+      "일일·주간·월간 기준으로 팀장·부지점장 운영 보고서를 생성합니다.",
     section: "goals-performance",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     route: "/management-reports",
@@ -535,7 +562,8 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "goal-actions",
     title: "목표 대비 행동량",
-    description: "목표 달성까지 필요한 상담, 후속관리, 계약 행동량을 확인합니다.",
+    description:
+      "목표 달성까지 필요한 상담, 후속관리, 계약 행동량을 확인합니다.",
     section: "goals-performance",
     allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
     riskLevel: "normal",
@@ -558,32 +586,43 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
 
 export function canAccessAdminOperationsCenter(user?: AdminHubUser | null) {
   if (!user || user.accountStatus !== "active") return false;
-  return user.role === "branch_admin" || user.role === "sub_branch_admin" || user.role === "team_leader";
+  return (
+    user.role === "branch_admin" ||
+    user.role === "sub_branch_admin" ||
+    user.role === "team_leader"
+  );
 }
 
-export function isCardVisibleForUser(card: AdminOperationCard, user?: AdminHubUser | null) {
+export function isCardVisibleForUser(
+  card: AdminOperationCard,
+  user?: AdminHubUser | null
+) {
   if (!canAccessAdminOperationsCenter(user)) return false;
   const role = user!.role as ManagerRole;
   if (!card.allowedRoles.includes(role)) return false;
-  if (card.status === "branch_admin_only" && role !== "branch_admin") return false;
+  if (card.status === "branch_admin_only" && role !== "branch_admin")
+    return false;
   return true;
 }
 
 export function getVisibleAdminOperationCards(user?: AdminHubUser | null) {
-  return ADMIN_OPERATION_CARDS.filter((card) => isCardVisibleForUser(card, user));
+  return ADMIN_OPERATION_CARDS.filter(card => isCardVisibleForUser(card, user));
 }
 
 export function groupAdminOperationCards(cards: AdminOperationCard[]) {
-  return ADMIN_OPERATION_SECTIONS.map((section) => ({
+  return ADMIN_OPERATION_SECTIONS.map(section => ({
     ...section,
-    cards: cards.filter((card) => card.section === section.id),
-  })).filter((section) => section.cards.length > 0);
+    cards: cards.filter(card => card.section === section.id),
+  })).filter(section => section.cards.length > 0);
 }
 
-export function filterAdminOperationCards(cards: AdminOperationCard[], query: string) {
+export function filterAdminOperationCards(
+  cards: AdminOperationCard[],
+  query: string
+) {
   const normalized = query.trim().toLowerCase();
   if (!normalized) return cards;
-  return cards.filter((card) => {
+  return cards.filter(card => {
     const haystack = `${card.title} ${card.description}`.toLowerCase();
     return haystack.includes(normalized);
   });
@@ -597,8 +636,11 @@ export function isCardNavigable(card: AdminOperationCard) {
   return card.status !== "coming_soon" && Boolean(card.route);
 }
 
-export function getCardStatusNotice(card: AdminOperationCard): readonly string[] {
-  if (card.status === "coming_soon" || card.isComingSoon) return COMING_SOON_NOTICE;
+export function getCardStatusNotice(
+  card: AdminOperationCard
+): readonly string[] {
+  if (card.status === "coming_soon" || card.isComingSoon)
+    return COMING_SOON_NOTICE;
   if (card.status === "beta") return BETA_NOTICE;
   if (card.status === "production_ready") return PRODUCTION_READY_NOTICE;
   if (card.status === "branch_admin_only") return RESTRICTED_NOTICE;

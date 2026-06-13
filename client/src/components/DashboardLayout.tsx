@@ -61,7 +61,11 @@ import { MobileNav } from "./MobileNav";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Button } from "./ui/button";
 import { getRoleLabel } from "@/lib/userRole";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
@@ -92,14 +96,54 @@ const navGroups: NavGroup[] = [
     label: "고객 관리",
     items: [
       { icon: Users, label: "고객 DB", path: "/customers" },
-      { icon: Database, label: "고객 데이터 품질 점검", path: "/customer-data-quality", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: Database, label: "내 고객 데이터 보완", path: "/customer-data-quality", roles: ["member"] },
-      { icon: ClipboardCheck, label: "사후관리 캠페인", path: "/aftercare-campaigns", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
-      { icon: ClipboardCheck, label: "온보딩 체크리스트", path: "/onboarding-checklists", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
-      { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },
-      { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
-      { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
-      { icon: UserSquare2, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
+      {
+        icon: Database,
+        label: "고객 데이터 품질 점검",
+        path: "/customer-data-quality",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: Database,
+        label: "내 고객 데이터 보완",
+        path: "/customer-data-quality",
+        roles: ["member"],
+      },
+      {
+        icon: ClipboardCheck,
+        label: "사후관리 캠페인",
+        path: "/aftercare-campaigns",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
+      {
+        icon: ClipboardCheck,
+        label: "온보딩 체크리스트",
+        path: "/onboarding-checklists",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
+      {
+        icon: Upload,
+        label: "고객 일괄 등록",
+        path: "/customers/bulk-import",
+        canAccess: hasCustomerBulkImportAccess,
+      },
+      {
+        icon: RotateCcw,
+        label: "업로드 이력 관리",
+        path: "/customers/import-batches",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: GitMerge,
+        label: "중복 고객 관리",
+        path: "/customers/merge",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: UserSquare2,
+        label: "DB 배정",
+        path: "/customers/assign",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
     ],
   },
   {
@@ -110,29 +154,118 @@ const navGroups: NavGroup[] = [
       { icon: Target, label: "목표관리", path: "/performance/goals" },
       { icon: CalendarDays, label: "일정 캘린더", path: "/calendar" },
       { icon: Bell, label: "알림센터", path: "/notifications" },
-      { icon: BellRing, label: "앱 알림 설정", path: "/notification-preferences" },
+      {
+        icon: BellRing,
+        label: "앱 알림 설정",
+        path: "/notification-preferences",
+      },
     ],
   },
   {
     label: "관리자",
     items: [
-      { icon: LayoutDashboard, label: "관리자 운영센터", path: "/admin/operations-center", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: FileText, label: "관리자 보고서", path: "/management-reports", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: Monitor, label: "팀원 관리", path: "/team-insights", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: Activity, label: "첫 연락 SLA 관리", path: "/admin/sla", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: Activity, label: "팀원 업무 처리율", path: "/admin/team-completion", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: Activity, label: "팀원 코칭 노트", path: "/admin/team-coaching", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: BookOpen, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
-      { icon: Network, label: "조직 구조", path: "/organization", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },
-      { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
-      { icon: ShieldCheck, label: "운영 리스크 센터", path: "/operation-risk", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: BellRing, label: "푸시 알림 운영", path: "/push-notifications", roles: ["branch_admin"] },
-      { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-      { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },
-      { icon: Download, label: "데이터 다운로드", path: "/download", roles: ["branch_admin"] },
-      { icon: ClipboardCheck, label: "상담 도구 관리", path: "/consultation-tools", roles: ["branch_admin"] },
-      { icon: Settings, label: "설정 관리", path: "/settings", roles: ["branch_admin"] },
+      {
+        icon: LayoutDashboard,
+        label: "관리자 운영센터",
+        path: "/admin/operations-center",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: FileText,
+        label: "관리자 보고서",
+        path: "/management-reports",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: Monitor,
+        label: "팀원 관리",
+        path: "/team-insights",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: Activity,
+        label: "첫 연락 SLA 관리",
+        path: "/admin/sla",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: Activity,
+        label: "팀원 업무 처리율",
+        path: "/admin/team-completion",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: Activity,
+        label: "팀원 코칭 노트",
+        path: "/admin/team-coaching",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: BookOpen,
+        label: "사용자 관리",
+        path: "/users",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: Network,
+        label: "조직 구조",
+        path: "/organization",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: ArrowRightLeft,
+        label: "인수인계 관리",
+        path: "/users/handoff",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: Users,
+        label: "팀 관리",
+        path: "/teams",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: ShieldCheck,
+        label: "운영 리스크 센터",
+        path: "/operation-risk",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: BellRing,
+        label: "푸시 알림 운영",
+        path: "/push-notifications",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: Activity,
+        label: "활동 로그",
+        path: "/logs",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: RotateCcw,
+        label: "삭제 데이터 관리",
+        path: "/deleted-data",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: Download,
+        label: "데이터 다운로드",
+        path: "/download",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: ClipboardCheck,
+        label: "상담 도구 관리",
+        path: "/consultation-tools",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: Settings,
+        label: "설정 관리",
+        path: "/settings",
+        roles: ["branch_admin"],
+      },
     ],
   },
 ];
@@ -179,16 +312,24 @@ const pageTitles: Array<{ prefix: string; title: string }> = [
 
 function getPageTitle(path: string) {
   if (path === "/") return "대시보드";
-  return pageTitles.find((item) => path.startsWith(item.prefix))?.title ?? "BOA CRM";
+  return (
+    pageTitles.find(item => path.startsWith(item.prefix))?.title ?? "BOA CRM"
+  );
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [sidebarWidth, setSidebarWidth] = useState(() => {
     const saved = localStorage.getItem(SIDEBAR_WIDTH_KEY);
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
-  const [loginConfigMessage, setLoginConfigMessage] = useState<string | null>(null);
+  const [loginConfigMessage, setLoginConfigMessage] = useState<string | null>(
+    null
+  );
   useFcmDeviceTokenRegistration(user);
 
   useEffect(() => {
@@ -208,11 +349,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       setLoginConfigMessage(loginUrl.message);
     };
 
-    return <BrandedLogin onLogin={handleLogin} loginConfigMessage={loginConfigMessage} />;
+    return (
+      <BrandedLogin
+        onLogin={handleLogin}
+        loginConfigMessage={loginConfigMessage}
+      />
+    );
   }
 
   return (
-    <SidebarProvider style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}>
+    <SidebarProvider
+      style={{ "--sidebar-width": `${sidebarWidth}px` } as CSSProperties}
+    >
       <DashboardLayoutContent setSidebarWidth={setSidebarWidth}>
         {children}
       </DashboardLayoutContent>
@@ -235,16 +383,20 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
 
-  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(undefined, {
-    refetchInterval: 30000,
-  });
+  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
+    undefined,
+    {
+      refetchInterval: 30000,
+    }
+  );
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
       const left = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const newWidth = e.clientX - left;
-      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH) setSidebarWidth(newWidth);
+      if (newWidth >= MIN_WIDTH && newWidth <= MAX_WIDTH)
+        setSidebarWidth(newWidth);
     };
     const handleMouseUp = () => setIsResizing(false);
     if (isResizing) {
@@ -264,7 +416,10 @@ function DashboardLayoutContent({
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+        <Sidebar
+          collapsible="icon"
+          className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground"
+        >
           <SidebarHeader className="h-16 justify-center border-b border-sidebar-border/80">
             {!isCollapsed ? (
               <div className="flex min-w-0 items-center gap-2 px-2">
@@ -277,7 +432,9 @@ function DashboardLayoutContent({
                   <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">
                     BOA CRM
                   </p>
-                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">지점관리 CRM</p>
+                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">
+                    지점관리 CRM
+                  </p>
                 </div>
               </div>
             ) : (
@@ -294,7 +451,9 @@ function DashboardLayoutContent({
           <SidebarContent className="gap-0 py-2">
             {navGroups.map((group, gi) => {
               const groupItems = group.items.filter(
-                (item) => item.canAccess?.(user) ?? (!item.roles || item.roles.includes(user?.role ?? ""))
+                item =>
+                  item.canAccess?.(user) ??
+                  (!item.roles || item.roles.includes(user?.role ?? ""))
               );
               if (groupItems.length === 0) return null;
               return (
@@ -308,8 +467,10 @@ function DashboardLayoutContent({
                     </p>
                   )}
                   <SidebarMenu className="gap-0.5 px-2">
-                    {groupItems.map((item) => {
-                      const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
+                    {groupItems.map(item => {
+                      const isActive =
+                        location === item.path ||
+                        (item.path !== "/" && location.startsWith(item.path));
                       const isNotif = item.path === "/notifications";
                       return (
                         <SidebarMenuItem key={item.path}>
@@ -354,7 +515,9 @@ function DashboardLayoutContent({
                   </Avatar>
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
-                      <p className="truncate text-xs font-semibold text-sidebar-foreground">{user?.name ?? "-"}</p>
+                      <p className="truncate text-xs font-semibold text-sidebar-foreground">
+                        {user?.name ?? "-"}
+                      </p>
                       <p className="truncate text-[10px] text-sidebar-primary/85">
                         {getRoleLabel(user?.role)}
                       </p>
@@ -365,10 +528,15 @@ function DashboardLayoutContent({
               <DropdownMenuContent align="end" className="w-44">
                 <div className="px-2 py-1.5">
                   <p className="text-sm font-medium">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {getRoleLabel(user?.role)}
+                  </p>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={logout} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem
+                  onClick={logout}
+                  className="text-destructive focus:text-destructive"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   로그아웃
                 </DropdownMenuItem>
@@ -387,11 +555,20 @@ function DashboardLayoutContent({
       <SidebarInset>
         <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/90 bg-background/92 px-4 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/78">
           <SidebarTrigger className="h-9 w-9 shrink-0 rounded-lg border border-transparent hover:bg-muted/70" />
-          <BrandLogo mark className="hidden h-8 w-8 shrink-0 rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border sm:flex" />
+          <BrandLogo
+            mark
+            className="hidden h-8 w-8 shrink-0 rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border sm:flex"
+          />
           <div className="min-w-0">
-            <p className="truncate text-sm font-bold tracking-tight text-foreground">{getPageTitle(location)}</p>
+            <p className="truncate text-sm font-bold tracking-tight text-foreground">
+              {getPageTitle(location)}
+            </p>
             <p className="hidden text-xs text-muted-foreground tabular-nums sm:block">
-              {new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" })}
+              {new Date().toLocaleDateString("ko-KR", {
+                month: "long",
+                day: "numeric",
+                weekday: "long",
+              })}
             </p>
           </div>
           <div className="flex-1" />
@@ -404,9 +581,15 @@ function DashboardLayoutContent({
                   size="icon"
                   className="h-10 w-10 shrink-0 rounded-lg border-border bg-card shadow-sm"
                   onClick={toggleTheme}
-                  aria-label={theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"}
+                  aria-label={
+                    theme === "dark" ? "라이트 모드로 전환" : "다크 모드로 전환"
+                  }
                 >
-                  {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {theme === "dark" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" align="end">
@@ -434,4 +617,3 @@ function DashboardLayoutContent({
     </>
   );
 }
-

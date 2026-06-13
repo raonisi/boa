@@ -6,7 +6,6 @@ Insurance CRM is an internal CRM for an insurance sales organization. It manages
 
 Internal CRM app sources live under **`apps/boa`**. See [`apps/boa/README.md`](apps/boa/README.md) for Flutter SDK setup and the one-time `flutter create . --platforms=android` step to generate the `android/` folder.
 
-
 Copy `.env.example` to `.env` and fill in real values. Do not commit `.env` or any real secrets.
 
 ## Required Environment Variables

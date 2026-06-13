@@ -5,6 +5,7 @@ BOA CRM reviews are evidence-first. A claim is not complete until the proof is n
 ## Evidence To Collect
 
 Use evidence appropriate to the task:
+
 - file paths and line references
 - command results
 - screenshots
@@ -17,6 +18,7 @@ Use evidence appropriate to the task:
 ## UI Evidence
 
 When UI is involved, prefer:
+
 - desktop screenshot
 - mobile screenshot
 - route names
@@ -29,6 +31,7 @@ If screenshots are not taken, say why.
 ## Browser and Playwright Verification
 
 Use browser-based checks when:
+
 - route rendering changes
 - responsive behavior changes
 - navigation changes
@@ -40,12 +43,14 @@ For docs-only tasks, browser tests are normally not required.
 ## Test Commands and Results
 
 Common local verification:
+
 - `pnpm.cmd check`
 - `pnpm.cmd test`
 - `pnpm.cmd build`
 - `pnpm.cmd test:e2e` when routing, UI, e2e, or smoke behavior is touched
 
 Report:
+
 - command
 - pass/fail
 - key failure line only
@@ -54,6 +59,7 @@ Report:
 ## Reproduction Steps
 
 Bug reports should include:
+
 - starting role/account
 - route or API
 - input data
@@ -65,6 +71,7 @@ Bug reports should include:
 ## Claims Not Allowed Without Proof
 
 Do not claim these without direct evidence:
+
 - production deployed
 - Railway live behavior works
 - Android push received
@@ -77,17 +84,20 @@ Do not claim these without direct evidence:
 ## Default Verdict Rules
 
 PASS:
+
 - Required evidence exists.
 - No P0/P1 remains.
 - Required checks pass.
 - External limitations are clearly separated.
 
 NEEDS WORK:
+
 - Evidence is incomplete.
 - P2 issues remain that affect normal work.
 - Tests are missing for changed behavior.
 
 HOLD:
+
 - P0/P1 remains.
 - Customer data exposure risk remains.
 - RBAC is uncertain.

@@ -2,7 +2,9 @@
  * Mobile REST list helpers — scoped caller results only; never widens RBAC.
  */
 
-export function parseMobileSearchQuery(raw: unknown): { ok: true; value: string | undefined } | { ok: false } {
+export function parseMobileSearchQuery(
+  raw: unknown
+): { ok: true; value: string | undefined } | { ok: false } {
   if (raw === undefined) return { ok: true, value: undefined };
   if (typeof raw !== "string") return { ok: false };
   const trimmed = raw.trim();
@@ -19,10 +21,13 @@ type ContractSearchRow = {
 };
 
 /** In-memory filter on already scoped contract rows (contracts.list has no search input). */
-export function filterMobileContracts<T extends ContractSearchRow>(rows: T[], search: string): T[] {
+export function filterMobileContracts<T extends ContractSearchRow>(
+  rows: T[],
+  search: string
+): T[] {
   const needle = search.trim().toLowerCase();
   if (!needle) return rows;
-  return rows.filter((row) => {
+  return rows.filter(row => {
     const fields = [
       row.productName,
       row.company,
@@ -30,7 +35,9 @@ export function filterMobileContracts<T extends ContractSearchRow>(rows: T[], se
       row.contractStatus,
       row.paymentStatus,
     ];
-    return fields.some((v) => typeof v === "string" && v.toLowerCase().includes(needle));
+    return fields.some(
+      v => typeof v === "string" && v.toLowerCase().includes(needle)
+    );
   });
 }
 
@@ -44,10 +51,13 @@ type CustomerSearchRow = {
 };
 
 /** Fallback in-memory filter when caller rows are already scoped (prefer DB search via customers.list input). */
-export function filterMobileCustomers<T extends CustomerSearchRow>(rows: T[], search: string): T[] {
+export function filterMobileCustomers<T extends CustomerSearchRow>(
+  rows: T[],
+  search: string
+): T[] {
   const needle = search.trim().toLowerCase();
   if (!needle) return rows;
-  return rows.filter((row) => {
+  return rows.filter(row => {
     const fields = [
       row.name,
       row.phone,
@@ -56,11 +66,17 @@ export function filterMobileCustomers<T extends CustomerSearchRow>(rows: T[], se
       row.priority,
       row.customerTags,
     ];
-    return fields.some((v) => typeof v === "string" && v.toLowerCase().includes(needle));
+    return fields.some(
+      v => typeof v === "string" && v.toLowerCase().includes(needle)
+    );
   });
 }
 
-export function paginateMobileList<T>(rows: T[], offset: number, pageSize: number): {
+export function paginateMobileList<T>(
+  rows: T[],
+  offset: number,
+  pageSize: number
+): {
   items: T[];
   hasMore: boolean;
   nextOffset: number | null;

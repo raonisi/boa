@@ -33,14 +33,20 @@ export default function TopRiskUsers({ users }: { users: UserMetric[] }) {
         {users.map((item, index) => {
           const reasons = [];
           if (item.metrics.overdueFollowUpsCount > 0) reasons.push("후속지연");
-          if (item.metrics.priorityAUnmanagedCount > 0) reasons.push("A등급방치");
+          if (item.metrics.priorityAUnmanagedCount > 0)
+            reasons.push("A등급방치");
           if (item.metrics.longUnmanagedCount > 0) reasons.push("장기미관리");
-          if (item.metrics.incompleteSchedulesCount > 0) reasons.push("일정미완료");
+          if (item.metrics.incompleteSchedulesCount > 0)
+            reasons.push("일정미완료");
           if (item.metrics.unconsultedDbCount > 0) reasons.push("미상담DB");
-          if (item.metrics.postContractUnmanagedCount > 0) reasons.push("계약후방치");
+          if (item.metrics.postContractUnmanagedCount > 0)
+            reasons.push("계약후방치");
 
           return (
-            <Link key={item.user.id} href={`/customers?agentId=${item.user.id}`}>
+            <Link
+              key={item.user.id}
+              href={`/customers?agentId=${item.user.id}`}
+            >
               <Card className="cursor-pointer transition-all hover:border-destructive/50 hover:shadow-md">
                 <CardContent className="p-4 flex flex-col items-center text-center space-y-3">
                   <div className="relative">
@@ -52,17 +58,28 @@ export default function TopRiskUsers({ users }: { users: UserMetric[] }) {
                     </div>
                   </div>
                   <div>
-                    <p className="font-semibold text-slate-900">{item.user.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.riskScore}점</p>
+                    <p className="font-semibold text-slate-900">
+                      {item.user.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.riskScore}점
+                    </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-1">
                     {reasons.slice(0, 2).map((r, i) => (
-                      <Badge key={i} variant="outline" className="text-[10px] px-1.5 py-0">
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0"
+                      >
                         {r}
                       </Badge>
                     ))}
                     {reasons.length > 2 && (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+                      <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 text-muted-foreground"
+                      >
                         +{reasons.length - 2}
                       </Badge>
                     )}

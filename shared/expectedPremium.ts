@@ -6,7 +6,9 @@ function normalizeManwonInput(raw: string): string {
 }
 
 /** 만원 입력 문자열을 저장용 원 단위 정수로 변환합니다. 빈 문자열은 undefined입니다. */
-export function expectedPremiumStoredWonFromManwonInput(raw: string): number | undefined {
+export function expectedPremiumStoredWonFromManwonInput(
+  raw: string
+): number | undefined {
   const t = normalizeManwonInput(raw);
   if (t === "") return undefined;
   const n = Number(t);
@@ -15,7 +17,9 @@ export function expectedPremiumStoredWonFromManwonInput(raw: string): number | u
 }
 
 /** 저장된 원 단위 값을 수정 폼용 만원 문자열로 변환합니다. */
-export function expectedPremiumManwonFormStringFromStoredWon(won: number): string {
+export function expectedPremiumManwonFormStringFromStoredWon(
+  won: number
+): string {
   const man = won / EXPECTED_PREMIUM_WON_PER_MANWON;
   if (Number.isInteger(man)) return String(man);
   const rounded = Math.round(man * 100) / 100;

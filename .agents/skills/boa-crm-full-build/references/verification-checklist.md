@@ -1,6 +1,7 @@
 # BOA CRM Verification Checklist
 
 ## Production-blocking checks
+
 - [ ] No role can access data outside authorized scope through direct ID/API.
 - [ ] `inactive` / `resigned` cannot log in.
 - [ ] DB bulk import is `branch_admin` only.
@@ -16,12 +17,15 @@
 - [ ] No actual `.env` or secret in repo.
 
 ## Recommended test commands
+
 - `pnpm install`
 - `pnpm build`
 - `pnpm test`
 
 ## Required report style
+
 Use:
+
 - 완료
 - 일부 완료
 - 누락

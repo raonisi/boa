@@ -17,26 +17,26 @@ branch_admin이 데이터 다운로드, 삭제·복구, 계정·권한, 인수�
 
 ## 리스크 등급
 
-| 등급 | 기준 |
-| --- | --- |
-| 정상 | 위험 이벤트가 없거나 낮은 수준 |
-| 주의 | 확인 필요한 이벤트 존재 |
-| 경고 | 반복 이벤트 또는 민감 작업 존재 |
+| 등급 | 기준                                                                                  |
+| ---- | ------------------------------------------------------------------------------------- |
+| 정상 | 위험 이벤트가 없거나 낮은 수준                                                        |
+| 주의 | 확인 필요한 이벤트 존재                                                               |
+| 경고 | 반복 이벤트 또는 민감 작업 존재                                                       |
 | 위험 | 대량 다운로드, 완전삭제, 강제 로그아웃, OAuth 초기화, 퇴사자 미처리 등 즉시 확인 필요 |
 
 점수는 0~100점 범위의 계산값이며 저장하지 않는다. 운영 데이터가 누적되면 임계값은 파일럿 운영 중 조정할 수 있다.
 
 ## 데이터 source
 
-| 리스크 | source |
-| --- | --- |
-| 데이터 다운로드 | `activity_logs.DATA_DOWNLOAD`, 다운로드 metadata reason/rowCount |
-| 삭제·복구 | `delete_requests`, 삭제/복구/완전삭제 관련 `activity_logs` |
-| 권한·계정 | `users`, 로그인 차단, 강제 로그아웃, OAuth 초기화, 권한 변경 `activity_logs` |
-| 인수인계 | `handoff_histories`, inactive/resigned 사용자에게 남은 고객/계약/후속관리/일정/알림 |
-| 푸시 알림 | `push_notification_logs`, `user_device_tokens` 요약 |
-| 미처리 업무 | 미처리 `follow_ups`, 오래된 `schedules`, 미확인 `notifications`, pending delete request |
-| 최근 고위험 로그 | 기존 `activity_logs`의 실제 action 이름 |
+| 리스크           | source                                                                                  |
+| ---------------- | --------------------------------------------------------------------------------------- |
+| 데이터 다운로드  | `activity_logs.DATA_DOWNLOAD`, 다운로드 metadata reason/rowCount                        |
+| 삭제·복구        | `delete_requests`, 삭제/복구/완전삭제 관련 `activity_logs`                              |
+| 권한·계정        | `users`, 로그인 차단, 강제 로그아웃, OAuth 초기화, 권한 변경 `activity_logs`            |
+| 인수인계         | `handoff_histories`, inactive/resigned 사용자에게 남은 고객/계약/후속관리/일정/알림     |
+| 푸시 알림        | `push_notification_logs`, `user_device_tokens` 요약                                     |
+| 미처리 업무      | 미처리 `follow_ups`, 오래된 `schedules`, 미확인 `notifications`, pending delete request |
+| 최근 고위험 로그 | 기존 `activity_logs`의 실제 action 이름                                                 |
 
 ## 권한
 
@@ -75,6 +75,7 @@ branch_admin이 데이터 다운로드, 삭제·복구, 계정·권한, 인수�
 - 새 DB migration은 없다.
 - `activity_logs` 구조와 DATA_DOWNLOAD 정책은 변경하지 않는다.
 - token 원문, secret, password, DATABASE_URL, 전화번호 전체, 상담 본문 전문, 질병명, 보험상품명, 보험료 상세 전문은 운영 로그 탭에 노출하지 않는다.
+
 ## Permanent Delete Audit Linkage
 
 - Customer/contract permanent delete is retained as a controlled branch_admin-only operation.

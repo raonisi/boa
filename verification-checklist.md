@@ -1,6 +1,7 @@
 # BOA CRM Verification Checklist
 
 ## Production-blocking checks
+
 - [ ] No role can access data outside authorized scope through direct ID/API.
 - [ ] `inactive` / `resigned` cannot log in.
 - [ ] DB bulk import is `branch_admin` only.
@@ -16,12 +17,14 @@
 - [ ] No actual `.env` or secret in repo.
 
 ## Recommended test commands
+
 - `pnpm install`
 - `pnpm check`
 - `pnpm build`
 - `pnpm test`
 
 ## Design token QA
+
 - [ ] Primary, secondary, ghost, danger/destructive, and success buttons keep distinct hierarchy.
 - [ ] Card, badge, status, and risk colors use BOA premium finance tokens consistently.
 - [ ] Dashboard, CustomerList, CustomerDetail, Analytics, and OperationRisk smoke views have no mobile horizontal overflow at 360px and 390px.
@@ -29,7 +32,9 @@
 - [ ] Shared token changes do not require DB, API, RBAC, or server contract changes.
 
 ## Required report style
+
 Use:
+
 - 완료
 - 일부 완료
 - 누락

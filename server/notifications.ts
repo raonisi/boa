@@ -8,9 +8,14 @@ import { getDb } from "./db";
 import { notifications } from "../drizzle/schema";
 import { and, eq, isNull } from "drizzle-orm";
 import { getScheduleReminderDueAt } from "@shared/timePolicy";
-import { SAFE_PUSH_PAYLOADS, sendPushToUsers, type PushNotificationType, type SafePushPayload } from "./pushNotifications";
+import {
+  SAFE_PUSH_PAYLOADS,
+  sendPushToUsers,
+  type PushNotificationType,
+  type SafePushPayload,
+} from "./pushNotifications";
 
-type NotifType = typeof notifications.$inferInsert["type"];
+type NotifType = (typeof notifications.$inferInsert)["type"];
 
 type PushBridgeConfig = {
   pushType: PushNotificationType;
@@ -18,15 +23,57 @@ type PushBridgeConfig = {
   sourceType: "customer" | "contract" | "schedule";
 };
 
-function getPushBridgeConfig(data: { type: NotifType; relatedType?: string }): PushBridgeConfig | null {
-  if (data.type === "birthday") return { pushType: "customer_birthday", payload: SAFE_PUSH_PAYLOADS.customerBirthday, sourceType: "customer" };
-  if (data.type === "contract_90") return { pushType: "contract_90", payload: SAFE_PUSH_PAYLOADS.contract90, sourceType: "contract" };
-  if (data.type === "contract_180") return { pushType: "contract_180", payload: SAFE_PUSH_PAYLOADS.contract180, sourceType: "contract" };
-  if (data.type === "contract_365") return { pushType: "contract_365", payload: SAFE_PUSH_PAYLOADS.contract365, sourceType: "contract" };
-  if (data.type === "long_unmanaged_90") return { pushType: "long_unmanaged_90", payload: SAFE_PUSH_PAYLOADS.longUnmanaged90, sourceType: "customer" };
-  if (data.type === "schedule_incomplete") return { pushType: "schedule_incomplete", payload: SAFE_PUSH_PAYLOADS.scheduleIncomplete, sourceType: "schedule" };
-  if (data.relatedType === "schedule" && ["schedule_1day", "schedule_today", "schedule_1hour", "general"].includes(data.type)) {
-    return { pushType: "schedule_reminder", payload: SAFE_PUSH_PAYLOADS.scheduleReminder, sourceType: "schedule" };
+function getPushBridgeConfig(data: {
+  type: NotifType;
+  relatedType?: string;
+}): PushBridgeConfig | null {
+  if (data.type === "birthday")
+    return {
+      pushType: "customer_birthday",
+      payload: SAFE_PUSH_PAYLOADS.customerBirthday,
+      sourceType: "customer",
+    };
+  if (data.type === "contract_90")
+    return {
+      pushType: "contract_90",
+      payload: SAFE_PUSH_PAYLOADS.contract90,
+      sourceType: "contract",
+    };
+  if (data.type === "contract_180")
+    return {
+      pushType: "contract_180",
+      payload: SAFE_PUSH_PAYLOADS.contract180,
+      sourceType: "contract",
+    };
+  if (data.type === "contract_365")
+    return {
+      pushType: "contract_365",
+      payload: SAFE_PUSH_PAYLOADS.contract365,
+      sourceType: "contract",
+    };
+  if (data.type === "long_unmanaged_90")
+    return {
+      pushType: "long_unmanaged_90",
+      payload: SAFE_PUSH_PAYLOADS.longUnmanaged90,
+      sourceType: "customer",
+    };
+  if (data.type === "schedule_incomplete")
+    return {
+      pushType: "schedule_incomplete",
+      payload: SAFE_PUSH_PAYLOADS.scheduleIncomplete,
+      sourceType: "schedule",
+    };
+  if (
+    data.relatedType === "schedule" &&
+    ["schedule_1day", "schedule_today", "schedule_1hour", "general"].includes(
+      data.type
+    )
+  ) {
+    return {
+      pushType: "schedule_reminder",
+      payload: SAFE_PUSH_PAYLOADS.scheduleReminder,
+      sourceType: "schedule",
+    };
   }
   return null;
 }
@@ -177,7 +224,10 @@ export async function cancelScheduleTimingNotifications(
       );
     }
   } catch (err) {
-    console.error("[Notification] Failed to cancel schedule timing notifications:", err);
+    console.error(
+      "[Notification] Failed to cancel schedule timing notifications:",
+      err
+    );
   }
 }
 
@@ -220,7 +270,10 @@ export async function createBirthdayReminder(
   customerName: string
 ): Promise<void> {
   const now = new Date();
-  let nextBirthday = setDate(setMonth(now, birthDate.getMonth()), birthDate.getDate());
+  let nextBirthday = setDate(
+    setMonth(now, birthDate.getMonth()),
+    birthDate.getDate()
+  );
   if (nextBirthday <= now) {
     nextBirthday = addYears(nextBirthday, 1);
   }
@@ -346,7 +399,12 @@ export async function createScheduleReminderByOffset(
   if (offsetMinutes < 0) return;
   const dueAt = getScheduleReminderDueAt(startTime, offsetMinutes);
   if (dueAt > new Date()) {
-    const label = offsetMinutes === 0 ? "일정 시각" : offsetMinutes >= 1440 ? `${offsetMinutes / 1440}일 전` : `${offsetMinutes >= 60 ? `${offsetMinutes / 60}시간` : `${offsetMinutes}분`} 전`;
+    const label =
+      offsetMinutes === 0
+        ? "일정 시각"
+        : offsetMinutes >= 1440
+          ? `${offsetMinutes / 1440}일 전`
+          : `${offsetMinutes >= 60 ? `${offsetMinutes / 60}시간` : `${offsetMinutes}분`} 전`;
     await createNotificationSafe({
       userId,
       type: "general",

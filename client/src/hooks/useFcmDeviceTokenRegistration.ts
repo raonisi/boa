@@ -15,7 +15,8 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
 
   useEffect(() => {
     if (!user || user.accountStatus !== "active") return;
-    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android") return;
+    if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== "android")
+      return;
     if (registeredForUserRef.current === user.id) return;
 
     let isCancelled = false;
@@ -24,7 +25,9 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
     const register = async () => {
       try {
         const permission = await PushNotifications.checkPermissions();
-        const shouldRequestPermission = permission.receive === "prompt" || permission.receive === "prompt-with-rationale";
+        const shouldRequestPermission =
+          permission.receive === "prompt" ||
+          permission.receive === "prompt-with-rationale";
         const receivePermission = shouldRequestPermission
           ? (await PushNotifications.requestPermissions()).receive
           : permission.receive;
@@ -34,26 +37,32 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
           return;
         }
 
-        const registrationListener = await PushNotifications.addListener("registration", async (token) => {
-          if (isCancelled) return;
-          try {
-            localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token.value);
-            await registerMutation.mutateAsync({
-              token: token.value,
-              platform: "android",
-              deviceId: getOrCreateDeviceId(),
-              appVersion: "1.0.0",
-              deviceModel: navigator.userAgent.slice(0, 180),
-              osVersion: navigator.platform || "android",
-            });
-          } catch (error) {
-            console.warn("[FCM] Failed to register device token.", error);
+        const registrationListener = await PushNotifications.addListener(
+          "registration",
+          async token => {
+            if (isCancelled) return;
+            try {
+              localStorage.setItem(FCM_TOKEN_STORAGE_KEY, token.value);
+              await registerMutation.mutateAsync({
+                token: token.value,
+                platform: "android",
+                deviceId: getOrCreateDeviceId(),
+                appVersion: "1.0.0",
+                deviceModel: navigator.userAgent.slice(0, 180),
+                osVersion: navigator.platform || "android",
+              });
+            } catch (error) {
+              console.warn("[FCM] Failed to register device token.", error);
+            }
           }
-        });
+        );
 
-        const errorListener = await PushNotifications.addListener("registrationError", (error) => {
-          console.warn("[FCM] Push registration failed.", error);
-        });
+        const errorListener = await PushNotifications.addListener(
+          "registrationError",
+          error => {
+            console.warn("[FCM] Push registration failed.", error);
+          }
+        );
 
         await PushNotifications.register();
 
@@ -67,7 +76,7 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
     };
 
     let cleanup: (() => void) | undefined;
-    register().then((result) => {
+    register().then(result => {
       cleanup = result;
       if (isCancelled) cleanup?.();
     });

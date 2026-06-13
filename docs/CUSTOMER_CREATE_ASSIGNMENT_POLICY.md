@@ -7,13 +7,13 @@ All active users can create their own personal customers, while assigning DB to 
 
 ## Direct Customer Creation
 
-| Role | Can create customer | Assignment policy |
-| --- | --- | --- |
-| branch_admin | Yes | Can select an active assignee, or default to self |
-| sub_branch_admin | Yes | Always assigned to self |
-| team_leader | Yes | Always assigned to self |
-| member | Yes | Always assigned to self |
-| inactive / resigned | No | Server blocks access |
+| Role                | Can create customer | Assignment policy                                 |
+| ------------------- | ------------------- | ------------------------------------------------- |
+| branch_admin        | Yes                 | Can select an active assignee, or default to self |
+| sub_branch_admin    | Yes                 | Always assigned to self                           |
+| team_leader         | Yes                 | Always assigned to self                           |
+| member              | Yes                 | Always assigned to self                           |
+| inactive / resigned | No                  | Server blocks access                              |
 
 Non-admin roles cannot submit another user's `agentId` during direct customer creation. The server rejects such requests even if a client sends them manually.
 
@@ -21,13 +21,13 @@ Non-admin roles cannot submit another user's `agentId` during direct customer cr
 
 CSV bulk import reuses the existing import batch flow.
 
-| Role | Can bulk import | Assignment policy |
-| --- | --- | --- |
-| branch_admin | Yes | Can use CSV assignment columns or force one selected active assignee |
-| sub_branch_admin | Yes | All imported customers are assigned to self |
-| team_leader | Yes | All imported customers are assigned to self |
-| member | Yes | All imported customers are assigned to self |
-| inactive / resigned | No | Server blocks access |
+| Role                | Can bulk import | Assignment policy                                                    |
+| ------------------- | --------------- | -------------------------------------------------------------------- |
+| branch_admin        | Yes             | Can use CSV assignment columns or force one selected active assignee |
+| sub_branch_admin    | Yes             | All imported customers are assigned to self                          |
+| team_leader         | Yes             | All imported customers are assigned to self                          |
+| member              | Yes             | All imported customers are assigned to self                          |
+| inactive / resigned | No              | Server blocks access                                                 |
 
 For non-admin imports, assignment columns in the CSV do not grant DB distribution rights. Imported rows are assigned to the importing user by server policy.
 

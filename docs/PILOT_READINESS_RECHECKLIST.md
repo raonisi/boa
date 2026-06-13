@@ -50,11 +50,11 @@ Required test customer name:
 
 The repository does not commit Railway service config files. Use the Railway Dashboard settings below as the deployment source of truth.
 
-| Step | Command |
-| --- | --- |
-| Build Command | `pnpm install && pnpm build` |
-| Pre-Deploy Command | `pnpm db:migrate` |
-| Start Command | `pnpm start` |
+| Step               | Command                      |
+| ------------------ | ---------------------------- |
+| Build Command      | `pnpm install && pnpm build` |
+| Pre-Deploy Command | `pnpm db:migrate`            |
+| Start Command      | `pnpm start`                 |
 
 Operator rules:
 
@@ -196,11 +196,11 @@ Decision:
 ## Issue Log
 
 | Severity | Issue | Owner | Due Date | Recommended Next Action | Status |
-| --- | --- | --- | --- | --- | --- |
-| P0 |  |  |  |  |  |
-| P1 |  |  |  |  |  |
-| P2 |  |  |  |  |  |
-| P3 |  |  |  |  |  |
+| -------- | ----- | ----- | -------- | ----------------------- | ------ |
+| P0       |       |       |          |                         |        |
+| P1       |       |       |          |                         |        |
+| P2       |       |       |          |                         |        |
+| P3       |       |       |          |                         |        |
 
 ## Severity Definitions
 

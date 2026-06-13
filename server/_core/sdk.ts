@@ -358,7 +358,10 @@ class SDKServer {
 
     if (user.sessionInvalidatedAt) {
       const issuedAtMs = session.issuedAt ? session.issuedAt * 1000 : 0;
-      if (!session.issuedAt || issuedAtMs <= user.sessionInvalidatedAt.getTime()) {
+      if (
+        !session.issuedAt ||
+        issuedAtMs <= user.sessionInvalidatedAt.getTime()
+      ) {
         throw ForbiddenError("Session has been invalidated");
       }
     }

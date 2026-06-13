@@ -50,11 +50,11 @@ Wheels are available for **Windows**, **macOS**, and **Linux** on Python 3.10–
 
 ### Optional extras
 
-| Package | Purpose |
-|---|---|
-| `pymupdf-fonts` | Extended font collection for text output |
-| `pymupdf4llm` | LLM/RAG-optimised Markdown and JSON extraction |
-| `pymupdfpro` | Adds Office document support |
+| Package         | Purpose                                             |
+| --------------- | --------------------------------------------------- |
+| `pymupdf-fonts` | Extended font collection for text output            |
+| `pymupdf4llm`   | LLM/RAG-optimised Markdown and JSON extraction      |
+| `pymupdfpro`    | Adds Office document support                        |
 | `tesseract-ocr` | OCR for scanned pages and images (separate install) |
 
 ```bash
@@ -81,26 +81,25 @@ sudo apt install tesseract-ocr
 
 ### Input
 
-| Category | Formats |
-|---|---|
-| PDF & derivatives | PDF, XPS, EPUB, CBZ, MOBI, FB2, SVG, TXT |
-| Images | PNG, JPEG, BMP, TIFF, GIF, and more |
-| Microsoft Office *(Pro)* | DOC, DOCX, XLS, XLSX, PPT, PPTX |
-| Korean Office *(Pro)* | HWP, HWPX |
+| Category                 | Formats                                  |
+| ------------------------ | ---------------------------------------- |
+| PDF & derivatives        | PDF, XPS, EPUB, CBZ, MOBI, FB2, SVG, TXT |
+| Images                   | PNG, JPEG, BMP, TIFF, GIF, and more      |
+| Microsoft Office _(Pro)_ | DOC, DOCX, XLS, XLSX, PPT, PPTX          |
+| Korean Office _(Pro)_    | HWP, HWPX                                |
 
 ### Output
 
-| Format | Notes |
-|---|---|
-| PDF | Full fidelity conversion from Office formats |
-| SVG | Vector page rendering |
-| Image (PNG, JPEG, …) | Page rasterisation at any DPI |
-| Markdown | Structure-aware, LLM-ready |
-| JSON | Bounding boxes, layout data, per-element detail |
-| Plain text | Fast, lightweight extraction |
+| Format               | Notes                                           |
+| -------------------- | ----------------------------------------------- |
+| PDF                  | Full fidelity conversion from Office formats    |
+| SVG                  | Vector page rendering                           |
+| Image (PNG, JPEG, …) | Page rasterisation at any DPI                   |
+| Markdown             | Structure-aware, LLM-ready                      |
+| JSON                 | Bounding boxes, layout data, per-element detail |
+| Plain text           | Fast, lightweight extraction                    |
 
 ---
-
 
 ## Quick start
 
@@ -244,34 +243,33 @@ print(md)
 
 ### Core capabilities
 
-| Feature | Description |
-|---|---|
-| **Text extraction** | Plain text, rich dict (font, size, color, bbox), HTML, XML, raw blocks |
-| **Table detection** | `find_tables()` — locate, extract, and export tables as Markdown or structured data |
-| **Image extraction** | Extract embedded images and render any page to a high-resolution `Pixmap` |
-| **Rendering** | Render PDF pages to images or `Pixmap` data for use in UI or other workflows |
-| **OCR** | Tesseract integration — full-page or partial OCR, configurable language |
-| **Annotations** | Read and write highlights, underlines, squiggly lines, sticky notes, free text, ink, stamps |
-| **Redaction** | Add and permanently apply redaction annotations |
-| **Forms** | Read and fill PDF AcroForm fields |
-| **PDF editing** | Insert, delete, and reorder pages; set metadata; merge and split documents |
-| **Drawing** | Draw lines, curves, rectangles, and circles; insert HTML boxes |
-| **Encryption** | Open password-protected PDFs; save with RC4 or AES encryption |
-| **Links** | Extract hyperlinks, internal cross-references, and URI targets |
-| **Bookmarks** | Read and write the outline / table of contents tree |
-| **Metadata** | Title, author, creation date, producer, subject, and custom entries |
-| **Color spaces** | RGB, CMYK, greyscale; color space conversion |
+| Feature              | Description                                                                                 |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| **Text extraction**  | Plain text, rich dict (font, size, color, bbox), HTML, XML, raw blocks                      |
+| **Table detection**  | `find_tables()` — locate, extract, and export tables as Markdown or structured data         |
+| **Image extraction** | Extract embedded images and render any page to a high-resolution `Pixmap`                   |
+| **Rendering**        | Render PDF pages to images or `Pixmap` data for use in UI or other workflows                |
+| **OCR**              | Tesseract integration — full-page or partial OCR, configurable language                     |
+| **Annotations**      | Read and write highlights, underlines, squiggly lines, sticky notes, free text, ink, stamps |
+| **Redaction**        | Add and permanently apply redaction annotations                                             |
+| **Forms**            | Read and fill PDF AcroForm fields                                                           |
+| **PDF editing**      | Insert, delete, and reorder pages; set metadata; merge and split documents                  |
+| **Drawing**          | Draw lines, curves, rectangles, and circles; insert HTML boxes                              |
+| **Encryption**       | Open password-protected PDFs; save with RC4 or AES encryption                               |
+| **Links**            | Extract hyperlinks, internal cross-references, and URI targets                              |
+| **Bookmarks**        | Read and write the outline / table of contents tree                                         |
+| **Metadata**         | Title, author, creation date, producer, subject, and custom entries                         |
+| **Color spaces**     | RGB, CMYK, greyscale; color space conversion                                                |
 
 ### LLM & AI output (via PyMuPDF4LLM)
 
-| Output | API |
-|---|---|
-| Markdown | `pymupdf4llm.to_markdown(path)` |
-| JSON | `pymupdf4llm.to_json(path)` |
-| Plain text | `pymupdf4llm.to_text(path)` |
+| Output     | API                             |
+| ---------- | ------------------------------- |
+| Markdown   | `pymupdf4llm.to_markdown(path)` |
+| JSON       | `pymupdf4llm.to_json(path)`     |
+| Plain text | `pymupdf4llm.to_text(path)`     |
 
 Supports multi-column layouts, natural reading order and page chunking.
-
 
 [![Demo](https://img.shields.io/badge/Pymupdf4llm-live?style=for-the-badge&label=DEMO&logo=python&logoColor=ffffff)](https://demo.pymupdf.io)
 
@@ -281,10 +279,10 @@ Supports multi-column layouts, natural reading order and page chunking.
 
 Python **3.10 – 3.14** (as of v1.27.x). Wheels ship for:
 
-- `manylinux` x86\_64 and aarch64
-- `musllinux` x86\_64
-- macOS x86\_64 and arm64
-- Windows x86 and x86\_64
+- `manylinux` x86_64 and aarch64
+- `musllinux` x86_64
+- macOS x86_64 and arm64
+- Windows x86 and x86_64
 
 ---
 
@@ -317,6 +315,7 @@ for page_index, page in enumerate(doc):
             pix = pymupdf.Pixmap(pymupdf.csRGB, pix)
         pix.save(out / f"page{page_index}_img{img_index}.png")
 ```
+
 </details>
 
 <details>
@@ -337,6 +336,7 @@ for page in doc:
 
 doc.save("highlighted.pdf")
 ```
+
 </details>
 
 <details>
@@ -351,6 +351,7 @@ for i, page in enumerate(doc):
     out.insert_pdf(doc, from_page=i, to_page=i)
     out.save(f"page_{i + 1}.pdf")
 ```
+
 </details>
 
 <details>
@@ -371,6 +372,7 @@ for page in doc:
 
 doc.save("watermarked.pdf")
 ```
+
 </details>
 
 ---
@@ -392,7 +394,7 @@ for fmt in ["contract.docx", "data.xlsx", "deck.pptx", "report.hwpx"]:
         print(page.get_text())
 ```
 
-[Get a trial license key for PyMuPDF Pro](https://pymupdf.pro/try-pro) 
+[Get a trial license key for PyMuPDF Pro](https://pymupdf.pro/try-pro)
 
 **What you can do with Office documents:**
 
@@ -401,23 +403,18 @@ for fmt in ["contract.docx", "data.xlsx", "deck.pptx", "report.hwpx"]:
 - Rasterise pages to PNG/JPEG for visual inspection
 - Feed directly into PyMuPDF4LLM for AI-ready output
 
-
-
 ### Restrictions Without a License Key
 
 When `pymupdf.pro.unlock()` is called **without** a key, the following restrictions apply:
 
-| Restriction | Detail |
-|---|---|
-| Page limit | Only the **first 3 pages** of any document are accessible |
-| Time limit | Evaluation period — functionality expires after a set duration |
+| Restriction | Detail                                                         |
+| ----------- | -------------------------------------------------------------- |
+| Page limit  | Only the **first 3 pages** of any document are accessible      |
+| Time limit  | Evaluation period — functionality expires after a set duration |
 
 All other Pro features work normally within these constraints, making it straightforward to prototype before purchasing a license.
 
-
 ---
-
-
 
 ## Frequently Asked Questions
 
@@ -426,7 +423,6 @@ All other Pro features work normally within these constraints, making it straigh
 Yes, absolutely — and this is one of PyMuPDF's most significant advantages.
 
 PyMuPDF runs entirely locally. It is a native Python library built on top of the MuPDF C engine. When you call `pymupdf.open()`, `page.get_text()`, `page.find_tables()`, or any other method, everything executes in-process on your own machine. No data is transmitted anywhere.
-
 
 There are no telemetry calls, no licence validation callbacks, no cloud dependencies of any kind in the open-source AGPL build or the commercial build. Once the package is installed, it works fully air-gapped.
 
@@ -439,7 +435,6 @@ This makes PyMuPDF well-suited for:
 - Saving on token costs for document pre-processing before sending data to your LLM
 
 The only thing you need an internet connection for is the initial `pip install`. After that, the package and all its capabilities are entirely self-contained.
-
 
 ### Should I `import pymupdf` or `import fitz`?
 
@@ -468,15 +463,12 @@ print(md)
 # Tables appear as Markdown | col1 | col2 | ... inline with the text
 ```
 
-
 ### Text extraction returns garbled characters or empty output. Why?
 
 This usually means the PDF uses custom font encodings without a proper character map (CMAP). The font's glyphs are present but cannot be mapped back to Unicode. In these cases:
 
 - Use OCR as a fallback (`page.get_textpage_ocr()`)
 - Consider that scanned PDFs will always need OCR — text extraction on scans returns nothing
-
-
 
 ### How do I extract text from a specific area of a page?
 
@@ -493,8 +485,6 @@ clip = pymupdf.Rect(50, 100, 400, 300)
 text = page.get_text("text", clip=clip)
 ```
 
-
-
 ### How do I search for text and find its location on the page?
 
 ```python
@@ -509,13 +499,9 @@ for rect in locations:
     print(rect)  # e.g. Rect(72.0, 120.5, 210.0, 134.0)
 ```
 
-
-
 ### `get_images` shows no images but I can clearly see charts in the PDF. Why?
 
 Charts and diagrams created by tools like matplotlib, Excel, or R are typically rendered as vector graphics (PDF drawing commands), not raster images. `get_images` only lists embedded raster image objects and will not detect vector graphics. To capture these, rasterise the entire page with `page.get_pixmap()`.
-
-
 
 ### How does OCR work in PyMuPDF? Does it require a separate Tesseract installation?
 
@@ -532,7 +518,6 @@ tp = page.get_textpage_ocr(language="eng")
 text = page.get_text(textpage=tp)
 print(text)
 ```
-
 
 ### How do I run OCR on a standalone image file (not a PDF)?
 
@@ -551,7 +536,6 @@ tp = page.get_textpage_ocr()
 text = page.get_text(textpage=tp)
 ```
 
-
 ### How do I highlight text in a PDF?
 
 ```python
@@ -568,8 +552,6 @@ doc.save("highlighted.pdf")
 ```
 
 PyMuPDF supports all standard PDF text markers: highlight, underline, strikeout, and squiggly.
-
-
 
 ### How do I permanently redact (remove) content from a PDF?
 
@@ -593,10 +575,6 @@ doc.save("redacted.pdf")
 
 After `apply_redactions()`, the original content is gone. It cannot be recovered from the saved file.
 
-
-
-
-
 ### How do I read form field values from a PDF?
 
 ```python
@@ -608,8 +586,6 @@ page = doc[0]
 for field in page.widgets():
     print(f"{field.field_name}: {field.field_value}")
 ```
-
-
 
 ### How do I fill in a PDF form programmatically?
 
@@ -626,8 +602,6 @@ for field in page.widgets():
 
 doc.save("filled_form.pdf")
 ```
-
-
 
 ### Can I use multithreading with PyMuPDF?
 
@@ -652,8 +626,6 @@ with Pool(4) as pool:
     all_results = pool.map(process_pages, chunks)
 ```
 
-
-
 ### How can I speed up repeated text extraction on the same page?
 
 Reuse a `TextPage` object. Creating a `TextPage` is the expensive part — once created, switching between extraction formats is cheap:
@@ -670,9 +642,6 @@ data  = page.get_text("dict",    textpage=tp)
 ```
 
 This can reduce execution time by 50–95% for repeated extractions on the same page.
-
-
-
 
 ### How do I read and write PDF metadata?
 
@@ -693,7 +662,6 @@ doc.set_metadata({
 })
 doc.save("output.pdf")
 ```
-
 
 ### How do I read or set the table of contents / bookmarks?
 
@@ -717,8 +685,6 @@ doc.set_toc(new_toc)
 doc.save("output.pdf")
 ```
 
-
-
 ---
 
 ## Documentation
@@ -735,13 +701,12 @@ Full installation guide, API reference, cookbook, and tutorial at **[pymupdf.rea
 
 ---
 
-
 ## Related projects
 
-| Project | Description |
-|---|---|
-| [PyMuPDF4LLM](https://github.com/pymupdf/pymupdf4llm) | LLM/RAG-optimised Markdown and JSON extraction |
-| [PyMuPDF Pro](https://pymupdf.io/pro) | Adds Office and HWP document support |
+| Project                                                  | Description                                      |
+| -------------------------------------------------------- | ------------------------------------------------ |
+| [PyMuPDF4LLM](https://github.com/pymupdf/pymupdf4llm)    | LLM/RAG-optimised Markdown and JSON extraction   |
+| [PyMuPDF Pro](https://pymupdf.io/pro)                    | Adds Office and HWP document support             |
 | [pymupdf-fonts](https://pypi.org/project/pymupdf-fonts/) | Extended font collection for PyMuPDF text output |
 
 ---

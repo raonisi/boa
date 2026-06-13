@@ -58,41 +58,146 @@ const moreItems: MobileMenuItem[] = [
   { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
   { icon: BellRing, label: "앱 알림 설정", path: "/notification-preferences" },
   { icon: FileText, label: "계약관리", path: "/contracts" },
-  { icon: ClipboardCheck, label: "사후관리 캠페인", path: "/aftercare-campaigns", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
-  { icon: ClipboardCheck, label: "온보딩 체크리스트", path: "/onboarding-checklists", roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"] },
+  {
+    icon: ClipboardCheck,
+    label: "사후관리 캠페인",
+    path: "/aftercare-campaigns",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+  },
+  {
+    icon: ClipboardCheck,
+    label: "온보딩 체크리스트",
+    path: "/onboarding-checklists",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+  },
   { icon: BarChart3, label: "실적관리", path: "/performance" },
   { icon: Target, label: "목표관리", path: "/performance/goals" },
-  { icon: Upload, label: "고객 일괄 등록", path: "/customers/bulk-import", canAccess: hasCustomerBulkImportAccess },
-  { icon: GitMerge, label: "중복 고객 관리", path: "/customers/merge", roles: ["branch_admin"] },
-  { icon: Database, label: "DB 배정", path: "/customers/assign", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: Database, label: "고객 데이터 품질 점검", path: "/customer-data-quality", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: Database, label: "내 고객 데이터 보완", path: "/customer-data-quality", roles: ["member"] },
-  { icon: LayoutDashboard, label: "관리자 운영센터", path: "/admin/operations-center", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: FileText, label: "관리자 보고서", path: "/management-reports", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: Users, label: "사용자 관리", path: "/users", roles: ["branch_admin"] },
-  { icon: Network, label: "조직 구조", path: "/organization", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: ArrowRightLeft, label: "인수인계 관리", path: "/users/handoff", roles: ["branch_admin"] },
+  {
+    icon: Upload,
+    label: "고객 일괄 등록",
+    path: "/customers/bulk-import",
+    canAccess: hasCustomerBulkImportAccess,
+  },
+  {
+    icon: GitMerge,
+    label: "중복 고객 관리",
+    path: "/customers/merge",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: Database,
+    label: "DB 배정",
+    path: "/customers/assign",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: Database,
+    label: "고객 데이터 품질 점검",
+    path: "/customer-data-quality",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: Database,
+    label: "내 고객 데이터 보완",
+    path: "/customer-data-quality",
+    roles: ["member"],
+  },
+  {
+    icon: LayoutDashboard,
+    label: "관리자 운영센터",
+    path: "/admin/operations-center",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: FileText,
+    label: "관리자 보고서",
+    path: "/management-reports",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: Users,
+    label: "사용자 관리",
+    path: "/users",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: Network,
+    label: "조직 구조",
+    path: "/organization",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: ArrowRightLeft,
+    label: "인수인계 관리",
+    path: "/users/handoff",
+    roles: ["branch_admin"],
+  },
   { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
-  { icon: ShieldCheck, label: "운영 리스크", path: "/operation-risk", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: BellRing, label: "푸시 알림 운영", path: "/push-notifications", roles: ["branch_admin"] },
-  { icon: RotateCcw, label: "삭제 데이터 관리", path: "/deleted-data", roles: ["branch_admin"] },
-  { icon: RotateCcw, label: "업로드 이력 관리", path: "/customers/import-batches", roles: ["branch_admin"] },
-  { icon: Activity, label: "활동 로그", path: "/logs", roles: ["branch_admin", "sub_branch_admin", "team_leader"] },
-  { icon: Download, label: "데이터 다운로드", path: "/download", roles: ["branch_admin"] },
-  { icon: ClipboardCheck, label: "상담 도구 관리", path: "/consultation-tools", roles: ["branch_admin"] },
-  { icon: Settings, label: "설정 관리", path: "/settings", roles: ["branch_admin"] },
+  {
+    icon: ShieldCheck,
+    label: "운영 리스크",
+    path: "/operation-risk",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: BellRing,
+    label: "푸시 알림 운영",
+    path: "/push-notifications",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: RotateCcw,
+    label: "삭제 데이터 관리",
+    path: "/deleted-data",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: RotateCcw,
+    label: "업로드 이력 관리",
+    path: "/customers/import-batches",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: Activity,
+    label: "활동 로그",
+    path: "/logs",
+    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+  },
+  {
+    icon: Download,
+    label: "데이터 다운로드",
+    path: "/download",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: ClipboardCheck,
+    label: "상담 도구 관리",
+    path: "/consultation-tools",
+    roles: ["branch_admin"],
+  },
+  {
+    icon: Settings,
+    label: "설정 관리",
+    path: "/settings",
+    roles: ["branch_admin"],
+  },
 ];
 
 export function MobileNav() {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(undefined, {
-    refetchInterval: 30000,
-  });
+  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
+    undefined,
+    {
+      refetchInterval: 30000,
+    }
+  );
 
   const visibleMoreItems = moreItems.filter(
-    (item) => item.canAccess?.(user) ?? (!item.roles || item.roles.includes(user?.role ?? ""))
+    item =>
+      item.canAccess?.(user) ??
+      (!item.roles || item.roles.includes(user?.role ?? ""))
   );
 
   const goTo = (path: string) => {
@@ -104,8 +209,10 @@ export function MobileNav() {
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bg-sidebar/98 text-sidebar-foreground shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:shadow-[0_-8px_28px_rgba(0,0,0,0.35)]">
         <div className="grid min-h-[64px] grid-cols-5 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5">
-          {primaryItems.map((item) => {
-            const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
+          {primaryItems.map(item => {
+            const isActive =
+              location === item.path ||
+              (item.path !== "/" && location.startsWith(item.path));
             const isNotif = item.path === "/notifications";
             return (
               <button
@@ -113,12 +220,16 @@ export function MobileNav() {
                 type="button"
                 onClick={() => goTo(item.path)}
                 className={`relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
-                  isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+                  isActive
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground/70"
                 }`}
               >
                 <span
                   className={`relative flex h-10 w-10 items-center justify-center rounded-lg ${
-                    isActive ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25" : ""
+                    isActive
+                      ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25"
+                      : ""
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
@@ -128,7 +239,9 @@ export function MobileNav() {
                     </span>
                   ) : null}
                 </span>
-                <span className="w-full truncate text-center leading-tight">{item.label}</span>
+                <span className="w-full truncate text-center leading-tight">
+                  {item.label}
+                </span>
               </button>
             );
           })}
@@ -141,18 +254,25 @@ export function MobileNav() {
           >
             <span
               className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-                moreOpen ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25" : ""
+                moreOpen
+                  ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25"
+                  : ""
               }`}
             >
               <Menu className="h-5 w-5" />
             </span>
-            <span className="w-full truncate text-center leading-tight">더보기</span>
+            <span className="w-full truncate text-center leading-tight">
+              더보기
+            </span>
           </button>
         </div>
       </nav>
 
       <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-        <SheetContent side="bottom" className="max-h-[min(86vh,42rem)] rounded-t-2xl border-border bg-card pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:hidden">
+        <SheetContent
+          side="bottom"
+          className="max-h-[min(86vh,42rem)] rounded-t-2xl border-border bg-card pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:hidden"
+        >
           <SheetHeader className="text-left">
             <SheetTitle className="flex items-center gap-3 text-base font-semibold">
               <BrandLogo className="h-9 w-24 justify-start" />
@@ -160,8 +280,10 @@ export function MobileNav() {
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4 grid max-h-[calc(86vh-7rem)] grid-cols-1 gap-2 overflow-y-auto overscroll-contain pb-4">
-            {visibleMoreItems.map((item) => {
-              const isActive = location === item.path || (item.path !== "/" && location.startsWith(item.path));
+            {visibleMoreItems.map(item => {
+              const isActive =
+                location === item.path ||
+                (item.path !== "/" && location.startsWith(item.path));
               return (
                 <SheetClose asChild key={item.path}>
                   <button
@@ -175,7 +297,9 @@ export function MobileNav() {
                     }`}
                   >
                     <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">{item.label}</span>
+                    <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
+                      {item.label}
+                    </span>
                   </button>
                 </SheetClose>
               );
@@ -190,7 +314,9 @@ export function MobileNav() {
               className="flex min-h-14 items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-left text-sm font-medium text-destructive"
             >
               <LogOut className="h-4 w-4 shrink-0" />
-              <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">로그아웃</span>
+              <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
+                로그아웃
+              </span>
             </button>
           </div>
         </SheetContent>

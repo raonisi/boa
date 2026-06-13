@@ -77,9 +77,7 @@
       "compositePrimaryKeys": {
         "activity_logs_id": {
           "name": "activity_logs_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -144,9 +142,7 @@
       "compositePrimaryKeys": {
         "assignment_history_id": {
           "name": "assignment_history_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -211,9 +207,7 @@
       "compositePrimaryKeys": {
         "consent_logs_id": {
           "name": "consent_logs_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -302,9 +296,7 @@
       "compositePrimaryKeys": {
         "consultations_id": {
           "name": "consultations_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -369,9 +361,7 @@
       "compositePrimaryKeys": {
         "contract_history_id": {
           "name": "contract_history_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -504,9 +494,7 @@
       "compositePrimaryKeys": {
         "contracts_id": {
           "name": "contracts_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -675,9 +663,7 @@
       "compositePrimaryKeys": {
         "customers_id": {
           "name": "customers_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -772,21 +758,13 @@
       "compositePrimaryKeys": {
         "notifications_id": {
           "name": "notifications_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "uq_notification": {
           "name": "uq_notification",
-          "columns": [
-            "userId",
-            "type",
-            "relatedType",
-            "relatedId",
-            "dueAt"
-          ]
+          "columns": ["userId", "type", "relatedType", "relatedId", "dueAt"]
         }
       },
       "checkConstraint": {}
@@ -880,21 +858,13 @@
       "compositePrimaryKeys": {
         "reminders_id": {
           "name": "reminders_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "uq_reminder": {
           "name": "uq_reminder",
-          "columns": [
-            "userId",
-            "type",
-            "relatedType",
-            "relatedId",
-            "dueAt"
-          ]
+          "columns": ["userId", "type", "relatedType", "relatedId", "dueAt"]
         }
       },
       "checkConstraint": {}
@@ -1050,9 +1020,7 @@
       "compositePrimaryKeys": {
         "schedules_id": {
           "name": "schedules_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -1117,9 +1085,7 @@
       "compositePrimaryKeys": {
         "status_history_id": {
           "name": "status_history_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -1163,9 +1129,7 @@
       "compositePrimaryKeys": {
         "teams_id": {
           "name": "teams_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {},
@@ -1255,17 +1219,13 @@
       "compositePrimaryKeys": {
         "users_id": {
           "name": "users_id",
-          "columns": [
-            "id"
-          ]
+          "columns": ["id"]
         }
       },
       "uniqueConstraints": {
         "users_openId_unique": {
           "name": "users_openId_unique",
-          "columns": [
-            "openId"
-          ]
+          "columns": ["openId"]
         }
       },
       "checkConstraint": {}

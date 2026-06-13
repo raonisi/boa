@@ -1,4 +1,11 @@
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { User, ChevronRight } from "lucide-react";
@@ -42,18 +49,32 @@ export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
           <TableRow className="bg-muted/50">
             <TableHead className="w-[180px]">팀원</TableHead>
             <TableHead className="text-center">위험도</TableHead>
-            <TableHead className="text-center text-muted-foreground">미상담DB</TableHead>
-            <TableHead className="text-center text-muted-foreground">후속지연</TableHead>
-            <TableHead className="text-center text-muted-foreground">오늘미완료</TableHead>
-            <TableHead className="text-center text-muted-foreground">장기미관리</TableHead>
-            <TableHead className="text-center text-muted-foreground">A등급방치</TableHead>
-            <TableHead className="text-center text-muted-foreground">계약후방치</TableHead>
-            <TableHead className="text-center text-muted-foreground">오늘상담</TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              미상담DB
+            </TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              후속지연
+            </TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              오늘미완료
+            </TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              장기미관리
+            </TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              A등급방치
+            </TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              계약후방치
+            </TableHead>
+            <TableHead className="text-center text-muted-foreground">
+              오늘상담
+            </TableHead>
             <TableHead className="text-right">상세보기</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {metrics.map((item) => (
+          {metrics.map(item => (
             <TableRow key={item.user.id} className="group">
               <TableCell className="font-medium">
                 <div className="flex items-center gap-2">
@@ -62,13 +83,23 @@ export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
                   </div>
                   <div>
                     <p className="text-sm">{item.user.name}</p>
-                    <p className="text-[10px] text-muted-foreground">{item.user.role === 'team_leader' ? '팀장' : '팀원'}</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {item.user.role === "team_leader" ? "팀장" : "팀원"}
+                    </p>
                   </div>
                 </div>
               </TableCell>
               <TableCell className="text-center">
                 {item.riskScore > 0 ? (
-                  <Badge variant={item.riskScore >= 30 ? "destructive" : item.riskScore >= 10 ? "secondary" : "outline"}>
+                  <Badge
+                    variant={
+                      item.riskScore >= 30
+                        ? "destructive"
+                        : item.riskScore >= 10
+                          ? "secondary"
+                          : "outline"
+                    }
+                  >
                     {item.riskScore}점
                   </Badge>
                 ) : (
@@ -77,36 +108,62 @@ export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.unconsultedDbCount > 0 ? (
-                  <span className="font-medium text-amber-600">{item.metrics.unconsultedDbCount}</span>
-                ) : <span className="text-muted-foreground/30">-</span>}
+                  <span className="font-medium text-amber-600">
+                    {item.metrics.unconsultedDbCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/30">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.overdueFollowUpsCount > 0 ? (
-                  <span className="font-bold text-destructive">{item.metrics.overdueFollowUpsCount}</span>
-                ) : <span className="text-muted-foreground/30">-</span>}
+                  <span className="font-bold text-destructive">
+                    {item.metrics.overdueFollowUpsCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/30">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.incompleteSchedulesCount > 0 ? (
-                  <span className="font-medium text-amber-600">{item.metrics.incompleteSchedulesCount}</span>
-                ) : <span className="text-muted-foreground/30">-</span>}
+                  <span className="font-medium text-amber-600">
+                    {item.metrics.incompleteSchedulesCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/30">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.longUnmanagedCount > 0 ? (
-                  <span className="font-medium text-destructive">{item.metrics.longUnmanagedCount}</span>
-                ) : <span className="text-muted-foreground/30">-</span>}
+                  <span className="font-medium text-destructive">
+                    {item.metrics.longUnmanagedCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/30">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.priorityAUnmanagedCount > 0 ? (
-                  <span className="font-medium text-destructive">{item.metrics.priorityAUnmanagedCount}</span>
-                ) : <span className="text-muted-foreground/30">-</span>}
+                  <span className="font-medium text-destructive">
+                    {item.metrics.priorityAUnmanagedCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/30">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.postContractUnmanagedCount > 0 ? (
-                  <span className="font-medium text-amber-600">{item.metrics.postContractUnmanagedCount}</span>
-                ) : <span className="text-muted-foreground/30">-</span>}
+                  <span className="font-medium text-amber-600">
+                    {item.metrics.postContractUnmanagedCount}
+                  </span>
+                ) : (
+                  <span className="text-muted-foreground/30">-</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
-                <span className="font-medium text-primary">{item.metrics.todayConsultationsCount}</span>
+                <span className="font-medium text-primary">
+                  {item.metrics.todayConsultationsCount}
+                </span>
               </TableCell>
               <TableCell className="text-right">
                 <Link href={`/customers?agentId=${item.user.id}`}>

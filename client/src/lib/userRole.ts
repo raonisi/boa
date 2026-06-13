@@ -55,7 +55,9 @@ export function getRoleLabel(role?: string | null) {
 
 export function getUserStatusLabel(status?: string | null) {
   if (!status) return "상태 미지정";
-  return USER_STATUS_LABELS[status as keyof typeof USER_STATUS_LABELS] ?? status;
+  return (
+    USER_STATUS_LABELS[status as keyof typeof USER_STATUS_LABELS] ?? status
+  );
 }
 
 export function getScopeLabel(scope?: string | null) {
@@ -65,7 +67,10 @@ export function getScopeLabel(scope?: string | null) {
 
 export function getTargetTypeLabel(targetType?: string | null) {
   if (!targetType) return "-";
-  return TARGET_TYPE_LABELS[targetType as keyof typeof TARGET_TYPE_LABELS] ?? targetType;
+  return (
+    TARGET_TYPE_LABELS[targetType as keyof typeof TARGET_TYPE_LABELS] ??
+    targetType
+  );
 }
 
 export function getActiveLabel(isActive?: boolean | null) {
@@ -88,14 +93,14 @@ const DISPLAY_ENUM_REPLACEMENTS: Record<string, string> = {
 
 export function localizeKnownEnumText(value?: string | null) {
   if (!value) return "-";
-  return Object.entries(DISPLAY_ENUM_REPLACEMENTS).sort(([a], [b]) => b.length - a.length).reduce(
-    (text, [raw, label]) => text.replaceAll(raw, label),
-    value,
-  );
+  return Object.entries(DISPLAY_ENUM_REPLACEMENTS)
+    .sort(([a], [b]) => b.length - a.length)
+    .reduce((text, [raw, label]) => text.replaceAll(raw, label), value);
 }
 
 export function roleLabel(role?: string | null, accountStatus?: string | null) {
-  if (accountStatus && accountStatus !== "active") return getUserStatusLabel(accountStatus);
+  if (accountStatus && accountStatus !== "active")
+    return getUserStatusLabel(accountStatus);
   return getRoleLabel(role);
 }
 

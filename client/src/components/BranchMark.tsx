@@ -17,7 +17,12 @@ export function BranchMark({ className, iconClassName }: BranchMarkProps) {
 
   if (step >= LOGO_WEB.length) {
     return (
-      <div className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300 text-slate-950 shadow-sm", className)}>
+      <div
+        className={cn(
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-300 text-slate-950 shadow-sm",
+          className
+        )}
+      >
         <Building2 className={cn("h-4 w-4", iconClassName)} />
       </div>
     );
@@ -35,7 +40,7 @@ export function BranchMark({ className, iconClassName }: BranchMarkProps) {
         alt="BOA"
         className="h-full w-full object-contain p-0.5"
         draggable={false}
-        onError={() => setStep((s) => s + 1)}
+        onError={() => setStep(s => s + 1)}
       />
     </div>
   );

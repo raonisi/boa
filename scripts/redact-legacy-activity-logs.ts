@@ -1,6 +1,9 @@
 import "dotenv/config";
 import mysql from "mysql2/promise";
-import { sanitizeActivityLogDetailsForStorage, sanitizeActivityLogText } from "../server/activityLogRedaction";
+import {
+  sanitizeActivityLogDetailsForStorage,
+  sanitizeActivityLogText,
+} from "../server/activityLogRedaction";
 
 type ActivityLogRow = {
   id: number;
@@ -11,7 +14,9 @@ type ActivityLogRow = {
 
 function readNumberArg(name: string, fallback: number) {
   const prefix = `--${name}=`;
-  const raw = process.argv.find((arg) => arg.startsWith(prefix))?.slice(prefix.length);
+  const raw = process.argv
+    .find(arg => arg.startsWith(prefix))
+    ?.slice(prefix.length);
   if (!raw) return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -29,7 +34,9 @@ if (!process.env.DATABASE_URL) {
 }
 
 if (writeMode && process.env.CONFIRM_REDACT_ACTIVITY_LOGS !== "1") {
-  throw new Error("Refusing to update rows. Set CONFIRM_REDACT_ACTIVITY_LOGS=1 and pass --write.");
+  throw new Error(
+    "Refusing to update rows. Set CONFIRM_REDACT_ACTIVITY_LOGS=1 and pass --write."
+  );
 }
 
 const connection = await mysql.createConnection(process.env.DATABASE_URL);
@@ -44,7 +51,7 @@ try {
     const remaining = Math.min(batchSize, maxRows - scanned);
     const [rows] = await connection.execute(
       "select id, details, ipAddress, userAgent from activity_logs where id > ? order by id asc limit ?",
-      [lastId, remaining],
+      [lastId, remaining]
     );
     const entries = rows as ActivityLogRow[];
     if (entries.length === 0) break;
@@ -55,7 +62,9 @@ try {
 
       const nextDetails = sanitizeActivityLogDetailsForStorage(row.details);
       const nextIpAddress = row.ipAddress ? "[REDACTED]" : row.ipAddress;
-      const nextUserAgent = row.userAgent ? sanitizeActivityLogText(row.userAgent, 80) : row.userAgent;
+      const nextUserAgent = row.userAgent
+        ? sanitizeActivityLogText(row.userAgent, 80)
+        : row.userAgent;
 
       const needsUpdate =
         nextDetails !== row.details ||
@@ -68,7 +77,7 @@ try {
       if (writeMode) {
         await connection.execute(
           "update activity_logs set details = ?, ipAddress = ?, userAgent = ? where id = ?",
-          [nextDetails, nextIpAddress, nextUserAgent, row.id],
+          [nextDetails, nextIpAddress, nextUserAgent, row.id]
         );
         updated += 1;
       }
@@ -78,9 +87,11 @@ try {
   await connection.end();
 }
 
-console.log(JSON.stringify({
-  mode: writeMode ? "write" : "dry-run",
-  scanned,
-  rowsNeedingRedaction: changed,
-  updated,
-}));
+console.log(
+  JSON.stringify({
+    mode: writeMode ? "write" : "dry-run",
+    scanned,
+    rowsNeedingRedaction: changed,
+    updated,
+  })
+);

@@ -5,7 +5,8 @@ export const DEFAULT_QUIET_HOURS_END = "08:00";
 const KST_OFFSET_MINUTES = 9 * 60;
 const KST_OFFSET_MS = KST_OFFSET_MINUTES * 60 * 1000;
 const LOCAL_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
-const LOCAL_DATE_TIME_RE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/;
+const LOCAL_DATE_TIME_RE =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?$/;
 const LOCAL_TIME_RE = /^(\d{2}):(\d{2})$/;
 
 export type KstDayRange = {
@@ -22,8 +23,18 @@ function invalidDate() {
   return new Date(Number.NaN);
 }
 
-function validateKstParts(year: number, month: number, day: number, hour = 0, minute = 0, second = 0, millisecond = 0) {
-  const utcTime = Date.UTC(year, month - 1, day, hour, minute, second, millisecond) - KST_OFFSET_MS;
+function validateKstParts(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+  second = 0,
+  millisecond = 0
+) {
+  const utcTime =
+    Date.UTC(year, month - 1, day, hour, minute, second, millisecond) -
+    KST_OFFSET_MS;
   const kstParts = new Date(utcTime + KST_OFFSET_MS);
   if (
     kstParts.getUTCFullYear() !== year ||
@@ -62,7 +73,16 @@ export function parseKstLocalDateTime(value: string): Date {
   const localMatch = LOCAL_DATE_TIME_RE.exec(value);
   if (!localMatch) return new Date(value);
 
-  const [, yearText, monthText, dayText, hourText, minuteText, secondText = "0", millisecondText = "0"] = localMatch;
+  const [
+    ,
+    yearText,
+    monthText,
+    dayText,
+    hourText,
+    minuteText,
+    secondText = "0",
+    millisecondText = "0",
+  ] = localMatch;
   return validateKstParts(
     Number(yearText),
     Number(monthText),
@@ -80,7 +100,10 @@ export function formatKstLocalDate(value: Date | string): string {
   return `${kst.getUTCFullYear()}-${pad(kst.getUTCMonth() + 1)}-${pad(kst.getUTCDate())}`;
 }
 
-export function formatKstLocalDateTime(value: Date | string, options: { seconds?: boolean } = {}): string {
+export function formatKstLocalDateTime(
+  value: Date | string,
+  options: { seconds?: boolean } = {}
+): string {
   const date = typeof value === "string" ? new Date(value) : value;
   const kst = new Date(date.getTime() + KST_OFFSET_MS);
   const datePart = `${kst.getUTCFullYear()}-${pad(kst.getUTCMonth() + 1)}-${pad(kst.getUTCDate())}`;
@@ -102,14 +125,18 @@ export function addMinutes(value: Date, minutes: number) {
   return new Date(value.getTime() + minutes * 60 * 1000);
 }
 
-export function getScheduleReminderDueAt(startTime: Date, offsetMinutes: number) {
+export function getScheduleReminderDueAt(
+  startTime: Date,
+  offsetMinutes: number
+) {
   return addMinutes(startTime, -offsetMinutes);
 }
 
 export function getKstDayRange(value: Date | string = new Date()): KstDayRange {
-  const dateKey = typeof value === "string" && isLocalDateString(value)
-    ? value
-    : formatKstLocalDate(value);
+  const dateKey =
+    typeof value === "string" && isLocalDateString(value)
+      ? value
+      : formatKstLocalDate(value);
   const start = parseKstLocalDate(dateKey);
   return {
     dateKey,
@@ -122,7 +149,10 @@ export function isSameKstDate(a: Date | string, b: Date | string) {
   return formatKstLocalDate(a) === formatKstLocalDate(b);
 }
 
-export function getKstLocalDateTimeAfter(base: Date, options: { days?: number; hours?: number; defaultHour?: number }) {
+export function getKstLocalDateTimeAfter(
+  base: Date,
+  options: { days?: number; hours?: number; defaultHour?: number }
+) {
   const local = new Date(base.getTime() + KST_OFFSET_MS);
   if (options.days) local.setUTCDate(local.getUTCDate() + options.days);
   if (options.defaultHour !== undefined) {
@@ -131,13 +161,16 @@ export function getKstLocalDateTimeAfter(base: Date, options: { days?: number; h
     local.setTime(local.getTime() + options.hours * 60 * 60 * 1000);
     local.setUTCSeconds(0, 0);
   }
-  return formatKstLocalDateTime(validateKstParts(
-    local.getUTCFullYear(),
-    local.getUTCMonth() + 1,
-    local.getUTCDate(),
-    local.getUTCHours(),
-    local.getUTCMinutes()
-  ), { seconds: false });
+  return formatKstLocalDateTime(
+    validateKstParts(
+      local.getUTCFullYear(),
+      local.getUTCMonth() + 1,
+      local.getUTCDate(),
+      local.getUTCHours(),
+      local.getUTCMinutes()
+    ),
+    { seconds: false }
+  );
 }
 
 function toMinutes(value: string) {
@@ -156,22 +189,28 @@ export function getZonedMinutes(now: Date, timezone = BOA_BUSINESS_TIME_ZONE) {
     minute: "2-digit",
     hour12: false,
   }).formatToParts(now);
-  const hour = Number(parts.find((part) => part.type === "hour")?.value ?? 0);
-  const minute = Number(parts.find((part) => part.type === "minute")?.value ?? 0);
+  const hour = Number(parts.find(part => part.type === "hour")?.value ?? 0);
+  const minute = Number(parts.find(part => part.type === "minute")?.value ?? 0);
   return hour * 60 + minute;
 }
 
-export function isInQuietHoursByPolicy(input: {
-  quietHoursEnabled: boolean;
-  quietHoursStart?: string | null;
-  quietHoursEnd?: string | null;
-  timezone?: string | null;
-}, now = new Date()) {
+export function isInQuietHoursByPolicy(
+  input: {
+    quietHoursEnabled: boolean;
+    quietHoursStart?: string | null;
+    quietHoursEnd?: string | null;
+    timezone?: string | null;
+  },
+  now = new Date()
+) {
   if (!input.quietHoursEnabled) return false;
   const start = toMinutes(input.quietHoursStart || DEFAULT_QUIET_HOURS_START);
   const end = toMinutes(input.quietHoursEnd || DEFAULT_QUIET_HOURS_END);
   if (start === null || end === null || start === end) return false;
-  const current = getZonedMinutes(now, input.timezone || BOA_BUSINESS_TIME_ZONE);
+  const current = getZonedMinutes(
+    now,
+    input.timezone || BOA_BUSINESS_TIME_ZONE
+  );
   if (start < end) return current >= start && current < end;
   return current >= start || current < end;
 }

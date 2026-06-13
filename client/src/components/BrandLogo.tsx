@@ -8,7 +8,11 @@ type BrandLogoProps = {
   mark?: boolean;
 };
 
-export function BrandLogo({ className, imageClassName, mark = false }: BrandLogoProps) {
+export function BrandLogo({
+  className,
+  imageClassName,
+  mark = false,
+}: BrandLogoProps) {
   return (
     <div className={cn("flex items-center justify-center", className)}>
       <img

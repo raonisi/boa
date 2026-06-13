@@ -3,12 +3,29 @@ import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { CoachingNoteDialog } from "./CoachingNoteDialog";
-import { Loader2, Calendar, Target, CheckCircle2, Clock, Plus } from "lucide-react";
+import {
+  Loader2,
+  Calendar,
+  Target,
+  CheckCircle2,
+  Clock,
+  Plus,
+} from "lucide-react";
 import { toast } from "sonner";
 
-export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: number }) {
+export function TeamMemberCoachingTimeline({
+  targetUserId,
+}: {
+  targetUserId: number;
+}) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const utils = trpc.useUtils();
 
@@ -24,14 +41,17 @@ export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: num
     },
     onError: (err: any) => {
       toast.error(err.message || "상태 변경 중 오류가 발생했습니다.");
-    }
+    },
   });
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "destructive";
-      case "low": return "secondary";
-      default: return "default";
+      case "high":
+        return "destructive";
+      case "low":
+        return "secondary";
+      default:
+        return "default";
     }
   };
 
@@ -45,7 +65,7 @@ export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: num
       goal_gap: "목표 미달",
       training: "교육 필요",
       one_on_one: "1:1 면담",
-      general: "일반"
+      general: "일반",
     };
     return map[cat] || cat;
   };
@@ -57,56 +77,87 @@ export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: num
   };
 
   if (isLoading) {
-    return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-muted-foreground" /></div>;
+    return (
+      <div className="flex justify-center p-8">
+        <Loader2 className="animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold">코칭 타임라인</h3>
-        <Button size="sm" onClick={() => setIsDialogOpen(true)} className="gap-2">
+        <Button
+          size="sm"
+          onClick={() => setIsDialogOpen(true)}
+          className="gap-2"
+        >
           <Plus className="h-4 w-4" /> 코칭 추가
         </Button>
       </div>
 
-      {(!notes || notes.length === 0) ? (
+      {!notes || notes.length === 0 ? (
         <Card className="bg-slate-50 border-dashed">
           <CardContent className="flex flex-col items-center justify-center p-12 text-center text-muted-foreground">
             <Target className="h-12 w-12 mb-4 text-slate-300" />
             <p>아직 기록된 코칭 메모가 없습니다.</p>
-            <p className="text-sm mt-1">팀원의 행동 습관과 성장 포인트를 기록해보세요.</p>
+            <p className="text-sm mt-1">
+              팀원의 행동 습관과 성장 포인트를 기록해보세요.
+            </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-4">
           {notes.map((note: any) => (
-            <Card key={note.id} className={note.status === "resolved" ? "bg-slate-50 opacity-80" : ""}>
+            <Card
+              key={note.id}
+              className={
+                note.status === "resolved" ? "bg-slate-50 opacity-80" : ""
+              }
+            >
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline">{getCategoryLabel(note.category)}</Badge>
-                      <Badge variant={getPriorityColor(note.priority)}>{note.priority.toUpperCase()}</Badge>
+                      <Badge variant="outline">
+                        {getCategoryLabel(note.category)}
+                      </Badge>
+                      <Badge variant={getPriorityColor(note.priority)}>
+                        {note.priority.toUpperCase()}
+                      </Badge>
                       {note.status === "resolved" && (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">해결됨</Badge>
+                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
+                          해결됨
+                        </Badge>
                       )}
                     </div>
                     <CardTitle className="text-lg">{note.title}</CardTitle>
                     <CardDescription className="flex items-center gap-2">
                       <span>작성자: {note.authorName}</span>
                       <span>•</span>
-                      <span>{format(new Date(note.createdAt), "yyyy.MM.dd HH:mm")}</span>
+                      <span>
+                        {format(new Date(note.createdAt), "yyyy.MM.dd HH:mm")}
+                      </span>
                       <span>•</span>
-                      <span className="text-xs text-slate-400">{getVisibilityLabel(note.visibility)}</span>
+                      <span className="text-xs text-slate-400">
+                        {getVisibilityLabel(note.visibility)}
+                      </span>
                     </CardDescription>
                   </div>
                   {note.status === "open" && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => resolveMutation.mutate({ id: note.id, status: "resolved" })}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        resolveMutation.mutate({
+                          id: note.id,
+                          status: "resolved",
+                        })
+                      }
                     >
-                      <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" /> 해결 처리
+                      <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />{" "}
+                      해결 처리
                     </Button>
                   )}
                 </div>
@@ -115,7 +166,7 @@ export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: num
                 <div className="bg-slate-100/50 p-4 rounded-md text-sm whitespace-pre-wrap text-slate-700">
                   {note.note}
                 </div>
-                
+
                 {(note.actionItems || note.nextReviewAt) && (
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center text-sm bg-blue-50/50 p-3 rounded-md border border-blue-100">
                     {note.actionItems && (
@@ -123,12 +174,15 @@ export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: num
                         <span className="font-semibold text-blue-900 flex items-center gap-1">
                           <Target className="h-4 w-4" /> 다음 행동:
                         </span>
-                        <span className="text-blue-800 ml-5">{note.actionItems}</span>
+                        <span className="text-blue-800 ml-5">
+                          {note.actionItems}
+                        </span>
                       </div>
                     )}
                     {note.nextReviewAt && (
                       <div className="flex items-center gap-1 font-medium text-orange-700 whitespace-nowrap">
-                        <Calendar className="h-4 w-4" /> 확인일: {format(new Date(note.nextReviewAt), "yyyy-MM-dd")}
+                        <Calendar className="h-4 w-4" /> 확인일:{" "}
+                        {format(new Date(note.nextReviewAt), "yyyy-MM-dd")}
                       </div>
                     )}
                   </div>
@@ -140,9 +194,9 @@ export function TeamMemberCoachingTimeline({ targetUserId }: { targetUserId: num
       )}
 
       {isDialogOpen && (
-        <CoachingNoteDialog 
-          open={isDialogOpen} 
-          onOpenChange={setIsDialogOpen} 
+        <CoachingNoteDialog
+          open={isDialogOpen}
+          onOpenChange={setIsDialogOpen}
           defaultTargetUserId={targetUserId}
         />
       )}

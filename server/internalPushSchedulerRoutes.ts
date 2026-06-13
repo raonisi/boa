@@ -7,20 +7,25 @@ function readSchedulerSecret(req: Request) {
   if (headerSecret) return headerSecret;
 
   const authorization = req.header("authorization");
-  if (authorization?.startsWith("Bearer ")) return authorization.slice("Bearer ".length).trim();
+  if (authorization?.startsWith("Bearer "))
+    return authorization.slice("Bearer ".length).trim();
 
-  const bodySecret = typeof req.body?.secret === "string" ? req.body.secret : null;
+  const bodySecret =
+    typeof req.body?.secret === "string" ? req.body.secret : null;
   return bodySecret;
 }
 
 function parseLookbackMinutes(value: unknown) {
   if (value === undefined || value === null) return undefined;
   const numberValue = typeof value === "number" ? value : Number(value);
-  if (!Number.isInteger(numberValue) || numberValue < 1 || numberValue > 30) return null;
+  if (!Number.isInteger(numberValue) || numberValue < 1 || numberValue > 30)
+    return null;
   return numberValue;
 }
 
-function safeEngineResult(result: Awaited<ReturnType<typeof pushNotifications.runPushReminderEngines>>) {
+function safeEngineResult(
+  result: Awaited<ReturnType<typeof pushNotifications.runPushReminderEngines>>
+) {
   return {
     success: result.success,
     targetCount: result.targetCount,
@@ -69,18 +74,26 @@ export function registerInternalPushSchedulerRoutes(app: Express) {
 
     const lookbackMinutes = parseLookbackMinutes(req.body?.lookbackMinutes);
     if (lookbackMinutes === null) {
-      res.status(400).json({ success: false, error: "INVALID_LOOKBACK_MINUTES" });
+      res
+        .status(400)
+        .json({ success: false, error: "INVALID_LOOKBACK_MINUTES" });
       return;
     }
 
-    const now = typeof req.body?.now === "string" ? parseKstLocalDateTime(req.body.now) : new Date();
+    const now =
+      typeof req.body?.now === "string"
+        ? parseKstLocalDateTime(req.body.now)
+        : new Date();
     if (Number.isNaN(now.getTime())) {
       res.status(400).json({ success: false, error: "INVALID_NOW" });
       return;
     }
 
     try {
-      const result = await pushNotifications.runPushReminderEngines({ now, lookbackMinutes });
+      const result = await pushNotifications.runPushReminderEngines({
+        now,
+        lookbackMinutes,
+      });
       res.status(200).json(safeEngineResult(result));
     } catch (error) {
       console.error("[push-scheduler] HTTP trigger failed", {

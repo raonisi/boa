@@ -37,13 +37,19 @@ export async function completeGoogleLoginWithUserInfo(
   }
 
   if (!userInfo.email) {
-    throw new GoogleLoginError(403, "사전 등록된 이메일 계정만 로그인할 수 있습니다.");
+    throw new GoogleLoginError(
+      403,
+      "사전 등록된 이메일 계정만 로그인할 수 있습니다."
+    );
   }
 
   const normalizedEmail = normalizeEmail(userInfo.email);
 
   if (userInfo.email_verified !== true) {
-    throw new GoogleLoginError(403, "Google 이메일 인증이 완료된 계정만 로그인할 수 있습니다.");
+    throw new GoogleLoginError(
+      403,
+      "Google 이메일 인증이 완료된 계정만 로그인할 수 있습니다."
+    );
   }
 
   const matchingUsers = await db.getAllUsersByEmail(normalizedEmail);
@@ -57,28 +63,40 @@ export async function completeGoogleLoginWithUserInfo(
 
   const preRegisteredUser = matchingUsers[0];
   if (preRegisteredUser.accountStatus !== "active") {
-    throw new GoogleLoginError(403, "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요.");
+    throw new GoogleLoginError(
+      403,
+      "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요."
+    );
   }
 
   const isInvited =
     preRegisteredUser.loginStatus === "invited" &&
-    (!preRegisteredUser.openId || preRegisteredUser.openId.startsWith("invited_"));
+    (!preRegisteredUser.openId ||
+      preRegisteredUser.openId.startsWith("invited_"));
   const isAlreadyLinkedToThisOpenId = preRegisteredUser.openId === googleOpenId;
 
   if (!isInvited && !isAlreadyLinkedToThisOpenId) {
-    throw new GoogleLoginError(403, "이미 다른 Google 계정과 연결된 사용자입니다.");
+    throw new GoogleLoginError(
+      403,
+      "이미 다른 Google 계정과 연결된 사용자입니다."
+    );
   }
 
   if (isInvited) {
     const alreadyLinked = await db.getUserByOpenId(googleOpenId);
     if (alreadyLinked && alreadyLinked.id !== preRegisteredUser.id) {
-      throw new GoogleLoginError(403, "이미 다른 사용자와 연결된 Google 계정입니다.");
+      throw new GoogleLoginError(
+        403,
+        "이미 다른 사용자와 연결된 Google 계정입니다."
+      );
     }
 
     await db.linkUserOpenId(preRegisteredUser.id, googleOpenId);
     if (req) {
       const ipAddress =
-        (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+        (req.headers["x-forwarded-for"] as string | undefined)
+          ?.split(",")[0]
+          ?.trim() ??
         req.socket?.remoteAddress ??
         undefined;
       const userAgent = req.headers["user-agent"] as string | undefined;
@@ -112,7 +130,10 @@ export async function completeGoogleLoginWithUserInfo(
   const loggedInUser = await db.getUserByOpenId(googleOpenId);
 
   if (!loggedInUser || loggedInUser.accountStatus !== "active") {
-    throw new GoogleLoginError(403, "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요.");
+    throw new GoogleLoginError(
+      403,
+      "계정이 비활성화되어 로그인할 수 없습니다. 관리자에게 문의하세요."
+    );
   }
 
   const sessionToken = await sdk.createSessionToken(googleOpenId, {

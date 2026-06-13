@@ -32,8 +32,12 @@ describe("Korean display labels", () => {
   });
 
   it("formats user display names with Korean role labels", () => {
-    expect(formatUserWithRole({ id: 1, name: "홍길동", role: "member" })).toBe("홍길동(팀원)");
-    expect(formatUserWithRole({ id: 2, role: "team_leader" })).toBe("사용자 #2(팀장)");
+    expect(formatUserWithRole({ id: 1, name: "홍길동", role: "member" })).toBe(
+      "홍길동(팀원)"
+    );
+    expect(formatUserWithRole({ id: 2, role: "team_leader" })).toBe(
+      "사용자 #2(팀장)"
+    );
     expect(formatUserWithRole(null)).toBe("-");
   });
 
@@ -43,9 +47,21 @@ describe("Korean display labels", () => {
   });
 
   it("localizes known enum text for rendered audit details only", () => {
-    expect(localizeKnownEnumText('{"role":"branch_admin","accountStatus":"inactive","ownershipScope":"mine"}')).toContain("지점장");
-    expect(localizeKnownEnumText('{"role":"branch_admin","accountStatus":"inactive","ownershipScope":"mine"}')).toContain("비활성");
-    expect(localizeKnownEnumText('{"role":"branch_admin","accountStatus":"inactive","ownershipScope":"mine"}')).toContain("내 담당 고객");
+    expect(
+      localizeKnownEnumText(
+        '{"role":"branch_admin","accountStatus":"inactive","ownershipScope":"mine"}'
+      )
+    ).toContain("지점장");
+    expect(
+      localizeKnownEnumText(
+        '{"role":"branch_admin","accountStatus":"inactive","ownershipScope":"mine"}'
+      )
+    ).toContain("비활성");
+    expect(
+      localizeKnownEnumText(
+        '{"role":"branch_admin","accountStatus":"inactive","ownershipScope":"mine"}'
+      )
+    ).toContain("내 담당 고객");
     expect(getActiveLabel(false)).toBe("비활성");
   });
 });

@@ -23,16 +23,22 @@ export function useAuth(options?: UseAuthOptions) {
       utils.auth.me.setData(undefined, null);
     },
   });
-  const deactivateDeviceTokenMutation = trpc.deviceTokens.deactivate.useMutation();
+  const deactivateDeviceTokenMutation =
+    trpc.deviceTokens.deactivate.useMutation();
 
   const logout = useCallback(async () => {
     try {
       const deviceToken = localStorage.getItem(FCM_TOKEN_STORAGE_KEY);
       if (deviceToken) {
         try {
-          await deactivateDeviceTokenMutation.mutateAsync({ token: deviceToken });
+          await deactivateDeviceTokenMutation.mutateAsync({
+            token: deviceToken,
+          });
         } catch (error) {
-          console.warn("[FCM] Failed to deactivate device token during logout.", error);
+          console.warn(
+            "[FCM] Failed to deactivate device token during logout.",
+            error
+          );
         } finally {
           localStorage.removeItem(FCM_TOKEN_STORAGE_KEY);
         }

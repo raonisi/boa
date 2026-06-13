@@ -41,7 +41,8 @@ describe("adminOperationsCenter copy", () => {
 });
 
 describe("adminOperationsCenter feature availability", () => {
-  const findCard = (id: string) => ADMIN_OPERATION_CARDS.find((item) => item.id === id);
+  const findCard = (id: string) =>
+    ADMIN_OPERATION_CARDS.find(item => item.id === id);
 
   it("marks implemented audit features as navigable", () => {
     const implementedIds = [
@@ -75,17 +76,23 @@ describe("adminOperationsCenter feature availability", () => {
   it("uses beta notice for management reports and team coaching", () => {
     expect(findCard("management-reports")?.status).toBe("beta");
     expect(findCard("team-coaching")?.status).toBe("beta");
-    expect(getCardStatusNotice(findCard("management-reports")!)).toEqual(BETA_NOTICE);
+    expect(getCardStatusNotice(findCard("management-reports")!)).toEqual(
+      BETA_NOTICE
+    );
   });
 
   it("uses production_ready notice for operation risk cards", () => {
     expect(findCard("operation-risk-report")?.status).toBe("production_ready");
-    expect(getCardStatusNotice(findCard("operation-risk-report")!)).toEqual(PRODUCTION_READY_NOTICE);
+    expect(getCardStatusNotice(findCard("operation-risk-report")!)).toEqual(
+      PRODUCTION_READY_NOTICE
+    );
   });
 
   it("uses restricted notice for branch-admin-only cards", () => {
     expect(findCard("deleted-data")?.status).toBe("branch_admin_only");
-    expect(getCardStatusNotice(findCard("deleted-data")!)).toEqual(RESTRICTED_NOTICE);
+    expect(getCardStatusNotice(findCard("deleted-data")!)).toEqual(
+      RESTRICTED_NOTICE
+    );
   });
 
   it("reflects quick consult and timeline in customer-db description", () => {
@@ -97,37 +104,55 @@ describe("adminOperationsCenter feature availability", () => {
 
 describe("adminOperationsCenter visibility", () => {
   it("shows branch-admin cards to branch_admin", () => {
-    const cards = getVisibleAdminOperationCards({ role: "branch_admin", accountStatus: "active" });
-    expect(cards.some((card) => card.id === "user-management")).toBe(true);
-    expect(cards.some((card) => card.id === "oauth-reset")).toBe(true);
-    expect(cards.some((card) => card.id === "deleted-data")).toBe(true);
+    const cards = getVisibleAdminOperationCards({
+      role: "branch_admin",
+      accountStatus: "active",
+    });
+    expect(cards.some(card => card.id === "user-management")).toBe(true);
+    expect(cards.some(card => card.id === "oauth-reset")).toBe(true);
+    expect(cards.some(card => card.id === "deleted-data")).toBe(true);
   });
 
   it("hides branch-admin-only cards from team_leader", () => {
-    const cards = getVisibleAdminOperationCards({ role: "team_leader", accountStatus: "active" });
-    expect(cards.some((card) => card.id === "oauth-reset")).toBe(false);
-    expect(cards.some((card) => card.id === "customer-merge")).toBe(false);
-    expect(cards.some((card) => card.id === "deleted-data")).toBe(false);
-    expect(cards.some((card) => card.id === "organization")).toBe(true);
-    expect(cards.some((card) => card.id === "team-insights")).toBe(true);
-    expect(cards.some((card) => card.id === "first-contact-sla")).toBe(true);
+    const cards = getVisibleAdminOperationCards({
+      role: "team_leader",
+      accountStatus: "active",
+    });
+    expect(cards.some(card => card.id === "oauth-reset")).toBe(false);
+    expect(cards.some(card => card.id === "customer-merge")).toBe(false);
+    expect(cards.some(card => card.id === "deleted-data")).toBe(false);
+    expect(cards.some(card => card.id === "organization")).toBe(true);
+    expect(cards.some(card => card.id === "team-insights")).toBe(true);
+    expect(cards.some(card => card.id === "first-contact-sla")).toBe(true);
   });
 
   it("exposes implemented team cards to team_leader", () => {
-    const card = ADMIN_OPERATION_CARDS.find((item) => item.id === "team-insights");
+    const card = ADMIN_OPERATION_CARDS.find(
+      item => item.id === "team-insights"
+    );
     expect(card?.isComingSoon).toBeUndefined();
     expect(card?.status).toBe("available");
     expect(card?.route).toBe("/team-insights");
-    expect(isCardVisibleForUser(card!, { role: "team_leader", accountStatus: "active" })).toBe(true);
+    expect(
+      isCardVisibleForUser(card!, {
+        role: "team_leader",
+        accountStatus: "active",
+      })
+    ).toBe(true);
   });
 
   it("blocks member access", () => {
-    expect(getVisibleAdminOperationCards({ role: "member", accountStatus: "active" })).toEqual([]);
+    expect(
+      getVisibleAdminOperationCards({ role: "member", accountStatus: "active" })
+    ).toEqual([]);
   });
 
   it("blocks inactive users", () => {
     expect(
-      getVisibleAdminOperationCards({ role: "branch_admin", accountStatus: "inactive" }),
+      getVisibleAdminOperationCards({
+        role: "branch_admin",
+        accountStatus: "inactive",
+      })
     ).toEqual([]);
   });
 });

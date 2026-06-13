@@ -22,7 +22,9 @@ export function ForbiddenState({
             <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
               <button
                 type="button"
-                onClick={() => { window.location.href = "/"; }}
+                onClick={() => {
+                  window.location.href = "/";
+                }}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
               >
                 <Home className="h-4 w-4" aria-hidden="true" />

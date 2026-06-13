@@ -1,6 +1,13 @@
 import { inArray } from "drizzle-orm";
 import { getDb } from "./db";
-import { customers, consultations, followUps, schedules, users, teams } from "../drizzle/schema";
+import {
+  customers,
+  consultations,
+  followUps,
+  schedules,
+  users,
+  teams,
+} from "../drizzle/schema";
 
 export const SLA_TARGET_HOURS = 24;
 export const SLA_HIGH_RISK_HOURS = 48;
@@ -9,15 +16,22 @@ export const SLA_CRITICAL_HOURS = 72;
 export function maskNameForSla(name: string) {
   if (!name) return "";
   if (name.length === 2) return name[0] + "*";
-  if (name.length > 2) return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
+  if (name.length > 2)
+    return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
   return name;
 }
 
-export async function buildFirstContactSlaInsights(scopedCustomers: any[], activeUsers: any[], visibleTeams: any[]) {
+export async function buildFirstContactSlaInsights(
+  scopedCustomers: any[],
+  activeUsers: any[],
+  visibleTeams: any[]
+) {
   const db = await getDb();
   if (!db) return null;
 
-  const validCustomers = scopedCustomers.filter(c => c.agentId && c.assignedAt && c.isActive);
+  const validCustomers = scopedCustomers.filter(
+    c => c.agentId && c.assignedAt && c.isActive
+  );
   const customerIds = validCustomers.map(c => c.id);
 
   let allConsultations: any[] = [];
@@ -31,11 +45,14 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
     if (chunk.length === 0) continue;
 
     const [cRes, fRes, sRes] = await Promise.all([
-      db.select().from(consultations).where(inArray(consultations.customerId, chunk)),
+      db
+        .select()
+        .from(consultations)
+        .where(inArray(consultations.customerId, chunk)),
       db.select().from(followUps).where(inArray(followUps.customerId, chunk)),
       db.select().from(schedules).where(inArray(schedules.customerId, chunk)),
     ]);
-    
+
     allConsultations.push(...cRes);
     allFollowUps.push(...fRes);
     allSchedules.push(...sRes);
@@ -46,9 +63,21 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
 
   for (const customer of validCustomers) {
     const assignedAt = new Date(customer.assignedAt);
-    const cData = allConsultations.filter(c => c.customerId === customer.id && new Date(c.createdAt) >= assignedAt);
-    const fData = allFollowUps.filter(f => f.customerId === customer.id && (new Date(f.createdAt) >= assignedAt || (f.completedAt && new Date(f.completedAt) >= assignedAt)));
-    const sData = allSchedules.filter(s => s.customerId === customer.id && (new Date(s.createdAt) >= assignedAt || (s.completedAt && new Date(s.completedAt) >= assignedAt)));
+    const cData = allConsultations.filter(
+      c => c.customerId === customer.id && new Date(c.createdAt) >= assignedAt
+    );
+    const fData = allFollowUps.filter(
+      f =>
+        f.customerId === customer.id &&
+        (new Date(f.createdAt) >= assignedAt ||
+          (f.completedAt && new Date(f.completedAt) >= assignedAt))
+    );
+    const sData = allSchedules.filter(
+      s =>
+        s.customerId === customer.id &&
+        (new Date(s.createdAt) >= assignedAt ||
+          (s.completedAt && new Date(s.completedAt) >= assignedAt))
+    );
 
     const contactDates: Date[] = [];
     cData.forEach(c => contactDates.push(new Date(c.createdAt)));
@@ -68,7 +97,9 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
     contactDates.sort((a, b) => a.getTime() - b.getTime());
     const firstContactAt = contactDates.length > 0 ? contactDates[0] : null;
 
-    const elapsedMs = firstContactAt ? firstContactAt.getTime() - assignedAt.getTime() : now.getTime() - assignedAt.getTime();
+    const elapsedMs = firstContactAt
+      ? firstContactAt.getTime() - assignedAt.getTime()
+      : now.getTime() - assignedAt.getTime();
     const elapsedHours = elapsedMs / (1000 * 60 * 60);
 
     let status = "not_contacted";
@@ -109,7 +140,12 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
   const usersOutput = activeUsers.map(user => {
     const userCustomers = validCustomers.filter(c => c.agentId === user.id);
     const assignedCount = userCustomers.length;
-    let contactedOnTime = 0, contactedLate = 0, notContacted = 0, overdue = 0, highRisk = 0, critical = 0;
+    let contactedOnTime = 0,
+      contactedLate = 0,
+      notContacted = 0,
+      overdue = 0,
+      highRisk = 0,
+      critical = 0;
     let totalElapsedHoursForContacted = 0;
     let contactedCount = 0;
 
@@ -129,8 +165,14 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
       }
     });
 
-    const completionRate = assignedCount > 0 ? Math.round((contactedCount / assignedCount) * 100) : 0;
-    const avgHours = contactedCount > 0 ? Math.round((totalElapsedHoursForContacted / contactedCount) * 10) / 10 : 0;
+    const completionRate =
+      assignedCount > 0
+        ? Math.round((contactedCount / assignedCount) * 100)
+        : 0;
+    const avgHours =
+      contactedCount > 0
+        ? Math.round((totalElapsedHoursForContacted / contactedCount) * 10) / 10
+        : 0;
 
     let userRisk = "normal";
     if (critical > 0) userRisk = "critical";
@@ -180,7 +222,8 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
     else if (data.status === "contacted_late") summary.contactedLateCount++;
     else if (data.status === "not_contacted") summary.notContactedCount++;
     else if (data.status === "overdue") summary.overdueCount++;
-    else if (data.status === "high_risk_overdue") summary.highRiskOverdueCount++;
+    else if (data.status === "high_risk_overdue")
+      summary.highRiskOverdueCount++;
     else if (data.status === "critical_overdue") summary.criticalOverdueCount++;
 
     if (data.firstContactAt) {
@@ -189,11 +232,19 @@ export async function buildFirstContactSlaInsights(scopedCustomers: any[], activ
     }
   });
 
-  summary.completionRate = validCustomers.length > 0 ? Math.round((totalContacted / validCustomers.length) * 100) : 0;
-  summary.averageFirstContactHours = totalContacted > 0 ? Math.round((totalElapsed / totalContacted) * 10) / 10 : 0;
+  summary.completionRate =
+    validCustomers.length > 0
+      ? Math.round((totalContacted / validCustomers.length) * 100)
+      : 0;
+  summary.averageFirstContactHours =
+    totalContacted > 0
+      ? Math.round((totalElapsed / totalContacted) * 10) / 10
+      : 0;
 
   const overdueCustomers = Array.from(customerMap.values())
-    .filter(c => ["overdue", "high_risk_overdue", "critical_overdue"].includes(c.status))
+    .filter(c =>
+      ["overdue", "high_risk_overdue", "critical_overdue"].includes(c.status)
+    )
     .sort((a, b) => b.elapsedHours - a.elapsedHours);
 
   return {

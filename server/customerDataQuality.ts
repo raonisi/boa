@@ -29,7 +29,11 @@ export const QUALITY_SCORE_PENALTIES = {
 
 export type QualityIssueType = keyof typeof QUALITY_SCORE_PENALTIES;
 
-export type QualityLevel = "good" | "needs_improvement" | "caution" | "critical";
+export type QualityLevel =
+  | "good"
+  | "needs_improvement"
+  | "caution"
+  | "critical";
 
 export const QUALITY_LEVEL_LABELS: Record<QualityLevel, string> = {
   good: "양호",
@@ -38,12 +42,15 @@ export const QUALITY_LEVEL_LABELS: Record<QualityLevel, string> = {
   critical: "우선 정리 필요",
 };
 
-export const ISSUE_TYPE_META: Record<QualityIssueType, {
-  label: string;
-  severity: "low" | "medium" | "high";
-  description: string;
-  recommendedAction: string;
-}> = {
+export const ISSUE_TYPE_META: Record<
+  QualityIssueType,
+  {
+    label: string;
+    severity: "low" | "medium" | "high";
+    description: string;
+    recommendedAction: string;
+  }
+> = {
   missing_phone: {
     label: "전화번호 누락",
     severity: "high",
@@ -54,7 +61,8 @@ export const ISSUE_TYPE_META: Record<QualityIssueType, {
     label: "생년월일 누락",
     severity: "medium",
     description: "생일 케어와 연령 기준 관리가 어려운 고객입니다.",
-    recommendedAction: "생일 케어와 연령 기준 관리를 위해 생년월일을 확인하세요.",
+    recommendedAction:
+      "생일 케어와 연령 기준 관리를 위해 생년월일을 확인하세요.",
   },
   missing_status: {
     label: "상담상태 미입력",
@@ -130,7 +138,8 @@ type AppUser = {
 export function maskCustomerDisplayName(name: string) {
   if (!name) return "";
   if (name.length === 2) return `${name[0]}*`;
-  if (name.length > 2) return `${name[0]}${"*".repeat(name.length - 2)}${name[name.length - 1]}`;
+  if (name.length > 2)
+    return `${name[0]}${"*".repeat(name.length - 2)}${name[name.length - 1]}`;
   return name;
 }
 
@@ -138,9 +147,14 @@ function parseCustomerTags(value?: string | null): string[] {
   if (!value) return [];
   try {
     const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((tag): tag is string => typeof tag === "string") : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((tag): tag is string => typeof tag === "string")
+      : [];
   } catch {
-    return value.split(",").map((tag) => tag.trim()).filter(Boolean);
+    return value
+      .split(",")
+      .map(tag => tag.trim())
+      .filter(Boolean);
   }
 }
 
@@ -169,11 +183,21 @@ export function getQualityLevel(score: number): QualityLevel {
 }
 
 export function calculateQualityScore(issueTypes: QualityIssueType[]) {
-  const penalty = issueTypes.reduce((sum, type) => sum + QUALITY_SCORE_PENALTIES[type], 0);
+  const penalty = issueTypes.reduce(
+    (sum, type) => sum + QUALITY_SCORE_PENALTIES[type],
+    0
+  );
   return Math.max(0, 100 - penalty);
 }
 
-export function buildDuplicateCandidateSet(customers: Array<{ id: number; phone?: string | null; name?: string | null; birthDate?: string | Date | null }>) {
+export function buildDuplicateCandidateSet(
+  customers: Array<{
+    id: number;
+    phone?: string | null;
+    name?: string | null;
+    birthDate?: string | Date | null;
+  }>
+) {
   const duplicates = new Set<number>();
   const byPhone = new Map<string, number[]>();
   const byNameBirth = new Map<string, number[]>();
@@ -212,56 +236,76 @@ type CustomerIssueContext = {
   contractsByCustomer: Map<number, any[]>;
 };
 
-export function detectCustomerIssueTypes(customer: any, context: CustomerIssueContext): QualityIssueType[] {
+export function detectCustomerIssueTypes(
+  customer: any,
+  context: CustomerIssueContext
+): QualityIssueType[] {
   const issues: QualityIssueType[] = [];
   const phone = normalizePhone(customer.phone);
   if (!phone) issues.push("missing_phone");
   if (!customer.birthDate) issues.push("missing_birth_date");
 
   const hasConsultation = context.consultationDates.has(customer.id);
-  if (customer.consultStatus === "미상담" && !hasConsultation) issues.push("missing_status");
+  if (customer.consultStatus === "미상담" && !hasConsultation)
+    issues.push("missing_status");
 
   const agentId = customer.agentId ?? null;
-  if (!agentId || !context.activeAgentIds.has(agentId)) issues.push("unassigned");
+  if (!agentId || !context.activeAgentIds.has(agentId))
+    issues.push("unassigned");
 
   const customerFollowUps = context.followUpsByCustomer.get(customer.id) ?? [];
-  if (hasConsultation && customerFollowUps.length === 0) issues.push("no_follow_up");
+  if (hasConsultation && customerFollowUps.length === 0)
+    issues.push("no_follow_up");
 
   const customerContracts = context.contractsByCustomer.get(customer.id) ?? [];
-  if (customerContracts.length > 0 && !hasConsultation) issues.push("contract_without_consultation");
+  if (customerContracts.length > 0 && !hasConsultation)
+    issues.push("contract_without_consultation");
 
   const managementDates: Date[] = [];
   const latestConsultation = context.consultationDates.get(customer.id);
   if (latestConsultation) managementDates.push(latestConsultation);
-  customerFollowUps.forEach((followUp) => {
-    if (followUp.completedAt) managementDates.push(new Date(followUp.completedAt));
+  customerFollowUps.forEach(followUp => {
+    if (followUp.completedAt)
+      managementDates.push(new Date(followUp.completedAt));
     else managementDates.push(new Date(followUp.createdAt));
   });
   const customerSchedules = context.schedulesByCustomer.get(customer.id) ?? [];
-  customerSchedules.forEach((schedule) => {
-    if (schedule.completedAt) managementDates.push(new Date(schedule.completedAt));
-    else if (schedule.startTime) managementDates.push(new Date(schedule.startTime));
+  customerSchedules.forEach(schedule => {
+    if (schedule.completedAt)
+      managementDates.push(new Date(schedule.completedAt));
+    else if (schedule.startTime)
+      managementDates.push(new Date(schedule.startTime));
   });
-  if (managementDates.length === 0 && customer.updatedAt) managementDates.push(new Date(customer.updatedAt));
-  const lastManagedAt = managementDates.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-  if (!lastManagedAt || daysBetween(lastManagedAt, context.now) >= LONG_UNMANAGED_DAYS) {
+  if (managementDates.length === 0 && customer.updatedAt)
+    managementDates.push(new Date(customer.updatedAt));
+  const lastManagedAt =
+    managementDates.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+  if (
+    !lastManagedAt ||
+    daysBetween(lastManagedAt, context.now) >= LONG_UNMANAGED_DAYS
+  ) {
     issues.push("long_unmanaged");
   }
 
-  if (context.duplicateCandidateIds.has(customer.id)) issues.push("duplicate_candidate");
+  if (context.duplicateCandidateIds.has(customer.id))
+    issues.push("duplicate_candidate");
 
   const tags = parseCustomerTags(customer.customerTags);
   if (tags.length >= EXCESSIVE_TAG_THRESHOLD) issues.push("excessive_tags");
 
-  const overdueFollowUp = customerFollowUps.some((followUp) =>
-    isOpenFollowUpStatus(String(followUp.status)) && new Date(followUp.nextContactDate).getTime() < context.now.getTime(),
+  const overdueFollowUp = customerFollowUps.some(
+    followUp =>
+      isOpenFollowUpStatus(String(followUp.status)) &&
+      new Date(followUp.nextContactDate).getTime() < context.now.getTime()
   );
-  const overdueSchedule = customerSchedules.some((schedule) =>
-    !isFinishedScheduleStatus(String(schedule.status)) &&
-    schedule.startTime &&
-    new Date(schedule.startTime).getTime() < context.now.getTime(),
+  const overdueSchedule = customerSchedules.some(
+    schedule =>
+      !isFinishedScheduleStatus(String(schedule.status)) &&
+      schedule.startTime &&
+      new Date(schedule.startTime).getTime() < context.now.getTime()
   );
-  if (overdueFollowUp || overdueSchedule) issues.push("delayed_followup_or_schedule");
+  if (overdueFollowUp || overdueSchedule)
+    issues.push("delayed_followup_or_schedule");
 
   return issues;
 }
@@ -280,7 +324,8 @@ function getRecommendedAction(issueTypes: QualityIssueType[]) {
     "missing_birth_date",
     "excessive_tags",
   ];
-  const primary = priority.find((type) => issueTypes.includes(type)) ?? issueTypes[0];
+  const primary =
+    priority.find(type => issueTypes.includes(type)) ?? issueTypes[0];
   return ISSUE_TYPE_META[primary].recommendedAction;
 }
 
@@ -288,24 +333,27 @@ function getLastManagedAt(customer: any, context: CustomerIssueContext) {
   const dates: Date[] = [];
   const latestConsultation = context.consultationDates.get(customer.id);
   if (latestConsultation) dates.push(latestConsultation);
-  (context.followUpsByCustomer.get(customer.id) ?? []).forEach((followUp) => {
+  (context.followUpsByCustomer.get(customer.id) ?? []).forEach(followUp => {
     if (followUp.completedAt) dates.push(new Date(followUp.completedAt));
     else dates.push(new Date(followUp.createdAt));
   });
-  (context.schedulesByCustomer.get(customer.id) ?? []).forEach((schedule) => {
+  (context.schedulesByCustomer.get(customer.id) ?? []).forEach(schedule => {
     if (schedule.completedAt) dates.push(new Date(schedule.completedAt));
     else if (schedule.startTime) dates.push(new Date(schedule.startTime));
   });
-  if (dates.length === 0 && customer.updatedAt) dates.push(new Date(customer.updatedAt));
+  if (dates.length === 0 && customer.updatedAt)
+    dates.push(new Date(customer.updatedAt));
   return dates.sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 }
 
 async function getScopedAgentIds(user: AppUser) {
-  const allUsers = await getAllUsers() as any[];
-  const activeUsers = allUsers.filter((item) => item.accountStatus === "active");
-  if (user.role === "branch_admin") return activeUsers.map((item) => item.id);
+  const allUsers = (await getAllUsers()) as any[];
+  const activeUsers = allUsers.filter(item => item.accountStatus === "active");
+  if (user.role === "branch_admin") return activeUsers.map(item => item.id);
   if (user.role === "member") return [user.id];
-  return ((await getHierarchyScopeUserIds(user)) ?? [user.id]).filter((id) => activeUsers.some((item) => item.id === id));
+  return ((await getHierarchyScopeUserIds(user)) ?? [user.id]).filter(id =>
+    activeUsers.some(item => item.id === id)
+  );
 }
 
 async function getScopedSchedules(user: AppUser, agentIds: number[]) {
@@ -316,9 +364,16 @@ async function getScopedSchedules(user: AppUser, agentIds: number[]) {
 }
 
 async function resolveScope(user: AppUser, input: CustomerDataQualityInput) {
-  const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
-  const activeUsers = (allUsers as any[]).filter((item) => item.accountStatus === "active");
-  const activeTeams = (allTeams as any[]).filter((team) => team.isActive !== false && !team.deletedAt);
+  const [allUsers, allTeams] = await Promise.all([
+    getAllUsers(),
+    getAllTeams(),
+  ]);
+  const activeUsers = (allUsers as any[]).filter(
+    item => item.accountStatus === "active"
+  );
+  const activeTeams = (allTeams as any[]).filter(
+    team => team.isActive !== false && !team.deletedAt
+  );
   const scopedAgentIds = await getScopedAgentIds(user);
   const scopedAgentSet = new Set(scopedAgentIds);
 
@@ -326,43 +381,74 @@ async function resolveScope(user: AppUser, input: CustomerDataQualityInput) {
 
   if (input.assignedUserId !== undefined) {
     if (!scopedAgentSet.has(input.assignedUserId)) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "조회 범위 밖 담당자입니다." });
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "조회 범위 밖 담당자입니다.",
+      });
     }
     agentIds = [input.assignedUserId];
   }
 
   if (input.teamId !== undefined) {
-    const team = activeTeams.find((item) => item.id === input.teamId);
-    if (!team) throw new TRPCError({ code: "BAD_REQUEST", message: "팀을 찾을 수 없습니다." });
+    const team = activeTeams.find(item => item.id === input.teamId);
+    if (!team)
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "팀을 찾을 수 없습니다.",
+      });
     if (user.role === "team_leader" && user.teamId !== input.teamId) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "본인 팀만 조회할 수 있습니다." });
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "본인 팀만 조회할 수 있습니다.",
+      });
     }
     if (user.role === "sub_branch_admin" && team.subBranchAdminId !== user.id) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "산하 팀만 조회할 수 있습니다." });
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "산하 팀만 조회할 수 있습니다.",
+      });
     }
     if (user.role === "member") {
-      throw new TRPCError({ code: "FORBIDDEN", message: "팀 단위 품질 현황은 관리자만 조회할 수 있습니다." });
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "팀 단위 품질 현황은 관리자만 조회할 수 있습니다.",
+      });
     }
     const teamMembers = await getUsersByTeamId(input.teamId);
-    const teamUserIds = teamMembers.map((member) => member.id).filter((id) => scopedAgentSet.has(id));
+    const teamUserIds = teamMembers
+      .map(member => member.id)
+      .filter(id => scopedAgentSet.has(id));
     agentIds = teamUserIds.length > 0 ? teamUserIds : [-1];
   }
 
   if (input.subBranchId !== undefined) {
     if (user.role === "member" || user.role === "team_leader") {
-      throw new TRPCError({ code: "FORBIDDEN", message: "부지점 단위 품질 현황은 상위 관리자만 조회할 수 있습니다." });
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "부지점 단위 품질 현황은 상위 관리자만 조회할 수 있습니다.",
+      });
     }
     if (user.role === "sub_branch_admin" && user.id !== input.subBranchId) {
-      throw new TRPCError({ code: "FORBIDDEN", message: "본인 산하 부지점만 조회할 수 있습니다." });
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "본인 산하 부지점만 조회할 수 있습니다.",
+      });
     }
-    const subBranchUsers = activeUsers.filter((item) => item.subBranchAdminId === input.subBranchId || item.id === input.subBranchId);
-    agentIds = subBranchUsers.map((item) => item.id).filter((id) => scopedAgentSet.has(id));
+    const subBranchUsers = activeUsers.filter(
+      item =>
+        item.subBranchAdminId === input.subBranchId ||
+        item.id === input.subBranchId
+    );
+    agentIds = subBranchUsers
+      .map(item => item.id)
+      .filter(id => scopedAgentSet.has(id));
     if (agentIds.length === 0) agentIds = [-1];
   }
 
-  const customerQuery = user.role === "branch_admin" && agentIds.length === scopedAgentIds.length
-    ? {}
-    : { agentIds };
+  const customerQuery =
+    user.role === "branch_admin" && agentIds.length === scopedAgentIds.length
+      ? {}
+      : { agentIds };
 
   return {
     activeUsers,
@@ -374,14 +460,21 @@ async function resolveScope(user: AppUser, input: CustomerDataQualityInput) {
 }
 
 export async function buildCustomerDataQualityFilterOptions(user: AppUser) {
-  const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
-  const activeUsers = (allUsers as any[]).filter((item) => item.accountStatus === "active");
-  const activeTeams = (allTeams as any[]).filter((team) => team.isActive !== false && !team.deletedAt);
+  const [allUsers, allTeams] = await Promise.all([
+    getAllUsers(),
+    getAllTeams(),
+  ]);
+  const activeUsers = (allUsers as any[]).filter(
+    item => item.accountStatus === "active"
+  );
+  const activeTeams = (allTeams as any[]).filter(
+    team => team.isActive !== false && !team.deletedAt
+  );
   const scopedAgentIds = new Set(await getScopedAgentIds(user));
 
   const assignees = activeUsers
-    .filter((item) => scopedAgentIds.has(item.id) && item.role !== "branch_admin")
-    .map((item) => ({
+    .filter(item => scopedAgentIds.has(item.id) && item.role !== "branch_admin")
+    .map(item => ({
       id: item.id,
       name: item.name ?? `사용자 #${item.id}`,
       role: item.role,
@@ -389,19 +482,27 @@ export async function buildCustomerDataQualityFilterOptions(user: AppUser) {
       subBranchAdminId: item.subBranchAdminId ?? null,
     }));
 
-  const teams = user.role === "branch_admin"
-    ? activeTeams
-    : activeTeams.filter((team) => {
-        if (user.role === "sub_branch_admin") return team.subBranchAdminId === user.id;
-        if (user.role === "team_leader") return team.id === user.teamId;
-        return false;
-      });
+  const teams =
+    user.role === "branch_admin"
+      ? activeTeams
+      : activeTeams.filter(team => {
+          if (user.role === "sub_branch_admin")
+            return team.subBranchAdminId === user.id;
+          if (user.role === "team_leader") return team.id === user.teamId;
+          return false;
+        });
 
-  const subBranches = user.role === "branch_admin"
-    ? activeUsers.filter((item) => item.role === "sub_branch_admin").map((item) => ({ id: item.id, name: item.name ?? `부지점 #${item.id}` }))
-    : user.role === "sub_branch_admin"
-      ? [{ id: user.id, name: user.name ?? `부지점 #${user.id}` }]
-      : [];
+  const subBranches =
+    user.role === "branch_admin"
+      ? activeUsers
+          .filter(item => item.role === "sub_branch_admin")
+          .map(item => ({
+            id: item.id,
+            name: item.name ?? `부지점 #${item.id}`,
+          }))
+      : user.role === "sub_branch_admin"
+        ? [{ id: user.id, name: user.name ?? `부지점 #${user.id}` }]
+        : [];
 
   return {
     issueTypes: Object.entries(ISSUE_TYPE_META).map(([type, meta]) => ({
@@ -409,33 +510,52 @@ export async function buildCustomerDataQualityFilterOptions(user: AppUser) {
       label: meta.label,
       severity: meta.severity,
     })),
-    qualityLevels: Object.entries(QUALITY_LEVEL_LABELS).map(([value, label]) => ({ value, label })),
+    qualityLevels: Object.entries(QUALITY_LEVEL_LABELS).map(
+      ([value, label]) => ({ value, label })
+    ),
     assignees,
-    teams: teams.map((team) => ({ id: team.id, name: team.name ?? `팀 #${team.id}` })),
+    teams: teams.map(team => ({
+      id: team.id,
+      name: team.name ?? `팀 #${team.id}`,
+    })),
     subBranches,
     canViewAssigneeBreakdown: user.role !== "member",
-    memberViewLabel: user.role === "member" ? "내 고객 데이터 보완" : "고객 데이터 품질 점검",
+    memberViewLabel:
+      user.role === "member" ? "내 고객 데이터 보완" : "고객 데이터 품질 점검",
   };
 }
 
-export async function buildCustomerDataQualityDashboard(user: AppUser, input: CustomerDataQualityInput = {}) {
+export async function buildCustomerDataQualityDashboard(
+  user: AppUser,
+  input: CustomerDataQualityInput = {}
+) {
   const scope = await resolveScope(user, input);
-  const [customerList, contractList, scheduleList, followUpList] = await Promise.all([
-    getCustomers(scope.customerQuery),
-    getAllContracts(scope.customerQuery.agentIds ? { agentIds: scope.agentIds } : {}),
-    getScopedSchedules(user, scope.agentIds),
-    getFollowUps(scope.customerQuery.agentIds ? { agentIds: scope.agentIds } : {}),
-  ]);
+  const [customerList, contractList, scheduleList, followUpList] =
+    await Promise.all([
+      getCustomers(scope.customerQuery),
+      getAllContracts(
+        scope.customerQuery.agentIds ? { agentIds: scope.agentIds } : {}
+      ),
+      getScopedSchedules(user, scope.agentIds),
+      getFollowUps(
+        scope.customerQuery.agentIds ? { agentIds: scope.agentIds } : {}
+      ),
+    ]);
 
-  const activeCustomers = customerList.filter((customer: any) => customer.isActive !== false && !customer.deletedAt);
+  const activeCustomers = customerList.filter(
+    (customer: any) => customer.isActive !== false && !customer.deletedAt
+  );
   const customerIds = activeCustomers.map((customer: any) => customer.id);
-  const consultationRows = await getLatestConsultationDatesByCustomerIds(customerIds);
+  const consultationRows =
+    await getLatestConsultationDatesByCustomerIds(customerIds);
   const consultationDates = new Map<number, Date>(
-    consultationRows.map((row) => [row.customerId, new Date(row.latestCreatedAt)]),
+    consultationRows.map(row => [row.customerId, new Date(row.latestCreatedAt)])
   );
 
   const activeAgentIds = new Set(
-    scope.activeUsers.filter((item) => item.accountStatus === "active").map((item) => item.id),
+    scope.activeUsers
+      .filter(item => item.accountStatus === "active")
+      .map(item => item.id)
   );
   const duplicateCandidateIds = buildDuplicateCandidateSet(activeCustomers);
   const now = new Date();
@@ -448,7 +568,10 @@ export async function buildCustomerDataQualityDashboard(user: AppUser, input: Cu
   }
 
   const schedulesByCustomer = new Map<number, any[]>();
-  for (const schedule of scheduleList.filter((item: any) => item.isActive !== false && !item.deletedAt && item.customerId != null)) {
+  for (const schedule of scheduleList.filter(
+    (item: any) =>
+      item.isActive !== false && !item.deletedAt && item.customerId != null
+  )) {
     const customerId = Number(schedule.customerId);
     const rows = schedulesByCustomer.get(customerId) ?? [];
     rows.push(schedule);
@@ -456,7 +579,9 @@ export async function buildCustomerDataQualityDashboard(user: AppUser, input: Cu
   }
 
   const contractsByCustomer = new Map<number, any[]>();
-  for (const contract of contractList.filter((item: any) => item.isActive !== false && !item.deletedAt)) {
+  for (const contract of contractList.filter(
+    (item: any) => item.isActive !== false && !item.deletedAt
+  )) {
     const rows = contractsByCustomer.get(contract.customerId) ?? [];
     rows.push(contract);
     contractsByCustomer.set(contract.customerId, rows);
@@ -472,26 +597,30 @@ export async function buildCustomerDataQualityDashboard(user: AppUser, input: Cu
     contractsByCustomer,
   };
 
-  const userById = new Map(scope.activeUsers.map((item) => [item.id, item]));
-  const teamById = new Map(scope.activeTeams.map((team) => [team.id, team]));
+  const userById = new Map(scope.activeUsers.map(item => [item.id, item]));
+  const teamById = new Map(scope.activeTeams.map(team => [team.id, team]));
 
   const analyzedCustomers = activeCustomers.map((customer: any) => {
     const issueTypes = detectCustomerIssueTypes(customer, context);
     const qualityScore = calculateQualityScore(issueTypes);
     const qualityLevel = getQualityLevel(qualityScore);
-    const assignedUser = customer.agentId ? userById.get(customer.agentId) : undefined;
+    const assignedUser = customer.agentId
+      ? userById.get(customer.agentId)
+      : undefined;
     const lastManagedAt = getLastManagedAt(customer, context);
     return {
       customerId: customer.id,
       customerDisplayName: maskCustomerDisplayName(customer.name ?? ""),
       assignedUserId: customer.agentId ?? null,
-      assignedUserName: assignedUser?.name ?? (customer.agentId ? `담당자 #${customer.agentId}` : "미배정"),
+      assignedUserName:
+        assignedUser?.name ??
+        (customer.agentId ? `담당자 #${customer.agentId}` : "미배정"),
       status: customer.consultStatus,
       qualityScore,
       qualityLevel,
       qualityLevelLabel: QUALITY_LEVEL_LABELS[qualityLevel],
       issueTypes,
-      issueLabels: issueTypes.map((type) => ISSUE_TYPE_META[type].label),
+      issueLabels: issueTypes.map(type => ISSUE_TYPE_META[type].label),
       lastManagedAt: lastManagedAt?.toISOString() ?? null,
       recommendedAction: getRecommendedAction(issueTypes),
       links: {
@@ -504,61 +633,102 @@ export async function buildCustomerDataQualityDashboard(user: AppUser, input: Cu
     };
   });
 
-  const issueCustomers = analyzedCustomers.filter((customer) => customer.issueTypes.length > 0);
-  const cleanCustomers = analyzedCustomers.filter((customer) => customer.issueTypes.length === 0);
+  const issueCustomers = analyzedCustomers.filter(
+    customer => customer.issueTypes.length > 0
+  );
+  const cleanCustomers = analyzedCustomers.filter(
+    customer => customer.issueTypes.length === 0
+  );
 
   const summary = {
     customerCount: analyzedCustomers.length,
     cleanCustomerCount: cleanCustomers.length,
     issueCustomerCount: issueCustomers.length,
-    averageQualityScore: analyzedCustomers.length > 0
-      ? Math.round(analyzedCustomers.reduce((sum, customer) => sum + customer.qualityScore, 0) / analyzedCustomers.length)
-      : 100,
-    missingPhoneCount: issueCustomers.filter((customer) => customer.issueTypes.includes("missing_phone")).length,
-    missingBirthDateCount: issueCustomers.filter((customer) => customer.issueTypes.includes("missing_birth_date")).length,
-    missingStatusCount: issueCustomers.filter((customer) => customer.issueTypes.includes("missing_status")).length,
-    unassignedCustomerCount: issueCustomers.filter((customer) => customer.issueTypes.includes("unassigned")).length,
-    noFollowUpCount: issueCustomers.filter((customer) => customer.issueTypes.includes("no_follow_up")).length,
-    longUnmanagedCount: issueCustomers.filter((customer) => customer.issueTypes.includes("long_unmanaged")).length,
-    duplicateCandidateCount: issueCustomers.filter((customer) => customer.issueTypes.includes("duplicate_candidate")).length,
-    excessiveTagCount: issueCustomers.filter((customer) => customer.issueTypes.includes("excessive_tags")).length,
-    contractWithoutConsultationCount: issueCustomers.filter((customer) => customer.issueTypes.includes("contract_without_consultation")).length,
-    delayedFollowUpOrScheduleCount: issueCustomers.filter((customer) => customer.issueTypes.includes("delayed_followup_or_schedule")).length,
-    criticalCustomerCount: analyzedCustomers.filter((customer) => customer.qualityLevel === "critical").length,
+    averageQualityScore:
+      analyzedCustomers.length > 0
+        ? Math.round(
+            analyzedCustomers.reduce(
+              (sum, customer) => sum + customer.qualityScore,
+              0
+            ) / analyzedCustomers.length
+          )
+        : 100,
+    missingPhoneCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("missing_phone")
+    ).length,
+    missingBirthDateCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("missing_birth_date")
+    ).length,
+    missingStatusCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("missing_status")
+    ).length,
+    unassignedCustomerCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("unassigned")
+    ).length,
+    noFollowUpCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("no_follow_up")
+    ).length,
+    longUnmanagedCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("long_unmanaged")
+    ).length,
+    duplicateCandidateCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("duplicate_candidate")
+    ).length,
+    excessiveTagCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("excessive_tags")
+    ).length,
+    contractWithoutConsultationCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("contract_without_consultation")
+    ).length,
+    delayedFollowUpOrScheduleCount: issueCustomers.filter(customer =>
+      customer.issueTypes.includes("delayed_followup_or_schedule")
+    ).length,
+    criticalCustomerCount: analyzedCustomers.filter(
+      customer => customer.qualityLevel === "critical"
+    ).length,
   };
 
-  const issueTypes = (Object.keys(ISSUE_TYPE_META) as QualityIssueType[]).map((type) => ({
-    type,
-    label: ISSUE_TYPE_META[type].label,
-    count: issueCustomers.filter((customer) => customer.issueTypes.includes(type)).length,
-    severity: ISSUE_TYPE_META[type].severity,
-    description: ISSUE_TYPE_META[type].description,
-    recommendedAction: ISSUE_TYPE_META[type].recommendedAction,
-  }));
+  const issueTypes = (Object.keys(ISSUE_TYPE_META) as QualityIssueType[]).map(
+    type => ({
+      type,
+      label: ISSUE_TYPE_META[type].label,
+      count: issueCustomers.filter(customer =>
+        customer.issueTypes.includes(type)
+      ).length,
+      severity: ISSUE_TYPE_META[type].severity,
+      description: ISSUE_TYPE_META[type].description,
+      recommendedAction: ISSUE_TYPE_META[type].recommendedAction,
+    })
+  );
 
-  const assigneeMap = new Map<number, {
-    userId: number;
-    name: string;
-    role: string;
-    teamName: string | null;
-    subBranchName: string | null;
-    customerCount: number;
-    issueCustomerCount: number;
-    qualityScoreTotal: number;
-    missingPhoneCount: number;
-    missingStatusCount: number;
-    noFollowUpCount: number;
-    longUnmanagedCount: number;
-    duplicateCandidateCount: number;
-    priorityIssueCount: number;
-  }>();
+  const assigneeMap = new Map<
+    number,
+    {
+      userId: number;
+      name: string;
+      role: string;
+      teamName: string | null;
+      subBranchName: string | null;
+      customerCount: number;
+      issueCustomerCount: number;
+      qualityScoreTotal: number;
+      missingPhoneCount: number;
+      missingStatusCount: number;
+      noFollowUpCount: number;
+      longUnmanagedCount: number;
+      duplicateCandidateCount: number;
+      priorityIssueCount: number;
+    }
+  >();
 
   for (const customer of analyzedCustomers) {
     const agentId = customer.assignedUserId;
     if (!agentId || !scope.canViewAssigneeBreakdown) continue;
     const agent = userById.get(agentId);
     const team = agent?.teamId ? teamById.get(agent.teamId) : undefined;
-    const subBranch = agent?.subBranchAdminId ? userById.get(agent.subBranchAdminId) : undefined;
+    const subBranch = agent?.subBranchAdminId
+      ? userById.get(agent.subBranchAdminId)
+      : undefined;
     const current = assigneeMap.get(agentId) ?? {
       userId: agentId,
       name: agent?.name ?? `담당자 #${agentId}`,
@@ -578,35 +748,58 @@ export async function buildCustomerDataQualityDashboard(user: AppUser, input: Cu
     current.customerCount += 1;
     current.qualityScoreTotal += customer.qualityScore;
     if (customer.issueTypes.length > 0) current.issueCustomerCount += 1;
-    if (customer.issueTypes.includes("missing_phone")) current.missingPhoneCount += 1;
-    if (customer.issueTypes.includes("missing_status")) current.missingStatusCount += 1;
-    if (customer.issueTypes.includes("no_follow_up")) current.noFollowUpCount += 1;
-    if (customer.issueTypes.includes("long_unmanaged")) current.longUnmanagedCount += 1;
-    if (customer.issueTypes.includes("duplicate_candidate")) current.duplicateCandidateCount += 1;
-    if (customer.qualityLevel === "critical" || customer.qualityLevel === "caution") current.priorityIssueCount += 1;
+    if (customer.issueTypes.includes("missing_phone"))
+      current.missingPhoneCount += 1;
+    if (customer.issueTypes.includes("missing_status"))
+      current.missingStatusCount += 1;
+    if (customer.issueTypes.includes("no_follow_up"))
+      current.noFollowUpCount += 1;
+    if (customer.issueTypes.includes("long_unmanaged"))
+      current.longUnmanagedCount += 1;
+    if (customer.issueTypes.includes("duplicate_candidate"))
+      current.duplicateCandidateCount += 1;
+    if (
+      customer.qualityLevel === "critical" ||
+      customer.qualityLevel === "caution"
+    )
+      current.priorityIssueCount += 1;
     assigneeMap.set(agentId, current);
   }
 
   const assignees = Array.from(assigneeMap.values())
-    .map((assignee) => ({
+    .map(assignee => ({
       ...assignee,
-      averageQualityScore: assignee.customerCount > 0 ? Math.round(assignee.qualityScoreTotal / assignee.customerCount) : 100,
+      averageQualityScore:
+        assignee.customerCount > 0
+          ? Math.round(assignee.qualityScoreTotal / assignee.customerCount)
+          : 100,
     }))
-    .sort((a, b) => b.priorityIssueCount - a.priorityIssueCount || a.averageQualityScore - b.averageQualityScore);
+    .sort(
+      (a, b) =>
+        b.priorityIssueCount - a.priorityIssueCount ||
+        a.averageQualityScore - b.averageQualityScore
+    );
 
   let filteredCustomers = [...issueCustomers];
   if (input.issueType) {
-    filteredCustomers = filteredCustomers.filter((customer) => customer.issueTypes.includes(input.issueType as QualityIssueType));
+    filteredCustomers = filteredCustomers.filter(customer =>
+      customer.issueTypes.includes(input.issueType as QualityIssueType)
+    );
   }
   if (input.qualityLevel) {
-    filteredCustomers = filteredCustomers.filter((customer) => customer.qualityLevel === input.qualityLevel);
+    filteredCustomers = filteredCustomers.filter(
+      customer => customer.qualityLevel === input.qualityLevel
+    );
   }
   if (input.search?.trim()) {
     const normalized = input.search.trim().toLowerCase();
-    filteredCustomers = filteredCustomers.filter((customer) =>
-      customer.customerDisplayName.toLowerCase().includes(normalized) ||
-      customer.assignedUserName.toLowerCase().includes(normalized) ||
-      customer.issueLabels.some((label) => label.toLowerCase().includes(normalized)),
+    filteredCustomers = filteredCustomers.filter(
+      customer =>
+        customer.customerDisplayName.toLowerCase().includes(normalized) ||
+        customer.assignedUserName.toLowerCase().includes(normalized) ||
+        customer.issueLabels.some(label =>
+          label.toLowerCase().includes(normalized)
+        )
     );
   }
 
@@ -617,13 +810,23 @@ export async function buildCustomerDataQualityDashboard(user: AppUser, input: Cu
       return aTime - bTime;
     }
     if (input.sortBy === "issue_count_desc") {
-      return b.issueTypes.length - a.issueTypes.length || a.qualityScore - b.qualityScore;
+      return (
+        b.issueTypes.length - a.issueTypes.length ||
+        a.qualityScore - b.qualityScore
+      );
     }
-    return a.qualityScore - b.qualityScore || (a.lastManagedAt ? new Date(a.lastManagedAt).getTime() : 0) - (b.lastManagedAt ? new Date(b.lastManagedAt).getTime() : 0);
+    return (
+      a.qualityScore - b.qualityScore ||
+      (a.lastManagedAt ? new Date(a.lastManagedAt).getTime() : 0) -
+        (b.lastManagedAt ? new Date(b.lastManagedAt).getTime() : 0)
+    );
   });
 
   const total = filteredCustomers.length;
-  const paginatedCustomers = filteredCustomers.slice(input.offset ?? 0, (input.offset ?? 0) + (input.limit ?? 25));
+  const paginatedCustomers = filteredCustomers.slice(
+    input.offset ?? 0,
+    (input.offset ?? 0) + (input.limit ?? 25)
+  );
 
   return {
     scope: {

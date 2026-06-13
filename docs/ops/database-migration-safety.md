@@ -5,18 +5,21 @@ Use this standard before editing schema, migrations, indexes, seeds, or producti
 ## Migration Risk Levels
 
 Low:
+
 - Add nullable column.
 - Add safe index.
 - Add dev/test lookup data.
 - Document schema behavior.
 
 Medium:
+
 - Add non-null column with default.
 - Backfill small bounded data.
 - Add unique constraint after duplicate check.
 - Change query behavior across role scopes.
 
 High:
+
 - Drop or rename column.
 - Change enum semantics.
 - Backfill large production tables.
@@ -24,6 +27,7 @@ High:
 - Change customer/contract ownership semantics.
 
 Stop and report:
+
 - Production reset, drop, or truncate.
 - Manual production hard delete.
 - Destructive migration without rollback or mitigation.
@@ -33,6 +37,7 @@ Stop and report:
 ## Migration Plan Requirements
 
 Every migration plan should state:
+
 - forward change
 - rollback or mitigation
 - affected tables
@@ -45,6 +50,7 @@ If rollback is not practical, say so before implementation.
 ## Destructive Change Warnings
 
 Do not:
+
 - casually drop customer, contract, consultation, schedule, or log data
 - delete `activity_logs`
 - remove audit evidence
@@ -54,6 +60,7 @@ Do not:
 ## Index and Performance Checks
 
 Check:
+
 - joins on foreign keys
 - list filters used by dashboards and mobile views
 - notification and push log queries
@@ -62,6 +69,7 @@ Check:
 - export/import queries
 
 Flag:
+
 - N+1 query risk
 - unbounded queries
 - missing pagination
@@ -77,6 +85,7 @@ Flag:
 ## Production DB Safety
 
 Before touching production, confirm:
+
 - environment
 - backup/restore expectation
 - migration command
@@ -86,6 +95,7 @@ Before touching production, confirm:
 ## Stop Conditions
 
 Stop and report before changing when:
+
 - schema state differs from local
 - migration requires data deletion
 - role scope depends on changed columns

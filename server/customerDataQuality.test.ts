@@ -9,7 +9,9 @@ import {
 
 describe("customerDataQuality scoring", () => {
   it("calculates score and level from issue penalties", () => {
-    expect(calculateQualityScore(["missing_phone", "missing_birth_date"])).toBe(65);
+    expect(calculateQualityScore(["missing_phone", "missing_birth_date"])).toBe(
+      65
+    );
     expect(getQualityLevel(95)).toBe("good");
     expect(getQualityLevel(80)).toBe("needs_improvement");
     expect(getQualityLevel(60)).toBe("caution");
@@ -23,9 +25,24 @@ describe("customerDataQuality scoring", () => {
 
   it("detects duplicate candidates by phone or name+birth date", () => {
     const duplicates = buildDuplicateCandidateSet([
-      { id: 1, phone: "010-1234-5678", name: "홍길동", birthDate: "1990-01-01" },
-      { id: 2, phone: "010-1234-5678", name: "홍길동", birthDate: "1990-01-01" },
-      { id: 3, phone: "010-9999-0000", name: "김철수", birthDate: "1988-05-05" },
+      {
+        id: 1,
+        phone: "010-1234-5678",
+        name: "홍길동",
+        birthDate: "1990-01-01",
+      },
+      {
+        id: 2,
+        phone: "010-1234-5678",
+        name: "홍길동",
+        birthDate: "1990-01-01",
+      },
+      {
+        id: 3,
+        phone: "010-9999-0000",
+        name: "김철수",
+        birthDate: "1988-05-05",
+      },
     ]);
     expect(duplicates.has(1)).toBe(true);
     expect(duplicates.has(2)).toBe(true);
@@ -44,34 +61,55 @@ describe("customerDataQuality scoring", () => {
       contractsByCustomer: new Map<number, any[]>([[106, [{ id: 1 }]]]),
     };
 
-    expect(detectCustomerIssueTypes({
-      id: 101,
-      phone: null,
-      birthDate: null,
-      consultStatus: "미상담",
-      agentId: 4,
-      customerTags: null,
-      updatedAt: now,
-    }, context)).toEqual(expect.arrayContaining(["missing_phone", "missing_birth_date", "missing_status"]));
+    expect(
+      detectCustomerIssueTypes(
+        {
+          id: 101,
+          phone: null,
+          birthDate: null,
+          consultStatus: "미상담",
+          agentId: 4,
+          customerTags: null,
+          updatedAt: now,
+        },
+        context
+      )
+    ).toEqual(
+      expect.arrayContaining([
+        "missing_phone",
+        "missing_birth_date",
+        "missing_status",
+      ])
+    );
 
-    expect(detectCustomerIssueTypes({
-      id: 103,
-      phone: "01010000004",
-      birthDate: "1990-01-04",
-      consultStatus: "통화완료",
-      agentId: 4,
-      customerTags: null,
-      updatedAt: now,
-    }, context)).toContain("no_follow_up");
+    expect(
+      detectCustomerIssueTypes(
+        {
+          id: 103,
+          phone: "01010000004",
+          birthDate: "1990-01-04",
+          consultStatus: "통화완료",
+          agentId: 4,
+          customerTags: null,
+          updatedAt: now,
+        },
+        context
+      )
+    ).toContain("no_follow_up");
 
-    expect(detectCustomerIssueTypes({
-      id: 106,
-      phone: "01010000006",
-      birthDate: "1990-01-06",
-      consultStatus: "계약",
-      agentId: 4,
-      customerTags: null,
-      updatedAt: now,
-    }, context)).toContain("contract_without_consultation");
+    expect(
+      detectCustomerIssueTypes(
+        {
+          id: 106,
+          phone: "01010000006",
+          birthDate: "1990-01-06",
+          consultStatus: "계약",
+          agentId: 4,
+          customerTags: null,
+          updatedAt: now,
+        },
+        context
+      )
+    ).toContain("contract_without_consultation");
   });
 });

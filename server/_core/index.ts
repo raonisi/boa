@@ -18,7 +18,7 @@ const TRPC_JSON_LIMIT = "24mb";
 const DEFAULT_JSON_LIMIT = "1mb";
 
 function isPortAvailable(port: number, host: string): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     const server = net.createServer();
     server.listen(port, host, () => {
       server.close(() => resolve(true));
@@ -27,13 +27,18 @@ function isPortAvailable(port: number, host: string): Promise<boolean> {
   });
 }
 
-async function findAvailablePort(startPort: number = 3000, host: string): Promise<number> {
+async function findAvailablePort(
+  startPort: number = 3000,
+  host: string
+): Promise<number> {
   for (let port = startPort; port < startPort + 20; port++) {
     if (await isPortAvailable(port, host)) {
       return port;
     }
   }
-  throw new Error(`No available port found starting from ${startPort} (host=${host})`);
+  throw new Error(
+    `No available port found starting from ${startPort} (host=${host})`
+  );
 }
 
 function isStrictDeploymentPort(): boolean {
@@ -44,7 +49,10 @@ function isStrictDeploymentPort(): boolean {
   );
 }
 
-async function resolveListenPort(preferredPort: number, host: string): Promise<number> {
+async function resolveListenPort(
+  preferredPort: number,
+  host: string
+): Promise<number> {
   if (isStrictDeploymentPort()) {
     return preferredPort;
   }
@@ -116,16 +124,22 @@ async function startServer() {
     console.error("[server] listen error:", err.message);
     if (err.code === "EADDRINUSE") {
       if (strictDeploymentPort) {
-        console.error("[server] Assigned PORT is not available. Railway/production requires binding to the assigned port only.");
+        console.error(
+          "[server] Assigned PORT is not available. Railway/production requires binding to the assigned port only."
+        );
       } else {
-        console.error(`[server] Port ${port} is already in use. Try PORT=3001 pnpm dev or close the other process.`);
+        console.error(
+          `[server] Port ${port} is already in use. Try PORT=3001 pnpm dev or close the other process.`
+        );
       }
     }
     process.exit(1);
   });
 
   server.listen(port, host, () => {
-    console.log(`[boot] NODE_ENV=${process.env.NODE_ENV ?? "(unset)"} host=${host} port=${port}`);
+    console.log(
+      `[boot] NODE_ENV=${process.env.NODE_ENV ?? "(unset)"} host=${host} port=${port}`
+    );
     console.log(`Server running on http://127.0.0.1:${port}/`);
     console.log(`Server running on http://localhost:${port}/`);
     console.log(`Health check: http://127.0.0.1:${port}/api/health`);
@@ -133,7 +147,7 @@ async function startServer() {
   });
 }
 
-startServer().catch((err) => {
+startServer().catch(err => {
   console.error("[boot] fatal:", err);
   process.exit(1);
 });

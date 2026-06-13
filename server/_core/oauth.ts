@@ -4,7 +4,10 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
-import { GoogleLoginError, completeGoogleLoginWithUserInfo } from "./googleLoginFlow";
+import {
+  GoogleLoginError,
+  completeGoogleLoginWithUserInfo,
+} from "./googleLoginFlow";
 import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
@@ -63,8 +66,14 @@ function decodeState(state: string): string | null {
 }
 
 function getRequestOrigin(req: Request) {
-  const forwardedProto = (req.headers["x-forwarded-proto"] as string | undefined)?.split(",")[0]?.trim();
-  const forwardedHost = (req.headers["x-forwarded-host"] as string | undefined)?.split(",")[0]?.trim();
+  const forwardedProto = (
+    req.headers["x-forwarded-proto"] as string | undefined
+  )
+    ?.split(",")[0]
+    ?.trim();
+  const forwardedHost = (req.headers["x-forwarded-host"] as string | undefined)
+    ?.split(",")[0]
+    ?.trim();
   const proto = forwardedProto || req.protocol || "http";
   const host = forwardedHost || req.headers.host;
 
@@ -94,7 +103,12 @@ async function logOAuthEvent({
   afterValue?: Record<string, unknown> | null;
   req: Request;
 }) {
-  const ipAddress = (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ?? req.socket?.remoteAddress ?? undefined;
+  const ipAddress =
+    (req.headers["x-forwarded-for"] as string | undefined)
+      ?.split(",")[0]
+      ?.trim() ??
+    req.socket?.remoteAddress ??
+    undefined;
   const userAgent = req.headers["user-agent"] ?? undefined;
 
   await db.createActivityLog({
@@ -137,7 +151,10 @@ export function registerOAuthRoutes(app: Express) {
     }
 
     try {
-      const tokenResponse = await sdk.exchangeGoogleCodeForToken(code, expectedRedirectUri);
+      const tokenResponse = await sdk.exchangeGoogleCodeForToken(
+        code,
+        expectedRedirectUri
+      );
       const userInfo = await sdk.getGoogleUserInfo(tokenResponse.access_token);
 
       let sessionToken: string;
@@ -173,7 +190,10 @@ export function registerOAuthRoutes(app: Express) {
       });
 
       const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      res.cookie(COOKIE_NAME, sessionToken, {
+        ...cookieOptions,
+        maxAge: ONE_YEAR_MS,
+      });
 
       res.redirect(302, "/");
     } catch (error) {

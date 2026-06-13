@@ -28,7 +28,9 @@ export function ErrorFallback({
           <AlertTriangle size={28} aria-hidden="true" />
         </div>
 
-        <h2 className="text-xl font-bold tracking-tight text-foreground">문제가 발생했습니다.</h2>
+        <h2 className="text-xl font-bold tracking-tight text-foreground">
+          문제가 발생했습니다.
+        </h2>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
           잠시 후 다시 시도해 주세요. 문제가 반복되면 관리자에게 문의해 주세요.
         </p>
@@ -47,7 +49,9 @@ export function ErrorFallback({
           </button>
           <button
             type="button"
-            onClick={() => { window.location.href = "/"; }}
+            onClick={() => {
+              window.location.href = "/";
+            }}
             className={cn(
               "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold",
               "border-border bg-background text-foreground transition-colors hover:bg-muted/70"

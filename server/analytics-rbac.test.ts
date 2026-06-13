@@ -4,9 +4,21 @@ import type { TrpcContext } from "./_core/context";
 
 function createCtx(
   role: "branch_admin" | "sub_branch_admin" | "team_leader" | "member",
-  opts?: { teamId?: number | null; subBranchAdminId?: number | null; userId?: number }
+  opts?: {
+    teamId?: number | null;
+    subBranchAdminId?: number | null;
+    userId?: number;
+  }
 ): TrpcContext {
-  const id = opts?.userId ?? (role === "branch_admin" ? 1 : role === "sub_branch_admin" ? 2 : role === "team_leader" ? 3 : 4);
+  const id =
+    opts?.userId ??
+    (role === "branch_admin"
+      ? 1
+      : role === "sub_branch_admin"
+        ? 2
+        : role === "team_leader"
+          ? 3
+          : 4);
   return {
     user: {
       id,
@@ -30,7 +42,9 @@ function createCtx(
 describe("analytics RBAC", () => {
   it("rejects member with UNAUTHORIZED", async () => {
     try {
-      await appRouter.createCaller(createCtx("member")).analytics.salesFunnel({});
+      await appRouter
+        .createCaller(createCtx("member"))
+        .analytics.salesFunnel({});
       expect.fail("expected UNAUTHORIZED");
     } catch (e: any) {
       expect(e?.code ?? e?.cause?.code).toBe("UNAUTHORIZED");

@@ -10,16 +10,18 @@
 ## 📦 배포 패키지 정보
 
 ### GitHub Repository
+
 - **주소**: https://github.com/raonisi/boa
 - **브랜치**: main
 - **최신 커밋**: 86d886e (HANDOFF.md 및 샘플 CSV 추가)
 - **상태**: 모든 변경사항 커밋 완료
 
 ### ZIP 파일
+
 - **파일명**: `insurance-crm-handoff.zip`
 - **크기**: 354 KB
 - **위치**: `/home/ubuntu/Downloads/insurance-crm-handoff.zip`
-- **포함 파일**: 
+- **포함 파일**:
   - ✅ client/ (React 프론트엔드)
   - ✅ server/ (Express 백엔드)
   - ✅ drizzle/ (DB 스키마 및 마이그레이션)
@@ -37,18 +39,18 @@
 
 ### 완료된 기능 (10차 수정)
 
-| 항목 | 상태 | 설명 |
-|---|---|---|
-| 기본 CRUD | ✅ | 고객, 계약, 상담, 일정 관리 |
-| 권한 관리 | ✅ | 4단계 권한 (지점장, 부지점장, 팀장, 팀원) |
-| 조직 계층 | ✅ | 지점장 → 부지점장 → 팀장 → 팀원 |
-| DB 배정 | ✅ | 지점장 전체 배정, 부지점장 제한 배정 |
-| 실적 관리 | ✅ | 차트, 필터, 월별/팀별/팀원별 조회 |
-| 알림 시스템 | ✅ | 자동 알림, 필터, 페이지네이션 |
-| 데이터 다운로드 | ✅ | CSV 내보내기 (관리자) |
-| 사용자 관리 | ✅ | 신규 추가, 권한 변경, 팀 배치 |
-| 팀 관리 | ✅ | 팀 생성, 팀장 배치, 계층 구조 |
-| **고객 일괄 등록** | ✅ **NEW** | CSV 파일 업로드, 14가지 검증, 배치 관리 |
+| 항목               | 상태       | 설명                                      |
+| ------------------ | ---------- | ----------------------------------------- |
+| 기본 CRUD          | ✅         | 고객, 계약, 상담, 일정 관리               |
+| 권한 관리          | ✅         | 4단계 권한 (지점장, 부지점장, 팀장, 팀원) |
+| 조직 계층          | ✅         | 지점장 → 부지점장 → 팀장 → 팀원           |
+| DB 배정            | ✅         | 지점장 전체 배정, 부지점장 제한 배정      |
+| 실적 관리          | ✅         | 차트, 필터, 월별/팀별/팀원별 조회         |
+| 알림 시스템        | ✅         | 자동 알림, 필터, 페이지네이션             |
+| 데이터 다운로드    | ✅         | CSV 내보내기 (관리자)                     |
+| 사용자 관리        | ✅         | 신규 추가, 권한 변경, 팀 배치             |
+| 팀 관리            | ✅         | 팀 생성, 팀장 배치, 계층 구조             |
+| **고객 일괄 등록** | ✅ **NEW** | CSV 파일 업로드, 14가지 검증, 배치 관리   |
 
 ### 기술 스택
 
@@ -63,12 +65,12 @@ Build:     Vite + pnpm
 
 ### 테스트 현황
 
-| 테스트 | 상태 | 개수 |
-|---|---|---|
-| 단위 테스트 | ✅ | 34개 (bulk-import 33개 + auth 1개) |
-| 통과율 | ✅ | 100% (기본 기능) |
-| TypeScript | ✅ | 0개 오류 |
-| 회귀 테스트 | ✅ | 기존 기능 정상 |
+| 테스트      | 상태 | 개수                               |
+| ----------- | ---- | ---------------------------------- |
+| 단위 테스트 | ✅   | 34개 (bulk-import 33개 + auth 1개) |
+| 통과율      | ✅   | 100% (기본 기능)                   |
+| TypeScript  | ✅   | 0개 오류                           |
+| 회귀 테스트 | ✅   | 기존 기능 정상                     |
 
 ---
 
@@ -77,6 +79,7 @@ Build:     Vite + pnpm
 ### 구현 내용
 
 #### 1. 서버 구현 (server/db.ts + server/routers.ts)
+
 - **7개 헬퍼 함수** (총 250줄)
   - `normalizePhone()` - 연락처 정규화
   - `detectForbiddenColumns()` - 금지 컬럼 감지
@@ -92,6 +95,7 @@ Build:     Vite + pnpm
   - `customers.bulkImport` - 최종 저장 및 로그 기록
 
 #### 2. 프론트 UI (client/src/pages/CustomerBulkImport.tsx)
+
 - **3단계 워크플로우** (총 450줄)
   1. 파일 선택 (드래그앤드롭 + 클릭)
   2. 검증 미리보기 (행별 오류 표시, 요약 통계)
@@ -124,11 +128,13 @@ Build:     Vite + pnpm
 ```
 
 #### 4. 라우팅 및 메뉴
+
 - `/customers/bulk-import` 라우트 추가 (AdminGuard)
 - DashboardLayout에 "고객 일괄 등록" 메뉴 추가 (지점장만)
 - Upload 아이콘 사용
 
 #### 5. 테스트 (server/bulk-import.test.ts)
+
 - **33개 테스트 케이스**
   - normalizePhone: 5개
   - detectForbiddenColumns: 5개
@@ -140,17 +146,20 @@ Build:     Vite + pnpm
 ### 파일 형식
 
 **CSV 헤더** (필수):
+
 ```
 이름,연락처,생년월일,성별,지역,예상보험료,통화가능시간,유입경로,상담상태,메모,부지점장,팀,담당자
 ```
 
 **샘플 데이터** (`samples/bulk-import-sample.csv`):
+
 ```csv
 홍길동,010-1234-5678,1990-01-15,남,서울,5000,09:00-18:00,지인,미상담,테스트,김부지점장,영업팀,이팀장
 김영희,010-2345-6789,1985-03-22,여,부산,3500,10:00-17:00,광고,부재,테스트,김부지점장,영업팀,이팀장
 ```
 
 **오류 샘플** (`samples/bulk-import-errors.csv`):
+
 - 필수값 누락
 - 형식 오류
 - 중복 데이터
@@ -199,6 +208,7 @@ pnpm test
 ### 3단계: 코드 리뷰 (1시간)
 
 주요 파일:
+
 - `server/db.ts` - bulk import 헬퍼 함수 (250줄)
 - `server/routers.ts` - tRPC 라우터 (3개 추가)
 - `client/src/pages/CustomerBulkImport.tsx` - UI (450줄)
@@ -209,26 +219,31 @@ pnpm test
 ## ⚠️ 주의사항
 
 ### 1. 권한 검증
+
 - 모든 라우터에서 `ctx.user` 검증 필수
 - 고객 조회 시 소유권 검증 필수
 - 조직 계층 범위 검증 필수
 
 ### 2. 조직 정합성
+
 - 사용자 이동 시 팀/부지점장 동기화
 - 팀 변경 시 부지점장 자동 업데이트
 - 부지점장 변경 시 기존 팀 해제
 
 ### 3. 데이터 보안
+
 - 민감정보 (주민번호, 증권번호 등) 절대 저장 금지
 - 파일 업로드 시 서버 검증 필수
 - CSV 내 금지 컬럼 감지 로직 필수
 
 ### 4. 연락처 정규화
+
 - 모든 연락처는 숫자만 추출
 - 중복 검증 시 정규화된 연락처 기준
 - 국제 전화번호는 선택사항
 
 ### 5. 배치 작업
+
 - importBatchId로 일괄 등록 추적
 - 실패한 행은 별도 저장 및 재업로드 가능
 - 로그 기록 필수
@@ -238,6 +253,7 @@ pnpm test
 ## 📊 남은 작업 목록
 
 ### 즉시 필요 (1-2주)
+
 - [ ] XLSX 파일 지원 추가
 - [ ] 오류 행 CSV 다운로드 기능
 - [ ] 일괄 등록 진행률 표시
@@ -245,6 +261,7 @@ pnpm test
 - [ ] 일괄 등록 취소 기능
 
 ### 중간 우선순위 (2-3주)
+
 - [ ] 고객 수정 UI 개선
 - [ ] 상담기록 수정 기능 강화
 - [ ] 계약 관리 필터 확장
@@ -252,6 +269,7 @@ pnpm test
 - [ ] 모바일 UI 최적화
 
 ### 낮은 우선순위 (향후)
+
 - [ ] 고급 분석 대시보드
 - [ ] 자동 재상담 알림
 - [ ] 이메일 연동
@@ -267,7 +285,9 @@ pnpm test
 **목표**: CSV와 XLSX 파일 모두 지원
 
 **작업 순서**:
+
 1. `xlsx` 패키지 설치
+
    ```bash
    pnpm add xlsx @types/xlsx
    ```
@@ -289,7 +309,9 @@ pnpm test
 **목표**: 검증 실패한 행을 CSV로 다운로드
 
 **작업 순서**:
+
 1. `server/routers.ts`에 라우터 추가
+
    ```typescript
    customers.downloadFailedRows: branchAdminProcedure
      .input(z.object({ importBatchId: z.string() }))
@@ -310,17 +332,20 @@ pnpm test
 **목표**: 지점장이 과거 일괄 등록 이력 조회
 
 **작업 순서**:
+
 1. 새 페이지 생성
+
    ```
    client/src/pages/BulkImportHistory.tsx
    ```
 
 2. 라우터 추가
+
    ```typescript
    customers.getBulkImportHistory: branchAdminProcedure
-     .input(z.object({ 
-       limit: z.number(), 
-       offset: z.number() 
+     .input(z.object({
+       limit: z.number(),
+       offset: z.number()
      }))
      .query(async ({ input, ctx }) => {
        // importBatchId별 통계 조회
@@ -337,14 +362,14 @@ pnpm test
 
 ## 📚 문서 위치
 
-| 문서 | 위치 | 내용 |
-|---|---|---|
-| HANDOFF.md | `/HANDOFF.md` | 상세 프로젝트 문서 |
-| README.md | `/README.md` | 프로젝트 개요 |
-| 샘플 CSV | `/samples/bulk-import-sample.csv` | 정상 데이터 |
-| 오류 CSV | `/samples/bulk-import-errors.csv` | 오류 케이스 |
-| 스키마 | `/drizzle/schema.ts` | DB 테이블 정의 |
-| 마이그레이션 | `/drizzle/migrations/` | SQL 마이그레이션 |
+| 문서         | 위치                              | 내용               |
+| ------------ | --------------------------------- | ------------------ |
+| HANDOFF.md   | `/HANDOFF.md`                     | 상세 프로젝트 문서 |
+| README.md    | `/README.md`                      | 프로젝트 개요      |
+| 샘플 CSV     | `/samples/bulk-import-sample.csv` | 정상 데이터        |
+| 오류 CSV     | `/samples/bulk-import-errors.csv` | 오류 케이스        |
+| 스키마       | `/drizzle/schema.ts`              | DB 테이블 정의     |
+| 마이그레이션 | `/drizzle/migrations/`            | SQL 마이그레이션   |
 
 ---
 

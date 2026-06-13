@@ -13,7 +13,12 @@ import {
   getPushNotificationPreference,
   updatePushNotificationLog,
 } from "./db";
-import { addMinutes, formatKstLocalDate, getScheduleReminderDueAt, isInQuietHoursByPolicy } from "@shared/timePolicy";
+import {
+  addMinutes,
+  formatKstLocalDate,
+  getScheduleReminderDueAt,
+  isInQuietHoursByPolicy,
+} from "@shared/timePolicy";
 
 export type PushNotificationType =
   | "today_follow_up"
@@ -68,7 +73,10 @@ export type PushSendResult = {
   disabledReason?: "missing_firebase_config" | "no_tokens";
 };
 
-type PushSender = (tokens: string[], payload: SafePushPayload) => Promise<Array<{ token: string; success: boolean; errorCode?: string }>>;
+type PushSender = (
+  tokens: string[],
+  payload: SafePushPayload
+) => Promise<Array<{ token: string; success: boolean; errorCode?: string }>>;
 
 let testSender: PushSender | null = null;
 let firebaseMessaging: Messaging | null | undefined;
@@ -149,33 +157,43 @@ function getFirebaseMessagingClient() {
 
   try {
     if (serviceAccountBase64) {
-      const serviceAccount = JSON.parse(Buffer.from(serviceAccountBase64, "base64").toString("utf8"));
-      const app = getApps()[0] ?? initializeApp({ credential: cert(serviceAccount) });
+      const serviceAccount = JSON.parse(
+        Buffer.from(serviceAccountBase64, "base64").toString("utf8")
+      );
+      const app =
+        getApps()[0] ?? initializeApp({ credential: cert(serviceAccount) });
       firebaseMessaging = getMessaging(app);
       return firebaseMessaging;
     }
 
     if (projectId && clientEmail && privateKey) {
-      const app = getApps()[0] ?? initializeApp({
-        credential: cert({ projectId, clientEmail, privateKey }),
-      });
+      const app =
+        getApps()[0] ??
+        initializeApp({
+          credential: cert({ projectId, clientEmail, privateKey }),
+        });
       firebaseMessaging = getMessaging(app);
       return firebaseMessaging;
     }
   } catch {
-    console.warn("[Push] Firebase Admin initialization failed. Push sending is disabled.");
+    console.warn(
+      "[Push] Firebase Admin initialization failed. Push sending is disabled."
+    );
     firebaseMessaging = null;
     return firebaseMessaging;
   }
 
-  console.warn("[Push] Firebase Admin environment variables are not configured. Push sending is skipped.");
+  console.warn(
+    "[Push] Firebase Admin environment variables are not configured. Push sending is skipped."
+  );
   firebaseMessaging = null;
   return firebaseMessaging;
 }
 
 export function sanitizePushPayload(payload: SafePushPayload): SafePushPayload {
   const text = `${payload.title} ${payload.body} ${Object.values(payload.data ?? {}).join(" ")}`;
-  const blocked = /(010[-\s]?\d{3,4}[-\s]?\d{4}|주민|증권|질병|병력|보험료|상품명|고객명|전화번호|\d{1,3}(,\d{3})*원)/;
+  const blocked =
+    /(010[-\s]?\d{3,4}[-\s]?\d{4}|주민|증권|질병|병력|보험료|상품명|고객명|전화번호|\d{1,3}(,\d{3})*원)/;
   if (blocked.test(text)) {
     throw new Error("Push payload contains blocked sensitive content.");
   }
@@ -186,20 +204,44 @@ export function sanitizePushPayload(payload: SafePushPayload): SafePushPayload {
   };
 }
 
-export function isInQuietHours(preference: { quietHoursEnabled: boolean; quietHoursStart: string; quietHoursEnd: string; timezone: string }, now = new Date()) {
+export function isInQuietHours(
+  preference: {
+    quietHoursEnabled: boolean;
+    quietHoursStart: string;
+    quietHoursEnd: string;
+    timezone: string;
+  },
+  now = new Date()
+) {
   return isInQuietHoursByPolicy(preference, now);
 }
 
-function isNotificationEnabled(preference: {
-  followUpTodayEnabled: boolean;
-  scheduleReminderEnabled: boolean;
-  deleteRequestEnabled: boolean;
-  testNotificationEnabled: boolean;
-}, type: PushNotificationType) {
+function isNotificationEnabled(
+  preference: {
+    followUpTodayEnabled: boolean;
+    scheduleReminderEnabled: boolean;
+    deleteRequestEnabled: boolean;
+    testNotificationEnabled: boolean;
+  },
+  type: PushNotificationType
+) {
   if (type === "today_follow_up") return preference.followUpTodayEnabled;
-  if (type === "customer_birthday" || type === "contract_90" || type === "contract_180" || type === "contract_365" || type === "long_unmanaged_90") return preference.followUpTodayEnabled;
-  if (type === "schedule_30min" || type === "schedule_reminder" || type === "schedule_incomplete") return preference.scheduleReminderEnabled;
-  if (type === "contract_delete_request") return preference.deleteRequestEnabled;
+  if (
+    type === "customer_birthday" ||
+    type === "contract_90" ||
+    type === "contract_180" ||
+    type === "contract_365" ||
+    type === "long_unmanaged_90"
+  )
+    return preference.followUpTodayEnabled;
+  if (
+    type === "schedule_30min" ||
+    type === "schedule_reminder" ||
+    type === "schedule_incomplete"
+  )
+    return preference.scheduleReminderEnabled;
+  if (type === "contract_delete_request")
+    return preference.deleteRequestEnabled;
   return preference.testNotificationEnabled;
 }
 
@@ -248,8 +290,15 @@ function emptyResult(userIds: number[]): PushSendResult {
   };
 }
 
-async function createOrUpdateLog(context: PushSendContext, userId: number, status: PushNotificationLogStatus, errorCode?: string | null) {
-  const dedupeKey = context.dedupeKey ? `${context.dedupeKey}:user:${userId}` : `${context.type}:${context.sourceType ?? "manual"}:${context.sourceId ?? "none"}:${Date.now()}:user:${userId}`;
+async function createOrUpdateLog(
+  context: PushSendContext,
+  userId: number,
+  status: PushNotificationLogStatus,
+  errorCode?: string | null
+) {
+  const dedupeKey = context.dedupeKey
+    ? `${context.dedupeKey}:user:${userId}`
+    : `${context.type}:${context.sourceType ?? "manual"}:${context.sourceId ?? "none"}:${Date.now()}:user:${userId}`;
   const row = await createPushNotificationLog({
     type: context.type,
     userId,
@@ -261,13 +310,23 @@ async function createOrUpdateLog(context: PushSendContext, userId: number, statu
     sentAt: status === "sent" ? new Date() : null,
   } as any);
   if (row && row.status !== status) {
-    await updatePushNotificationLog(row.id, { status, errorCode: errorCode ?? null, sentAt: status === "sent" ? new Date() : null } as any);
+    await updatePushNotificationLog(row.id, {
+      status,
+      errorCode: errorCode ?? null,
+      sentAt: status === "sent" ? new Date() : null,
+    } as any);
   }
   return row;
 }
 
-export async function sendPushToUsers(userIds: number[], payload: SafePushPayload, context: PushSendContext): Promise<PushSendResult> {
-  const uniqueUserIds = Array.from(new Set(userIds.filter((id) => Number.isFinite(id))));
+export async function sendPushToUsers(
+  userIds: number[],
+  payload: SafePushPayload,
+  context: PushSendContext
+): Promise<PushSendResult> {
+  const uniqueUserIds = Array.from(
+    new Set(userIds.filter(id => Number.isFinite(id)))
+  );
   const result = emptyResult(uniqueUserIds);
   const safePayload = sanitizePushPayload(payload);
   const rows = await getActiveDeviceTokensForUsers(uniqueUserIds);
@@ -276,7 +335,7 @@ export async function sendPushToUsers(userIds: number[], payload: SafePushPayloa
 
   for (const userId of uniqueUserIds) {
     const preference = await getPushNotificationPreference(userId);
-    const userRows = rows.filter((row) => row.userId === userId);
+    const userRows = rows.filter(row => row.userId === userId);
 
     if (!context.force && !isNotificationEnabled(preference, context.type)) {
       await createOrUpdateLog(context, userId, "skipped_disabled");
@@ -286,7 +345,10 @@ export async function sendPushToUsers(userIds: number[], payload: SafePushPayloa
       continue;
     }
 
-    if (!context.force && isInQuietHours(preference, context.now ?? new Date())) {
+    if (
+      !context.force &&
+      isInQuietHours(preference, context.now ?? new Date())
+    ) {
       await createOrUpdateLog(context, userId, "skipped_quiet_hours");
       result.skippedCount += 1;
       result.quietHoursSkippedCount += 1;
@@ -294,8 +356,20 @@ export async function sendPushToUsers(userIds: number[], payload: SafePushPayloa
       continue;
     }
 
-    if (context.dedupeKey && await getPushNotificationLogByDedupeKey(`${context.dedupeKey}:user:${userId}`)) {
-      await createOrUpdateLog({ ...context, dedupeKey: `${context.dedupeKey}:duplicate:${Date.now()}` }, userId, "duplicate_skipped");
+    if (
+      context.dedupeKey &&
+      (await getPushNotificationLogByDedupeKey(
+        `${context.dedupeKey}:user:${userId}`
+      ))
+    ) {
+      await createOrUpdateLog(
+        {
+          ...context,
+          dedupeKey: `${context.dedupeKey}:duplicate:${Date.now()}`,
+        },
+        userId,
+        "duplicate_skipped"
+      );
       result.skippedCount += 1;
       result.duplicateSkippedCount += 1;
       result.statuses[userId] = "duplicate_skipped";
@@ -311,23 +385,35 @@ export async function sendPushToUsers(userIds: number[], payload: SafePushPayloa
 
     result.tokenCount += userRows.length;
     if (!firebaseReady) {
-      await createOrUpdateLog(context, userId, "skipped_missing_config", "missing_firebase_config");
+      await createOrUpdateLog(
+        context,
+        userId,
+        "skipped_missing_config",
+        "missing_firebase_config"
+      );
       result.skippedCount += userRows.length;
       result.statuses[userId] = "skipped_missing_config";
       continue;
     }
 
     const logRow = await createOrUpdateLog(context, userId, "skipped");
-    const sendResults = await sender(userRows.map((row) => row.token), safePayload);
+    const sendResults = await sender(
+      userRows.map(row => row.token),
+      safePayload
+    );
     if (!sendResults) {
-      if (logRow) await updatePushNotificationLog(logRow.id, { status: "skipped_missing_config", errorCode: "missing_firebase_config" } as any);
+      if (logRow)
+        await updatePushNotificationLog(logRow.id, {
+          status: "skipped_missing_config",
+          errorCode: "missing_firebase_config",
+        } as any);
       result.skippedCount += userRows.length;
       result.statuses[userId] = "skipped_missing_config";
       continue;
     }
 
-    const failures = sendResults.filter((item) => !item.success);
-    const successes = sendResults.filter((item) => item.success);
+    const failures = sendResults.filter(item => !item.success);
+    const successes = sendResults.filter(item => item.success);
     result.sentCount += successes.length;
     result.failureCount += failures.length;
 
@@ -340,11 +426,12 @@ export async function sendPushToUsers(userIds: number[], payload: SafePushPayloa
       }
     }
 
-    const status: PushNotificationLogStatus = invalidDeactivated && successes.length === 0
-      ? "invalid_token_deactivated"
-      : failures.length === sendResults.length
-        ? "failed"
-        : "sent";
+    const status: PushNotificationLogStatus =
+      invalidDeactivated && successes.length === 0
+        ? "invalid_token_deactivated"
+        : failures.length === sendResults.length
+          ? "failed"
+          : "sent";
     if (logRow) {
       await updatePushNotificationLog(logRow.id, {
         status,
@@ -355,22 +442,30 @@ export async function sendPushToUsers(userIds: number[], payload: SafePushPayloa
     result.statuses[userId] = status;
   }
 
-  if (result.tokenCount === 0 && result.skippedCount > 0) result.disabledReason = "no_tokens";
-  if (!firebaseReady && result.tokenCount > 0) result.disabledReason = "missing_firebase_config";
+  if (result.tokenCount === 0 && result.skippedCount > 0)
+    result.disabledReason = "no_tokens";
+  if (!firebaseReady && result.tokenCount > 0)
+    result.disabledReason = "missing_firebase_config";
   return result;
 }
 
 export async function sendContractDeleteRequestPush(deleteRequestId: number) {
   const users = await getAllUsers();
   const branchAdminIds = users
-    .filter((user) => user.role === "branch_admin" && user.accountStatus === "active")
-    .map((user) => user.id);
-  return sendPushToUsers(branchAdminIds, SAFE_PUSH_PAYLOADS.contractDeleteRequest, {
-    type: "contract_delete_request",
-    sourceType: "delete_request",
-    sourceId: deleteRequestId,
-    dedupeKey: `delete_request:${deleteRequestId}:created`,
-  });
+    .filter(
+      user => user.role === "branch_admin" && user.accountStatus === "active"
+    )
+    .map(user => user.id);
+  return sendPushToUsers(
+    branchAdminIds,
+    SAFE_PUSH_PAYLOADS.contractDeleteRequest,
+    {
+      type: "contract_delete_request",
+      sourceType: "delete_request",
+      sourceId: deleteRequestId,
+      dedupeKey: `delete_request:${deleteRequestId}:created`,
+    }
+  );
 }
 
 type SchedulePushSchedule = {
@@ -411,7 +506,9 @@ export type PushEngineOperationalSummary = {
   noTokenSkippedCount: number;
   missingConfigSkippedCount: number;
   invalidTokenDeactivatedCount: number;
-  logExpectation: "no_candidates_no_push_logs" | "send_attempts_create_push_logs";
+  logExpectation:
+    | "no_candidates_no_push_logs"
+    | "send_attempts_create_push_logs";
   windowStart?: string;
   windowEnd?: string;
   lookbackMinutes?: number;
@@ -431,10 +528,12 @@ export type SchedulePushReminderEngineResult = {
 };
 
 function isFinishedScheduleForPush(schedule: SchedulePushSchedule) {
-  return schedule.isActive === false ||
+  return (
+    schedule.isActive === false ||
     Boolean(schedule.deletedAt) ||
     Boolean(schedule.completedAt) ||
-    ["완료", "취소", "노쇼"].includes(String(schedule.status));
+    ["완료", "취소", "노쇼"].includes(String(schedule.status))
+  );
 }
 
 function isInDueWindow(dueAt: Date, now: Date, lookbackMinutes: number) {
@@ -443,7 +542,12 @@ function isInDueWindow(dueAt: Date, now: Date, lookbackMinutes: number) {
 }
 
 function countStatus(results: PushSendResult[], status: string) {
-  return results.reduce((sum, result) => sum + Object.values(result.statuses).filter((item) => item === status).length, 0);
+  return results.reduce(
+    (sum, result) =>
+      sum +
+      Object.values(result.statuses).filter(item => item === status).length,
+    0
+  );
 }
 
 function buildOperationalSummary(input: {
@@ -454,29 +558,59 @@ function buildOperationalSummary(input: {
   windowStart?: Date;
   windowEnd?: Date;
 }): PushEngineOperationalSummary {
-  const sendAttemptCount = input.results.reduce((sum, item) => sum + item.requestedUserIds.length, 0);
-  const skippedCount = input.results.reduce((sum, item) => sum + item.skippedCount, 0);
+  const sendAttemptCount = input.results.reduce(
+    (sum, item) => sum + item.requestedUserIds.length,
+    0
+  );
+  const skippedCount = input.results.reduce(
+    (sum, item) => sum + item.skippedCount,
+    0
+  );
   return {
     checkedAt: input.checkedAt.toISOString(),
     candidateCount: input.candidateCount,
     sendAttemptCount,
     sentCount: input.results.reduce((sum, item) => sum + item.sentCount, 0),
     skippedCount,
-    failureCount: input.results.reduce((sum, item) => sum + item.failureCount, 0),
-    duplicateSkippedCount: input.results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
-    quietHoursSkippedCount: input.results.reduce((sum, item) => sum + item.quietHoursSkippedCount, 0),
-    disabledSkippedCount: input.results.reduce((sum, item) => sum + item.disabledSkippedCount, 0),
+    failureCount: input.results.reduce(
+      (sum, item) => sum + item.failureCount,
+      0
+    ),
+    duplicateSkippedCount: input.results.reduce(
+      (sum, item) => sum + item.duplicateSkippedCount,
+      0
+    ),
+    quietHoursSkippedCount: input.results.reduce(
+      (sum, item) => sum + item.quietHoursSkippedCount,
+      0
+    ),
+    disabledSkippedCount: input.results.reduce(
+      (sum, item) => sum + item.disabledSkippedCount,
+      0
+    ),
     noTokenSkippedCount: countStatus(input.results, "skipped_no_token"),
-    missingConfigSkippedCount: countStatus(input.results, "skipped_missing_config"),
-    invalidTokenDeactivatedCount: input.results.reduce((sum, item) => sum + item.invalidTokenDeactivatedCount, 0),
-    logExpectation: sendAttemptCount > 0 ? "send_attempts_create_push_logs" : "no_candidates_no_push_logs",
+    missingConfigSkippedCount: countStatus(
+      input.results,
+      "skipped_missing_config"
+    ),
+    invalidTokenDeactivatedCount: input.results.reduce(
+      (sum, item) => sum + item.invalidTokenDeactivatedCount,
+      0
+    ),
+    logExpectation:
+      sendAttemptCount > 0
+        ? "send_attempts_create_push_logs"
+        : "no_candidates_no_push_logs",
     windowStart: input.windowStart?.toISOString(),
     windowEnd: input.windowEnd?.toISOString(),
     lookbackMinutes: input.lookbackMinutes,
   };
 }
 
-function logOperationalSummary(engine: string, summary: PushEngineOperationalSummary) {
+function logOperationalSummary(
+  engine: string,
+  summary: PushEngineOperationalSummary
+) {
   console.info("[push-scheduler] engine summary", {
     engine,
     checkedAt: summary.checkedAt,
@@ -499,11 +633,14 @@ function logOperationalSummary(engine: string, summary: PushEngineOperationalSum
 
 export function getSchedulePushCandidates(
   schedules: SchedulePushSchedule[],
-  options: Required<Pick<SchedulePushReminderEngineOptions, "now" | "lookbackMinutes">>,
+  options: Required<
+    Pick<SchedulePushReminderEngineOptions, "now" | "lookbackMinutes">
+  >
 ): SchedulePushCandidate[] {
   const candidates: SchedulePushCandidate[] = [];
   for (const schedule of schedules) {
-    if (!Number.isFinite(schedule.id) || !Number.isFinite(schedule.userId)) continue;
+    if (!Number.isFinite(schedule.id) || !Number.isFinite(schedule.userId))
+      continue;
     if (isFinishedScheduleForPush(schedule)) continue;
 
     const startTime = new Date(schedule.startTime);
@@ -525,7 +662,10 @@ export function getSchedulePushCandidates(
 
     if (schedule.endTime) {
       const endTime = new Date(schedule.endTime);
-      if (!Number.isNaN(endTime.getTime()) && isInDueWindow(endTime, options.now, options.lookbackMinutes)) {
+      if (
+        !Number.isNaN(endTime.getTime()) &&
+        isInDueWindow(endTime, options.now, options.lookbackMinutes)
+      ) {
         candidates.push({
           kind: "incomplete",
           scheduleId: schedule.id,
@@ -540,25 +680,34 @@ export function getSchedulePushCandidates(
 }
 
 export async function runSchedulePushReminderEngine(
-  options: SchedulePushReminderEngineOptions = {},
+  options: SchedulePushReminderEngineOptions = {}
 ): Promise<SchedulePushReminderEngineResult> {
   const now = options.now ?? new Date();
   const lookbackMinutes = options.lookbackMinutes ?? 10;
   const windowStart = addMinutes(now, -lookbackMinutes);
-  const candidates = getSchedulePushCandidates(await getSchedules({}) as SchedulePushSchedule[], { now, lookbackMinutes });
+  const candidates = getSchedulePushCandidates(
+    (await getSchedules({})) as SchedulePushSchedule[],
+    { now, lookbackMinutes }
+  );
   const results: PushSendResult[] = [];
 
   for (const candidate of candidates) {
-    const payload = candidate.kind === "reminder"
-      ? SAFE_PUSH_PAYLOADS.scheduleReminder
-      : SAFE_PUSH_PAYLOADS.scheduleIncomplete;
-    results.push(await sendPushToUsers([candidate.userId], payload, {
-      type: candidate.kind === "reminder" ? "schedule_reminder" : "schedule_incomplete",
-      sourceType: "schedule",
-      sourceId: candidate.scheduleId,
-      dedupeKey: candidate.dedupeKey,
-      now,
-    }));
+    const payload =
+      candidate.kind === "reminder"
+        ? SAFE_PUSH_PAYLOADS.scheduleReminder
+        : SAFE_PUSH_PAYLOADS.scheduleIncomplete;
+    results.push(
+      await sendPushToUsers([candidate.userId], payload, {
+        type:
+          candidate.kind === "reminder"
+            ? "schedule_reminder"
+            : "schedule_incomplete",
+        sourceType: "schedule",
+        sourceId: candidate.scheduleId,
+        dedupeKey: candidate.dedupeKey,
+        now,
+      })
+    );
   }
 
   const summary = buildOperationalSummary({
@@ -574,18 +723,32 @@ export async function runSchedulePushReminderEngine(
   return {
     success: true,
     targetCount: candidates.length,
-    reminderTargetCount: candidates.filter((candidate) => candidate.kind === "reminder").length,
-    incompleteTargetCount: candidates.filter((candidate) => candidate.kind === "incomplete").length,
+    reminderTargetCount: candidates.filter(
+      candidate => candidate.kind === "reminder"
+    ).length,
+    incompleteTargetCount: candidates.filter(
+      candidate => candidate.kind === "incomplete"
+    ).length,
     sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),
     skippedCount: results.reduce((sum, item) => sum + item.skippedCount, 0),
     failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
-    duplicateSkippedCount: results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
+    duplicateSkippedCount: results.reduce(
+      (sum, item) => sum + item.duplicateSkippedCount,
+      0
+    ),
     results,
     summary,
   };
 }
 
-type BusinessPushType = Extract<PushNotificationType, "customer_birthday" | "contract_90" | "contract_180" | "contract_365" | "long_unmanaged_90">;
+type BusinessPushType = Extract<
+  PushNotificationType,
+  | "customer_birthday"
+  | "contract_90"
+  | "contract_180"
+  | "contract_365"
+  | "long_unmanaged_90"
+>;
 
 type BusinessPushCustomer = {
   id: number;
@@ -656,7 +819,10 @@ const BUSINESS_PUSH_PAYLOADS: Record<BusinessPushType, SafePushPayload> = {
   long_unmanaged_90: SAFE_PUSH_PAYLOADS.longUnmanaged90,
 };
 
-function isActiveBusinessRow(row: { isActive?: boolean | null; deletedAt?: Date | string | null }) {
+function isActiveBusinessRow(row: {
+  isActive?: boolean | null;
+  deletedAt?: Date | string | null;
+}) {
   return row.isActive !== false && !row.deletedAt;
 }
 
@@ -666,7 +832,8 @@ function hasFiniteId(value: unknown): value is number {
 
 function toKstDateKey(value: Date | string | null | undefined) {
   if (!value) return null;
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value))
+    return value;
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return null;
   return formatKstLocalDate(date);
@@ -683,20 +850,27 @@ function latestConsultationDateKey(consultations: BusinessPushConsultation[]) {
   let latest: string | null = null;
   for (const consultation of consultations) {
     if (consultation.isActive === false || consultation.deletedAt) continue;
-    const dateKey = toKstDateKey(consultation.createdAt ?? consultation.updatedAt);
+    const dateKey = toKstDateKey(
+      consultation.createdAt ?? consultation.updatedAt
+    );
     if (!dateKey) continue;
     if (!latest || dateKey > latest) latest = dateKey;
   }
   return latest;
 }
 
-function businessDedupeKey(type: BusinessPushType, sourceType: "customer" | "contract", sourceId: number, dueDateKey: string) {
+function businessDedupeKey(
+  type: BusinessPushType,
+  sourceType: "customer" | "contract",
+  sourceId: number,
+  dueDateKey: string
+) {
   return `business:${type}:${sourceType}:${sourceId}:${dueDateKey}`;
 }
 
 export function getBusinessPushCandidates(
   input: BusinessPushCandidateInput,
-  options: Required<Pick<BusinessPushReminderEngineOptions, "now">>,
+  options: Required<Pick<BusinessPushReminderEngineOptions, "now">>
 ): BusinessPushCandidate[] {
   const todayKey = formatKstLocalDate(options.now);
   const todayMonthDay = todayKey.slice(5);
@@ -722,20 +896,37 @@ export function getBusinessPushCandidates(
         sourceId: customer.id,
         userId: customer.agentId,
         dueDateKey: todayKey,
-        dedupeKey: businessDedupeKey("customer_birthday", "customer", customer.id, todayKey),
+        dedupeKey: businessDedupeKey(
+          "customer_birthday",
+          "customer",
+          customer.id,
+          todayKey
+        ),
       });
     }
 
-    const consultationDateKey = latestConsultationDateKey(input.consultationsByCustomer?.[customer.id] ?? []);
-    const longUnmanagedBaseDateKey = consultationDateKey ?? toKstDateKey(customer.assignedAt ?? customer.createdAt);
-    if (longUnmanagedBaseDateKey && addDaysToDateKey(longUnmanagedBaseDateKey, 90) === todayKey) {
+    const consultationDateKey = latestConsultationDateKey(
+      input.consultationsByCustomer?.[customer.id] ?? []
+    );
+    const longUnmanagedBaseDateKey =
+      consultationDateKey ??
+      toKstDateKey(customer.assignedAt ?? customer.createdAt);
+    if (
+      longUnmanagedBaseDateKey &&
+      addDaysToDateKey(longUnmanagedBaseDateKey, 90) === todayKey
+    ) {
       pushCandidate({
         type: "long_unmanaged_90",
         sourceType: "customer",
         sourceId: customer.id,
         userId: customer.agentId,
         dueDateKey: todayKey,
-        dedupeKey: businessDedupeKey("long_unmanaged_90", "customer", customer.id, todayKey),
+        dedupeKey: businessDedupeKey(
+          "long_unmanaged_90",
+          "customer",
+          customer.id,
+          todayKey
+        ),
       });
     }
   }
@@ -753,14 +944,20 @@ export function getBusinessPushCandidates(
       { type: "contract_365", days: 365 },
     ];
     for (const milestone of milestones) {
-      if (addDaysToDateKey(contractDateKey, milestone.days) !== todayKey) continue;
+      if (addDaysToDateKey(contractDateKey, milestone.days) !== todayKey)
+        continue;
       pushCandidate({
         type: milestone.type,
         sourceType: "contract",
         sourceId: contract.id,
         userId: contract.agentId,
         dueDateKey: todayKey,
-        dedupeKey: businessDedupeKey(milestone.type, "contract", contract.id, todayKey),
+        dedupeKey: businessDedupeKey(
+          milestone.type,
+          "contract",
+          contract.id,
+          todayKey
+        ),
       });
     }
   }
@@ -769,38 +966,59 @@ export function getBusinessPushCandidates(
 }
 
 export async function runBusinessPushReminderEngine(
-  options: BusinessPushReminderEngineOptions = {},
+  options: BusinessPushReminderEngineOptions = {}
 ): Promise<BusinessPushReminderEngineResult> {
   const now = options.now ?? new Date();
   const customers = await getCustomers({});
   const contracts = await getAllContracts({});
-  const activeUserIds = new Set((await getAllUsers())
-    .filter((user) => user.accountStatus === "active")
-    .map((user) => user.id));
+  const activeUserIds = new Set(
+    (await getAllUsers())
+      .filter(user => user.accountStatus === "active")
+      .map(user => user.id)
+  );
   const customerIds = (customers as BusinessPushCustomer[])
-    .map((customer) => customer.id)
-    .filter((id) => hasFiniteId(id));
-  const latestConsultations = await getLatestConsultationDatesByCustomerIds(customerIds);
-  const consultationsByCustomer = Object.fromEntries(latestConsultations.map((row) => [
-    row.customerId,
-    [{ customerId: row.customerId, createdAt: row.latestCreatedAt, isActive: true, deletedAt: null }],
-  ])) as Record<number, BusinessPushConsultation[]>;
+    .map(customer => customer.id)
+    .filter(id => hasFiniteId(id));
+  const latestConsultations =
+    await getLatestConsultationDatesByCustomerIds(customerIds);
+  const consultationsByCustomer = Object.fromEntries(
+    latestConsultations.map(row => [
+      row.customerId,
+      [
+        {
+          customerId: row.customerId,
+          createdAt: row.latestCreatedAt,
+          isActive: true,
+          deletedAt: null,
+        },
+      ],
+    ])
+  ) as Record<number, BusinessPushConsultation[]>;
 
-  const candidates = getBusinessPushCandidates({
-    customers: customers as BusinessPushCustomer[],
-    contracts: contracts as BusinessPushContract[],
-    consultationsByCustomer,
-  }, { now }).filter((candidate) => activeUserIds.has(candidate.userId));
+  const candidates = getBusinessPushCandidates(
+    {
+      customers: customers as BusinessPushCustomer[],
+      contracts: contracts as BusinessPushContract[],
+      consultationsByCustomer,
+    },
+    { now }
+  ).filter(candidate => activeUserIds.has(candidate.userId));
   const results: PushSendResult[] = [];
 
   for (const candidate of candidates) {
-    results.push(await sendPushToUsers([candidate.userId], BUSINESS_PUSH_PAYLOADS[candidate.type], {
-      type: candidate.type,
-      sourceType: candidate.sourceType,
-      sourceId: candidate.sourceId,
-      dedupeKey: candidate.dedupeKey,
-      now,
-    }));
+    results.push(
+      await sendPushToUsers(
+        [candidate.userId],
+        BUSINESS_PUSH_PAYLOADS[candidate.type],
+        {
+          type: candidate.type,
+          sourceType: candidate.sourceType,
+          sourceId: candidate.sourceId,
+          dedupeKey: candidate.dedupeKey,
+          now,
+        }
+      )
+    );
   }
 
   const summary = buildOperationalSummary({
@@ -813,23 +1031,41 @@ export async function runBusinessPushReminderEngine(
   return {
     success: true,
     targetCount: candidates.length,
-    birthdayTargetCount: candidates.filter((candidate) => candidate.type === "customer_birthday").length,
-    contract90TargetCount: candidates.filter((candidate) => candidate.type === "contract_90").length,
-    contract180TargetCount: candidates.filter((candidate) => candidate.type === "contract_180").length,
-    contract365TargetCount: candidates.filter((candidate) => candidate.type === "contract_365").length,
-    longUnmanagedTargetCount: candidates.filter((candidate) => candidate.type === "long_unmanaged_90").length,
+    birthdayTargetCount: candidates.filter(
+      candidate => candidate.type === "customer_birthday"
+    ).length,
+    contract90TargetCount: candidates.filter(
+      candidate => candidate.type === "contract_90"
+    ).length,
+    contract180TargetCount: candidates.filter(
+      candidate => candidate.type === "contract_180"
+    ).length,
+    contract365TargetCount: candidates.filter(
+      candidate => candidate.type === "contract_365"
+    ).length,
+    longUnmanagedTargetCount: candidates.filter(
+      candidate => candidate.type === "long_unmanaged_90"
+    ).length,
     sentCount: results.reduce((sum, item) => sum + item.sentCount, 0),
     skippedCount: results.reduce((sum, item) => sum + item.skippedCount, 0),
     failureCount: results.reduce((sum, item) => sum + item.failureCount, 0),
-    duplicateSkippedCount: results.reduce((sum, item) => sum + item.duplicateSkippedCount, 0),
+    duplicateSkippedCount: results.reduce(
+      (sum, item) => sum + item.duplicateSkippedCount,
+      0
+    ),
     results,
     summary,
   };
 }
 
-export async function runPushReminderEngines(options: { now?: Date; lookbackMinutes?: number } = {}) {
+export async function runPushReminderEngines(
+  options: { now?: Date; lookbackMinutes?: number } = {}
+) {
   const now = options.now ?? new Date();
-  const schedule = await runSchedulePushReminderEngine({ now, lookbackMinutes: options.lookbackMinutes });
+  const schedule = await runSchedulePushReminderEngine({
+    now,
+    lookbackMinutes: options.lookbackMinutes,
+  });
   const business = await runBusinessPushReminderEngine({ now });
   const summary = buildOperationalSummary({
     checkedAt: now,
@@ -845,7 +1081,8 @@ export async function runPushReminderEngines(options: { now?: Date; lookbackMinu
     sentCount: schedule.sentCount + business.sentCount,
     skippedCount: schedule.skippedCount + business.skippedCount,
     failureCount: schedule.failureCount + business.failureCount,
-    duplicateSkippedCount: schedule.duplicateSkippedCount + business.duplicateSkippedCount,
+    duplicateSkippedCount:
+      schedule.duplicateSkippedCount + business.duplicateSkippedCount,
     summary,
   };
 }

@@ -56,7 +56,7 @@ function writeToLogFile(source: LogSource, entries: unknown[]) {
   const logPath = path.join(LOG_DIR, `${source}.log`);
 
   // Format entries with timestamps
-  const lines = entries.map((entry) => {
+  const lines = entries.map(entry => {
     const ts = new Date().toISOString();
     return `[${ts}] ${JSON.stringify(entry)}`;
   });
@@ -132,7 +132,7 @@ function vitePluginManusDebugCollector(): Plugin {
         }
 
         let body = "";
-        req.on("data", (chunk) => {
+        req.on("data", chunk => {
           body += chunk.toString();
         });
 
@@ -150,7 +150,10 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-function vitePluginOptionalAnalytics(endpoint?: string, websiteId?: string): Plugin {
+function vitePluginOptionalAnalytics(
+  endpoint?: string,
+  websiteId?: string
+): Plugin {
   return {
     name: "optional-analytics-script",
     transformIndexHtml() {
@@ -171,7 +174,8 @@ function vitePluginOptionalAnalytics(endpoint?: string, websiteId?: string): Plu
 }
 
 const enableManusDebugCollector =
-  process.env.NODE_ENV !== "production" && process.env.VITE_MANUS_DEBUG_COLLECTOR !== "0";
+  process.env.NODE_ENV !== "production" &&
+  process.env.VITE_MANUS_DEBUG_COLLECTOR !== "0";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, PROJECT_ROOT, "VITE_");
@@ -180,54 +184,69 @@ export default defineConfig(({ mode }) => {
     tailwindcss(),
     jsxLocPlugin(),
     vitePluginManusRuntime(),
-    vitePluginOptionalAnalytics(env.VITE_ANALYTICS_ENDPOINT, env.VITE_ANALYTICS_WEBSITE_ID),
+    vitePluginOptionalAnalytics(
+      env.VITE_ANALYTICS_ENDPOINT,
+      env.VITE_ANALYTICS_WEBSITE_ID
+    ),
     ...(enableManusDebugCollector ? [vitePluginManusDebugCollector()] : []),
   ];
 
   return {
     plugins,
-  resolve: {
-    alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+    resolve: {
+      alias: {
+        "@": path.resolve(import.meta.dirname, "client", "src"),
+        "@shared": path.resolve(import.meta.dirname, "shared"),
+        "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      },
     },
-  },
-  envDir: path.resolve(import.meta.dirname),
-  root: path.resolve(import.meta.dirname, "client"),
-  publicDir: path.resolve(import.meta.dirname, "client", "public"),
-  build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-    chunkSizeWarningLimit: 900,
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (!id.includes("node_modules")) return undefined;
-          if (id.includes("react") || id.includes("react-dom")) return "vendor-react";
-          if (id.includes("@radix-ui") || id.includes("vaul") || id.includes("cmdk")) return "vendor-ui";
-          if (id.includes("recharts") || id.includes("framer-motion")) return "vendor-visualization";
-          if (id.includes("@tanstack") || id.includes("@trpc") || id.includes("superjson")) return "vendor-data";
-          return "vendor";
+    envDir: path.resolve(import.meta.dirname),
+    root: path.resolve(import.meta.dirname, "client"),
+    publicDir: path.resolve(import.meta.dirname, "client", "public"),
+    build: {
+      outDir: path.resolve(import.meta.dirname, "dist/public"),
+      emptyOutDir: true,
+      chunkSizeWarningLimit: 900,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (!id.includes("node_modules")) return undefined;
+            if (id.includes("react") || id.includes("react-dom"))
+              return "vendor-react";
+            if (
+              id.includes("@radix-ui") ||
+              id.includes("vaul") ||
+              id.includes("cmdk")
+            )
+              return "vendor-ui";
+            if (id.includes("recharts") || id.includes("framer-motion"))
+              return "vendor-visualization";
+            if (
+              id.includes("@tanstack") ||
+              id.includes("@trpc") ||
+              id.includes("superjson")
+            )
+              return "vendor-data";
+            return "vendor";
+          },
         },
       },
     },
-  },
-  server: {
-    host: true,
-    allowedHosts: [
-      ".manuspre.computer",
-      ".manus.computer",
-      ".manus-asia.computer",
-      ".manuscomputer.ai",
-      ".manusvm.computer",
-      "localhost",
-      "127.0.0.1",
-    ],
-    fs: {
-      strict: true,
-      deny: ["**/.*"],
+    server: {
+      host: true,
+      allowedHosts: [
+        ".manuspre.computer",
+        ".manus.computer",
+        ".manus-asia.computer",
+        ".manuscomputer.ai",
+        ".manusvm.computer",
+        "localhost",
+        "127.0.0.1",
+      ],
+      fs: {
+        strict: true,
+        deny: ["**/.*"],
+      },
     },
-  },
   };
 });

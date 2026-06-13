@@ -7,7 +7,8 @@ describe("safeLogSummary", () => {
     const summary = safeLogSummary({
       details: JSON.stringify({
         metadata: {
-          reason: "pilot export review 010-1111-2222 token=raw-token DATABASE_URL=mysql://secret",
+          reason:
+            "pilot export review 010-1111-2222 token=raw-token DATABASE_URL=mysql://secret",
           customerName: "Sensitive Customer",
           productName: "Sensitive Product",
           monthlyPremium: "123456",

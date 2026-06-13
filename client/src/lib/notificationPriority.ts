@@ -8,11 +8,7 @@ const urgentTypes = new Set([
   "uncontacted_3days",
 ]);
 
-const todayTypes = new Set([
-  "schedule_today",
-  "schedule_1hour",
-  "birthday",
-]);
+const todayTypes = new Set(["schedule_today", "schedule_1hour", "birthday"]);
 
 export function classifyNotificationPriority(notification: {
   type: string;
@@ -25,8 +21,16 @@ export function classifyNotificationPriority(notification: {
     const due = new Date(notification.dueAt);
     if (!Number.isNaN(due.getTime())) {
       const now = new Date();
-      const dueDateOnly = new Date(due.getFullYear(), due.getMonth(), due.getDate());
-      const todayOnly = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const dueDateOnly = new Date(
+        due.getFullYear(),
+        due.getMonth(),
+        due.getDate()
+      );
+      const todayOnly = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
       if (dueDateOnly.getTime() <= todayOnly.getTime()) return "today";
     }
   }
@@ -46,7 +50,9 @@ export type SortableNotification = {
   isRead?: boolean | number | null;
 };
 
-export function sortNotificationsForQueue<T extends SortableNotification>(items: T[]): T[] {
+export function sortNotificationsForQueue<T extends SortableNotification>(
+  items: T[]
+): T[] {
   return [...items].sort((a, b) => {
     const pa = classifyNotificationPriority(a);
     const pb = classifyNotificationPriority(b);

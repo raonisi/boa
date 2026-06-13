@@ -1,1 +1,21 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"boa-crm","appId":"1:781857571299:android:b592d05c8c2243f7f3e0d6","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"boa-crm","configurations":{"android":"1:781857571299:android:b592d05c8c2243f7f3e0d6"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "boa-crm",
+          "appId": "1:781857571299:android:b592d05c8c2243f7f3e0d6",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "boa-crm",
+          "configurations": {
+            "android": "1:781857571299:android:b592d05c8c2243f7f3e0d6"
+          }
+        }
+      }
+    }
+  }
+}

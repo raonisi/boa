@@ -4,13 +4,13 @@ This document is the source of truth for mobile app roles, pilot scope, security
 
 ## A. Official Mobile App Standard
 
-| Item | Value |
-| --- | --- |
-| **Pilot official mobile app** | Flutter |
-| **Path** | `apps/boa` |
-| **App type** | Native + WebView hybrid |
-| **Purpose** | Field sales workflows on mobile (현장 영업 기능 중심) |
-| **Package ID** | `kr.raonisis.boa` (same as legacy Capacitor shell and Firebase policy) |
+| Item                          | Value                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| **Pilot official mobile app** | Flutter                                                                |
+| **Path**                      | `apps/boa`                                                             |
+| **App type**                  | Native + WebView hybrid                                                |
+| **Purpose**                   | Field sales workflows on mobile (현장 영업 기능 중심)                  |
+| **Package ID**                | `kr.raonisis.boa` (same as legacy Capacitor shell and Firebase policy) |
 
 **Stack (Flutter field app)**
 
@@ -33,20 +33,20 @@ This document is the source of truth for mobile app roles, pilot scope, security
 
 These workflows are implemented or targeted as **Flutter native screens** for the pilot field app:
 
-| Area | Scope |
-| --- | --- |
-| Authentication | Google sign-in, session bootstrap |
-| Home | Dashboard, today overview |
-| Today work | 오늘 할 일 |
-| Customers | List, search, detail |
-| Consultations | 상담기록 |
-| Customer ops | Priority, tags, next action |
-| Follow-ups | Create, complete, defer (후속관리) |
-| Calendar | Schedule create, complete (일정) |
-| Contracts | Contract list + **native create** (계약 목록·신규 등록) |
-| Notifications | Inbox (알림함) |
-| Push settings | User-facing notification preferences (Flutter `PushPreferencesScreen`, PR19-4) |
-| Performance | Goals and performance summary (성과/목표 현황) |
+| Area           | Scope                                                                          |
+| -------------- | ------------------------------------------------------------------------------ |
+| Authentication | Google sign-in, session bootstrap                                              |
+| Home           | Dashboard, today overview                                                      |
+| Today work     | 오늘 할 일                                                                     |
+| Customers      | List, search, detail                                                           |
+| Consultations  | 상담기록                                                                       |
+| Customer ops   | Priority, tags, next action                                                    |
+| Follow-ups     | Create, complete, defer (후속관리)                                             |
+| Calendar       | Schedule create, complete (일정)                                               |
+| Contracts      | Contract list + **native create** (계약 목록·신규 등록)                        |
+| Notifications  | Inbox (알림함)                                                                 |
+| Push settings  | User-facing notification preferences (Flutter `PushPreferencesScreen`, PR19-4) |
+| Performance    | Goals and performance summary (성과/목표 현황)                                 |
 
 Native implementation should prefer existing mobile REST endpoints and RBAC rules on the server. Do not weaken scope checks in the client.
 
@@ -56,19 +56,19 @@ Native implementation should prefer existing mobile REST endpoints and RBAC rule
 
 Complex admin and multi-step web CRM flows stay in **embedded WebView** (`apps/boa/lib/features/web/`) or the web app until a dedicated native migration is approved:
 
-| Area | Reason to keep WebView |
-| --- | --- |
-| Sales pipeline | 세일즈 파이프라인 — dense kanban / multi-filter UI |
-| Sales analytics | 영업 분석 — charts and report tables |
-| Bulk customer import | 고객 일괄 등록 — file upload and validation |
-| DB assignment | DB 배정 — branch-admin workflow |
-| Organization management | 조직 관리 |
-| User / team management | 사용자·팀 관리 |
-| Admin activity logs | 관리자 활동 로그 |
-| Handoff | 인수인계 |
-| Duplicate customer merge | 중복고객 병합 |
-| Deleted data management | 삭제 데이터 관리 |
-| Other complex admin tools | RBAC-heavy, low field-use frequency |
+| Area                      | Reason to keep WebView                             |
+| ------------------------- | -------------------------------------------------- |
+| Sales pipeline            | 세일즈 파이프라인 — dense kanban / multi-filter UI |
+| Sales analytics           | 영업 분석 — charts and report tables               |
+| Bulk customer import      | 고객 일괄 등록 — file upload and validation        |
+| DB assignment             | DB 배정 — branch-admin workflow                    |
+| Organization management   | 조직 관리                                          |
+| User / team management    | 사용자·팀 관리                                     |
+| Admin activity logs       | 관리자 활동 로그                                   |
+| Handoff                   | 인수인계                                           |
+| Duplicate customer merge  | 중복고객 병합                                      |
+| Deleted data management   | 삭제 데이터 관리                                   |
+| Other complex admin tools | RBAC-heavy, low field-use frequency                |
 
 WebView routes must respect the same session and RBAC as the main web CRM. Direct URL access outside role scope must remain blocked server-side.
 
@@ -76,14 +76,14 @@ WebView routes must respect the same session and RBAC as the main web CRM. Direc
 
 The repository still contains the **Capacitor-based Android shell**. It is **not removed** in the pilot officialization PR.
 
-| Item | Status |
-| --- | --- |
+| Item                  | Status                               |
+| --------------------- | ------------------------------------ |
 | `capacitor.config.ts` | **Keep** — legacy/fallback reference |
-| Root `android/app` | **Keep** — legacy Capacitor project |
-| App ID | `kr.raonisis.boa` |
-| App name | BOA 지점관리 CRM |
-| Web dir | `dist/public` |
-| Server URL | `https://raonisis.kr` |
+| Root `android/app`    | **Keep** — legacy Capacitor project  |
+| App ID                | `kr.raonisis.boa`                    |
+| App name              | BOA 지점관리 CRM                     |
+| Web dir               | `dist/public`                        |
+| Server URL            | `https://raonisis.kr`                |
 
 **Policy**
 
@@ -120,13 +120,13 @@ All mobile work (Flutter and WebView) must follow [AGENTS.md](../AGENTS.md) and 
 
 PR19-4 defines user notification preferences and branch-admin push operations. This architecture doc sets implementation boundaries; schema and delivery rules remain in [PUSH_NOTIFICATION_OPERATION_POLICY.md](./PUSH_NOTIFICATION_OPERATION_POLICY.md).
 
-| Concern | Direction |
-| --- | --- |
-| User personal notification settings | **Flutter native first** — `PushPreferencesScreen` + `GET/PATCH /api/mobile/push-preferences` |
-| Branch-admin push operation dashboard | **Web admin UI** — `/push-notifications` (`PushNotificationOperations`), branch_admin only |
-| Quiet hours, ON/OFF toggles | Must stay compatible with server policy (`push_notification_preferences`, quiet-hours filter in `sendPushToUsers`) |
-| Device tokens | Keep existing `user_device_tokens` structure and registration flow |
-| Delivery audit | Keep existing `push_notification_logs` structure; no token plaintext in logs |
+| Concern                               | Direction                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| User personal notification settings   | **Flutter native first** — `PushPreferencesScreen` + `GET/PATCH /api/mobile/push-preferences`                      |
+| Branch-admin push operation dashboard | **Web admin UI** — `/push-notifications` (`PushNotificationOperations`), branch_admin only                         |
+| Quiet hours, ON/OFF toggles           | Must stay compatible with server policy (`push_notification_preferences`, quiet-hours filter in `sendPushToUsers`) |
+| Device tokens                         | Keep existing `user_device_tokens` structure and registration flow                                                 |
+| Delivery audit                        | Keep existing `push_notification_logs` structure; no token plaintext in logs                                       |
 
 **Compatibility rules**
 
