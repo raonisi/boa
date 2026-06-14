@@ -148,7 +148,7 @@ class ContractsListNotifier extends StateNotifier<ContractListState> {
       if (gen != _requestGen) return;
       state = ContractListState(
         loadingInitial: false,
-        errorMessage: '$e',
+        errorMessage: '계약 정보를 불러오지 못했습니다. 다시 시도해 주세요.',
       );
     }
   }

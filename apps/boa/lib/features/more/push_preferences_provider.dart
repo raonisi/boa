@@ -70,7 +70,7 @@ class PushPreferencesNotifier extends StateNotifier<PushPreferencesState> {
         errorMessage: _dioMessage(e, '불러오지 못했습니다.'),
       );
     } catch (e) {
-      state = PushPreferencesState(loading: false, errorMessage: '$e');
+      state = PushPreferencesState(loading: false, errorMessage: '알림 설정을 불러오지 못했습니다. 다시 시도해 주세요.');
     }
   }
 
@@ -100,7 +100,7 @@ class PushPreferencesNotifier extends StateNotifier<PushPreferencesState> {
       );
       return false;
     } catch (e) {
-      state = state.copyWith(saving: false, errorMessage: '$e');
+      state = state.copyWith(saving: false, errorMessage: '알림 설정을 저장하지 못했습니다. 다시 시도해 주세요.');
       return false;
     }
   }

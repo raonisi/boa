@@ -107,7 +107,7 @@ class GlobalSearchNotifier extends StateNotifier<GlobalSearchState> {
       state = GlobalSearchState(errorMessage: msg, appliedQuery: trimmed);
     } catch (e) {
       if (gen != _requestGen) return;
-      state = GlobalSearchState(errorMessage: '$e', appliedQuery: trimmed);
+      state = GlobalSearchState(errorMessage: '검색 결과를 불러오지 못했습니다. 다시 시도해 주세요.', appliedQuery: trimmed);
     }
   }
 

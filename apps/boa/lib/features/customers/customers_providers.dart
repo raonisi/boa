@@ -129,7 +129,7 @@ class CustomersListNotifier extends StateNotifier<CustomerListState> {
       if (gen != _requestGen) return;
       state = CustomerListState(
         loadingInitial: false,
-        errorMessage: '$e',
+        errorMessage: '고객 정보를 불러오지 못했습니다. 다시 시도해 주세요.',
       );
     }
   }
