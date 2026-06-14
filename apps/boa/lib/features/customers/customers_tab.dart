@@ -89,13 +89,35 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                '고객 목록',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: BoaColors.navy,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '담당 고객의 상태와 다음 액션을 빠르게 확인합니다.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
           child: TextField(
             controller: _searchController,
             textInputAction: TextInputAction.search,
             decoration: boaSearchDecoration(
               context,
-              hintText: '이름 또는 전화번호 검색',
+              hintText: '고객명, 연락처를 검색하세요',
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
                       tooltip: '지우기',
@@ -162,10 +184,12 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
               height: MediaQuery.sizeOf(context).height * 0.65,
               child: BoaEmptyState(
                 icon: Icons.people_outline,
-                title: appliedQuery.isNotEmpty ? '검색 결과가 없습니다.' : '아직 등록된 고객이 없습니다.',
+                title: appliedQuery.isNotEmpty
+                    ? '현재 필터에 맞는 고객이 없습니다.'
+                    : '표시할 고객이 없습니다.',
                 message: appliedQuery.isNotEmpty
-                    ? '이름 또는 전화번호를 다시 확인해 주세요.'
-                    : '담당 고객이 배정되면 이곳에 표시됩니다.',
+                    ? '검색어를 바꾸거나 초기화해 다시 확인해 보세요.'
+                    : '권한 범위 안에서 확인할 수 있는 고객이 없습니다.',
               ),
             ),
           ],
@@ -196,11 +220,9 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
               );
             }
             final c = rows[i];
-            final subtitle = [
-              if (c.consultStatus != null) c.consultStatus,
-              if (c.phone != null && c.phone!.isNotEmpty) c.phone,
-              if (c.priority != null && c.priority!.isNotEmpty) '우선순위 ${priorityLabel(c.priority)}',
-            ].join(' · ');
+            final nextAction = (c.nextAction != null && c.nextAction!.isNotEmpty)
+                ? c.nextAction!
+                : '확인 필요';
             return BoaSurfaceCard(
               onTap: () {
                 boaSelectionHaptic();
@@ -212,6 +234,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                 );
               },
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   BoaCustomerAvatarHero(
                     customerId: c.id,
@@ -232,24 +255,86 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                           customerId: c.id,
                           lane: BoaCustomerHeroLane.customersList,
                           name: c.name,
-                          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                          style: theme.textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 6),
                         Text(
-                          subtitle.isEmpty ? '탭하여 상세 보기' : subtitle,
-                          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                          maxLines: 2,
+                          '다음: $nextAction',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: BoaColors.textPrimary,
+                          ),
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            if (c.consultStatus != null)
+                              _StatusChip(
+                                label: c.consultStatus!,
+                                color: theme.colorScheme.primary,
+                              ),
+                            if (c.priority != null && c.priority!.isNotEmpty)
+                              _StatusChip(
+                                label: priorityLabel(c.priority),
+                                color: BoaColors.gold,
+                              ),
+                          ],
+                        ),
+                        if (c.phone != null && c.phone!.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            c.phone!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ],
               ),
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
       ),
     );
   }

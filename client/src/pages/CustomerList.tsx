@@ -1,6 +1,12 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel } from "@/components/StatusBadge";
+import {
+  buildQuickPresets,
+  detectActiveQuickPreset,
+  newDbDateRange,
+  type QuickPresetId,
+} from "@/components/customers/customerListQuickPresets";
+import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel, PriorityBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,6 +43,13 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState, ErrorState, renderMetricValue } from "@/components/ui/empty-state";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -403,6 +416,9 @@ export default function CustomerList() {
     warning: filtered.filter(c =>
       Boolean(recommendationByCustomerId.get(c.id)?.warnings?.length)
     ).length,
+    urgent: filtered.filter(
+      c => recommendationByCustomerId.get(c.id)?.urgency === "high"
+    ).length,
     noNextAction: filtered.filter(c => !(c as any).nextAction).length,
     uncontacted: filtered.filter(c => c.consultStatus === "미상담").length,
     slaOverdue: filtered.filter(
@@ -412,6 +428,15 @@ export default function CustomerList() {
         c.assignedAt &&
         Date.now() - new Date(c.assignedAt).getTime() > 24 * 60 * 60 * 1000
     ).length,
+    newDb: filtered.filter(c => {
+      if (!c.assignedAt) return false;
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      return new Date(c.assignedAt).getTime() >= weekAgo;
+    }).length,
+    mine:
+      user?.role === "branch_admin"
+        ? filtered.filter(c => c.agentId === user.id).length
+        : 0,
   };
   const workspaceCustomers = filtered
     .filter(c => {
@@ -550,14 +575,24 @@ export default function CustomerList() {
     recommendationFilter !== "all"
       ? {
           key: "recommendation",
-          label: `추천/경고: ${recommendationFilter === "recommended" ? "우선 연락 추천" : recommendationFilter === "warning" ? "경고 있음" : "긴급 추천"}`,
+          label: `추천/경고: ${recommendationFilter === "recommended" ? "우선 연락 추천" : recommendationFilter === "warning" ? "경고 있음" : "긴급"}`,
           clear: () => setRecommendationFilter("all"),
         }
       : null,
     workspaceFilter !== "all"
       ? {
           key: "workspace",
-          label: `작업공간: ${workspaceFilter === "priority" ? "우선 연락" : workspaceFilter === "warning" ? "경고" : workspaceFilter === "no_next_action" ? "다음 액션 없음" : workspaceFilter === "sla_overdue" ? "첫 연락 필요(SLA 지연)" : "미상담"}`,
+          label: `빠른 필터: ${
+            workspaceFilter === "priority"
+              ? "오늘 연락"
+              : workspaceFilter === "warning"
+                ? "경고 고객"
+                : workspaceFilter === "no_next_action"
+                  ? "다음 액션 없음"
+                  : workspaceFilter === "sla_overdue"
+                    ? "지연"
+                    : "미상담"
+          }`,
           clear: () => setWorkspaceFilter("all"),
         }
       : null,
@@ -586,6 +621,82 @@ export default function CustomerList() {
     Boolean(chip)
   );
   const hasActiveFilters = activeFilterChips.length > 0;
+
+  const hasExtraFilters =
+    Boolean(search.trim()) ||
+    statusFilter !== "all" ||
+    Boolean(regionFilter) ||
+    Boolean(sourceFilter) ||
+    priorityFilter !== "all" ||
+    tagFilter !== "all" ||
+    nextActionFilter !== "all" ||
+    agentFilter !== "all";
+
+  const activeQuickPreset = detectActiveQuickPreset({
+    workspaceFilter,
+    recommendationFilter,
+    scopeFilter,
+    assignedDateFrom,
+    assignedDateTo,
+    hasExtraFilters,
+  });
+
+  const quickPresets = buildQuickPresets(user?.role);
+  const quickPresetCounts: Record<QuickPresetId, number> = {
+    all: filtered.length,
+    today_contact: workspaceStats.priority,
+    urgent: workspaceStats.urgent,
+    uncontacted: workspaceStats.uncontacted,
+    sla_overdue: workspaceStats.slaOverdue,
+    no_next_action: workspaceStats.noNextAction,
+    mine: workspaceStats.mine,
+    new_db: workspaceStats.newDb,
+  };
+
+  const applyQuickPreset = (presetId: QuickPresetId) => {
+    setSearch("");
+    setStatusFilter("all");
+    setRegionFilter("");
+    setSourceFilter("");
+    setPriorityFilter("all");
+    setTagFilter("all");
+    setNextActionFilter("all");
+    setAgentFilter("all");
+    setScopeFilter("all");
+    setRecommendationFilter("all");
+    setWorkspaceFilter("all");
+    setAssignedDateFrom("");
+    setAssignedDateTo("");
+
+    switch (presetId) {
+      case "all":
+        break;
+      case "today_contact":
+        setWorkspaceFilter("priority");
+        break;
+      case "urgent":
+        setRecommendationFilter("high");
+        break;
+      case "uncontacted":
+        setWorkspaceFilter("uncontacted");
+        break;
+      case "sla_overdue":
+        setWorkspaceFilter("sla_overdue");
+        break;
+      case "no_next_action":
+        setWorkspaceFilter("no_next_action");
+        break;
+      case "mine":
+        setScopeFilter("mine");
+        break;
+      case "new_db": {
+        const { from, to } = newDbDateRange();
+        setAssignedDateFrom(from);
+        setAssignedDateTo(to);
+        break;
+      }
+    }
+  };
 
   const clearFilters = () => {
     setSearch("");
@@ -666,199 +777,237 @@ export default function CustomerList() {
     });
   };
 
+  const hasBulkSelection = selectedCustomerIds.length > 0;
+  const roleListDescription =
+    user?.role === "sub_branch_admin"
+      ? "부지점장 산하 고객을 오늘 처리 순서대로 확인합니다."
+      : user?.role === "team_leader"
+        ? "팀 고객 중 조치가 필요한 고객부터 확인합니다."
+        : user?.role === "member"
+          ? "내 담당 고객과 오늘 연락할 고객을 빠르게 찾습니다."
+          : "지점 전체 고객과 배정·담당 흐름을 관리합니다.";
+
+  const advancedFilterFields = (
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
+      {user?.role === "branch_admin" && (
+        <Select
+          value={scopeFilter}
+          onValueChange={value => setScopeFilter(value as "all" | "mine")}
+        >
+          <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+            <SelectValue placeholder="DB 범위" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체 DB</SelectItem>
+            <SelectItem value="mine">내 DB</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
+      <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+          <SelectValue placeholder="상담상태" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">전체 상태</SelectItem>
+          {CONSULT_STATUSES.map(s => (
+            <SelectItem key={s} value={s}>
+              {s}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Input
+        placeholder="지역 필터"
+        value={regionFilter}
+        onChange={e => setRegionFilter(e.target.value)}
+        className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
+      />
+      <Input
+        placeholder="유입경로 필터"
+        value={sourceFilter}
+        onChange={e => setSourceFilter(e.target.value)}
+        className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
+      />
+      <Select value={priorityFilter} onValueChange={setPriorityFilter}>
+        <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+          <SelectValue placeholder="우선순위" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">전체 우선순위</SelectItem>
+          {CUSTOMER_PRIORITIES.map(p => (
+            <SelectItem key={p} value={p}>
+              {getPriorityLabel(p)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={tagFilter} onValueChange={setTagFilter}>
+        <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+          <SelectValue placeholder="성향 태그" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">전체 태그</SelectItem>
+          {CUSTOMER_TAGS.map(tag => (
+            <SelectItem key={tag} value={tag}>
+              {tag}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select value={nextActionFilter} onValueChange={setNextActionFilter}>
+        <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+          <SelectValue placeholder="다음 액션" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">전체 액션</SelectItem>
+          {CUSTOMER_NEXT_ACTIONS.map(action => (
+            <SelectItem key={action} value={action}>
+              {action}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={recommendationFilter}
+        onValueChange={setRecommendationFilter}
+      >
+        <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+          <SelectValue placeholder="추천/경고" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">전체 추천</SelectItem>
+          <SelectItem value="recommended">우선 연락 추천</SelectItem>
+          <SelectItem value="warning">경고 있음</SelectItem>
+          <SelectItem value="high">긴급 추천</SelectItem>
+        </SelectContent>
+      </Select>
+      <Input
+        type="date"
+        value={assignedDateFrom}
+        onChange={e => setAssignedDateFrom(e.target.value)}
+        className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
+        title="배정일 시작"
+      />
+      <Input
+        type="date"
+        value={assignedDateTo}
+        onChange={e => setAssignedDateTo(e.target.value)}
+        className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
+        title="배정일 종료"
+      />
+      {(user?.role === "branch_admin" || user?.role === "team_leader") && (
+        <Select value={agentFilter} onValueChange={setAgentFilter}>
+          <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
+            <SelectValue placeholder="담당자" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">전체 담당자</SelectItem>
+            <SelectItem value="unassigned">담당자 없음</SelectItem>
+            {agents.map(a => (
+              <SelectItem key={a.id} value={String(a.id)}>
+                {formatUserWithRole(a)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </div>
+  );
+
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className={`space-y-4 ${hasBulkSelection ? "pb-28" : ""}`}>
         <Card className="overflow-hidden border-border shadow-sm">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                고객 데이터베이스
-              </p>
-              <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
-                고객 DB
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {user?.role === "sub_branch_admin"
-                  ? "부지점장 산하 고객 관리"
-                  : user?.role === "team_leader"
-                    ? "본인 팀 고객 관리"
-                    : user?.role === "member"
-                      ? "내 고객 관리"
-                      : "전체 고객 관리"}
-                {" · "}표시 고객{" "}
-                {renderMetricValue(filtered.length, {
-                  isLoading: isCustomersLoading,
-                  isError: isCustomersError,
-                })}
-                명
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 검색 및 필터 */}
-        <Card className="border-border bg-white/95 shadow-sm">
-          <CardContent className="space-y-3 p-4">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary/70">
-                  영업 실행 공간
+          <CardContent className="space-y-4 p-5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  고객 목록
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {roleListDescription}
                 </p>
-                <h2 className="text-lg font-bold text-slate-950">
-                  오늘 볼 고객
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  권한 범위 안의 고객만 실행 점수순으로 정렬됩니다.
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLocation("/sales-pipeline")}
-              >
-                <LayoutGrid className="h-4 w-4 mr-1" /> 파이프라인
-              </Button>
-              {canCreateCustomer && (
-                <Button size="sm" onClick={() => setShowCreate(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> 신규 고객 등록
-                </Button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-2 lg:grid-cols-6">
-              {[
-                {
-                  key: "all" as const,
-                  label: "전체",
-                  value: filtered.length,
-                  tone: "border-border bg-card",
-                },
-                {
-                  key: "priority" as const,
-                  label: "우선 연락",
-                  value: workspaceStats.priority,
-                  tone: "border-boa-green/25 bg-boa-green/8",
-                },
-                {
-                  key: "warning" as const,
-                  label: "주의 필요",
-                  value: workspaceStats.warning,
-                  tone: "border-destructive/20 bg-destructive/8",
-                },
-                {
-                  key: "sla_overdue" as const,
-                  label: "SLA 지연 (연락요청)",
-                  value: workspaceStats.slaOverdue,
-                  tone: "border-destructive/20 bg-destructive/10",
-                },
-                {
-                  key: "no_next_action" as const,
-                  label: "다음 액션 없음",
-                  value: workspaceStats.noNextAction,
-                  tone: "border-boa-amber/25 bg-boa-amber/10",
-                },
-                {
-                  key: "uncontacted" as const,
-                  label: "미상담",
-                  value: workspaceStats.uncontacted,
-                  tone: "border-border bg-muted/40",
-                },
-              ].map(item => (
-                <button
-                  key={item.key}
-                  type="button"
-                  onClick={() => setWorkspaceFilter(item.key)}
-                  className={`min-h-12 rounded-lg border p-3 text-left transition hover:shadow-sm ${workspaceFilter === item.key ? "ring-2 ring-primary/30" : ""} ${item.tone}`}
-                >
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {item.label}
-                  </span>
-                  <span className="mt-1 block text-2xl font-bold tabular-nums text-foreground">
-                    {renderMetricValue(item.value, {
-                      isLoading: isCustomersLoading,
-                      isError: isCustomersError,
-                    })}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {(canBulkChangeAssignee || canReclaimCustomer || canCreateCustomer) && (
-          <Card className="border-slate-200 bg-slate-50/70 shadow-sm">
-            <CardContent className="flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">
-                  DB 관리 작업
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  영업 실행 버튼과 배정/회수/일괄 등록 작업을 분리했습니다.
+                <p className="mt-1 text-xs text-muted-foreground">
+                  표시 고객{" "}
+                  {renderMetricValue(workspaceCustomers.length, {
+                    isLoading: isCustomersLoading,
+                    isError: isCustomersError,
+                  })}
+                  명 · 실행 점수순
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="min-h-12 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 md:min-h-8"
-                    onClick={() => {
-                      setBulkAssigneeOpen(true);
-                      setBulkAssigneeId("");
-                      setBulkAssigneeReason("");
-                    }}
-                  >
-                    <UserCog className="h-4 w-4 mr-1" /> 담당자 일괄 지정{" "}
-                    {selectedAssignableIds.length}
-                  </Button>
-                )}
-                {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="min-h-12 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100 md:min-h-8"
-                    onClick={() => {
-                      setReclaimCustomerId(null);
-                      setBulkReclaimOpen(true);
-                      setReclaimReason("");
-                    }}
-                  >
-                    <Undo2 className="h-4 w-4 mr-1" /> 선택 DB 회수{" "}
-                    {selectedReclaimableIds.length}
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11"
+                  onClick={() => setLocation("/sales-pipeline")}
+                >
+                  <LayoutGrid className="mr-1 h-4 w-4" /> 파이프라인
+                </Button>
                 {user?.role === "branch_admin" && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="min-h-12 md:min-h-8"
+                    className="min-h-11"
                     onClick={() => setLocation("/customers/assign")}
                   >
-                    <UserPlus className="h-4 w-4 mr-1" /> DB 배정
+                    <UserPlus className="mr-1 h-4 w-4" /> DB 배정
                   </Button>
                 )}
                 {canBulkImportCustomers && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="min-h-12 md:min-h-8"
+                    className="min-h-11"
                     onClick={() => setLocation("/customers/bulk-import")}
                   >
-                    <Upload className="h-4 w-4 mr-1" /> 엑셀 일괄 등록
+                    <Upload className="mr-1 h-4 w-4" /> 엑셀 일괄 등록
+                  </Button>
+                )}
+                {canCreateCustomer && (
+                  <Button
+                    size="sm"
+                    className="min-h-11"
+                    onClick={() => setShowCreate(true)}
+                  >
+                    <Plus className="mr-1 h-4 w-4" /> 신규 고객 등록
                   </Button>
                 )}
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
 
-        <Card className="border-border shadow-sm">
-          <CardContent className="space-y-3 p-4">
+            <div>
+              <p className="mb-2 text-xs font-semibold text-muted-foreground">
+                오늘 처리할 고객
+              </p>
+              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {quickPresets.map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => applyQuickPreset(preset.id)}
+                    className={`min-h-11 shrink-0 rounded-full border px-3 py-2 text-left transition hover:shadow-sm ${activeQuickPreset === preset.id ? "ring-2 ring-primary/35" : ""} ${preset.tone}`}
+                  >
+                    <span className="block text-xs font-medium text-muted-foreground">
+                      {preset.label}
+                    </span>
+                    <span className="mt-0.5 block text-lg font-bold tabular-nums leading-none text-foreground">
+                      {renderMetricValue(quickPresetCounts[preset.id], {
+                        isLoading: isCustomersLoading,
+                        isError: isCustomersError,
+                      })}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex flex-col gap-2 sm:flex-row">
               <div className="relative flex-1">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="이름 또는 연락처로 검색"
+                  placeholder="고객명, 연락처를 검색하세요"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                   className="min-h-12 rounded-lg border-border bg-background pl-10 shadow-sm focus-visible:shadow-sm md:h-11 md:min-h-11"
@@ -870,8 +1019,8 @@ export default function CustomerList() {
                 className="min-h-12 shrink-0 rounded-lg md:h-11 md:min-h-11"
                 onClick={() => setShowFilters(!showFilters)}
               >
-                <Filter className="h-4 w-4 mr-1" />
-                필터{hasActiveFilters ? " ●" : ""}
+                <Filter className="mr-1 h-4 w-4" />
+                고급 필터{hasActiveFilters ? " ●" : ""}
               </Button>
               {hasActiveFilters && (
                 <Button
@@ -880,144 +1029,14 @@ export default function CustomerList() {
                   className="min-h-12 rounded-lg md:h-11 md:min-h-11"
                   onClick={clearFilters}
                 >
-                  <X className="h-4 w-4" />
+                  필터 초기화
                 </Button>
               )}
             </div>
 
-            {showFilters && (
-              <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-100 bg-slate-50/70 p-3 sm:grid-cols-2 md:grid-cols-4">
-                {user?.role === "branch_admin" && (
-                  <Select
-                    value={scopeFilter}
-                    onValueChange={value =>
-                      setScopeFilter(value as "all" | "mine")
-                    }
-                  >
-                    <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                      <SelectValue placeholder="DB 범위" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">전체 DB</SelectItem>
-                      <SelectItem value="mine">내 DB</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                    <SelectValue placeholder="상담상태" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 상태</SelectItem>
-                    {CONSULT_STATUSES.map(s => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  placeholder="지역 필터"
-                  value={regionFilter}
-                  onChange={e => setRegionFilter(e.target.value)}
-                  className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
-                />
-                <Input
-                  placeholder="유입경로 필터"
-                  value={sourceFilter}
-                  onChange={e => setSourceFilter(e.target.value)}
-                  className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
-                />
-                <Select
-                  value={priorityFilter}
-                  onValueChange={setPriorityFilter}
-                >
-                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                    <SelectValue placeholder="우선순위" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 우선순위</SelectItem>
-                    {CUSTOMER_PRIORITIES.map(p => (
-                      <SelectItem key={p} value={p}>
-                        {getPriorityLabel(p)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={tagFilter} onValueChange={setTagFilter}>
-                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                    <SelectValue placeholder="성향 태그" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 태그</SelectItem>
-                    {CUSTOMER_TAGS.map(tag => (
-                      <SelectItem key={tag} value={tag}>
-                        {tag}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={nextActionFilter}
-                  onValueChange={setNextActionFilter}
-                >
-                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                    <SelectValue placeholder="다음 액션" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 액션</SelectItem>
-                    {CUSTOMER_NEXT_ACTIONS.map(action => (
-                      <SelectItem key={action} value={action}>
-                        {action}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={recommendationFilter}
-                  onValueChange={setRecommendationFilter}
-                >
-                  <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                    <SelectValue placeholder="추천/경고" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전체 추천</SelectItem>
-                    <SelectItem value="recommended">우선 연락 추천</SelectItem>
-                    <SelectItem value="warning">경고 있음</SelectItem>
-                    <SelectItem value="high">긴급 추천</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="date"
-                  value={assignedDateFrom}
-                  onChange={e => setAssignedDateFrom(e.target.value)}
-                  className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
-                  title="배정일 시작"
-                />
-                <Input
-                  type="date"
-                  value={assignedDateTo}
-                  onChange={e => setAssignedDateTo(e.target.value)}
-                  className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
-                  title="배정일 종료"
-                />
-                {(user?.role === "branch_admin" ||
-                  user?.role === "team_leader") && (
-                  <Select value={agentFilter} onValueChange={setAgentFilter}>
-                    <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
-                      <SelectValue placeholder="담당자" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">전체 담당자</SelectItem>
-                      <SelectItem value="unassigned">담당자 없음</SelectItem>
-                      {agents.map(a => (
-                        <SelectItem key={a.id} value={String(a.id)}>
-                          {formatUserWithRole(a)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
+            {!isMobile && showFilters && (
+              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+                {advancedFilterFields}
               </div>
             )}
 
@@ -1034,7 +1053,7 @@ export default function CustomerList() {
                     className="h-7 px-2 text-xs"
                     onClick={clearFilters}
                   >
-                    필터 전체 해제
+                    필터 초기화
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
@@ -1057,6 +1076,35 @@ export default function CustomerList() {
             )}
           </CardContent>
         </Card>
+
+        <Sheet open={isMobile && showFilters} onOpenChange={setShowFilters}>
+          <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>고급 필터</SheetTitle>
+              <SheetDescription>
+                상담상태, 담당자, 배정일 등 세부 조건을 설정합니다.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="mt-4 space-y-3 pb-6">{advancedFilterFields}</div>
+            <div className="flex gap-2 border-t pt-3">
+              <Button
+                type="button"
+                variant="outline"
+                className="min-h-11 flex-1"
+                onClick={clearFilters}
+              >
+                필터 초기화
+              </Button>
+              <Button
+                type="button"
+                className="min-h-11 flex-1"
+                onClick={() => setShowFilters(false)}
+              >
+                적용
+              </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
 
         {/* 모바일 카드 뷰 */}
         {isMobile ? (
@@ -1091,13 +1139,13 @@ export default function CustomerList() {
                     icon={hasActiveFilters ? Search : UserPlus}
                     title={
                       hasActiveFilters
-                        ? "조건에 맞는 고객이 없습니다."
-                        : "등록된 고객이 없습니다."
+                        ? "현재 필터에 맞는 고객이 없습니다."
+                        : "표시할 고객이 없습니다."
                     }
                     description={
                       hasActiveFilters
-                        ? "검색어나 필터를 조정하거나 초기화해 보세요."
-                        : "권한 범위 안의 고객을 등록하면 상담과 후속관리를 시작할 수 있습니다."
+                        ? "필터를 초기화해 다시 확인해 보세요."
+                        : "권한 범위 안에서 확인할 수 있는 고객이 없습니다."
                     }
                     className="border-0 bg-transparent py-8"
                     action={
@@ -1130,43 +1178,6 @@ export default function CustomerList() {
               </Card>
             ) : (
               <>
-                {(canReclaimCustomer || canBulkChangeAssignee) && (
-                  <Card className="border-slate-200 bg-slate-50/70 shadow-sm">
-                    <CardContent className="flex flex-col gap-2 p-3">
-                      <p className="text-xs text-muted-foreground">
-                        현재 목록 기준 {selectableFilteredIds.length}명 선택
-                        가능 · {selectedCustomerIds.length}명 선택됨
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="min-h-12 flex-1 sm:flex-none"
-                          onClick={() => handleToggleAllVisibleSelectable(true)}
-                          disabled={
-                            selectableFilteredIds.length === 0 ||
-                            allVisibleSelectableSelected
-                          }
-                          aria-label="현재 목록 고객 전체 선택"
-                        >
-                          전체 선택
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          className="min-h-12 flex-1 sm:flex-none"
-                          onClick={() =>
-                            handleToggleAllVisibleSelectable(false)
-                          }
-                          disabled={selectedCustomerIds.length === 0}
-                          aria-label="고객 선택 해제"
-                        >
-                          선택 해제
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
                 {workspaceCustomers.map(c => {
                   const recommendation = recommendationByCustomerId.get(c.id);
                   const badges = executionBadges(c, recommendation);
@@ -1197,14 +1208,27 @@ export default function CustomerList() {
                                 {c.name}
                               </span>
                               <StatusBadge status={c.consultStatus} />
+                              {(c as any).priority && (
+                                <PriorityBadge priority={(c as any).priority} />
+                              )}
                             </div>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              다음:{" "}
+                              {(c as any).nextAction ||
+                                execution.actionTitle ||
+                                "확인 필요"}
+                            </p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              담당{" "}
+                              {formatUserWithRole(
+                                agentById.get(c.agentId ?? 0)
+                              )}
+                              {recommendation?.warnings?.[0]
+                                ? ` · ${recommendation.warnings[0].message}`
+                                : ""}
+                            </p>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              <span
-                                className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold ${execution.gradeClassName}`}
-                              >
-                                관리점수 {execution.score}
-                              </span>
-                              {badges.map(badge => (
+                              {badges.slice(0, 2).map(badge => (
                                 <span
                                   key={badge.label}
                                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
@@ -1213,73 +1237,19 @@ export default function CustomerList() {
                                 </span>
                               ))}
                             </div>
-                            <div className="flex gap-1 mt-1 flex-wrap">
-                              {parseCustomerTags((c as any).customerTags)
-                                .slice(0, 3)
-                                .map(tag => (
-                                  <span
-                                    key={tag}
-                                    className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700"
-                                  >
-                                    {tag}
-                                  </span>
-                                ))}
-                              {(c as any).nextAction && (
-                                <span className="rounded-full border border-[#d9c99f] bg-[#fff8e8] px-2 py-0.5 text-[10px] text-[#7a5d1d]">
-                                  다음: {(c as any).nextAction}
+                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              {c.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="h-3 w-3" />
+                                  {maskPhone(c.phone)}
                                 </span>
                               )}
-                            </div>
-                            <div className="mt-2 grid gap-1.5 text-xs text-muted-foreground">
-                              {recommendation?.warnings
-                                ?.slice(0, 1)
-                                .map(warning => (
-                                  <span
-                                    key={warning.warningType}
-                                    className="font-medium text-red-600"
-                                  >
-                                    {warning.message}
-                                  </span>
-                                ))}
-                              <div className="flex flex-wrap items-center gap-2">
-                                {c.phone && (
-                                  <span className="flex items-center gap-1 font-medium">
-                                    <Phone className="h-3 w-3" />{" "}
-                                    {maskPhone(c.phone)}
-                                  </span>
-                                )}
-                                {c.region && <span>{c.region}</span>}
-                              </div>
-                            </div>
-                            <div className="mt-2 flex flex-wrap items-end justify-between gap-2">
-                              <p className="text-xs text-muted-foreground">
-                                담당자{" "}
-                                {formatUserWithRole(
-                                  agentById.get(c.agentId ?? 0)
-                                )}
-                              </p>
-                              <p className="text-sm font-bold tabular-nums text-slate-950">
-                                {c.expectedPremium != null
-                                  ? formatExpectedPremiumManwon(
-                                      c.expectedPremium
-                                    )
-                                  : "보험료 -"}
-                              </p>
-                            </div>
-                            <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                              <p className="text-xs font-semibold text-slate-800">
-                                추천 행동: {execution.actionTitle}
-                              </p>
-                              <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
-                                {execution.reasons.length > 0
-                                  ? execution.reasons
-                                      .map(
-                                        reason =>
-                                          `${reason.label} +${reason.points}`
-                                      )
-                                      .join(" · ")
-                                  : "정기 관리 흐름 유지"}
-                              </p>
+                              {c.region && <span>{c.region}</span>}
+                              {c.expectedPremium != null && (
+                                <span className="font-semibold text-slate-800">
+                                  {formatExpectedPremiumManwon(c.expectedPremium)}
+                                </span>
+                              )}
                             </div>
                           </div>
                           <DropdownMenu>
@@ -1347,14 +1317,14 @@ export default function CustomerList() {
                           </DropdownMenu>
                         </div>
                         <div
-                          className="mt-3 grid grid-cols-2 gap-2"
+                          className="mt-3 flex gap-2"
                           onClick={e => e.stopPropagation()}
                         >
                           {c.phone ? (
                             <Button
                               variant="outline"
                               size="sm"
-                              className="min-h-12 rounded-lg px-3 text-xs"
+                              className="min-h-12 flex-1 rounded-lg px-3 text-xs"
                               asChild
                             >
                               <a
@@ -1367,36 +1337,15 @@ export default function CustomerList() {
                           ) : null}
                           <Button
                             type="button"
-                            variant="outline"
+                            variant="default"
                             size="sm"
                             onClick={() =>
                               setLocation(`/customers/${c.id}?action=consult`)
                             }
-                            className="min-h-12 rounded-lg px-3 text-xs"
+                            className="min-h-12 flex-1 rounded-lg px-3 text-xs"
                           >
-                            <MessageSquare className="mr-1 h-3.5 w-3.5" />{" "}
-                            상담기록
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setLocation(`/customers/${c.id}?action=followup`)
-                            }
-                            className="min-h-12 rounded-lg px-3 text-xs"
-                          >
-                            <CalendarPlus className="mr-1 h-3.5 w-3.5" /> 다음
-                            연락일
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setLocation(`/customers/${c.id}`)}
-                            className="min-h-12 rounded-lg px-3 text-xs"
-                          >
-                            <Eye className="mr-1 h-3.5 w-3.5" /> 상세
+                            <MessageSquare className="mr-1 h-3.5 w-3.5" />
+                            상담 기록
                           </Button>
                         </div>
                       </CardContent>
@@ -1490,13 +1439,13 @@ export default function CustomerList() {
                             icon={hasActiveFilters ? Search : UserPlus}
                             title={
                               hasActiveFilters
-                                ? "조건에 맞는 고객이 없습니다."
-                                : "등록된 고객이 없습니다."
+                                ? "현재 필터에 맞는 고객이 없습니다."
+                                : "표시할 고객이 없습니다."
                             }
                             description={
                               hasActiveFilters
-                                ? "검색어나 필터를 조정하거나 초기화해 보세요."
-                                : "권한 범위 안의 고객을 등록하면 상담과 후속관리를 시작할 수 있습니다."
+                                ? "필터를 초기화해 다시 확인해 보세요."
+                                : "권한 범위 안에서 확인할 수 있는 고객이 없습니다."
                             }
                             className="mx-auto max-w-md border-0 bg-transparent py-0"
                             action={
@@ -1603,9 +1552,13 @@ export default function CustomerList() {
                               <StatusBadge status={c.consultStatus} />
                             </TableCell>
                             <TableCell>
-                              <span className="text-xs rounded-full border px-2 py-0.5 bg-muted">
-                                {getPriorityLabel((c as any).priority)}
-                              </span>
+                              {(c as any).priority ? (
+                                <PriorityBadge priority={(c as any).priority} />
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  -
+                                </span>
+                              )}
                             </TableCell>
                             <TableCell className="max-w-[220px]">
                               <div className="flex gap-1 flex-wrap">
@@ -1778,6 +1731,85 @@ export default function CustomerList() {
           </Card>
         )}
       </div>
+
+      {hasBulkSelection &&
+        (canBulkChangeAssignee || canReclaimCustomer) && (
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-foreground">
+                  선택한 고객 {selectedCustomerIds.length}명
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {canBulkChangeAssignee && selectedAssignableIds.length > 0
+                    ? `담당자 지정 가능 ${selectedAssignableIds.length}명`
+                    : ""}
+                  {canReclaimCustomer && selectedReclaimableIds.length > 0
+                    ? `${canBulkChangeAssignee && selectedAssignableIds.length > 0 ? " · " : ""}DB 회수 가능 ${selectedReclaimableIds.length}명`
+                    : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(canReclaimCustomer || canBulkChangeAssignee) && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11"
+                      onClick={() => handleToggleAllVisibleSelectable(true)}
+                      disabled={
+                        selectableFilteredIds.length === 0 ||
+                        allVisibleSelectableSelected
+                      }
+                    >
+                      전체 선택
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="min-h-11"
+                      onClick={() => setSelectedCustomerIds([])}
+                    >
+                      선택 해제
+                    </Button>
+                  </>
+                )}
+                {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                    onClick={() => {
+                      setBulkAssigneeOpen(true);
+                      setBulkAssigneeId("");
+                      setBulkAssigneeReason("");
+                    }}
+                  >
+                    <UserCog className="mr-1 h-4 w-4" />
+                    담당자 지정 {selectedAssignableIds.length}
+                  </Button>
+                )}
+                {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                    onClick={() => {
+                      setReclaimCustomerId(null);
+                      setBulkReclaimOpen(true);
+                      setReclaimReason("");
+                    }}
+                  >
+                    <Undo2 className="mr-1 h-4 w-4" />
+                    DB 회수 {selectedReclaimableIds.length}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
       {/* 고객 등록 모달 */}
       <CreateCustomerModal
