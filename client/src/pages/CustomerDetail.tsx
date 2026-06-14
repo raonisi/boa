@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, CONSULT_STATUSES, getPriorityLabel } from "@/components/StatusBadge";
+import { StatusBadge, CONSULT_STATUSES, getPriorityLabel, PriorityBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -29,7 +29,13 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
+import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -53,6 +59,7 @@ import {
   FilePlus2,
   MoreHorizontal,
   Undo2,
+  ChevronDown,
   Zap,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -69,6 +76,12 @@ const followUpStatusLabels: Record<string, string> = {
   postponed: "연기",
   completed: "완료",
   cancelled: "취소",
+};
+
+const contactUrgencyLabels: Record<string, string> = {
+  high: "긴급",
+  medium: "주의",
+  low: "보통",
 };
 
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
@@ -241,6 +254,7 @@ export default function CustomerDetail({ id }: { id: number }) {
     null
   );
   const [activeTab, setActiveTab] = useState("info");
+  const isMobile = useIsMobile();
   const [timelineFilter, setTimelineFilter] =
     useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
   const [timelineRange, setTimelineRange] = useState<"all" | "30" | "90">(
@@ -779,14 +793,15 @@ export default function CustomerDetail({ id }: { id: number }) {
                   <ArrowLeft className="h-4 w-4 mr-1" /> 목록
                 </Button>
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#8a6d2f]">
-                    Customer Execution
+                  <p className="text-xs font-semibold text-primary/80">
+                    고객 상세
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-2">
                     <h1 className="text-2xl font-bold text-slate-950">
                       {customer.name}
                     </h1>
                     <StatusBadge status={customer.consultStatus} />
+                    <PriorityBadge priority={(customer as any).priority} />
                     <span
                       className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}
                     >
@@ -797,11 +812,6 @@ export default function CustomerDetail({ id }: { id: number }) {
                         장기 미관리
                       </span>
                     )}
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${customer.priority && customer.priority !== "unclassified" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
-                    >
-                      우선순위 {getPriorityLabel((customer as any).priority)}
-                    </span>
                     {(customer.assignmentStatus === "unassigned" ||
                       (!customer.agentId && !customer.subBranchAdminId)) && (
                       <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
@@ -814,42 +824,67 @@ export default function CustomerDetail({ id }: { id: number }) {
                       </span>
                     )}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                    <span>상담상태 · {customer.consultStatus}</span>
-                    <span>담당자 · {agentName}</span>
+                  <p className="mt-2 text-sm text-slate-700">
+                    <span className="font-medium">지금 할 일 · </span>
+                    {recommendedAction.title}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>담당 · {agentName}</span>
+                    <span>
+                      최근 상담 ·{" "}
+                      {latestConsultDate
+                        ? formatDate(latestConsultDate)
+                        : "없음"}
+                    </span>
+                    <span>
+                      다음 연락 ·{" "}
+                      {nextFollowUp
+                        ? formatDate(nextFollowUp.nextContactDate)
+                        : "설정 없음"}
+                    </span>
                   </div>
-                  <div className="mt-3 grid gap-2 text-xs text-slate-600 sm:hidden">
-                    {[
-                      { label: "연락처", value: customer.phone ?? "-" },
-                      {
-                        label: "생년월일",
-                        value: customer.birthDate
-                          ? new Date(customer.birthDate).toLocaleDateString(
-                              "ko-KR"
-                            )
-                          : "-",
-                      },
-                      { label: "담당자", value: agentName },
-                      {
-                        label: "다음 연락",
-                        value: nextFollowUp
-                          ? formatDate(nextFollowUp.nextContactDate)
-                          : "설정 없음",
-                      },
-                    ].map(item => (
-                      <div
-                        key={item.label}
-                        className="flex min-w-0 items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2"
-                      >
-                        <span className="shrink-0 font-medium text-slate-500">
-                          {item.label}
-                        </span>
-                        <span className="min-w-0 truncate font-semibold text-slate-900">
-                          {item.value}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  {isMobile && (
+                    <Collapsible className="mt-3">
+                      <CollapsibleTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="min-h-11 w-full justify-between"
+                        >
+                          연락·기본 정보
+                          <ChevronDown className="h-4 w-4" />
+                        </Button>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent className="mt-2 grid gap-2">
+                        {[
+                          { label: "연락처", value: customer.phone ?? "-" },
+                          {
+                            label: "생년월일",
+                            value: customer.birthDate
+                              ? new Date(customer.birthDate).toLocaleDateString(
+                                  "ko-KR"
+                                )
+                              : "-",
+                          },
+                          {
+                            label: "다음 액션",
+                            value: (customer as any).nextAction ?? "설정 필요",
+                          },
+                        ].map(item => (
+                          <div
+                            key={item.label}
+                            className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50/80 px-3 py-2 text-xs"
+                          >
+                            <span className="text-slate-500">{item.label}</span>
+                            <span className="truncate font-semibold text-slate-900">
+                              {item.value}
+                            </span>
+                          </div>
+                        ))}
+                      </CollapsibleContent>
+                    </Collapsible>
+                  )}
                 </div>
               </div>
               <DropdownMenu>
@@ -894,56 +929,119 @@ export default function CustomerDetail({ id }: { id: number }) {
               </DropdownMenu>
             </div>
 
-            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
-              {[
-                { label: "담당자", value: agentName },
-                {
-                  label: "예상보험료",
-                  value:
-                    customer.expectedPremium != null
-                      ? formatExpectedPremiumManwon(customer.expectedPremium)
-                      : "-",
-                },
-                {
-                  label: "마지막 상담일",
-                  value: latestConsultDate
-                    ? formatDate(latestConsultDate)
-                    : "상담 없음",
-                },
-                {
-                  label: "다음 연락일",
-                  value: nextFollowUp
-                    ? formatDate(nextFollowUp.nextContactDate)
-                    : "설정 없음",
-                },
-                { label: "유입경로", value: customer.source ?? "-" },
-                {
-                  label: "DB 업체명",
-                  value: (customer as any).dbCompany ?? "-",
-                },
-                { label: "지역", value: customer.region ?? "-" },
-              ].map(item => (
-                <div
-                  key={item.label}
-                  className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
-                >
-                  <p className="text-[11px] font-medium text-slate-500">
-                    {item.label}
-                  </p>
-                  <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
-                    {item.value}
-                  </p>
-                </div>
-              ))}
-            </div>
+            {isMobile ? (
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="min-h-11 w-full justify-between text-muted-foreground"
+                  >
+                    관리 지표·유입 정보
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {[
+                      { label: "담당자", value: agentName },
+                      {
+                        label: "예상보험료",
+                        value:
+                          customer.expectedPremium != null
+                            ? formatExpectedPremiumManwon(customer.expectedPremium)
+                            : "-",
+                      },
+                      {
+                        label: "마지막 상담일",
+                        value: latestConsultDate
+                          ? formatDate(latestConsultDate)
+                          : "상담 없음",
+                      },
+                      {
+                        label: "다음 연락일",
+                        value: nextFollowUp
+                          ? formatDate(nextFollowUp.nextContactDate)
+                          : "설정 없음",
+                      },
+                      { label: "유입경로", value: customer.source ?? "-" },
+                      {
+                        label: "DB 업체명",
+                        value: (customer as any).dbCompany ?? "-",
+                      },
+                      { label: "지역", value: customer.region ?? "-" },
+                    ].map(item => (
+                      <div
+                        key={item.label}
+                        className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
+                      >
+                        <p className="text-[11px] font-medium text-slate-500">
+                          {item.label}
+                        </p>
+                        <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
+                          {item.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
+                {[
+                  { label: "담당자", value: agentName },
+                  {
+                    label: "예상보험료",
+                    value:
+                      customer.expectedPremium != null
+                        ? formatExpectedPremiumManwon(customer.expectedPremium)
+                        : "-",
+                  },
+                  {
+                    label: "마지막 상담일",
+                    value: latestConsultDate
+                      ? formatDate(latestConsultDate)
+                      : "상담 없음",
+                  },
+                  {
+                    label: "다음 연락일",
+                    value: nextFollowUp
+                      ? formatDate(nextFollowUp.nextContactDate)
+                      : "설정 없음",
+                  },
+                  { label: "유입경로", value: customer.source ?? "-" },
+                  {
+                    label: "DB 업체명",
+                    value: (customer as any).dbCompany ?? "-",
+                  },
+                  { label: "지역", value: customer.region ?? "-" },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
+                  >
+                    <p className="text-[11px] font-medium text-slate-500">
+                      {item.label}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            <div className="rounded-lg border border-amber-200 bg-amber-50/70 p-4">
+            <div className="rounded-lg border border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white p-4">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
-                      Next Best Action
+                    <p className="text-xs font-semibold text-amber-800">
+                      지금 할 일
                     </p>
+                    <span className="text-[11px] text-muted-foreground">
+                      판단
+                    </span>
                     <span
                       className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${execution.gradeClassName}`}
                     >
@@ -979,12 +1077,15 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/90 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 lg:sticky lg:top-[4.6rem] lg:z-20">
+        <Card className="border-primary/15 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 md:sticky md:top-[4.6rem] md:z-20">
           <CardContent className="space-y-3 p-3 sm:p-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-slate-950">
-                  고객 실행 패널
+                  바로 실행
+                </p>
+                <p className="text-[11px] font-medium text-primary/70">
+                  행동
                 </p>
                 <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                   {recommendedAction.next}
@@ -996,37 +1097,45 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </span>
               )}
             </div>
-            <div className="space-y-2 md:grid md:grid-cols-6 md:gap-2 md:space-y-0">
+            <div
+              className={`space-y-2 md:grid md:grid-cols-6 md:gap-2 md:space-y-0 ${isMobile ? "hidden" : ""}`}
+            >
               <div className="grid grid-cols-2 gap-2 md:contents">
+                {customer.phone ? (
+                  <Button
+                    variant="default"
+                    className="min-h-12 flex-col justify-center gap-1 bg-blue-600 px-2 text-xs hover:bg-blue-700 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
+                    asChild
+                  >
+                    <a href={`tel:${customer.phone}`}>
+                      <Phone className="h-4 w-4" /> 전화하기
+                    </a>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
+                    disabled
+                  >
+                    <Phone className="h-4 w-4" /> 전화하기
+                  </Button>
+                )}
                 <Button
-                  className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm bg-blue-600 hover:bg-blue-700"
-                  onClick={() => setShowQuickConsultModal(true)}
-                >
-                  <Zap className="h-4 w-4" /> 퀵 상담
-                </Button>
-                <Button
-                  variant="outline"
+                  variant="default"
                   className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
                   onClick={() => setShowConsultModal(true)}
                 >
-                  <MessageSquare className="h-4 w-4" /> 상담기록
+                  <MessageSquare className="h-4 w-4" /> 상담 기록
                 </Button>
                 <Button
                   variant="secondary"
                   className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
                   onClick={() => setShowFollowUpModal(true)}
                 >
-                  <CalendarPlus className="h-4 w-4" /> 후속관리
+                  <CalendarPlus className="h-4 w-4" /> 후속 등록
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2 md:contents">
-                <Button
-                  variant="secondary"
-                  className="min-h-12 flex-col justify-center gap-1 bg-emerald-700 px-2 text-xs text-white hover:bg-emerald-800 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                  onClick={() => setShowContractModal(true)}
-                >
-                  <FilePlus2 className="h-4 w-4" /> 계약 등록
-                </Button>
                 <Button
                   variant="outline"
                   className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
@@ -1036,29 +1145,24 @@ export default function CustomerDetail({ id }: { id: number }) {
                     )
                   }
                 >
-                  <CalendarPlus className="h-4 w-4" /> 일정 추가
+                  <CalendarPlus className="h-4 w-4" /> 일정 등록
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="min-h-12 flex-col justify-center gap-1 bg-emerald-700 px-2 text-xs text-white hover:bg-emerald-800 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
+                  onClick={() => setShowContractModal(true)}
+                >
+                  <FilePlus2 className="h-4 w-4" /> 계약 등록
                 </Button>
               </div>
               <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-2 md:contents md:border-t-0 md:pt-0">
-                {customer.phone ? (
-                  <Button
-                    variant="outline"
-                    className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                    asChild
-                  >
-                    <a href={`tel:${customer.phone}`}>
-                      <Phone className="h-4 w-4" /> 전화
-                    </a>
-                  </Button>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                    disabled
-                  >
-                    <Phone className="h-4 w-4" /> 전화
-                  </Button>
-                )}
+                <Button
+                  variant="outline"
+                  className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
+                  onClick={() => setShowQuickConsultModal(true)}
+                >
+                  <Zap className="h-4 w-4" /> 퀵 상담
+                </Button>
                 <Button
                   variant="ghost"
                   className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
@@ -1071,29 +1175,46 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="p-4 space-y-4">
-            <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div>
-                <p className="text-sm font-semibold">관리 요약</p>
-                <p className="text-xs text-muted-foreground">
-                  현재 조치 상태를 먼저 확인하고 필요한 값만 바로 설정합니다.
-                </p>
+        <Collapsible defaultOpen={!isMobile}>
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="space-y-4 p-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">관리 상태</p>
+                    <span className="text-[11px] text-muted-foreground">
+                      상태
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    우선순위·다음 액션·성향 태그를 확인하고 필요할 때만
+                    수정합니다.
+                  </p>
+                </div>
+                {!isMobile ? null : (
+                  <CollapsibleTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="min-h-11 shrink-0"
+                    >
+                      {isMobile ? "펼치기" : "접기"}
+                      <ChevronDown className="ml-1 h-4 w-4" />
+                    </Button>
+                  </CollapsibleTrigger>
+                )}
               </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-full border px-2 py-1 text-xs ${(customer as any).priority === "unclassified" ? "border-red-200 bg-red-50 text-red-700" : "border-[#d9c99f] bg-[#fff8e8] text-[#7a5d1d]"}`}
-                >
-                  우선순위 {getPriorityLabel((customer as any).priority)}
-                </span>
-                <span
-                  className={`rounded-full border px-2 py-1 text-xs ${(customer as any).nextAction ? "border-slate-200 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-700"}`}
-                >
-                  다음 액션: {(customer as any).nextAction ?? "설정 필요"}
-                </span>
-              </div>
-            </div>
-            <div className="grid md:grid-cols-3 gap-3">
+              <CollapsibleContent className="space-y-4">
+                <div className="flex flex-wrap gap-2">
+                  <PriorityBadge priority={(customer as any).priority} />
+                  <span
+                    className={`rounded-full border px-2 py-1 text-xs ${(customer as any).nextAction ? "border-slate-200 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-700"}`}
+                  >
+                    다음 액션: {(customer as any).nextAction ?? "설정 필요"}
+                  </span>
+                </div>
+                <div className="grid gap-3 md:grid-cols-3">
               <div>
                 <Label className="text-xs">우선순위</Label>
                 <Select
@@ -1155,6 +1276,9 @@ export default function CustomerDetail({ id }: { id: number }) {
             </div>
             <div>
               <Label className="text-xs">상담 성향</Label>
+              <p className="mb-2 text-[11px] text-muted-foreground">
+                주요 태그만 빠르게 선택합니다. 전체 목록은 아래에서 확인하세요.
+              </p>
               <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1 md:max-h-none">
                 {CUSTOMER_TAGS.map(tag => {
                   const selected = customerTags.includes(tag);
@@ -1182,24 +1306,38 @@ export default function CustomerDetail({ id }: { id: number }) {
                 })}
               </div>
             </div>
-          </CardContent>
-        </Card>
+              </CollapsibleContent>
+            </CardContent>
+          </Card>
+        </Collapsible>
 
+        <Collapsible defaultOpen={!isMobile}>
         <Card className="border-emerald-100 bg-white/95 shadow-sm">
           <CardContent className="p-4 space-y-3">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <h3 className="font-semibold">상담 명분 추천</h3>
                 <p className="text-xs text-muted-foreground">
-                  추천 사유와 다음 행동을 분리해서 확인하고 바로 실행합니다.
+                  추천 사유를 확인하고 상담 기록·후속 등록으로 이어갑니다.
                 </p>
               </div>
+              <div className="flex items-center gap-2">
               <span
                 className={`w-fit rounded-full px-2 py-0.5 text-xs ${contactReasons?.urgency === "high" ? "bg-red-100 text-red-700" : contactReasons?.urgency === "medium" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}
               >
-                {contactReasons?.urgency ?? "low"}
+                {contactUrgencyLabels[contactReasons?.urgency ?? "low"] ??
+                  "보통"}
               </span>
+              {isMobile && (
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" size="sm" className="min-h-11">
+                    더보기
+                  </Button>
+                </CollapsibleTrigger>
+              )}
+              </div>
             </div>
+            <CollapsibleContent className="space-y-3">
             {(contactReasons?.warnings ?? []).length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {contactReasons?.warnings.slice(0, 3).map(warning => (
@@ -1239,36 +1377,46 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
               </Button>
               <Button size="sm" onClick={() => setShowConsultModal(true)}>
-                <MessageSquare className="h-4 w-4 mr-1" /> 상담기록에 추가
+                <MessageSquare className="h-4 w-4 mr-1" /> 상담 기록 추가
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowFollowUpModal(true)}
               >
-                <CalendarPlus className="h-4 w-4 mr-1" /> 다음 연락일 설정
+                <CalendarPlus className="h-4 w-4 mr-1" /> 후속 등록
               </Button>
             </div>
+            </CollapsibleContent>
           </CardContent>
         </Card>
+        </Collapsible>
 
         <Tabs
           value={activeTab}
           onValueChange={setActiveTab}
           className="space-y-4"
         >
+          <div className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+            <p className="text-xs font-semibold text-muted-foreground">
+              상담 흐름
+            </p>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              오늘 확인 → 상담 기록 → 진행 관리 → 계약·보장 → 상세 정보
+            </p>
+          </div>
           <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 shadow-sm md:flex-wrap">
-            <TabsTrigger value="info">기본정보</TabsTrigger>
             <TabsTrigger value="consult">
-              상담기록 ({consultations?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger value="contract">
-              계약정보 ({contracts?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger value="timeline">
-              히스토리 ({timelineData?.totalCount ?? 0})
+              상담 기록 ({consultations?.length ?? 0})
             </TabsTrigger>
             <TabsTrigger value="tools">상담 도구</TabsTrigger>
+            <TabsTrigger value="timeline">
+              활동 ({timelineData?.totalCount ?? 0})
+            </TabsTrigger>
+            <TabsTrigger value="contract">
+              계약·보장 ({contracts?.length ?? 0})
+            </TabsTrigger>
+            <TabsTrigger value="info">상세 정보</TabsTrigger>
             <TabsTrigger value="history">
               상태이력 ({statusHistoryData?.length ?? 0})
             </TabsTrigger>
@@ -2142,6 +2290,62 @@ export default function CustomerDetail({ id }: { id: number }) {
           </TabsContent>
         </Tabs>
       </div>
+
+      {isMobile && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden">
+          <div className="mx-auto grid max-w-lg grid-cols-4 gap-2">
+            {customer.phone ? (
+              <Button
+                variant="default"
+                className="min-h-12 flex-col gap-0.5 bg-blue-600 px-1 text-[11px] hover:bg-blue-700"
+                asChild
+              >
+                <a href={`tel:${customer.phone}`}>
+                  <Phone className="h-4 w-4" />
+                  전화
+                </a>
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
+                disabled
+              >
+                <Phone className="h-4 w-4" />
+                전화
+              </Button>
+            )}
+            <Button
+              variant="default"
+              className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
+              onClick={() => setShowConsultModal(true)}
+            >
+              <MessageSquare className="h-4 w-4" />
+              상담
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200"
+              onClick={() => setShowFollowUpModal(true)}
+            >
+              <CalendarPlus className="h-4 w-4" />
+              후속
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
+              onClick={() =>
+                setLocation(
+                  `/calendar?customerId=${customer.id}&action=create`
+                )
+              }
+            >
+              <CalendarPlus className="h-4 w-4" />
+              일정
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* 고객 정보 수정 모달 */}
       {showEditModal && (

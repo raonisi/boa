@@ -90,6 +90,7 @@ class CustomerDetail360View extends ConsumerWidget {
             name: name,
             consultStatus: consultStatus,
             priority: priority,
+            nextAction: nextAction,
             tags: tags,
             phone: phone,
             region: region,
@@ -97,6 +98,16 @@ class CustomerDetail360View extends ConsumerWidget {
             memo: memo,
             lastContact: updatedAt != null ? fieldFmtDateTime(updatedAt) : null,
             onEditMeta: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 관리정보'),
+          ),
+          const SizedBox(height: 12),
+          _NextActionHubCard(
+            theme: theme,
+            onConsultation: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 상담기록'),
+            onFollowUp: () => _openFollowUpDialog(context, ref, customerId),
+            onSchedule: () => _openScheduleDialog(context, ref, customerId, name),
+            onContract: () => _openContractCreate(context, ref, customerId, name),
+            onPhone: phone == null ? null : () => _launchPhone(context, phone),
+            onSms: phone == null ? null : () => _launchSms(context, phone),
           ),
           const SizedBox(height: 16),
           followUpsAsync.when(
@@ -183,16 +194,6 @@ class CustomerDetail360View extends ConsumerWidget {
             loading: () => const _SectionLoading(title: '계약 요약'),
             error: (_, __) => const _SectionError(title: '계약 요약'),
           ),
-          const SizedBox(height: 20),
-          _NextActionHubCard(
-            theme: theme,
-            onConsultation: () => openCustomerWebDetail(context, ref, customerId: customerId, title: '$name · 상담기록'),
-            onFollowUp: () => _openFollowUpDialog(context, ref, customerId),
-            onSchedule: () => _openScheduleDialog(context, ref, customerId, name),
-            onContract: () => _openContractCreate(context, ref, customerId, name),
-            onPhone: phone == null ? null : () => _launchPhone(context, phone),
-            onSms: phone == null ? null : () => _launchSms(context, phone),
-          ),
         ],
       ),
     );
@@ -258,6 +259,7 @@ class _ProfileHeroCard extends StatelessWidget {
     required this.name,
     required this.consultStatus,
     required this.priority,
+    required this.nextAction,
     required this.tags,
     required this.phone,
     required this.region,
@@ -273,6 +275,7 @@ class _ProfileHeroCard extends StatelessWidget {
   final String name;
   final String? consultStatus;
   final String priority;
+  final String? nextAction;
   final List<String> tags;
   final String? phone;
   final String? region;
@@ -319,9 +322,21 @@ class _ProfileHeroCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      '고객 요약',
+                      '고객 상세',
                       style: theme.textTheme.labelMedium?.copyWith(color: cs.onSurfaceVariant),
                     ),
+                    if (nextAction != null && nextAction!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        '지금 할 일 · $nextAction',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          color: BoaColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -338,25 +353,35 @@ class _ProfileHeroCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               if (consultStatus != null) _StatusChip(label: consultStatus!, color: cs.primary),
-              _StatusChip(label: '우선순위 $priority', color: cs.secondary),
-              if (phone != null) _StatusChip(label: phone!, color: cs.tertiary),
+              _StatusChip(label: priority, color: cs.secondary),
             ],
           ),
+          if (phone != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              phone!,
+              style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+            ),
+          ],
           if (tags.isNotEmpty) ...[
             const SizedBox(height: 8),
             Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: tags
-                  .take(6)
-                  .map(
-                    (t) => Chip(
-                      label: Text(t, style: theme.textTheme.labelSmall),
-                      visualDensity: VisualDensity.compact,
-                      side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                ...tags.take(3).map(
+                  (t) => Chip(
+                    label: Text(t, style: theme.textTheme.labelSmall),
+                    visualDensity: VisualDensity.compact,
+                    side: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+                  ),
+                ),
+                if (tags.length > 3)
+                  Text(
+                    '+${tags.length - 3}',
+                    style: theme.textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+              ],
             ),
           ],
           if (lastContact != null) ...[
@@ -463,7 +488,7 @@ class _TodayChecklistCard extends StatelessWidget {
             )
           else ...[
             if (hasNextAction) ...[
-              Text('다음 조치', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
+              Text('다음 액션', style: theme.textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
               Text(
                 nextAction!,
@@ -543,14 +568,14 @@ class _NextActionHubCard extends StatelessWidget {
               const Icon(Icons.flag_outlined, size: 20, color: BoaColors.deepGreen),
               const SizedBox(width: 8),
               Text(
-                '다음 액션',
+                '바로 실행',
                 style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, color: BoaColors.navy),
               ),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            '상담 후 바로 기록·등록을 진행할 수 있습니다.',
+            '전화·상담 기록·후속·일정을 바로 진행합니다. 상세 편집은 웹 화면으로 이어집니다.',
             style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.35),
           ),
           const SizedBox(height: 14),
@@ -558,12 +583,12 @@ class _NextActionHubCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _HubActionButton(icon: Icons.edit_note_outlined, label: '상담 기록 남기기', onTap: onConsultation),
+              if (onPhone != null)
+                _HubActionButton(icon: Icons.phone_outlined, label: '전화하기', onTap: onPhone!),
+              _HubActionButton(icon: Icons.edit_note_outlined, label: '상담 기록', onTap: onConsultation),
               _HubActionButton(icon: Icons.add_task_outlined, label: '후속 등록', onTap: onFollowUp),
               _HubActionButton(icon: Icons.event_outlined, label: '일정 등록', onTap: onSchedule),
               _HubActionButton(icon: Icons.description_outlined, label: '계약 등록', onTap: onContract),
-              if (onPhone != null)
-                _HubActionButton(icon: Icons.phone_outlined, label: '전화', onTap: onPhone!),
               if (onSms != null)
                 _HubActionButton(icon: Icons.sms_outlined, label: '문자', onTap: onSms!),
             ],
@@ -591,8 +616,8 @@ class _HubActionButton extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 44),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: BoaColors.border),
