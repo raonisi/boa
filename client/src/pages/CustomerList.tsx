@@ -6,6 +6,13 @@ import {
   newDbDateRange,
   type QuickPresetId,
 } from "@/components/customers/customerListQuickPresets";
+import { CustomerListDesktopWorkspace } from "@/components/customers/CustomerListDesktopWorkspace";
+import {
+  buildListExecution,
+  executionBadges,
+  maskPhone,
+  nextExecutionAction,
+} from "@/components/customers/customerListExecutionHelpers";
 import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel, PriorityBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,14 +40,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { EmptyState, ErrorState, renderMetricValue } from "@/components/ui/empty-state";
 import {
@@ -56,10 +55,6 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
-import {
-  buildCustomerExecutionScore,
-  type CustomerExecutionRecommendation,
-} from "@shared/customerExecution";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
@@ -118,115 +113,6 @@ const CUSTOMER_NEXT_ACTIONS = [
   "장기관리",
   "사후관리",
 ] as const;
-
-function parseCustomerTags(value?: string | null): string[] {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed)
-      ? parsed.filter((tag): tag is string => typeof tag === "string")
-      : [];
-  } catch {
-    return value
-      .split(",")
-      .map(tag => tag.trim())
-      .filter(Boolean);
-  }
-}
-
-function executionBadges(customer: any, recommendation?: any) {
-  const badges: { label: string; className: string }[] = [];
-  if (
-    customer.assignmentStatus === "unassigned" ||
-    (!customer.agentId && !customer.subBranchAdminId)
-  )
-    badges.push({ label: "미배정", className: "bg-slate-200 text-slate-700" });
-  if (customer.consultStatus === "미상담")
-    badges.push({ label: "미상담", className: "bg-slate-100 text-slate-700" });
-  if (
-    customer.consultStatus === "미상담" &&
-    customer.agentId &&
-    customer.assignedAt &&
-    Date.now() - new Date(customer.assignedAt).getTime() > 24 * 60 * 60 * 1000
-  ) {
-    badges.push({
-      label: "배정 후 연락 필요",
-      className:
-        "bg-destructive/10 text-destructive border-destructive/20 border",
-    });
-  }
-  if (
-    recommendation?.warnings?.some(
-      (warning: any) =>
-        String(warning.message).includes("장기") ||
-        String(warning.warningType).includes("long")
-    )
-  ) {
-    badges.push({
-      label: "장기 미관리",
-      className: "bg-amber-100 text-amber-800",
-    });
-  }
-  if (recommendation)
-    badges.push({
-      label: "우선 연락",
-      className:
-        recommendation.urgency === "high"
-          ? "bg-red-100 text-red-700"
-          : "bg-emerald-50 text-emerald-700",
-    });
-  if (!customer.priority || customer.priority === "unclassified")
-    badges.push({
-      label: "우선순위 미분류",
-      className: "bg-red-50 text-red-700",
-    });
-  return badges;
-}
-
-function nextExecutionAction(customer: any, recommendation?: any) {
-  const firstReason =
-    recommendation?.reasons?.[0]?.title ??
-    recommendation?.warnings?.[0]?.message;
-  return (
-    customer.nextAction ??
-    firstReason ??
-    (customer.consultStatus === "미상담" ? "첫 상담 연결" : "다음 행동 설정")
-  );
-}
-
-function buildListExecution(
-  customer: any,
-  recommendation?: CustomerExecutionRecommendation | null
-) {
-  const hasKnownConsultation =
-    Boolean((recommendation as any)?.lastConsultationDate) ||
-    customer.consultStatus !== "미상담";
-  const hasRecommendationContext = Boolean(recommendation);
-  return buildCustomerExecutionScore({
-    customer,
-    recommendation,
-    latestConsult: hasKnownConsultation ? {} : null,
-    nextFollowUp: (recommendation as any)?.nextContactDate
-      ? {}
-      : hasRecommendationContext
-        ? null
-        : undefined,
-    hasOpenFollowUp:
-      Number((recommendation as any)?.openFollowUpCount ?? 0) > 0,
-    isLongUnmanaged: recommendation?.warnings?.some(
-      warning =>
-        String(warning.warningType).includes("long") ||
-        String(warning.message).includes("장기")
-    ),
-  });
-}
-
-function maskPhone(phone?: string | null) {
-  if (!phone) return "-";
-  const digits = phone.replace(/\D/g, "");
-  if (digits.length < 7) return "연락처 등록";
-  return `${digits.slice(0, 3)}-****-${digits.slice(-4)}`;
-}
 
 export default function CustomerList() {
   const { user } = useAuth();
@@ -780,12 +666,12 @@ export default function CustomerList() {
   const hasBulkSelection = selectedCustomerIds.length > 0;
   const roleListDescription =
     user?.role === "sub_branch_admin"
-      ? "부지점장 산하 고객을 오늘 처리 순서대로 확인합니다."
+      ? "부지점장 산하 고객을 오늘 바로 조치할 순서대로 확인합니다."
       : user?.role === "team_leader"
-        ? "팀 고객 중 조치가 필요한 고객부터 확인합니다."
+        ? "팀 고객 중 지금 연락·상담·후속이 필요한 고객부터 실행합니다."
         : user?.role === "member"
           ? "내 담당 고객과 오늘 연락할 고객을 빠르게 찾습니다."
-          : "지점 전체 고객과 배정·담당 흐름을 관리합니다.";
+          : "지점 고객을 실행 점수순으로 보고 오늘 조치할 고객부터 관리합니다.";
 
   const advancedFilterFields = (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
@@ -922,7 +808,7 @@ export default function CustomerList() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                  고객 목록
+                  고객 관리
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {roleListDescription}
@@ -1356,379 +1242,31 @@ export default function CustomerList() {
             )}
           </div>
         ) : (
-          /* 데스크톱 테이블 뷰 */
-          <Card className="overflow-hidden border-border shadow-sm">
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-muted/40">
-                    <TableRow className="hover:bg-transparent">
-                      {(canReclaimCustomer || canBulkChangeAssignee) && (
-                        <TableHead className="w-10">
-                          <Checkbox
-                            checked={allVisibleSelectableSelected}
-                            disabled={selectableFilteredIds.length === 0}
-                            onCheckedChange={checked =>
-                              handleToggleAllVisibleSelectable(checked === true)
-                            }
-                            aria-label="화면에 보이는 고객 전체 선택"
-                          />
-                        </TableHead>
-                      )}
-                      <TableHead>고객 / 상태</TableHead>
-                      <TableHead>우선 연락</TableHead>
-                      <TableHead>다음 액션</TableHead>
-                      <TableHead>상담상태</TableHead>
-                      <TableHead>우선순위</TableHead>
-                      <TableHead>성향</TableHead>
-                      <TableHead>담당자</TableHead>
-                      <TableHead>지역/유입</TableHead>
-                      <TableHead>예상보험료</TableHead>
-                      <TableHead className="w-36">빠른 액션</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {isCustomersLoading ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={
-                            canReclaimCustomer || canBulkChangeAssignee
-                              ? 12
-                              : 11
-                          }
-                          className="py-14 text-center align-middle"
-                        >
-                          <EmptyState
-                            variant="loading"
-                            title="고객 목록을 불러오는 중입니다."
-                            description="권한 범위 안의 고객 데이터를 확인하고 있습니다."
-                            className="mx-auto max-w-md border-0 bg-transparent py-0"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : isCustomersError ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={
-                            canReclaimCustomer || canBulkChangeAssignee
-                              ? 12
-                              : 11
-                          }
-                          className="py-14 text-center align-middle"
-                        >
-                          <ErrorState
-                            title="고객 목록을 불러오지 못했습니다."
-                            description="고객이 없는 상태와 구분해 표시하고 있습니다. 잠시 후 다시 시도해 주세요."
-                            retryLabel="다시 시도"
-                            onRetry={() => void refetch()}
-                            className="mx-auto max-w-md border-0 bg-transparent py-0"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : workspaceCustomers.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={
-                            canReclaimCustomer || canBulkChangeAssignee
-                              ? 12
-                              : 11
-                          }
-                          className="py-14 text-center align-middle"
-                        >
-                          <EmptyState
-                            icon={hasActiveFilters ? Search : UserPlus}
-                            title={
-                              hasActiveFilters
-                                ? "현재 필터에 맞는 고객이 없습니다."
-                                : "표시할 고객이 없습니다."
-                            }
-                            description={
-                              hasActiveFilters
-                                ? "필터를 초기화해 다시 확인해 보세요."
-                                : "권한 범위 안에서 확인할 수 있는 고객이 없습니다."
-                            }
-                            className="mx-auto max-w-md border-0 bg-transparent py-0"
-                            action={
-                              <div className="flex flex-wrap justify-center gap-2">
-                                {hasActiveFilters ? (
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                  >
-                                    필터 초기화
-                                  </Button>
-                                ) : null}
-                                {canCreateCustomer ? (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={() => setShowCreate(true)}
-                                  >
-                                    신규 고객 등록
-                                  </Button>
-                                ) : null}
-                              </div>
-                            }
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      workspaceCustomers.map(c => {
-                        const recommendation = recommendationByCustomerId.get(
-                          c.id
-                        );
-                        const badges = executionBadges(c, recommendation);
-                        const execution = buildListExecution(c, recommendation);
-                        return (
-                          <TableRow
-                            key={c.id}
-                            className="group cursor-pointer transition-colors hover:bg-muted/35"
-                            onClick={() => setLocation(`/customers/${c.id}`)}
-                          >
-                            {(canReclaimCustomer || canBulkChangeAssignee) && (
-                              <TableCell onClick={e => e.stopPropagation()}>
-                                <Checkbox
-                                  checked={selectedCustomerIds.includes(c.id)}
-                                  disabled={
-                                    !selectableFilteredIds.includes(c.id)
-                                  }
-                                  onCheckedChange={checked =>
-                                    toggleCustomerSelection(
-                                      c.id,
-                                      checked === true
-                                    )
-                                  }
-                                  aria-label={`${c.name} 고객 선택`}
-                                />
-                              </TableCell>
-                            )}
-                            <TableCell className="font-medium text-foreground">
-                              <div className="flex flex-col gap-1">
-                                <span>{c.name}</span>
-                                <div className="flex flex-wrap gap-1">
-                                  {badges.map(badge => (
-                                    <span
-                                      key={badge.label}
-                                      className={`w-fit rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
-                                    >
-                                      {badge.label}
-                                    </span>
-                                  ))}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              <div className="flex flex-col gap-1">
-                                <span
-                                  className={`w-fit rounded-full border px-2 py-0.5 font-semibold ${execution.gradeClassName}`}
-                                >
-                                  관리점수 {execution.score}
-                                </span>
-                                <span className="text-[11px] text-muted-foreground">
-                                  {execution.grade}
-                                </span>
-                                {recommendation?.warnings?.[0] && (
-                                  <span className="text-red-600">
-                                    {recommendation.warnings[0].message}
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="max-w-[180px]">
-                              <span className="line-clamp-2 text-sm font-medium text-slate-800">
-                                {execution.actionTitle ||
-                                  nextExecutionAction(c, recommendation)}
-                              </span>
-                              {execution.reasons[0] && (
-                                <p className="mt-1 text-[11px] text-muted-foreground">
-                                  {execution.reasons[0].label} +
-                                  {execution.reasons[0].points}
-                                </p>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <StatusBadge status={c.consultStatus} />
-                            </TableCell>
-                            <TableCell>
-                              {(c as any).priority ? (
-                                <PriorityBadge priority={(c as any).priority} />
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  -
-                                </span>
-                              )}
-                            </TableCell>
-                            <TableCell className="max-w-[220px]">
-                              <div className="flex gap-1 flex-wrap">
-                                {parseCustomerTags((c as any).customerTags)
-                                  .slice(0, 3)
-                                  .map(tag => (
-                                    <span
-                                      key={tag}
-                                      className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700"
-                                    >
-                                      {tag}
-                                    </span>
-                                  ))}
-                                {parseCustomerTags((c as any).customerTags)
-                                  .length === 0 && (
-                                  <span className="text-xs text-muted-foreground">
-                                    -
-                                  </span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {formatUserWithRole(
-                                agentById.get(c.agentId ?? 0)
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              <div className="flex flex-col">
-                                <span>{c.region ?? "-"}</span>
-                                <span>{c.source ?? "-"}</span>
-                                {(c as any).dbCompany && (
-                                  <span>DB 업체: {(c as any).dbCompany}</span>
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-right tabular-nums text-base font-bold text-slate-950">
-                              {c.expectedPremium != null
-                                ? formatExpectedPremiumManwon(c.expectedPremium)
-                                : "-"}
-                            </TableCell>
-                            <TableCell
-                              className="w-[148px] text-right"
-                              onClick={e => e.stopPropagation()}
-                            >
-                              <div className="flex items-center justify-end gap-0.5">
-                                {c.phone ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9 shrink-0"
-                                    asChild
-                                    title="전화"
-                                  >
-                                    <a
-                                      href={`tel:${c.phone}`}
-                                      onClick={e => e.stopPropagation()}
-                                    >
-                                      <Phone className="h-4 w-4" />
-                                    </a>
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-9 w-9 shrink-0 text-muted-foreground"
-                                    disabled
-                                    title="연락처 없음"
-                                  >
-                                    <Phone className="h-4 w-4" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 shrink-0"
-                                  title="상담기록"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setLocation(
-                                      `/customers/${c.id}?action=consult`
-                                    );
-                                  }}
-                                >
-                                  <MessageSquare className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 shrink-0"
-                                  title="다음 연락"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setLocation(
-                                      `/customers/${c.id}?action=followup`
-                                    );
-                                  }}
-                                >
-                                  <CalendarPlus className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-9 w-9 shrink-0"
-                                  title="상세"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setLocation(`/customers/${c.id}`);
-                                  }}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                {canDeactivateCustomer && (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-9 w-9 shrink-0"
-                                        title="더보기"
-                                      >
-                                        <MoreHorizontal className="h-4 w-4" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem
-                                        onClick={() =>
-                                          setSelectedQuickConsultCustomer(c)
-                                        }
-                                        className="text-blue-600 font-medium"
-                                      >
-                                        <Zap className="h-4 w-4 mr-2" /> 퀵 상담
-                                        기록
-                                      </DropdownMenuItem>
-                                      {isCustomerReclaimable(c) && (
-                                        <DropdownMenuItem
-                                          onClick={e =>
-                                            handleOpenReclaimCustomer(
-                                              c.id,
-                                              e as any
-                                            )
-                                          }
-                                        >
-                                          <Undo2 className="h-4 w-4" /> DB 회수
-                                        </DropdownMenuItem>
-                                      )}
-                                      <DropdownMenuItem
-                                        variant="destructive"
-                                        onClick={e =>
-                                          handleDeactivateCustomer(
-                                            c.id,
-                                            e as any
-                                          )
-                                        }
-                                      >
-                                        <Trash2 className="h-4 w-4" /> 고객 삭제
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                )}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+          <CustomerListDesktopWorkspace
+            customers={workspaceCustomers}
+            recommendationByCustomerId={recommendationByCustomerId}
+            agentById={agentById}
+            isLoading={isCustomersLoading}
+            isError={isCustomersError}
+            hasActiveFilters={hasActiveFilters}
+            canCreateCustomer={canCreateCustomer}
+            canDeactivateCustomer={canDeactivateCustomer}
+            canReclaimCustomer={canReclaimCustomer}
+            canBulkChangeAssignee={canBulkChangeAssignee}
+            selectableFilteredIds={selectableFilteredIds}
+            selectedCustomerIds={selectedCustomerIds}
+            allVisibleSelectableSelected={allVisibleSelectableSelected}
+            onRetry={() => void refetch()}
+            onClearFilters={clearFilters}
+            onCreateCustomer={() => setShowCreate(true)}
+            onNavigate={setLocation}
+            onToggleAllVisibleSelectable={handleToggleAllVisibleSelectable}
+            onToggleCustomerSelection={toggleCustomerSelection}
+            onOpenReclaimCustomer={handleOpenReclaimCustomer}
+            onDeactivateCustomer={handleDeactivateCustomer}
+            onQuickConsult={setSelectedQuickConsultCustomer}
+            isCustomerReclaimable={isCustomerReclaimable}
+          />
         )}
       </div>
 
