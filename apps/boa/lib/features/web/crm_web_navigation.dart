@@ -38,6 +38,15 @@ void openCrmWebRoute(
     return;
   }
 
+  if (meta?.pcRecommended == true || meta?.highRisk == true) {
+    final hint = meta!.highRisk
+        ? '${meta.title} — 처리 전 내용을 확인해 주세요.'
+        : '${meta.title} — 넓은 화면에서 더 편한 업무입니다.';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(hint), duration: const Duration(seconds: 2)),
+    );
+  }
+
   Navigator.of(context).push<void>(
     MaterialPageRoute<void>(
       builder: (_) => CrmWebScreen.fromRouteKey(

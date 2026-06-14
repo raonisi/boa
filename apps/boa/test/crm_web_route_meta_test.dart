@@ -31,9 +31,10 @@ void main() {
       expect(meta.category, CrmWebRouteCategory.fieldWeb);
     });
 
-    test('customer detail path', () {
-      final meta = crmWebRouteMetaForPath('/customers/42', titleOverride: '고객 상세 (웹)');
-      expect(meta.title, '고객 상세 (웹)');
+    test('customer detail path recommends wider screen', () {
+      final meta = crmWebRouteMetaForPath('/customers/42', titleOverride: '홍길동 · 상담기록');
+      expect(meta.title, '홍길동 · 상담기록');
+      expect(meta.pcRecommended, isTrue);
     });
   });
 }

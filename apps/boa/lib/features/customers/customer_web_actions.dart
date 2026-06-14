@@ -8,7 +8,7 @@ void openCustomerWebDetail(
   BuildContext context,
   WidgetRef ref, {
   required int customerId,
-  String title = '고객 상세 (웹)',
+  String title = '고객 상세',
 }) {
   final session = ref.read(sessionProvider);
   if (session == null) {

@@ -171,22 +171,24 @@ CrmWebRouteMeta crmWebRouteMetaForPath(String path, {String? titleOverride}) {
   }
   if (normalized.startsWith('/customers/')) {
     return CrmWebRouteMeta(
-      title: titleOverride ?? '고객 상세 (웹)',
-      subtitle: '상담기록·상태 변경 등 웹 전용 기능입니다.',
+      title: titleOverride ?? '고객 상세',
+      subtitle: '상담 기록·상태 변경은 넓은 화면에서 더 편합니다. 모바일에서는 확인 중심으로 이용해 주세요.',
+      pcRecommended: true,
       category: CrmWebRouteCategory.fieldWeb,
     );
   }
   return CrmWebRouteMeta(
-    title: titleOverride ?? '관리자 웹 화면',
-    subtitle: '웹 CRM 화면을 앱 안에서 엽니다.',
+    title: titleOverride ?? '관리자 화면',
+    subtitle: '관리자 업무 화면입니다. 넓은 화면을 권장합니다.',
+    pcRecommended: true,
     category: CrmWebRouteCategory.adminWork,
   );
 }
 
 String crmWebCategoryLabel(CrmWebRouteCategory category) => switch (category) {
-      CrmWebRouteCategory.fieldWeb => '웹 보조',
+      CrmWebRouteCategory.fieldWeb => '상담 보조',
       CrmWebRouteCategory.adminWork => '관리자',
       CrmWebRouteCategory.bulkWork => '대량 작업',
-      CrmWebRouteCategory.highRiskWork => '고위험',
-      CrmWebRouteCategory.opsLog => '운영 로그',
+      CrmWebRouteCategory.highRiskWork => '보안 확인',
+      CrmWebRouteCategory.opsLog => '운영 기록',
     };

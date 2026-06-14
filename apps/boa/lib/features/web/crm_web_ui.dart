@@ -2,6 +2,143 @@ import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/features/web/crm_web_route_meta.dart';
 import 'package:flutter/material.dart';
 
+/// AppBar 아래 컴팩트 브랜드·맥락 strip — Native AppBar와 톤을 맞춘다.
+class CrmWebChromeStrip extends StatelessWidget {
+  const CrmWebChromeStrip({
+    super.key,
+    required this.subtitle,
+    this.pcRecommended = false,
+    this.highRisk = false,
+  });
+
+  final String subtitle;
+  final bool pcRecommended;
+  final bool highRisk;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Material(
+      color: BoaColors.ivory,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: BoaColors.border.withValues(alpha: 0.85))),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 3,
+                height: 28,
+                margin: const EdgeInsets.only(top: 2, right: 10),
+                decoration: BoxDecoration(
+                  color: BoaColors.deepGreen.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BOA 지점관리 CRM',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: BoaColors.navy,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: BoaColors.textSecondary,
+                        height: 1.35,
+                      ),
+                    ),
+                    if (pcRecommended || highRisk) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        children: [
+                          if (pcRecommended) const CrmWebContextBadge.pcRecommended(),
+                          if (highRisk) const CrmWebContextBadge.highRisk(),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class CrmWebContextBadge extends StatelessWidget {
+  const CrmWebContextBadge({
+    super.key,
+    required this.label,
+    required this.background,
+    required this.foreground,
+    required this.border,
+    required this.icon,
+  });
+
+  const CrmWebContextBadge.pcRecommended({super.key})
+      : label = 'PC 권장 업무',
+        background = const Color(0xFFF4F7F5),
+        foreground = BoaColors.deepGreen,
+        border = const Color(0xFFD4E4DA),
+        icon = Icons.computer_outlined;
+
+  const CrmWebContextBadge.highRisk({super.key})
+      : label = '보안 확인 필요',
+        background = const Color(0xFFFFF8EE),
+        foreground = const Color(0xFF8A5A12),
+        border = const Color(0xFFE8D4A8),
+        icon = Icons.verified_user_outlined;
+
+  final String label;
+  final Color background;
+  final Color foreground;
+  final Color border;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: foreground),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: foreground,
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// WebView 상단 PC 권장 안내.
 class CrmWebPcRecommendedBanner extends StatelessWidget {
   const CrmWebPcRecommendedBanner({super.key});
@@ -9,10 +146,10 @@ class CrmWebPcRecommendedBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: BoaColors.ivory,
+      color: const Color(0xFFF7FAF8),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: BoaColors.gold.withValues(alpha: 0.35))),
+          border: Border(bottom: BorderSide(color: BoaColors.gold.withValues(alpha: 0.28))),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -23,11 +160,11 @@ class CrmWebPcRecommendedBanner extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  '이 화면은 대량·관리자 작업이 포함되어 PC 사용을 권장합니다.',
+                  '넓은 화면에서 더 편하게 사용할 수 있습니다. 모바일에서는 주요 내용 확인을 중심으로 이용해 주세요.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: BoaColors.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                        height: 1.4,
                       ),
                 ),
               ),
@@ -48,26 +185,38 @@ class CrmWebHighRiskBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFFFFF8F6),
+      color: const Color(0xFFFFFBF5),
       child: DecoratedBox(
-        decoration: const BoxDecoration(
-          border: Border(bottom: BorderSide(color: Color(0xFFF5C6C2))),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: BoaColors.gold.withValues(alpha: 0.35))),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.warning_amber_rounded, size: 20, color: BoaColors.urgent),
+              Icon(Icons.shield_outlined, size: 20, color: BoaColors.gold.withValues(alpha: 0.95)),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  message,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: BoaColors.urgent,
-                        fontWeight: FontWeight.w600,
-                        height: 1.35,
-                      ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '처리 전 내용을 확인해 주세요.',
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: const Color(0xFF7A5D1D),
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      message,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: BoaColors.textPrimary,
+                            height: 1.4,
+                          ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -88,7 +237,7 @@ class CrmWebLoadingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return ColoredBox(
-      color: BoaColors.canvas.withValues(alpha: 0.94),
+      color: BoaColors.canvas.withValues(alpha: 0.96),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 320),
@@ -111,11 +260,27 @@ class CrmWebLoadingOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    title ?? '관리자 화면을 불러오는 중입니다.',
+                    title ?? '화면을 불러오는 중입니다.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
+                  ...List.generate(
+                    3,
+                    (i) => Padding(
+                      padding: EdgeInsets.only(bottom: i == 2 ? 0 : 8),
+                      child: Container(
+                        height: 10,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: BoaColors.ivory,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: BoaColors.border.withValues(alpha: 0.6)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   Text(
                     '잠시만 기다려 주세요. 연결이 느리면 네트워크 상태를 확인해 주세요.',
                     textAlign: TextAlign.center,
@@ -137,6 +302,7 @@ class CrmWebErrorPanel extends StatelessWidget {
     super.key,
     required this.message,
     required this.onRetry,
+    this.onBack,
     this.onOpenChromeTab,
     this.onOpenExternalBrowser,
     this.showHttp2Hint = false,
@@ -144,6 +310,7 @@ class CrmWebErrorPanel extends StatelessWidget {
 
   final String message;
   final VoidCallback onRetry;
+  final VoidCallback? onBack;
   final VoidCallback? onOpenChromeTab;
   final VoidCallback? onOpenExternalBrowser;
   final bool showHttp2Hint;
@@ -168,11 +335,11 @@ class CrmWebErrorPanel extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(color: BoaColors.border),
                   ),
-                  child: const Icon(Icons.cloud_off_outlined, size: 40, color: BoaColors.urgent),
+                  child: const Icon(Icons.cloud_off_outlined, size: 40, color: BoaColors.navy),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '화면을 불러오지 못했습니다.',
+                  '정보를 다시 불러오지 못했습니다.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -191,15 +358,19 @@ class CrmWebErrorPanel extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(height: 20),
+                FilledButton.tonal(onPressed: onRetry, child: const Text('다시 시도')),
+                if (onBack != null) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton(onPressed: onBack, child: const Text('이전 화면')),
+                ],
                 if (onOpenChromeTab != null) ...[
+                  const SizedBox(height: 8),
                   FilledButton.icon(
                     onPressed: onOpenChromeTab,
                     icon: const Icon(Icons.tab),
                     label: const Text('브라우저 탭으로 열기'),
                   ),
-                  const SizedBox(height: 8),
                 ],
-                FilledButton.tonal(onPressed: onRetry, child: const Text('다시 시도')),
                 if (onOpenExternalBrowser != null) ...[
                   const SizedBox(height: 8),
                   TextButton(

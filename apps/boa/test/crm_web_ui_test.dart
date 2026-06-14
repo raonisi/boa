@@ -10,7 +10,7 @@ void main() {
         home: Scaffold(body: CrmWebPcRecommendedBanner()),
       ),
     );
-    expect(find.textContaining('PC 사용을 권장'), findsOneWidget);
+    expect(find.textContaining('넓은 화면'), findsOneWidget);
   });
 
   testWidgets('CrmWebHighRiskBanner shows custom message', (tester) async {
@@ -30,7 +30,7 @@ void main() {
         home: Scaffold(body: CrmWebLoadingOverlay()),
       ),
     );
-    expect(find.text('관리자 화면을 불러오는 중입니다.'), findsOneWidget);
+    expect(find.text('화면을 불러오는 중입니다.'), findsOneWidget);
   });
 
   testWidgets('CrmWebErrorPanel hides raw technical details', (tester) async {
@@ -44,7 +44,7 @@ void main() {
         ),
       ),
     );
-    expect(find.text('화면을 불러오지 못했습니다.'), findsOneWidget);
+    expect(find.text('정보를 다시 불러오지 못했습니다.'), findsOneWidget);
     expect(find.text('다시 시도'), findsOneWidget);
   });
 

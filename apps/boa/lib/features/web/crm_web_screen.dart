@@ -19,6 +19,10 @@ const String _kCrmEmbeddedChromeUa =
 const String _kCrmEmbeddedDesktopChromeUa =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+const String _kMobileEmbedClassScript = '''
+(function(){try{document.documentElement.classList.add('boa-mobile-embed');}catch(e){}})();
+''';
+
 /// 웹 CRM 화면을 인앱 WebView로 연다. JWT는 Authorization 헤더로만 전달하며 UI/URL에 노출하지 않는다.
 class CrmWebScreen extends StatefulWidget {
   const CrmWebScreen({
@@ -132,8 +136,11 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               });
             }
           },
-          onPageFinished: (_) {
+          onPageFinished: (_) async {
             if (mounted) setState(() => _loading = false);
+            try {
+              await _controller.runJavaScript(_kMobileEmbedClassScript);
+            } catch (_) {}
           },
           onWebResourceError: (WebResourceError e) {
             if (e.isForMainFrame == false) return;
@@ -357,6 +364,42 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
     unawaited(_applyUserAgentAndLoad());
   }
 
+  String get _chromeSubtitle =>
+      widget.subtitle ??
+      switch (widget.category) {
+        CrmWebRouteCategory.fieldWeb => '상담·관리 기능을 앱 안에서 이어서 확인합니다.',
+        CrmWebRouteCategory.adminWork => '관리자 업무 화면입니다. 넓은 화면을 권장합니다.',
+        CrmWebRouteCategory.bulkWork => '대량 선택과 세부 확인이 필요한 업무입니다.',
+        CrmWebRouteCategory.highRiskWork => '고객 정보에 영향을 줄 수 있는 업무입니다.',
+        CrmWebRouteCategory.opsLog => '운영·감사 기록을 확인하는 화면입니다.',
+      };
+
+  PreferredSizeWidget? _buildAppBarBottom() {
+    final children = <Widget>[
+      CrmWebChromeStrip(
+        subtitle: _chromeSubtitle,
+        pcRecommended: widget.pcRecommended,
+        highRisk: widget.highRisk,
+      ),
+    ];
+    if (_loading) {
+      children.add(
+        const LinearProgressIndicator(
+          backgroundColor: BoaColors.border,
+          minHeight: 3,
+        ),
+      );
+    }
+    return PreferredSize(
+      preferredSize: Size.fromHeight(_loading ? 78 : 75),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
+    );
+  }
+
   Widget _buildChromeTabHandoffBody(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Center(
@@ -370,14 +413,14 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               Icon(Icons.tab, size: 48, color: scheme.primary),
               const SizedBox(height: 16),
               Text(
-                '이 메뉴는 브라우저 탭에서 열립니다',
+                '브라우저 탭에서 이어서 이용',
                 textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               Text(
-                '앱 내 화면은 이 서버와 연결 방식이 맞지 않을 수 있습니다. '
-                '아래 버튼으로 브라우저 탭에서 열어 작업을 이어가 주세요.',
+                '이 화면은 앱 내 연결 방식과 맞지 않을 수 있습니다. '
+                '브라우저 탭에서 열면 더 안정적으로 이용할 수 있습니다.',
                 textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
               ),
@@ -394,6 +437,10 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               ),
               const SizedBox(height: 8),
               TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('이전 화면'),
+              ),
+              TextButton(
                 onPressed: _retryWebViewFromHandoff,
                 child: const Text('앱 내 화면으로 다시 시도'),
               ),
@@ -401,30 +448,6 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildHeaderSubtitle(BuildContext context) {
-    final theme = Theme.of(context);
-    final cs = theme.colorScheme;
-    final subtitle = widget.subtitle ?? '웹 CRM · ${crmWebCategoryLabel(widget.category)}';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          subtitle,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.labelSmall?.copyWith(color: cs.onSurfaceVariant),
-        ),
-        Text(
-          crmWebCategoryLabel(widget.category),
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: cs.primary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 
@@ -436,7 +459,7 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
     if (widget.highRisk) {
       banners.add(CrmWebHighRiskBanner(
         message: widget.highRiskNotice ??
-            '삭제·병합·인수인계 작업은 실행 전 대상을 다시 확인해 주세요.',
+            '고객 정보에 영향을 줄 수 있습니다. 권한 범위 안에서만 처리할 수 있습니다.',
       ));
     }
     return banners;
@@ -451,30 +474,18 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
         _handleSystemBack();
       },
       child: Scaffold(
+        backgroundColor: BoaColors.canvas,
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            tooltip: '뒤로',
+            tooltip: '이전 화면',
             onPressed: () => unawaited(_handleSystemBack()),
           ),
-          title: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-              _buildHeaderSubtitle(context),
-            ],
-          ),
-          bottom: _loading
-              ? PreferredSize(
-                  preferredSize: const Size.fromHeight(3),
-                  child: LinearProgressIndicator(
-                    backgroundColor: BoaColors.border,
-                  ),
-                )
-              : null,
+          title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+          bottom: _buildAppBarBottom(),
           actions: [
             IconButton(
-              tooltip: '새로고침',
+              tooltip: '다시 불러오기',
               onPressed: _reloadInProgress ? null : _retryLoad,
               icon: const Icon(Icons.refresh),
             ),
@@ -482,11 +493,6 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
               tooltip: '브라우저 탭으로 열기',
               onPressed: () => unawaited(_openChromeTabAndEnterHandoff()),
               icon: const Icon(Icons.tab),
-            ),
-            IconButton(
-              tooltip: '외부 브라우저에서 열기',
-              onPressed: _openInExternalBrowser,
-              icon: const Icon(Icons.open_in_browser),
             ),
           ],
         ),
@@ -499,22 +505,34 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
                   children: [
                     ..._buildContextBanners(),
                     Expanded(
-                      child: Stack(
-                        children: [
-                          WebViewWidget(controller: _controller),
-                          if (_loading && _rawError == null)
-                            CrmWebLoadingOverlay(title: '${widget.title} 불러오는 중…'),
-                          if (_rawError != null)
-                            CrmWebErrorPanel(
-                              message: _displayError,
-                              showHttp2Hint: _showHttp2Hint,
-                              onRetry: _retryLoad,
-                              onOpenChromeTab: _showHttp2Hint
-                                  ? () => unawaited(_openChromeTabAndEnterHandoff())
-                                  : null,
-                              onOpenExternalBrowser: _openInExternalBrowser,
+                      child: DecoratedBox(
+                        decoration: const BoxDecoration(
+                          color: BoaColors.canvas,
+                          border: Border(top: BorderSide(color: BoaColors.border)),
+                        ),
+                        child: Stack(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 2),
+                              child: WebViewWidget(controller: _controller),
                             ),
-                        ],
+                            if (_loading && _rawError == null)
+                              CrmWebLoadingOverlay(
+                                title: '${widget.title} 화면을 불러오는 중입니다.',
+                              ),
+                            if (_rawError != null)
+                              CrmWebErrorPanel(
+                                message: _displayError,
+                                showHttp2Hint: _showHttp2Hint,
+                                onRetry: _retryLoad,
+                                onBack: () => Navigator.of(context).pop(),
+                                onOpenChromeTab: _showHttp2Hint
+                                    ? () => unawaited(_openChromeTabAndEnterHandoff())
+                                    : null,
+                                onOpenExternalBrowser: _openInExternalBrowser,
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
