@@ -140,18 +140,18 @@ abstract final class AppTheme {
   static ThemeData dark() => light();
 
   static ThemeData _base(ColorScheme scheme) {
-    final textTheme = TextTheme(
-      headlineMedium: const TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: BoaColors.textPrimary, height: 1.2),
-      headlineSmall: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: BoaColors.textPrimary, height: 1.25),
-      titleLarge: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: BoaColors.textPrimary, height: 1.3),
-      titleMedium: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: BoaColors.textPrimary, height: 1.35),
-      titleSmall: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: BoaColors.textPrimary, height: 1.35),
-      bodyLarge: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: BoaColors.textPrimary, height: 1.45),
-      bodyMedium: const TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: BoaColors.textPrimary, height: 1.45),
-      bodySmall: const TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: BoaColors.textSecondary, height: 1.4),
-      labelLarge: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BoaColors.textPrimary),
-      labelMedium: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: BoaColors.textSecondary),
-      labelSmall: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: BoaColors.textSecondary),
+    final textTheme = const TextTheme(
+      headlineMedium: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: BoaColors.textPrimary, height: 1.2),
+      headlineSmall: TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: BoaColors.textPrimary, height: 1.25),
+      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: BoaColors.textPrimary, height: 1.3),
+      titleMedium: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: BoaColors.textPrimary, height: 1.35),
+      titleSmall: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: BoaColors.textPrimary, height: 1.35),
+      bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, color: BoaColors.textPrimary, height: 1.45),
+      bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, color: BoaColors.textPrimary, height: 1.45),
+      bodySmall: TextStyle(fontSize: 13, fontWeight: FontWeight.w400, color: BoaColors.textSecondary, height: 1.4),
+      labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: BoaColors.textPrimary),
+      labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: BoaColors.textSecondary),
+      labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: BoaColors.textSecondary),
     );
 
     return ThemeData(

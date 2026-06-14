@@ -73,10 +73,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   style: theme.textTheme.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
                 ),
                 const SizedBox(height: 36),
-                SizedBox(
+                const SizedBox(
                   width: 28,
                   height: 28,
-                  child: const CircularProgressIndicator(strokeWidth: 2.5, color: BoaColors.navy),
+                  child: CircularProgressIndicator(strokeWidth: 2.5, color: BoaColors.navy),
                 ),
                 const SizedBox(height: 12),
                 Text(

@@ -19,6 +19,7 @@ import {
   paginateMobileList,
   parseMobileSearchQuery,
 } from "./mobileSearchFilters";
+import { sanitizeAuthError } from "./authErrorSanitizer";
 
 const googleIdTokenBody = z.object({
   idToken: z.string().min(10),

@@ -89,7 +89,7 @@ class NotificationsListNotifier extends StateNotifier<NotificationListState> {
       );
     } catch (e) {
       if (gen != _requestGen) return;
-      state = NotificationListState(
+      state = const NotificationListState(
         loadingInitial: false,
         errorMessage: '알림 정보를 불러오지 못했습니다. 다시 시도해 주세요.',
       );
