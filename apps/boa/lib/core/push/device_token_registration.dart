@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:boa/core/push/fcm_registration_logging.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -25,7 +26,7 @@ Future<void> registerDeviceTokenWithRetry(Dio dio, {String? token}) async {
     final t = token ?? await FirebaseMessaging.instance.getToken();
     if (t == null || t.isEmpty) {
       if (kDebugMode) {
-        debugPrint('[FCM] no token (Firebase 미설정 또는 권한 없음)');
+        debugPrint('[FCM] device token registration skipped');
       }
       return;
     }
@@ -44,18 +45,13 @@ Future<void> registerDeviceTokenWithRetry(Dio dio, {String? token}) async {
         return;
       } catch (e) {
         if (attempt == 2) {
-          if (kDebugMode) {
-            debugPrint('[FCM] register failed after retries: $e');
-          }
+          logFcmRegistrationFailure('device token registration failed', e);
           return;
         }
         await Future<void>.delayed(Duration(seconds: 1 << attempt));
       }
     }
-  } catch (e, st) {
-    if (kDebugMode) {
-      debugPrint('[FCM] registerDeviceTokenWithRetry: $e');
-      debugPrintStack(stackTrace: st);
-    }
+  } catch (e) {
+    logFcmRegistrationFailure('device token registration failed', e);
   }
 }

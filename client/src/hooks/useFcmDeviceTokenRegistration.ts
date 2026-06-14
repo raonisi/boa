@@ -3,6 +3,7 @@ import { Capacitor } from "@capacitor/core";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { trpc } from "@/lib/trpc";
 import { FCM_TOKEN_STORAGE_KEY, getOrCreateDeviceId } from "@/lib/deviceToken";
+import { logFcmRegistrationFailure } from "@/lib/safeFcmRegistrationError";
 
 type ActiveUser = {
   id: number;
@@ -52,7 +53,10 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
                 osVersion: navigator.platform || "android",
               });
             } catch (error) {
-              console.warn("[FCM] Failed to register device token.", error);
+              logFcmRegistrationFailure(
+                "Failed to register device token",
+                error
+              );
             }
           }
         );
@@ -60,7 +64,7 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
         const errorListener = await PushNotifications.addListener(
           "registrationError",
           error => {
-            console.warn("[FCM] Push registration failed.", error);
+            logFcmRegistrationFailure("Push registration failed", error);
           }
         );
 
@@ -71,7 +75,7 @@ export function useFcmDeviceTokenRegistration(user: ActiveUser | null) {
           errorListener.remove();
         };
       } catch (error) {
-        console.warn("[FCM] Push notification setup skipped.", error);
+        logFcmRegistrationFailure("Push notification setup skipped", error);
       }
     };
 
