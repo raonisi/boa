@@ -1,4 +1,5 @@
 import { EmptyState } from "@/components/ui/empty-state";
+import { Button } from "@/components/ui/button";
 import { Home, LockKeyhole, ShieldAlert } from "lucide-react";
 import React from "react";
 
@@ -20,24 +21,25 @@ export function ForbiddenState({
           className="border-solid bg-card p-6 shadow-sm sm:p-8"
           action={
             <div className="flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
-              <button
+              <Button
                 type="button"
                 onClick={() => {
                   window.location.href = "/";
                 }}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+                className="gap-2"
               >
                 <Home className="h-4 w-4" aria-hidden="true" />
                 홈으로 이동
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="outline"
                 onClick={() => window.history.back()}
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 text-sm font-semibold text-foreground transition-colors hover:bg-muted/70"
+                className="gap-2"
               >
                 <ShieldAlert className="h-4 w-4" aria-hidden="true" />
                 이전 화면
-              </button>
+              </Button>
             </div>
           }
         />

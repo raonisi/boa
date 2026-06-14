@@ -186,103 +186,31 @@
     @apply bg-primary/15 text-foreground;
   }
 
-  /* Status badge colors — light */
+  /* Legacy status-badge aliases — prefer StatusBadge component for new code. */
   .status-badge {
-    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold;
   }
   .status-미상담 {
-    @apply bg-gray-100 text-gray-700;
-  }
-  .status-부재 {
-    @apply bg-orange-100 text-orange-700;
-  }
-  .status-통화완료 {
-    @apply bg-blue-100 text-blue-700;
-  }
-  .status-상담예정 {
-    @apply bg-purple-100 text-purple-700;
-  }
-  .status-설계중 {
-    @apply bg-indigo-100 text-indigo-700;
-  }
-  .status-계약 {
-    @apply bg-green-100 text-green-700;
-  }
-  .status-보류 {
-    @apply bg-yellow-100 text-yellow-700;
-  }
-  .status-거절 {
-    @apply bg-red-100 text-red-700;
-  }
-  .status-해지관리 {
-    @apply bg-rose-100 text-rose-700;
-  }
-  .status-재상담필요 {
-    @apply bg-teal-100 text-teal-700;
-  }
-
-  /* Status badge colors — dark */
-  .dark .status-미상담 {
-    @apply bg-gray-800/60 text-gray-300;
-  }
-  .dark .status-부재 {
-    @apply bg-orange-900/45 text-orange-300;
-  }
-  .dark .status-통화완료 {
-    @apply bg-blue-900/45 text-blue-300;
-  }
-  .dark .status-상담예정 {
-    @apply bg-purple-900/45 text-purple-300;
-  }
-  .dark .status-설계중 {
-    @apply bg-indigo-900/45 text-indigo-300;
-  }
-  .dark .status-계약 {
-    @apply bg-green-900/45 text-green-300;
-  }
-  .dark .status-보류 {
-    @apply bg-yellow-900/40 text-yellow-300;
-  }
-  .dark .status-거절 {
-    @apply bg-red-900/45 text-red-300;
-  }
-  .dark .status-해지관리 {
-    @apply bg-rose-900/45 text-rose-300;
-  }
-  .dark .status-재상담필요 {
-    @apply bg-teal-900/45 text-teal-300;
-  }
-
-  /* Canonical Korean status aliases using the BOA premium finance palette. */
-  .status-미상담 {
-    @apply bg-muted text-muted-foreground;
+    @apply bg-muted text-muted-foreground ring-1 ring-border/70;
   }
   .status-부재 {
     @apply bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25;
   }
-  .status-통화완료 {
-    @apply bg-primary/10 text-primary ring-1 ring-primary/15;
-  }
-  .status-상담예정 {
-    @apply bg-primary/10 text-primary ring-1 ring-primary/15;
-  }
+  .status-통화완료,
+  .status-상담예정,
   .status-설계중 {
     @apply bg-primary/10 text-primary ring-1 ring-primary/15;
   }
-  .status-계약 {
+  .status-계약,
+  .status-재상담필요 {
     @apply bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20;
   }
   .status-보류 {
     @apply bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25;
   }
-  .status-거절 {
-    @apply bg-destructive/10 text-destructive ring-1 ring-destructive/20;
-  }
+  .status-거절,
   .status-해지관리 {
     @apply bg-destructive/10 text-destructive ring-1 ring-destructive/20;
-  }
-  .status-재상담필요 {
-    @apply bg-boa-green/12 text-boa-green ring-1 ring-boa-green/20;
   }
 
   .dark .status-미상담 {
@@ -291,29 +219,21 @@
   .dark .status-부재 {
     @apply bg-boa-amber/18 text-amber-200 ring-1 ring-boa-amber/25;
   }
-  .dark .status-통화완료 {
-    @apply bg-primary/12 text-primary ring-1 ring-primary/20;
-  }
-  .dark .status-상담예정 {
-    @apply bg-primary/12 text-primary ring-1 ring-primary/20;
-  }
+  .dark .status-통화완료,
+  .dark .status-상담예정,
   .dark .status-설계중 {
     @apply bg-primary/12 text-primary ring-1 ring-primary/20;
   }
-  .dark .status-계약 {
+  .dark .status-계약,
+  .dark .status-재상담필요 {
     @apply bg-boa-green/16 text-boa-green ring-1 ring-boa-green/25;
   }
   .dark .status-보류 {
     @apply bg-boa-amber/18 text-amber-200 ring-1 ring-boa-amber/25;
   }
-  .dark .status-거절 {
-    @apply bg-destructive/14 text-destructive ring-1 ring-destructive/25;
-  }
+  .dark .status-거절,
   .dark .status-해지관리 {
     @apply bg-destructive/14 text-destructive ring-1 ring-destructive/25;
-  }
-  .dark .status-재상담필요 {
-    @apply bg-boa-green/16 text-boa-green ring-1 ring-boa-green/25;
   }
 
   button:not(:disabled),
@@ -454,7 +374,7 @@
   }
 
   .crm-priority-chip {
-    @apply rounded-full px-2 py-1 text-[11px] font-semibold transition;
+    @apply min-h-11 rounded-full px-3 py-2 text-[11px] font-semibold transition sm:min-h-8 sm:py-1;
   }
 
   .crm-priority-chip-active {
@@ -462,15 +382,15 @@
   }
 
   .crm-priority-urgent {
-    @apply bg-red-100 text-red-700 dark:bg-red-900/35 dark:text-red-200;
+    @apply bg-destructive/10 text-destructive ring-1 ring-destructive/20 dark:bg-destructive/14 dark:text-destructive;
   }
 
   .crm-priority-today {
-    @apply bg-amber-100 text-amber-700 dark:bg-amber-900/35 dark:text-amber-200;
+    @apply bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25 dark:bg-boa-amber/18 dark:text-amber-200;
   }
 
   .crm-priority-general {
-    @apply bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300;
+    @apply bg-primary/10 text-primary ring-1 ring-primary/15 dark:bg-primary/12;
   }
 
   .crm-priority-neutral {

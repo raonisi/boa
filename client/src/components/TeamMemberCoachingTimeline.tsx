@@ -3,6 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CoachingPriorityBadge } from "@/components/StatusBadge";
+import { LoadingState } from "@/components/ui/empty-state";
 import {
   Card,
   CardContent,
@@ -12,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { CoachingNoteDialog } from "./CoachingNoteDialog";
 import {
-  Loader2,
   Calendar,
   Target,
   CheckCircle2,
@@ -44,17 +45,6 @@ export function TeamMemberCoachingTimeline({
     },
   });
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "destructive";
-      case "low":
-        return "secondary";
-      default:
-        return "default";
-    }
-  };
-
   const getCategoryLabel = (cat: string) => {
     const map: Record<string, string> = {
       praise: "칭찬",
@@ -67,7 +57,7 @@ export function TeamMemberCoachingTimeline({
       one_on_one: "1:1 면담",
       general: "일반",
     };
-    return map[cat] || cat;
+    return map[cat] ?? (cat && /^[a-z][a-z0-9_:-]*$/i.test(cat) ? "기타" : cat);
   };
 
   const getVisibilityLabel = (vis: string) => {
@@ -77,11 +67,7 @@ export function TeamMemberCoachingTimeline({
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <LoadingState className="border-none bg-transparent py-8" />;
   }
 
   return (
@@ -123,13 +109,9 @@ export function TeamMemberCoachingTimeline({
                       <Badge variant="outline">
                         {getCategoryLabel(note.category)}
                       </Badge>
-                      <Badge variant={getPriorityColor(note.priority)}>
-                        {note.priority.toUpperCase()}
-                      </Badge>
+                      <CoachingPriorityBadge priority={note.priority} />
                       {note.status === "resolved" && (
-                        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">
-                          해결됨
-                        </Badge>
+                        <Badge variant="success">해결됨</Badge>
                       )}
                     </div>
                     <CardTitle className="text-lg">{note.title}</CardTitle>

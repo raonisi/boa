@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
+import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -81,7 +81,6 @@ type WorkspaceFilter =
   | "uncontacted"
   | "sla_overdue";
 
-const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
 const CUSTOMER_TAGS = [
   "가격민감형",
   "보장불안형",
@@ -120,10 +119,6 @@ function parseCustomerTags(value?: string | null): string[] {
       .map(tag => tag.trim())
       .filter(Boolean);
   }
-}
-
-function priorityLabel(priority?: string | null) {
-  return priority && priority !== "unclassified" ? priority : "미분류";
 }
 
 function executionBadges(customer: any, recommendation?: any) {
@@ -534,7 +529,7 @@ export default function CustomerList() {
     priorityFilter !== "all"
       ? {
           key: "priority",
-          label: `우선순위: ${priorityLabel(priorityFilter)}`,
+          label: `우선순위: ${getPriorityLabel(priorityFilter)}`,
           clear: () => setPriorityFilter("all"),
         }
       : null,
@@ -956,7 +951,7 @@ export default function CustomerList() {
                     <SelectItem value="all">전체 우선순위</SelectItem>
                     {CUSTOMER_PRIORITIES.map(p => (
                       <SelectItem key={p} value={p}>
-                        {priorityLabel(p)}
+                        {getPriorityLabel(p)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1621,7 +1616,7 @@ export default function CustomerList() {
                             </TableCell>
                             <TableCell>
                               <span className="text-xs rounded-full border px-2 py-0.5 bg-muted">
-                                {priorityLabel((c as any).priority)}
+                                {getPriorityLabel((c as any).priority)}
                               </span>
                             </TableCell>
                             <TableCell className="max-w-[220px]">

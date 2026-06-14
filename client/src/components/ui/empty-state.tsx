@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -19,6 +20,33 @@ interface EmptyStateProps {
   className?: string;
 }
 
+const variantConfig = {
+  empty: {
+    icon: Inbox,
+    iconTone: "bg-muted/70 text-muted-foreground",
+    border: "border-dashed border-border/70",
+    surface: "bg-muted/20",
+  },
+  error: {
+    icon: AlertCircle,
+    iconTone: "bg-destructive/10 text-destructive",
+    border: "border-destructive/20",
+    surface: "bg-destructive/[0.03]",
+  },
+  forbidden: {
+    icon: LockKeyhole,
+    iconTone: "bg-boa-amber/16 text-amber-800 dark:text-amber-200",
+    border: "border-boa-amber/25",
+    surface: "bg-boa-amber/[0.04]",
+  },
+  loading: {
+    icon: Loader2,
+    iconTone: "bg-primary/10 text-primary",
+    border: "border-primary/15",
+    surface: "bg-primary/[0.03]",
+  },
+} as const;
+
 export function EmptyState({
   icon: Icon,
   title,
@@ -29,38 +57,26 @@ export function EmptyState({
   variant = "empty",
   className,
 }: EmptyStateProps) {
-  const StateIcon =
-    Icon ??
-    {
-      empty: Inbox,
-      error: AlertCircle,
-      forbidden: LockKeyhole,
-      loading: Loader2,
-    }[variant];
-  const tone = {
-    empty: "bg-muted/60 text-muted-foreground/70",
-    error: "bg-destructive/10 text-destructive",
-    forbidden: "bg-amber-500/10 text-amber-700",
-    loading: "bg-primary/10 text-primary",
-  }[variant];
+  const config = variantConfig[variant];
+  const StateIcon = Icon ?? config.icon;
   const defaultAction =
     actionLabel && onAction ? (
-      <button
-        type="button"
-        onClick={onAction}
-        className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:opacity-90"
-      >
+      <Button type="button" onClick={onAction} size="default">
         {actionLabel}
-      </button>
+      </Button>
     ) : null;
 
   return (
     <div
       role={variant === "error" ? "alert" : "status"}
       aria-live={variant === "error" ? "assertive" : "polite"}
+      aria-busy={variant === "loading" ? true : undefined}
+      aria-label={variant === "loading" ? "불러오는 중" : undefined}
       className={cn(
-        "flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 px-5 py-9 text-center",
+        "flex flex-col items-center justify-center gap-4 rounded-xl border px-6 py-10 text-center",
         "max-w-full overflow-hidden",
+        config.border,
+        config.surface,
         className
       )}
     >
@@ -68,15 +84,16 @@ export function EmptyState({
         <div
           className={cn(
             "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
-            tone
+            config.iconTone
           )}
         >
           <StateIcon
             className={cn("h-6 w-6", variant === "loading" && "animate-spin")}
+            aria-hidden="true"
           />
         </div>
       )}
-      <div className="space-y-1 max-w-xs">
+      <div className="space-y-1.5 max-w-sm">
         <p className="text-sm font-semibold text-foreground">{title}</p>
         {description && (
           <p className="text-xs text-muted-foreground leading-relaxed">
@@ -85,11 +102,30 @@ export function EmptyState({
         )}
       </div>
       {(action || defaultAction) && (
-        <div className="mt-2 flex min-h-11 flex-wrap items-center justify-center gap-2">
+        <div className="mt-1 flex min-h-11 flex-wrap items-center justify-center gap-2">
           {action ?? defaultAction}
         </div>
       )}
     </div>
+  );
+}
+
+export function LoadingState({
+  title = "불러오는 중…",
+  description = "잠시만 기다려 주세요.",
+  className,
+}: {
+  title?: string;
+  description?: string;
+  className?: string;
+}) {
+  return (
+    <EmptyState
+      variant="loading"
+      title={title}
+      description={description}
+      className={className}
+    />
   );
 }
 

@@ -1,6 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, CONSULT_STATUSES } from "@/components/StatusBadge";
+import { StatusBadge, CONSULT_STATUSES, getPriorityLabel } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -202,10 +202,6 @@ function parseCustomerTags(value?: string | null): string[] {
       .map(tag => tag.trim())
       .filter(Boolean);
   }
-}
-
-function priorityLabel(priority?: string | null) {
-  return priority && priority !== "unclassified" ? priority : "미분류";
 }
 
 function formatDate(value?: string | Date | null) {
@@ -804,7 +800,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-semibold ${customer.priority && customer.priority !== "unclassified" ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}
                     >
-                      우선순위 {priorityLabel((customer as any).priority)}
+                      우선순위 {getPriorityLabel((customer as any).priority)}
                     </span>
                     {(customer.assignmentStatus === "unassigned" ||
                       (!customer.agentId && !customer.subBranchAdminId)) && (
@@ -1088,7 +1084,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <span
                   className={`rounded-full border px-2 py-1 text-xs ${(customer as any).priority === "unclassified" ? "border-red-200 bg-red-50 text-red-700" : "border-[#d9c99f] bg-[#fff8e8] text-[#7a5d1d]"}`}
                 >
-                  우선순위 {priorityLabel((customer as any).priority)}
+                  우선순위 {getPriorityLabel((customer as any).priority)}
                 </span>
                 <span
                   className={`rounded-full border px-2 py-1 text-xs ${(customer as any).nextAction ? "border-slate-200 text-slate-600" : "border-amber-200 bg-amber-50 text-amber-700"}`}
@@ -1115,7 +1111,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                   <SelectContent>
                     {CUSTOMER_PRIORITIES.map(priority => (
                       <SelectItem key={priority} value={priority}>
-                        {priorityLabel(priority)}
+                        {getPriorityLabel(priority)}
                       </SelectItem>
                     ))}
                   </SelectContent>

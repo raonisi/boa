@@ -1,6 +1,6 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Badge } from "@/components/ui/badge";
+import { PriorityBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import {
@@ -62,37 +62,6 @@ function parseCustomerTags(value?: string | null): string[] {
       .split(",")
       .map(t => t.trim())
       .filter(Boolean);
-  }
-}
-
-function priorityLabel(priority?: string | null) {
-  switch (priority) {
-    case "A":
-      return "A";
-    case "B":
-      return "B";
-    case "C":
-      return "C";
-    case "D":
-      return "D";
-    case "unclassified":
-    default:
-      return "미분류";
-  }
-}
-
-function priorityBadgeClass(priority?: string | null) {
-  switch (priority) {
-    case "A":
-      return "border-0 bg-rose-100 text-rose-800 dark:bg-rose-950/50 dark:text-rose-200";
-    case "B":
-      return "border-0 bg-amber-100 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100";
-    case "C":
-      return "border-0 bg-sky-100 text-sky-900 dark:bg-sky-950/40 dark:text-sky-100";
-    case "D":
-      return "border-0 bg-slate-200 text-slate-800 dark:bg-slate-800 dark:text-slate-200";
-    default:
-      return "border-border bg-muted text-muted-foreground";
   }
 }
 
@@ -187,14 +156,10 @@ function PipelineCard({
             <p className="truncate text-sm font-semibold text-foreground">
               {customer.name}
             </p>
-            <Badge
-              className={cn(
-                "shrink-0 text-[10px] font-semibold",
-                priorityBadgeClass(customer.priority)
-              )}
-            >
-              {priorityLabel(customer.priority)}
-            </Badge>
+            <PriorityBadge
+              priority={customer.priority}
+              className="shrink-0 text-[10px]"
+            />
           </div>
           <div className="flex flex-wrap gap-1">
             {tags.length === 0 ? (
@@ -554,14 +519,10 @@ export default function SalesPipeline() {
                       <p className="truncate text-sm font-semibold">
                         {activeCustomer.name}
                       </p>
-                      <Badge
-                        className={cn(
-                          "text-[10px]",
-                          priorityBadgeClass(activeCustomer.priority)
-                        )}
-                      >
-                        {priorityLabel(activeCustomer.priority)}
-                      </Badge>
+                      <PriorityBadge
+                        priority={activeCustomer.priority}
+                        className="text-[10px]"
+                      />
                     </div>
                   </div>
                 </Card>

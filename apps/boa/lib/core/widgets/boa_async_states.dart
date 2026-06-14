@@ -67,6 +67,50 @@ class BoaListLoadingSkeleton extends StatelessWidget {
   }
 }
 
+class BoaLoadingState extends StatelessWidget {
+  const BoaLoadingState({
+    super.key,
+    this.title = '불러오는 중…',
+    this.message = '잠시만 기다려 주세요.',
+  });
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '불러오는 중',
+      liveRegion: true,
+      child: BoaEmptyState(
+        icon: Icons.hourglass_top_outlined,
+        title: title,
+        message: message,
+      ),
+    );
+  }
+}
+
+class BoaForbiddenState extends StatelessWidget {
+  const BoaForbiddenState({
+    super.key,
+    this.title = '접근 권한이 없습니다',
+    this.message = '이 화면은 현재 권한으로 사용할 수 없습니다.',
+  });
+
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return BoaEmptyState(
+      icon: Icons.lock_outline,
+      title: title,
+      message: message,
+    );
+  }
+}
+
 class BoaEmptyState extends StatelessWidget {
   const BoaEmptyState({
     super.key,
@@ -134,7 +178,7 @@ class BoaErrorState extends StatelessWidget {
   const BoaErrorState({
     super.key,
     required this.message,
-    this.title = '불러오지 못했습니다',
+    this.title = '데이터를 불러오지 못했습니다',
     this.onRetry,
   });
 
