@@ -99,6 +99,8 @@ function classifyReasonFromText(text: string): string {
   if (
     lower.includes("unauthorized") ||
     lower.includes("forbidden") ||
+    lower.includes("authorization") ||
+    lower.includes("bearer") ||
     lower.includes("401") ||
     lower.includes("403")
   ) {
