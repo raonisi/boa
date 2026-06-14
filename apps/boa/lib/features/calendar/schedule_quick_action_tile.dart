@@ -1,5 +1,6 @@
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
@@ -67,7 +68,13 @@ class _ScheduleQuickActionTileState extends ConsumerState<ScheduleQuickActionTil
       boaLightSuccessHaptic();
       messenger.showSnackBar(const SnackBar(content: Text('일정을 완료했습니다.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            boaUserFacingErrorMessage(e, fallback: '처리하지 못했습니다. 다시 시도해 주세요.'),
+          ),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _busy = false);
     }

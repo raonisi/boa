@@ -28,6 +28,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -71,7 +75,10 @@ export default function OnboardingDashboard() {
         toast.success("기본 온보딩 템플릿을 준비했습니다.");
         await templatesQuery.refetch();
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
 
   const assignMutation = trpc.onboardingAssignments.assign.useMutation({
@@ -83,7 +90,10 @@ export default function OnboardingDashboard() {
         summaryQuery.refetch(),
       ]);
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
 
   const updateItemMutation =
@@ -92,7 +102,10 @@ export default function OnboardingDashboard() {
         toast.success("항목 완료 상태를 반영했습니다.");
         await mineQuery.refetch();
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
 
   const approveItemMutation =
@@ -105,7 +118,10 @@ export default function OnboardingDashboard() {
           mineQuery.refetch(),
         ]);
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
 
   const mineAssignments = mineQuery.data ?? [];

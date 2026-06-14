@@ -307,7 +307,7 @@ export default function CustomerBulkImport() {
           handlePreview(rows, file.name, file.size, nextMimeType);
         })
         .catch((error: any) => {
-          alert(`파일 파싱 오류: ${error.message}`);
+          alert("파일을 해석하지 못했습니다. 형식을 확인한 뒤 다시 시도해 주세요.");
         });
       return;
     }
@@ -321,7 +321,7 @@ export default function CustomerBulkImport() {
         handlePreview(rows, file.name, file.size, nextMimeType);
       },
       error: (error: any) => {
-        alert(`파일 파싱 오류: ${error.message}`);
+        alert("파일을 해석하지 못했습니다. 형식을 확인한 뒤 다시 시도해 주세요.");
       },
     });
   };
@@ -349,7 +349,7 @@ export default function CustomerBulkImport() {
       setValidationResults(result.validationResults);
       setStage("preview");
     } catch (error: any) {
-      alert(`검증 오류: ${error.message}`);
+      alert("파일 검증에 실패했습니다. 내용을 확인한 뒤 다시 시도해 주세요.");
     } finally {
       setIsLoading(false);
     }
@@ -371,7 +371,7 @@ export default function CustomerBulkImport() {
       setValidationResults(result.validationResults);
       setStage("result");
     } catch (error: any) {
-      alert(`등록 오류: ${error.message}`);
+      alert("등록에 실패했습니다. 다시 시도해 주세요.");
     } finally {
       setIsLoading(false);
     }

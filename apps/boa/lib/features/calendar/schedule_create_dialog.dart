@@ -1,4 +1,5 @@
 import 'package:boa/core/api/mobile_work_api.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/home/field_command_helpers.dart';
 import 'package:flutter/material.dart';
@@ -89,7 +90,15 @@ class _CreateScheduleDialogState extends ConsumerState<CreateScheduleDialog> {
         Navigator.of(context).pop(true);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              boaUserFacingErrorMessage(e, fallback: '일정 등록에 실패했습니다. 다시 시도해 주세요.'),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

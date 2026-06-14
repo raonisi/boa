@@ -153,7 +153,7 @@ export function renderMetricValue(
 }
 
 export function ErrorState({
-  title = "데이터를 불러오지 못했습니다.",
+  title = "정보를 불러오지 못했습니다.",
   description = "잠시 후 다시 시도해 주세요.",
   retryLabel = "다시 시도",
   onRetry,
@@ -179,7 +179,7 @@ export function ErrorState({
 
 export function ForbiddenInlineState({
   title = "접근 권한이 없습니다.",
-  description = "이 화면은 현재 권한으로 사용할 수 없습니다. 필요한 경우 관리자에게 문의해 주세요.",
+  description = "권한 범위 안에서 확인할 수 있는 정보만 표시됩니다. 필요한 경우 관리자에게 문의해 주세요.",
   action,
   className,
 }: {

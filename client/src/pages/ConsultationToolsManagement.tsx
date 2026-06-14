@@ -25,6 +25,10 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 import { getActiveLabel } from "@/lib/userRole";
 import {
@@ -264,7 +268,10 @@ export default function ConsultationToolsManagement() {
       setCheckDescription("");
       utils.consultationTools.listChecklists.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
   const updateChecklist = trpc.consultationTools.updateChecklist.useMutation({
     onSuccess: (_, variables) => {
@@ -277,7 +284,10 @@ export default function ConsultationToolsManagement() {
       setDeleteChecklist(null);
       utils.consultationTools.listChecklists.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
   const seedChecklists =
     trpc.consultationTools.seedDefaultChecklists.useMutation({
@@ -287,7 +297,10 @@ export default function ConsultationToolsManagement() {
         );
         utils.consultationTools.listChecklists.invalidate();
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
     });
   const seedTemplates =
     trpc.consultationTools.seedDefaultMessageTemplates.useMutation({
@@ -295,7 +308,10 @@ export default function ConsultationToolsManagement() {
         toast.success(`기본 템플릿 ${result.createdCount}건을 확인했습니다.`);
         utils.consultationTools.listMessageTemplates.invalidate();
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
     });
   const createTemplate =
     trpc.consultationTools.createMessageTemplate.useMutation({
@@ -306,7 +322,10 @@ export default function ConsultationToolsManagement() {
         setTemplateNote("");
         utils.consultationTools.listMessageTemplates.invalidate();
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
     });
   const updateTemplate =
     trpc.consultationTools.updateMessageTemplate.useMutation({
@@ -320,7 +339,10 @@ export default function ConsultationToolsManagement() {
         setDeleteTemplate(null);
         utils.consultationTools.listMessageTemplates.invalidate();
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
     });
   const seedScripts = trpc.consultationScripts.seedDefaults.useMutation({
     onSuccess: result => {
@@ -329,7 +351,10 @@ export default function ConsultationToolsManagement() {
       );
       utils.consultationScripts.list.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
   const createScript = trpc.consultationScripts.create.useMutation({
     onSuccess: () => {
@@ -340,7 +365,10 @@ export default function ConsultationToolsManagement() {
       setScriptTags("");
       utils.consultationScripts.list.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
   const updateScript = trpc.consultationScripts.update.useMutation({
     onSuccess: (_, variables) => {
@@ -353,7 +381,10 @@ export default function ConsultationToolsManagement() {
       setDeleteScript(null);
       utils.consultationScripts.list.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
 
   const openScriptEdit = (item: any) => {

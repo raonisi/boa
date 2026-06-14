@@ -1,5 +1,6 @@
 import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/core/widgets/boa_work_action_chip.dart';
@@ -20,7 +21,7 @@ Future<bool> confirmFollowUpCancel(BuildContext context) async =>
         content: const Text('이 후속관리를 취소할까요?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('아니오')),
-          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('취소')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('후속 취소')),
         ],
       ),
     ) ??
@@ -62,7 +63,9 @@ class _FollowUpQuickActionTileState extends ConsumerState<FollowUpQuickActionTil
       boaLightSuccessHaptic();
       messenger.showSnackBar(const SnackBar(content: Text('반영되었습니다.')));
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('$e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text(boaUserFacingErrorMessage(e, fallback: '처리하지 못했습니다. 다시 시도해 주세요.'))),
+      );
     } finally {
       if (mounted) setState(() => _busyId = null);
     }

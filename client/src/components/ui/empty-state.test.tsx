@@ -63,7 +63,7 @@ describe("shared state components", () => {
       />
     );
 
-    expect(html).toContain("데이터를 불러오지 못했습니다.");
+    expect(html).toContain("정보를 불러오지 못했습니다.");
     expect(html).toContain("다시 시도");
     expect(html).not.toContain("stack");
     expect(html).not.toContain("token");

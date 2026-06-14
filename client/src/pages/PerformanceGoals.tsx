@@ -21,6 +21,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { formatUserWithRole, getRoleLabel } from "@/lib/userRole";
 import { Activity, Target, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -170,14 +174,20 @@ export default function PerformanceGoals() {
       setContractCountGoal(0);
       setMonthlyPremiumGoal(0);
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
   const deactivateMutation = trpc.performanceGoals.deactivate.useMutation({
     onSuccess: () => {
       toast.success("목표가 비활성 처리되었습니다.");
       utils.performanceGoals.dashboard.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
 
   const items = dashboard?.items ?? [];

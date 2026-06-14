@@ -84,6 +84,18 @@ abstract final class AppTheme {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          splashFactory: InkRipple.splashFactory,
+          animationDuration: const Duration(milliseconds: 180),
+        ).copyWith(
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return Colors.white.withValues(alpha: 0.12);
+            }
+            if (states.contains(WidgetState.hovered)) {
+              return Colors.white.withValues(alpha: 0.06);
+            }
+            return null;
+          }),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -92,6 +104,15 @@ abstract final class AppTheme {
           minimumSize: const Size.fromHeight(44),
           side: const BorderSide(color: BoaColors.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          splashFactory: InkRipple.splashFactory,
+          animationDuration: const Duration(milliseconds: 180),
+        ).copyWith(
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return BoaColors.navy.withValues(alpha: 0.08);
+            }
+            return null;
+          }),
         ),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(

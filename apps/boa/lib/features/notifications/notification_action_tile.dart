@@ -1,4 +1,5 @@
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/notifications/notification_display_logic.dart';
@@ -46,7 +47,13 @@ class _NotificationActionTileState extends ConsumerState<NotificationActionTile>
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              boaUserFacingErrorMessage(e, fallback: '처리하지 못했습니다. 다시 시도해 주세요.'),
+            ),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _markingRead = false);

@@ -23,6 +23,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   addDays,
@@ -480,7 +484,10 @@ export default function Calendar() {
       utils.schedules.list.invalidate();
       utils.notifications.list.invalidate();
     },
-    onError: error => toast.error(error.message || "일정 수정에 실패했습니다."),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, "일정 수정에 실패했습니다. 다시 시도해 주세요.")
+      ),
   });
 
   const getSchedulesForDay = (day: Date) =>

@@ -374,7 +374,7 @@
   }
 
   .crm-priority-chip {
-    @apply min-h-11 rounded-full px-3 py-2 text-[11px] font-semibold transition sm:min-h-8 sm:py-1;
+    @apply min-h-11 rounded-full px-3 py-2 text-[11px] font-semibold transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] sm:min-h-8 sm:py-1;
   }
 
   .crm-priority-chip-active {
@@ -439,5 +439,38 @@
     content: "";
     display: block;
     height: 0.25rem;
+  }
+
+  .boa-interactive-row {
+    @apply transition-[background-color,box-shadow,border-color] duration-150 ease-out;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .boa-interactive-row:hover {
+      @apply bg-muted/35;
+    }
+  }
+
+  .boa-interactive-row:active {
+    @apply bg-muted/50;
+  }
+
+  .boa-chip-interactive {
+    @apply transition-[transform,background-color,border-color,box-shadow] duration-150 ease-out active:scale-[0.98];
+  }
+
+  .boa-dialog-surface {
+    @apply data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-[0.98] data-[state=open]:zoom-in-[0.98] duration-200;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .boa-interactive-row,
+    .boa-chip-interactive {
+      transition: none;
+    }
+
+    .boa-chip-interactive:active {
+      transform: none;
+    }
   }
 }

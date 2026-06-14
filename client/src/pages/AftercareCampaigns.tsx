@@ -16,6 +16,10 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { Loader2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
@@ -67,7 +71,10 @@ export default function AftercareCampaigns() {
         toast.success("후속관리 생성이 완료되었습니다.");
         await Promise.all([summaryQuery.refetch(), detailQuery.refetch()]);
       },
-      onError: error => toast.error(error.message),
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
   const logMessageCopyMutation =
     trpc.consultationTools.logMessageCopy.useMutation();

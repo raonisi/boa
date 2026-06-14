@@ -1,4 +1,5 @@
 import 'package:boa/core/api/mobile_work_api.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/features/calendar/calendar_agenda_provider.dart';
 import 'package:boa/features/customers/customer_followups_provider.dart';
@@ -69,7 +70,15 @@ class _CreateFollowUpDialogState extends ConsumerState<CreateFollowUpDialog> {
         Navigator.of(context).pop(true);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              boaUserFacingErrorMessage(e, fallback: '저장하지 못했습니다. 다시 시도해 주세요.'),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -203,7 +212,15 @@ class _CreateCustomerScheduleDialogState extends ConsumerState<CreateCustomerSch
         Navigator.of(context).pop(true);
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              boaUserFacingErrorMessage(e, fallback: '저장하지 못했습니다. 다시 시도해 주세요.'),
+            ),
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _saving = false);
     }

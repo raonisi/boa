@@ -26,6 +26,10 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { Eye, RotateCcw, Search } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -75,7 +79,10 @@ export default function ImportBatchManagement() {
       utils.imports.listBatches.invalidate();
       utils.imports.getBatchDetail.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
 
   const runCancel = () => {

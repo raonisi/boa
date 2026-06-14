@@ -178,7 +178,7 @@ class BoaErrorState extends StatelessWidget {
   const BoaErrorState({
     super.key,
     required this.message,
-    this.title = '데이터를 불러오지 못했습니다',
+    this.title = '정보를 불러오지 못했습니다',
     this.onRetry,
   });
 

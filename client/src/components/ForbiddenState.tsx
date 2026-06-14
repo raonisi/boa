@@ -5,7 +5,7 @@ import React from "react";
 
 export function ForbiddenState({
   title = "접근 권한이 없습니다.",
-  description = "이 화면은 현재 권한으로 사용할 수 없습니다. 필요한 경우 관리자에게 문의해 주세요.",
+  description = "권한 범위 안에서 확인할 수 있는 정보만 표시됩니다. 필요한 경우 관리자에게 문의해 주세요.",
 }: {
   title?: string;
   description?: string;

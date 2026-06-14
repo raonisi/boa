@@ -3,6 +3,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -91,7 +95,9 @@ export function CoachingNoteDialog({
       form.reset();
     },
     onError: error => {
-      toast.error(error.message || "저장 중 오류가 발생했습니다.");
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      );
     },
   });
 

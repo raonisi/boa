@@ -11,6 +11,7 @@ import {
 import InsightCards from "@/components/team-insights/InsightCards";
 import InsightTable from "@/components/team-insights/InsightTable";
 import TopRiskUsers from "@/components/team-insights/TopRiskUsers";
+import { ErrorState } from "@/components/ui/empty-state";
 import DashboardLayout from "@/components/DashboardLayout";
 
 export default function TeamInsights() {
@@ -32,14 +33,12 @@ export default function TeamInsights() {
   if (error) {
     return (
       <DashboardLayout>
-        <div className="flex h-[50vh] items-center justify-center">
-          <div className="flex max-w-md flex-col items-center gap-3 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-            <h2 className="text-lg font-semibold text-slate-900">
-              데이터를 불러오지 못했습니다
-            </h2>
-            <p className="text-sm text-slate-500">{error.message}</p>
-          </div>
+        <div className="flex h-[50vh] items-center justify-center px-4">
+          <ErrorState
+            title="정보를 불러오지 못했습니다."
+            description="잠시 후 다시 시도해 주세요. 권한 범위 안에서 확인할 수 있는 정보만 표시됩니다."
+            onRetry={() => window.location.reload()}
+          />
         </div>
       </DashboardLayout>
     );

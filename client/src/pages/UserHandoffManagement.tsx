@@ -27,6 +27,10 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { formatUserWithRole, getUserStatusLabel } from "@/lib/userRole";
 import { ArrowRightLeft, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -78,7 +82,10 @@ export default function UserHandoffManagement() {
       utils.adminHandoff.listUsers.invalidate();
       utils.customers.list.invalidate();
     },
-    onError: error => toast.error(error.message),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+      ),
   });
 
   const selectedSource = sourceUsers.find(

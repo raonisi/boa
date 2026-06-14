@@ -4,6 +4,10 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { trpc } from "@/lib/trpc";
 import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -172,7 +176,12 @@ export function QuickConsultationModal({
       if (onSuccess) onSuccess();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "상담 기록 저장에 실패했습니다.");
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "상담 기록 저장에 실패했습니다. 다시 시도해 주세요."
+        )
+      );
     }
   };
 
