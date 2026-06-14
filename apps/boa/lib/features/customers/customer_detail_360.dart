@@ -51,7 +51,8 @@ class CustomerDetail360View extends ConsumerWidget {
     final theme = Theme.of(context);
     final name = _str(customer['name']) ?? '고객';
     final phone = _str(customer['phone']);
-    final consultStatus = _str(customer['consultStatus']);
+    final consultStatusRaw = _str(customer['consultStatus']);
+    final consultStatus = consultStatusRaw == null ? null : consultStatusLabel(consultStatusRaw);
     final priority = priorityLabel(_str(customer['priority']));
     final nextAction = _str(customer['nextAction']);
     final tags = parseCustomerTags(customer['customerTags'] ?? customer['tags']);

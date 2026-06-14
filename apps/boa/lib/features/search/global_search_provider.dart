@@ -1,4 +1,5 @@
 import 'package:boa/core/api/dio_provider.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/customers/customers_providers.dart';
@@ -101,10 +102,10 @@ class GlobalSearchNotifier extends StateNotifier<GlobalSearchState> {
       );
     } on DioException catch (e) {
       if (gen != _requestGen) return;
-      final msg = e.response?.data is Map && (e.response!.data as Map)['error'] != null
-          ? '${(e.response!.data as Map)['error']}'
-          : e.message ?? '검색 결과를 불러오지 못했습니다.';
-      state = GlobalSearchState(errorMessage: msg, appliedQuery: trimmed);
+      state = GlobalSearchState(
+        errorMessage: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.search),
+        appliedQuery: trimmed,
+      );
     } catch (e) {
       if (gen != _requestGen) return;
       state = GlobalSearchState(errorMessage: '검색 결과를 불러오지 못했습니다. 다시 시도해 주세요.', appliedQuery: trimmed);

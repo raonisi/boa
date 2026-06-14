@@ -3,6 +3,7 @@ import 'package:boa/core/api/mobile_work_api.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/theme/app_theme.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_agents_provider.dart';
@@ -10,7 +11,6 @@ import 'package:boa/features/contracts/contract_create_logic.dart';
 import 'package:boa/features/contracts/contract_data_refresh.dart';
 import 'package:boa/features/contracts/contract_display_logic.dart';
 import 'package:boa/features/customers/customers_providers.dart';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -159,12 +159,7 @@ class _ContractCreateScreenState extends ConsumerState<ContractCreateScreen> {
   }
 
   String _dioErrorMessage(Object e) {
-    if (e is DioException) {
-      final body = e.response?.data;
-      if (body is Map && body['error'] != null) return '${body['error']}';
-      return e.message ?? '저장에 실패했습니다.';
-    }
-    return '$e';
+    return boaUserFacingErrorMessage(e, context: BoaUserErrorContext.contractCreate);
   }
 
   Future<void> _submit() async {

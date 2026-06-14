@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_user_labels.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
@@ -96,7 +97,7 @@ class ContractSummaryCard extends StatelessWidget {
               ),
               if (row.contractStatus != null && row.contractStatus!.isNotEmpty) ...[
                 const SizedBox(width: 8),
-                _StatusBadge(label: row.contractStatus!, colors: statusColors),
+                _StatusBadge(label: contractStatusLabel(row.contractStatus), colors: statusColors),
               ],
             ],
           ),
@@ -127,7 +128,7 @@ class ContractSummaryCard extends StatelessWidget {
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
-              child: _StatusBadge(label: row.paymentStatus!, colors: paymentColors, small: true),
+              child: _StatusBadge(label: boaUserStatusLabel(row.paymentStatus), colors: paymentColors, small: true),
             ),
           ],
           if (onTap != null) ...[

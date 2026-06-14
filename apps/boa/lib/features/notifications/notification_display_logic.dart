@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_user_labels.dart';
 import 'package:flutter/material.dart';
 
 /// 알림 유형 한글 라벨 (Web `Notifications.tsx` typeLabels 와 동일).
@@ -92,7 +93,8 @@ String notificationTypeLabel(Map<String, dynamic> raw) {
 
 String notificationProcessStatus(Map<String, dynamic> raw) {
   final status = '${raw['processStatus'] ?? ''}'.trim();
-  return status.isEmpty ? '미확인' : status;
+  if (status.isEmpty) return '미확인';
+  return notificationStatusLabel(status);
 }
 
 (Color bg, Color fg) processStatusChipColors(String status) {

@@ -56,9 +56,10 @@ void main() {
       expect(priorityLabel('unclassified'), '미분류');
     });
 
-    test('preserves internal grade codes and API payload values', () {
+    test('preserves internal grade codes and maps unknown English enums', () {
       expect(priorityLabel('A'), 'A');
       expect(priorityLabel('B'), 'B');
+      expect(priorityLabel('weird_status'), '확인 필요');
     });
   });
 

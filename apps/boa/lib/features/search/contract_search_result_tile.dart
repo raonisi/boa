@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_user_labels.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
 import 'package:boa/features/contracts/contract_display_logic.dart';
@@ -94,7 +95,7 @@ class ContractSearchResultTile extends StatelessWidget {
           ),
           if (contract.contractStatus != null && contract.contractStatus!.isNotEmpty) ...[
             const SizedBox(width: 8),
-            _ContractStatusBadge(label: contract.contractStatus!, colors: statusColors),
+            _ContractStatusBadge(label: contractStatusLabel(contract.contractStatus), colors: statusColors),
           ],
           if (contract.customerId != null)
             Icon(Icons.chevron_right, color: cs.onSurfaceVariant, size: 22),

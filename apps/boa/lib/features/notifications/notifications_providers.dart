@@ -1,4 +1,5 @@
 import 'package:boa/core/api/dio_provider.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/features/home/dashboard_provider.dart';
 import 'package:boa/features/notifications/unread_count_provider.dart';
@@ -80,12 +81,9 @@ class NotificationsListNotifier extends StateNotifier<NotificationListState> {
       );
     } on DioException catch (e) {
       if (gen != _requestGen) return;
-      final body = e.response?.data;
-      String msg = '알림을 불러오지 못했습니다. 다시 시도해 주세요.';
-      if (body is Map && body['error'] != null) msg = '${body['error']}';
       state = NotificationListState(
         loadingInitial: false,
-        errorMessage: msg,
+        errorMessage: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.notification),
       );
     } catch (e) {
       if (gen != _requestGen) return;

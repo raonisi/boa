@@ -3,8 +3,17 @@ library;
 
 import 'dart:convert';
 
+import 'package:boa/core/widgets/boa_user_labels.dart';
 import 'package:boa/features/contracts/contracts_providers.dart';
 import 'package:boa/features/home/field_command_helpers.dart';
+
+export 'package:boa/core/widgets/boa_user_labels.dart'
+    show
+        consultStatusLabel,
+        contractStatusLabel,
+        followUpStatusLabel,
+        priorityLabel,
+        scheduleStatusLabel;
 
 List<String> parseCustomerTags(dynamic raw) {
   if (raw == null) return const [];
@@ -25,25 +34,6 @@ List<String> parseCustomerTags(dynamic raw) {
     return t.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
   }
   return const [];
-}
-
-String priorityLabel(String? priority) {
-  if (priority == null || priority.isEmpty || priority == 'unclassified') return '미분류';
-  switch (priority.toUpperCase()) {
-    case 'URGENT':
-      return '긴급';
-    case 'HIGH':
-      return '높음';
-    case 'MEDIUM':
-    case 'NORMAL':
-      return '보통';
-    case 'LOW':
-      return '낮음';
-    case 'IMPORTANT':
-      return '중요';
-    default:
-      return priority;
-  }
 }
 
 DateTime? parseApiDateTime(dynamic v) => decodeApiDateTime(v);
@@ -86,7 +76,10 @@ List<CustomerTimelineEntry> buildCustomerTimeline({
       CustomerTimelineEntry(
         kind: 'follow_up',
         title: reason.isNotEmpty ? reason : '후속관리',
-        subtitle: [fieldFmtDateTime(fu['nextContactDate']), if (status.isNotEmpty) status].join(' · '),
+        subtitle: [
+          fieldFmtDateTime(fu['nextContactDate']),
+          if (status.isNotEmpty) followUpStatusLabel(status),
+        ].where((e) => e.isNotEmpty).join(' · '),
         occurredAt: parseApiDateTime(fu['updatedAt']) ?? parseApiDateTime(fu['createdAt']) ?? parseApiDateTime(fu['nextContactDate']),
       ),
     );
@@ -102,9 +95,10 @@ List<CustomerTimelineEntry> buildCustomerTimeline({
         kind: 'contract',
         title: product,
         subtitle: [
-          if (c.contractStatus != null && c.contractStatus!.isNotEmpty) c.contractStatus!,
+          if (c.contractStatus != null && c.contractStatus!.isNotEmpty)
+            contractStatusLabel(c.contractStatus),
           if (prem != null) '월납 ${fieldCommaInt(prem)}원',
-        ].join(' · '),
+        ].where((e) => e.isNotEmpty).join(' · '),
         occurredAt: c.contractDate ?? c.createdAt,
       ),
     );
@@ -118,7 +112,11 @@ List<CustomerTimelineEntry> buildCustomerTimeline({
       CustomerTimelineEntry(
         kind: 'schedule',
         title: title,
-        subtitle: [fieldFmtDateTime(s['startTime']), if (typ.isNotEmpty) typ, if (status.isNotEmpty) status].join(' · '),
+        subtitle: [
+          fieldFmtDateTime(s['startTime']),
+          if (typ.isNotEmpty) typ,
+          if (status.isNotEmpty) scheduleStatusLabel(status),
+        ].where((e) => e.isNotEmpty).join(' · '),
         occurredAt: parseApiDateTime(s['startTime']),
       ),
     );

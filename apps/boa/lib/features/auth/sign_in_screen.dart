@@ -8,6 +8,7 @@ import 'package:boa/core/api/plain_dio.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/auth/session_models.dart';
 import 'package:boa/core/config/app_config.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/push/device_token_registration.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -95,14 +96,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       unawaited(registerDeviceTokenWithRetry(dio));
       bindFcmTokenRefresh(dio);
     } on DioException catch (e) {
-      final body = e.response?.data;
-      String msg = '로그인에 실패했습니다. 잠시 후 다시 시도해 주세요.';
-      if (body is Map && body['error'] != null) {
-        msg = '${body['error']}';
-      } else if (e.message != null) {
-        msg = e.message!;
-      }
-      setState(() => _error = msg);
+      setState(() => _error = boaUserFacingErrorMessage(e, context: BoaUserErrorContext.auth));
     } catch (e) {
       setState(() => _error = '로그인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.');
     } finally {

@@ -276,7 +276,7 @@ class _CustomersTabState extends ConsumerState<CustomersTab> {
                           children: [
                             if (c.consultStatus != null)
                               _StatusChip(
-                                label: c.consultStatus!,
+                                label: consultStatusLabel(c.consultStatus),
                                 color: theme.colorScheme.primary,
                               ),
                             if (c.priority != null && c.priority!.isNotEmpty)

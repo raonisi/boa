@@ -1,3 +1,4 @@
+import 'package:boa/core/widgets/boa_user_labels.dart';
 import 'package:boa/core/theme/app_theme.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_layout_helpers.dart';
@@ -749,7 +750,7 @@ class _LongUnmanagedCustomerTile extends StatelessWidget {
     final theme = Theme.of(context);
     final id = fieldCoerceId(raw['id']);
     final name = '${raw['name'] ?? '고객'}';
-    final status = '${raw['consultStatus'] ?? ''}';
+    final status = consultStatusLabel('${raw['consultStatus'] ?? ''}');
 
     return BoaSurfaceCard(
       margin: const EdgeInsets.only(bottom: 8),

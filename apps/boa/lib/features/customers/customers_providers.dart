@@ -1,4 +1,5 @@
 import 'package:boa/core/api/dio_provider.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -118,12 +119,9 @@ class CustomersListNotifier extends StateNotifier<CustomerListState> {
       );
     } on DioException catch (e) {
       if (gen != _requestGen) return;
-      final msg = e.response?.data is Map && (e.response!.data as Map)['error'] != null
-          ? '${(e.response!.data as Map)['error']}'
-          : e.message ?? '고객 목록을 불러오지 못했습니다.';
       state = CustomerListState(
         loadingInitial: false,
-        errorMessage: msg,
+        errorMessage: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.customer),
       );
     } catch (e) {
       if (gen != _requestGen) return;

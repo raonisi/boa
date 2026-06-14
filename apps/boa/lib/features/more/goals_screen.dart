@@ -2,6 +2,8 @@ import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
+import 'package:boa/core/widgets/boa_user_labels.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/features/more/goals_dashboard_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,7 +73,7 @@ class GoalsScreen extends ConsumerWidget {
                 ...itemList.map((raw) {
                   final m = raw is Map<String, dynamic> ? raw : (raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{});
                   final label = '${m['targetLabel'] ?? ''}';
-                  final status = '${m['status'] ?? ''}';
+                  final status = goalStatusLabel('${m['status'] ?? ''}');
                   final actual = m['actual'];
                   Map<String, dynamic>? act;
                   if (actual is Map) act = Map<String, dynamic>.from(actual);
@@ -97,7 +99,7 @@ class GoalsScreen extends ConsumerWidget {
         loading: () => const BoaListLoadingSkeleton(itemCount: 2),
         error: (e, _) => BoaErrorState(
           title: '목표를 불러오지 못했습니다',
-          message: '$e',
+          message: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.goal),
           onRetry: () => ref.invalidate(goalsDashboardProvider),
         ),
       ),

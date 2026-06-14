@@ -1,4 +1,5 @@
 import 'package:boa/core/api/dio_provider.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/core/auth/session_controller.dart';
 import 'package:boa/core/config/app_config.dart';
 import 'package:boa/features/more/push_preferences_logic.dart';
@@ -67,7 +68,7 @@ class PushPreferencesNotifier extends StateNotifier<PushPreferencesState> {
     } on DioException catch (e) {
       state = PushPreferencesState(
         loading: false,
-        errorMessage: _dioMessage(e, '불러오지 못했습니다.'),
+        errorMessage: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.pushPreferences),
       );
     } catch (e) {
       state = const PushPreferencesState(loading: false, errorMessage: '알림 설정을 불러오지 못했습니다. 다시 시도해 주세요.');
@@ -96,18 +97,12 @@ class PushPreferencesNotifier extends StateNotifier<PushPreferencesState> {
     } on DioException catch (e) {
       state = state.copyWith(
         saving: false,
-        errorMessage: _dioMessage(e, '저장에 실패했습니다.'),
+        errorMessage: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.pushPreferences),
       );
       return false;
     } catch (e) {
       state = state.copyWith(saving: false, errorMessage: '알림 설정을 저장하지 못했습니다. 다시 시도해 주세요.');
       return false;
     }
-  }
-
-  String _dioMessage(DioException e, String fallback) {
-    final body = e.response?.data;
-    if (body is Map && body['error'] != null) return '${body['error']}';
-    return e.message ?? fallback;
   }
 }

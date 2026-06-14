@@ -2,6 +2,7 @@ import 'package:boa/core/config/app_config.dart';
 import 'package:boa/core/widgets/boa_layout_helpers.dart';
 import 'package:boa/core/widgets/boa_async_states.dart';
 import 'package:boa/core/widgets/boa_ui.dart';
+import 'package:boa/core/widgets/boa_user_messages.dart';
 import 'package:boa/features/more/performance_stats_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,7 +81,7 @@ class PerformanceScreen extends ConsumerWidget {
         loading: () => const BoaListLoadingSkeleton(itemCount: 3),
         error: (e, _) => BoaErrorState(
           title: '실적을 불러오지 못했습니다',
-          message: '$e',
+          message: boaUserFacingErrorMessage(e, context: BoaUserErrorContext.performance),
           onRetry: () => ref.invalidate(performanceStatsProvider),
         ),
       ),

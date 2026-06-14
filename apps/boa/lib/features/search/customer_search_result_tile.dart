@@ -64,7 +64,7 @@ class CustomerSearchResultTile extends StatelessWidget {
                       runSpacing: 4,
                       children: [
                         if (customer.consultStatus != null && customer.consultStatus!.isNotEmpty)
-                          _MetaChip(label: customer.consultStatus!, color: cs.primary),
+                          _MetaChip(label: consultStatusLabel(customer.consultStatus), color: cs.primary),
                         if (customer.priority != null && customer.priority!.isNotEmpty)
                           _MetaChip(label: '우선순위 ${priorityLabel(customer.priority)}', color: cs.secondary),
                         if (customer.phone != null && customer.phone!.isNotEmpty)
