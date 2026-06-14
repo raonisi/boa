@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { adminPage, adminPanel } from "@/lib/adminDesignTokens";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,6 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import {
   BellRing,
   CheckCircle2,
@@ -42,47 +44,47 @@ import {
 } from "./pushNotificationOperationsUtils";
 
 const statusClasses: Record<string, string> = {
-  sent: "bg-emerald-100 text-emerald-700",
-  failed: "bg-red-100 text-red-700",
-  skipped: "bg-slate-100 text-slate-700",
-  skipped_no_token: "bg-amber-100 text-amber-700",
-  skipped_disabled: "bg-slate-100 text-slate-700",
-  skipped_quiet_hours: "bg-indigo-100 text-indigo-700",
-  skipped_missing_config: "bg-orange-100 text-orange-700",
-  duplicate_skipped: "bg-blue-100 text-blue-700",
-  invalid_token_deactivated: "bg-red-100 text-red-700",
+  sent: "bg-boa-green/12 text-boa-green",
+  failed: "bg-destructive/10 text-destructive",
+  skipped: "bg-muted text-muted-foreground",
+  skipped_no_token: "bg-boa-amber/16 text-amber-800",
+  skipped_disabled: "bg-muted text-muted-foreground",
+  skipped_quiet_hours: "bg-primary/10 text-boa-navy",
+  skipped_missing_config: "bg-boa-amber/16 text-amber-800",
+  duplicate_skipped: "bg-muted text-muted-foreground",
+  invalid_token_deactivated: "bg-destructive/10 text-destructive",
 };
 
 function PushLogCard({ log }: { log: PushLogListItem }) {
   return (
-    <Card className="border-slate-200/80 md:hidden">
+    <Card className="border-border/80 md:hidden">
       <CardContent className="space-y-2 p-4">
         <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium text-slate-900">
+          <span className="text-sm font-medium text-foreground">
             {pushTypeLabels[log.type] ?? "기타 알림"}
           </span>
           <Badge
             className={
-              statusClasses[log.status] ?? "bg-slate-100 text-slate-700"
+              statusClasses[log.status] ?? "bg-muted/60 text-foreground"
             }
           >
             {pushStatusLabels[log.status] ?? "기타 상태"}
           </Badge>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           {new Date(log.createdAt).toLocaleString("ko-KR")}
         </p>
-        <p className="text-sm text-slate-700">
+        <p className="text-sm text-foreground">
           대상: {formatPushLogUserLabel(log)}
         </p>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           소스:{" "}
           {log.sourceType
             ? (pushSourceTypeLabels[log.sourceType] ?? "기타 소스")
             : "-"}
           {log.sourceId ? ` #${log.sourceId}` : ""}
         </p>
-        <p className="text-xs text-slate-500">오류: {log.errorCode ?? "-"}</p>
+        <p className="text-xs text-muted-foreground">오류: {log.errorCode ?? "-"}</p>
       </CardContent>
     </Card>
   );
@@ -135,31 +137,31 @@ export default function PushNotificationOperations() {
       title: "조회 로그",
       value: summary?.total ?? 0,
       icon: BellRing,
-      className: "text-slate-700",
+      className: "text-foreground",
     },
     {
       title: "성공",
       value: summary?.sent ?? 0,
       icon: CheckCircle2,
-      className: "text-emerald-600",
+      className: "text-boa-green",
     },
     {
       title: "실패",
       value: summary?.failed ?? 0,
       icon: XCircle,
-      className: "text-red-600",
+      className: "text-destructive",
     },
     {
       title: "스킵",
       value: summary?.skipped ?? 0,
       icon: CircleSlash,
-      className: "text-amber-600",
+      className: "text-amber-800",
     },
     {
       title: "비활성 토큰",
       value: summary?.inactiveTokens ?? 0,
       icon: ShieldAlert,
-      className: "text-slate-600",
+      className: "text-muted-foreground",
     },
   ];
 
@@ -172,17 +174,13 @@ export default function PushNotificationOperations() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className={adminPage.card}>
           <CardContent className="p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                  알림 운영
-                </p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-950">
-                  푸시 알림 운영
-                </h1>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className={adminPage.eyebrow}>알림 운영</p>
+                <h1 className={cn("mt-1", adminPage.title)}>푸시 알림 운영</h1>
+                <p className={cn("mt-1", adminPage.subtitle)}>
                   지점장 전용 화면입니다. 기기 식별 정보 원문과 고객 민감정보는
                   표시하지 않으며, 알림 제목·본문에도 민감정보가 포함되지
                   않아야 합니다.
@@ -200,7 +198,7 @@ export default function PushNotificationOperations() {
         </Card>
 
         {summaryLoading ? (
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className="border-border/80 bg-card shadow-sm">
             <CardContent className="p-5">
               <EmptyState
                 variant="loading"
@@ -211,43 +209,43 @@ export default function PushNotificationOperations() {
             </CardContent>
           </Card>
         ) : actionIssueCount > 0 ? (
-          <Card className="border-amber-200/70 bg-amber-50/40 shadow-sm">
+          <Card className={cn("shadow-sm", adminPanel.warningSoft)}>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <ShieldAlert className="h-4 w-4 text-amber-700" />
+                <ShieldAlert className="h-4 w-4 text-amber-800" />
                 조치가 필요한 항목
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 pb-5 sm:grid-cols-3">
               {(summary?.failed ?? 0) > 0 ? (
-                <div className="rounded-xl border border-red-200/70 bg-white p-4">
-                  <p className="text-xs text-slate-500">발송 실패</p>
-                  <p className="mt-1 text-2xl font-bold text-red-700">
+                <div className="rounded-xl border border-destructive/25 bg-card p-4">
+                  <p className="text-xs text-muted-foreground">발송 실패</p>
+                  <p className="mt-1 text-2xl font-bold text-destructive">
                     {summary?.failed}
                   </p>
-                  <p className="mt-2 text-xs text-slate-600">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     실패 로그를 확인하고 현장 알림 누락 여부를 점검해 주세요.
                   </p>
                 </div>
               ) : null}
               {(summary?.skipped ?? 0) > 0 ? (
                 <div className="rounded-xl border border-amber-200/70 bg-white p-4">
-                  <p className="text-xs text-slate-500">발송 생략</p>
+                  <p className="text-xs text-muted-foreground">발송 생략</p>
                   <p className="mt-1 text-2xl font-bold text-amber-800">
                     {summary?.skipped}
                   </p>
-                  <p className="mt-2 text-xs text-slate-600">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     토큰 없음, 조용한 시간, 설정 누락 등으로 생략된 건입니다.
                   </p>
                 </div>
               ) : null}
               {(summary?.inactiveTokens ?? 0) > 0 ? (
-                <div className="rounded-xl border border-slate-200 bg-white p-4">
-                  <p className="text-xs text-slate-500">비활성 기기</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                <div className="rounded-xl border border-border bg-white p-4">
+                  <p className="text-xs text-muted-foreground">비활성 기기</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">
                     {summary?.inactiveTokens}
                   </p>
-                  <p className="mt-2 text-xs text-slate-600">
+                  <p className="mt-2 text-xs text-muted-foreground">
                     비활성·퇴사 계정의 기기 등록 상태를 확인해 주세요.
                   </p>
                 </div>
@@ -255,8 +253,8 @@ export default function PushNotificationOperations() {
             </CardContent>
           </Card>
         ) : (
-          <Card className="border-emerald-100/80 bg-emerald-50/40 shadow-sm">
-            <CardContent className="p-4 text-sm text-emerald-900">
+          <Card className="border-boa-green/20 bg-boa-green/8 shadow-sm">
+            <CardContent className="p-4 text-sm text-boa-green">
               처리할 Push 운영 항목이 없습니다. 최근 발송 상태가 안정적입니다.
             </CardContent>
           </Card>
@@ -266,12 +264,12 @@ export default function PushNotificationOperations() {
           {cards.map(card => (
             <Card
               key={card.title}
-              className="border-slate-200/80 bg-white/95 shadow-sm"
+              className="border-border/80 bg-card shadow-sm"
             >
               <CardContent className="flex items-center justify-between p-4">
                 <div>
-                  <p className="text-xs text-slate-500">{card.title}</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
+                  <p className="text-xs text-muted-foreground">{card.title}</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">
                     {summaryLoading ? "-" : card.value}
                   </p>
                 </div>
@@ -281,10 +279,10 @@ export default function PushNotificationOperations() {
           ))}
         </div>
 
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className="border-border/80 bg-card shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <RefreshCw className="h-4 w-4 text-slate-700" /> 최근 발송 로그
+              <RefreshCw className="h-4 w-4 text-foreground" /> 최근 발송 로그
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -361,9 +359,9 @@ export default function PushNotificationOperations() {
               )}
             </div>
 
-            <div className="hidden overflow-x-auto rounded-xl border border-slate-100 md:block">
+            <div className="hidden overflow-x-auto rounded-xl border border-border/60 md:block">
               <Table>
-                <TableHeader className="bg-slate-50">
+                <TableHeader className="bg-muted/50">
                   <TableRow>
                     <TableHead>발송일시</TableHead>
                     <TableHead>유형</TableHead>
@@ -411,7 +409,7 @@ export default function PushNotificationOperations() {
                   ) : (
                     logRows.map(log => (
                       <TableRow key={log.id}>
-                        <TableCell className="whitespace-nowrap text-xs text-slate-500">
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {new Date(log.createdAt).toLocaleString("ko-KR")}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm">
@@ -421,7 +419,7 @@ export default function PushNotificationOperations() {
                           <Badge
                             className={
                               statusClasses[log.status] ??
-                              "bg-slate-100 text-slate-700"
+                              "bg-muted/60 text-foreground"
                             }
                           >
                             {pushStatusLabels[log.status] ?? "기타 상태"}
@@ -430,17 +428,17 @@ export default function PushNotificationOperations() {
                         <TableCell className="whitespace-nowrap text-sm">
                           {formatPushLogUserLabel(log)}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-xs text-slate-500">
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {log.sourceType
                             ? (pushSourceTypeLabels[log.sourceType] ??
                               "기타 소스")
                             : "-"}
                           {log.sourceId ? ` #${log.sourceId}` : ""}
                         </TableCell>
-                        <TableCell className="text-xs text-slate-500">
+                        <TableCell className="text-xs text-muted-foreground">
                           {log.errorCode ?? "-"}
                         </TableCell>
-                        <TableCell className="whitespace-nowrap text-xs text-slate-500">
+                        <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                           {log.sentAt
                             ? new Date(log.sentAt).toLocaleString("ko-KR")
                             : "-"}

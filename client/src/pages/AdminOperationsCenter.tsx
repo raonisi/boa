@@ -15,7 +15,17 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  ForbiddenInlineState,
+} from "@/components/ui/empty-state";
+import {
+  adminPage,
+  adminPanel,
+  adminRiskBadgeClasses,
+  adminStatusBadgeClasses,
+} from "@/lib/adminDesignTokens";
 import {
   ADMIN_OPERATION_SECTIONS,
   CARD_STATUS_LABELS,
@@ -54,29 +64,14 @@ import {
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 
-const riskBadgeClasses: Record<AdminOperationCard["riskLevel"], string> = {
-  normal: "border-slate-200 bg-slate-50 text-slate-600",
-  caution: "border-amber-200/80 bg-amber-50 text-amber-900",
-  high: "border-rose-200/80 bg-rose-50 text-rose-900",
-  branch_admin_only: "border-[#b99b5f]/30 bg-[#f8f4ea] text-[#7a6535]",
-};
-
-const statusBadgeClasses: Record<AdminOperationCard["status"], string> = {
-  available: "border-emerald-200/80 bg-emerald-50 text-emerald-800",
-  beta: "border-indigo-200/80 bg-indigo-50 text-indigo-900",
-  coming_soon: "border-slate-200 bg-slate-50 text-slate-600",
-  branch_admin_only: "border-[#b99b5f]/30 bg-[#f8f4ea] text-[#7a6535]",
-  production_ready: "border-teal-200/80 bg-teal-50 text-teal-900",
-};
+const riskBadgeClasses = adminRiskBadgeClasses;
+const statusBadgeClasses = adminStatusBadgeClasses;
 
 function SummarySkeleton() {
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
       {[0, 1, 2, 3].map(item => (
-        <div
-          key={item}
-          className="h-24 animate-pulse rounded-2xl border border-slate-200/80 bg-white/80"
-        />
+        <div key={item} className={cn("h-24", adminPage.skeleton)} />
       ))}
     </div>
   );
@@ -98,22 +93,23 @@ function OperationCard({
   return (
     <Card
       className={cn(
-        "flex h-full flex-col border-slate-200/80 bg-white/95 shadow-sm transition-colors",
-        isHighRiskCard(card) && "ring-1 ring-rose-100",
-        card.riskLevel === "branch_admin_only" && "ring-1 ring-[#d9c99f]/40"
+        "flex h-full flex-col transition-colors",
+        adminPage.card,
+        isHighRiskCard(card) && "ring-1 ring-destructive/10",
+        card.riskLevel === "branch_admin_only" && "ring-1 ring-boa-amber/30"
       )}
     >
       <CardHeader className="space-y-3 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-200/80 bg-slate-50 text-[#1f3b57]">
+            <span className={adminPage.iconWrap}>
               <Icon className="h-4 w-4" />
             </span>
             <div className="min-w-0">
-              <CardTitle className="text-base font-semibold text-slate-950">
+              <CardTitle className="text-base font-semibold text-foreground">
                 {card.title}
               </CardTitle>
-              <CardDescription className="mt-1 text-sm leading-relaxed text-slate-500">
+              <CardDescription className={cn("mt-1", adminPage.subtitle)}>
                 {card.description}
               </CardDescription>
             </div>
@@ -145,14 +141,10 @@ function OperationCard({
           <div
             className={cn(
               "rounded-xl border p-3 text-xs leading-relaxed",
-              card.status === "coming_soon" &&
-                "border-slate-200/80 bg-slate-50/80 text-slate-600",
-              card.status === "beta" &&
-                "border-indigo-200/70 bg-indigo-50/70 text-indigo-900",
-              card.status === "production_ready" &&
-                "border-teal-200/70 bg-teal-50/70 text-teal-900",
-              card.status === "branch_admin_only" &&
-                "border-[#d9c99f]/40 bg-[#f8f4ea] text-[#7a6535]"
+              card.status === "coming_soon" && adminPanel.neutral,
+              card.status === "beta" && adminPanel.warningSoft,
+              card.status === "production_ready" && adminPanel.successSoft,
+              card.status === "branch_admin_only" && adminPanel.warning
             )}
           >
             {statusNotice.map(line => (
@@ -161,7 +153,12 @@ function OperationCard({
           </div>
         ) : null}
         {showHighRiskNotice ? (
-          <div className="rounded-xl border border-rose-200/70 bg-rose-50/70 p-3 text-xs leading-relaxed text-rose-900">
+          <div
+            className={cn(
+              "rounded-xl border p-3 text-xs leading-relaxed",
+              adminPanel.danger
+            )}
+          >
             {HIGH_RISK_NOTICE.map(line => (
               <p key={line}>{line}</p>
             ))}
@@ -180,7 +177,7 @@ function OperationCard({
             "min-h-10 w-full justify-between",
             !isDisabled &&
               !isHighRiskCard(card) &&
-              "bg-[#1f3b57] text-white hover:bg-[#173049]"
+              "bg-boa-navy text-primary-foreground hover:bg-boa-navy/90"
           )}
           disabled={isDisabled}
           onClick={() => card.route && onNavigate(card.route)}
@@ -357,12 +354,15 @@ export default function AdminOperationsCenter() {
   if (!canAccessAdminOperationsCenter(user)) {
     return (
       <DashboardLayout>
-        <EmptyState
-          variant="forbidden"
+        <ForbiddenInlineState
           title={PERMISSION_DENIED_TITLE}
           description={PERMISSION_DENIED_DESCRIPTION}
-          actionLabel="대시보드로 이동"
-          onAction={() => setLocation("/")}
+          fullPage
+          action={
+            <Button type="button" onClick={() => setLocation("/")}>
+              대시보드로 이동
+            </Button>
+          }
         />
       </DashboardLayout>
     );
@@ -371,28 +371,26 @@ export default function AdminOperationsCenter() {
   return (
     <DashboardLayout>
       <div className="space-y-5 pb-8">
-        <Card className="border-slate-200/80 bg-gradient-to-br from-[#f8f6f1] via-white to-[#eef4f1] shadow-sm">
+        <Card className={adminPage.heroCard}>
           <CardContent className="space-y-4 p-5 md:p-6">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                  관리자 운영
-                </p>
+                <p className={adminPage.eyebrow}>관리자 운영</p>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1f3b57]/10 bg-[#1f3b57] text-white">
+                  <span className={adminPage.iconWrapSolid}>
                     <LayoutDashboard className="h-5 w-5" />
                   </span>
-                  <h1 className="text-2xl font-bold tracking-tight text-[#1f3b57]">
+                  <h1 className={cn(adminPage.title, "tracking-tight text-boa-navy")}>
                     {PAGE_TITLE}
                   </h1>
                 </div>
-                <p className="max-w-3xl text-sm leading-relaxed text-slate-600">
+                <p className={cn("max-w-3xl", adminPage.subtitle)}>
                   {PAGE_DESCRIPTION}
                 </p>
-                <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                   <Badge
                     variant="outline"
-                    className="border-[#1f3b57]/15 bg-white text-[#1f3b57]"
+                    className="border-boa-navy/15 bg-card text-boa-navy"
                   >
                     {getRoleLabel(role)}
                   </Badge>
@@ -411,12 +409,12 @@ export default function AdminOperationsCenter() {
             </div>
 
             <div className="relative max-w-xl">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={event => setSearch(event.target.value)}
                 placeholder="관리자 기능 검색"
-                className="min-h-10 rounded-xl border-slate-200 bg-white pl-9"
+                className={cn("min-h-10 pl-9", adminPage.input)}
               />
             </div>
           </CardContent>
@@ -424,8 +422,8 @@ export default function AdminOperationsCenter() {
 
         <section className="space-y-3">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-[#1f3b57]" />
-            <h2 className="text-sm font-semibold text-slate-900">
+            <ShieldCheck className="h-4 w-4 text-boa-navy" />
+            <h2 className={adminPage.sectionTitle}>
               오늘 확인 필요
             </h2>
           </div>
@@ -446,20 +444,18 @@ export default function AdminOperationsCenter() {
                   key={item.label}
                   type="button"
                   onClick={() => setLocation(item.route)}
-                  className="min-h-[88px] rounded-2xl border border-slate-200/80 bg-white p-4 text-left shadow-sm transition-colors hover:border-[#1f3b57]/20 hover:bg-[#f8f6f1]"
+                  className={adminPage.linkCard}
                 >
-                  <p className="text-xs font-medium text-slate-500">
-                    {item.label}
-                  </p>
-                  <p className="mt-2 text-2xl font-bold tabular-nums text-[#1f3b57]">
+                  <p className={adminPage.metricLabel}>{item.label}</p>
+                  <p className={cn("mt-2", adminPage.metricValue)}>
                     {item.value}
                   </p>
                 </button>
               ))}
             </div>
           ) : (
-            <Card className="border-emerald-100/80 bg-emerald-50/40">
-              <CardContent className="p-4 text-sm text-emerald-900">
+            <Card className={cn("border", adminPanel.successSoft)}>
+              <CardContent className="p-4 text-sm text-boa-green">
                 확인할 항목이 없습니다. 아래 카드에서 필요한 관리 기능으로
                 이동하세요.
               </CardContent>
@@ -468,17 +464,12 @@ export default function AdminOperationsCenter() {
         </section>
 
         {groupedSections.length === 0 ? (
-          <Card className="border-slate-200/80 bg-white/95">
-            <CardContent className="flex flex-col items-center gap-3 p-8 text-center">
-              <AlertTriangle className="h-8 w-8 text-slate-400" />
-              <p className="text-sm font-medium text-slate-700">
-                {NO_VISIBLE_CARDS_TITLE}
-              </p>
-              <p className="text-sm text-slate-500">
-                {NO_VISIBLE_CARDS_DESCRIPTION}
-              </p>
-            </CardContent>
-          </Card>
+          <EmptyState
+            icon={AlertTriangle}
+            title={NO_VISIBLE_CARDS_TITLE}
+            description={NO_VISIBLE_CARDS_DESCRIPTION}
+            className="border-solid bg-card shadow-sm"
+          />
         ) : (
           groupedSections.map(section => (
             <Collapsible
@@ -488,7 +479,7 @@ export default function AdminOperationsCenter() {
                 setOpenSections(current => ({ ...current, [section.id]: open }))
               }
             >
-              <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+              <Card className={adminPage.card}>
                 <CardHeader className="pb-3">
                   <CollapsibleTrigger asChild>
                     <button
@@ -496,7 +487,7 @@ export default function AdminOperationsCenter() {
                       className="flex w-full min-h-10 items-start justify-between gap-3 text-left"
                     >
                       <div>
-                        <CardTitle className="text-lg text-[#1f3b57]">
+                        <CardTitle className="text-lg text-boa-navy">
                           {section.title}
                         </CardTitle>
                         <CardDescription className="mt-1 text-sm">
@@ -505,7 +496,7 @@ export default function AdminOperationsCenter() {
                       </div>
                       <ChevronDown
                         className={cn(
-                          "mt-1 h-5 w-5 shrink-0 text-slate-400 transition-transform",
+                          "mt-1 h-5 w-5 shrink-0 text-muted-foreground transition-transform",
                           openSections[section.id] && "rotate-180"
                         )}
                       />
@@ -529,7 +520,7 @@ export default function AdminOperationsCenter() {
         )}
 
         {summaryLoading && groupedSections.length > 0 ? (
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
             운영 요약을 갱신하는 중입니다.
           </div>

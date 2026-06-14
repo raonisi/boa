@@ -9,7 +9,7 @@ import {
   PriorityBadge,
   StatusBadge,
 } from "@/components/StatusBadge";
-import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState, LoadingMetric, renderMetricValue } from "./empty-state";
+import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState, LoadingMetric, NotFoundState, renderMetricValue } from "./empty-state";
 
 describe("shared state components", () => {
   it("renders empty states with a clear next action", () => {
@@ -28,11 +28,9 @@ describe("shared state components", () => {
   });
 
   it("renders loading states with Korean accessibility labels", () => {
-    const html = renderToStaticMarkup(
-      <LoadingState title="고객 목록을 불러오는 중…" />
-    );
+    const html = renderToStaticMarkup(<LoadingState />);
 
-    expect(html).toContain("고객 목록을 불러오는 중");
+    expect(html).toContain("정보를 불러오고 있습니다.");
     expect(html).toContain("aria-label=\"불러오는 중\"");
     expect(html).toContain("aria-busy=\"true\"");
   });
@@ -74,11 +72,21 @@ describe("shared state components", () => {
       <ForbiddenInlineState description="이 화면은 현재 권한으로 사용할 수 없습니다." />
     );
 
-    expect(html).toContain("접근 권한이 없습니다.");
+    expect(html).toContain("권한이 필요한 화면입니다.");
     expect(html).toContain("현재 권한");
     expect(html).not.toContain("고객명");
     expect(html).not.toContain("전화번호");
     expect(html).not.toContain("생년월일");
+  });
+
+  it("renders not-found guidance in Korean", () => {
+    const html = renderToStaticMarkup(
+      <NotFoundState onAction={() => undefined} />
+    );
+
+    expect(html).toContain("요청한 화면을 찾을 수 없습니다.");
+    expect(html).toContain("이전 화면");
+    expect(html).not.toContain("NotFound");
   });
 });
 

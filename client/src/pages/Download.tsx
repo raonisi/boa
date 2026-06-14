@@ -11,6 +11,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EmptyState, ErrorState, LoadingMetric } from "@/components/ui/empty-state";
+import { adminPanel } from "@/lib/adminDesignTokens";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -250,7 +252,7 @@ export default function Download() {
           </p>
         </div>
 
-        <Card className="border-amber-200/70 bg-amber-50/50">
+        <Card className={cn("border", adminPanel.warning)}>
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-800" />
@@ -272,7 +274,7 @@ export default function Download() {
           </CardContent>
         </Card>
 
-        <Card className="border-destructive/40 bg-destructive/5">
+        <Card className={cn("border", adminPanel.dangerSoft)}>
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
@@ -296,6 +298,15 @@ export default function Download() {
           </CardContent>
         </Card>
 
+        {previewQuery.isError ? (
+          <ErrorState
+            title="다운로드 정보를 불러오지 못했습니다."
+            description="잠시 후 다시 시도해 주세요. 다운로드 실행 전 대상 건수 확인이 필요합니다."
+            retryLabel="다시 시도"
+            onRetry={() => void previewQuery.refetch()}
+          />
+        ) : null}
+
         <div className="space-y-3">
           {(Object.keys(itemMeta) as DownloadType[]).map(type => {
             const meta = itemMeta[type];
@@ -313,11 +324,13 @@ export default function Download() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {meta.desc}
                       </p>
-                      <p className="mt-2 text-xs font-medium text-slate-600">
+                      <p className="mt-2 text-xs font-medium text-muted-foreground">
                         예상 건수:{" "}
-                        {previewQuery.isLoading
-                          ? "확인 중"
-                          : `${preview?.rowCount ?? 0}건`}
+                        {previewQuery.isLoading ? (
+                          <LoadingMetric className="inline-block h-3 w-10" />
+                        ) : (
+                          `${preview?.rowCount ?? 0}건`
+                        )}
                       </p>
                     </div>
                   </div>
@@ -352,8 +365,8 @@ export default function Download() {
             <DialogTitle>다운로드 범위를 확인해 주세요.</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-2 sm:px-6">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
-              <p className="font-semibold text-slate-950">
+            <div className="rounded-xl border border-border bg-muted/50 p-3 text-sm">
+              <p className="font-semibold text-foreground">
                 {pendingMeta?.label ?? "데이터"} 다운로드
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -366,7 +379,7 @@ export default function Download() {
             </div>
 
             <div>
-              <p className="mb-2 text-xs font-semibold text-slate-700">
+              <p className="mb-2 text-xs font-semibold text-foreground">
                 포함 필드
               </p>
               <div className="flex flex-wrap gap-2">
@@ -388,7 +401,7 @@ export default function Download() {
               주의해 주세요.
             </div>
 
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3 text-sm">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3 text-sm">
               <input
                 type="checkbox"
                 checked={maskedDownload}
@@ -462,8 +475,8 @@ export default function Download() {
               </span>
             </label>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-700">
+            <div className="rounded-xl border border-border bg-muted/50 p-3">
+              <p className="text-xs font-semibold text-foreground">
                 다운로드 실행 전 확인
               </p>
               <ul className="mt-2 space-y-2">
@@ -473,8 +486,8 @@ export default function Download() {
                     className={cn(
                       "flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
                       item.done
-                        ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
-                        : "border-slate-200 bg-white text-slate-600"
+                        ? "border-emerald-200 bg-emerald-50/70 text-boa-green"
+                        : "border-border bg-white text-muted-foreground"
                     )}
                   >
                     <span
@@ -482,7 +495,7 @@ export default function Download() {
                         "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
                         item.done
                           ? "bg-emerald-600 text-white"
-                          : "bg-slate-200 text-slate-600"
+                          : "bg-muted text-muted-foreground"
                       )}
                     >
                       {item.done ? "✓" : "·"}
@@ -497,7 +510,7 @@ export default function Download() {
                 ))}
               </ul>
               {!canExecute ? (
-                <p className="mt-3 text-[11px] text-slate-500">
+                <p className="mt-3 text-[11px] text-muted-foreground">
                   아직 충족되지 않은 확인 항목이 있습니다. 위 체크리스트를
                   완료하면 다운로드할 수 있습니다.
                 </p>

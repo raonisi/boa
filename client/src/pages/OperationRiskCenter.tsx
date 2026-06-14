@@ -230,16 +230,16 @@ function ManagerScopedRiskView({
 
   return (
     <div className="space-y-5">
-      <Card className="border-slate-200/80 bg-white shadow-sm">
+      <Card className="border-border/80 bg-white shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-boa-amber">
               산하 조직 리스크
             </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">
+            <h1 className="mt-1 text-2xl font-bold text-foreground">
               {data?.scope?.label ?? "산하 조직 리스크"}
             </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
               권한 범위 안에서 조치 가능한 고객, 후속관리, 일정, 알림 리스크만
               read-only로 확인합니다. 운영 감사 로그와 위험 작업 상세는 지점장
               전용으로 보호됩니다.
@@ -269,22 +269,22 @@ function ManagerScopedRiskView({
           onRetry={onRefresh}
         />
       ) : isLoading ? (
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardContent className="grid gap-3 p-5 md:grid-cols-3">
             {[0, 1, 2].map(item => (
               <div
                 key={item}
-                className="h-28 animate-pulse rounded-xl bg-slate-100"
+                className="h-28 animate-pulse rounded-xl bg-muted/60"
               />
             ))}
           </CardContent>
         </Card>
       ) : (
         <>
-          <Card className="border-slate-200/80 bg-white shadow-sm">
+          <Card className="border-border/80 bg-white shadow-sm">
             <CardContent className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr]">
               <div>
-                <p className="text-sm font-semibold text-slate-500">
+                <p className="text-sm font-semibold text-muted-foreground">
                   종합 상태
                 </p>
                 <div className="mt-2 flex items-center gap-3">
@@ -294,29 +294,29 @@ function ManagerScopedRiskView({
                       level === "danger"
                         ? "text-destructive"
                         : level === "warning" || level === "caution"
-                          ? "text-amber-700"
+                          ? "text-amber-800"
                           : "text-boa-green"
                     )}
                   />
-                  <span className="text-3xl font-bold text-slate-950">
+                  <span className="text-3xl font-bold text-foreground">
                     {levelLabels[level]}
                   </span>
                   <Badge className={cn("border", levelClasses[level])}>
                     점수 {data?.overall?.score ?? 0}
                   </Badge>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {data?.overall?.message}
                 </p>
               </div>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-xs font-semibold text-slate-500">
+              <div className="rounded-2xl border border-border bg-muted/50 p-4">
+                <p className="text-xs font-semibold text-muted-foreground">
                   검토 범위
                 </p>
-                <p className="mt-1 text-sm font-bold text-slate-900">
+                <p className="mt-1 text-sm font-bold text-foreground">
                   {data?.scope?.label ?? "-"}
                 </p>
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 text-xs text-muted-foreground">
                   권한 범위 안의 업무 리스크만 집계하며, 고객 상세 전문이나 감사
                   로그 원문은 포함하지 않습니다.
                 </p>
@@ -330,15 +330,15 @@ function ManagerScopedRiskView({
               return (
                 <Card
                   key={card.title}
-                  className="border-slate-200/80 bg-white shadow-sm"
+                  className="border-border/80 bg-white shadow-sm"
                 >
                   <CardContent className="flex h-full flex-col p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-slate-900">
+                        <p className="text-sm font-semibold text-foreground">
                           {card.title}
                         </p>
-                        <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                           {card.description}
                         </p>
                       </div>
@@ -348,10 +348,10 @@ function ManagerScopedRiskView({
                     </div>
                     <div className="mt-4 flex items-end justify-between gap-3">
                       <div>
-                        <p className="text-xs font-semibold text-slate-500">
+                        <p className="text-xs font-semibold text-muted-foreground">
                           대상
                         </p>
-                        <p className="mt-1 text-3xl font-bold tabular-nums text-slate-950">
+                        <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
                           {formatNumber(card.count)}
                         </p>
                       </div>
@@ -480,16 +480,16 @@ export default function OperationRiskCenter() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-boa-amber">
                 운영 리스크
               </p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">
+              <h1 className="mt-1 text-2xl font-bold text-foreground">
                 운영 리스크 센터
               </h1>
-              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
+              <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
                 오늘 확인할 위험과 조치가 필요한 항목을 먼저 보고, 상세 로그와
                 운영 상태로 이어집니다. 권한 범위 안에서만 확인할 수 있습니다.
               </p>
@@ -510,7 +510,7 @@ export default function OperationRiskCenter() {
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardContent className="grid gap-3 p-4 md:grid-cols-[180px_1fr_1fr_auto] md:items-end">
             <div className="space-y-1">
               <Label>기간</Label>
@@ -518,7 +518,7 @@ export default function OperationRiskCenter() {
                 value={period}
                 onValueChange={value => setPeriod(value as Period)}
               >
-                <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+                <SelectTrigger className="h-10 rounded-xl bg-muted/50">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -537,7 +537,7 @@ export default function OperationRiskCenter() {
                 value={dateFrom}
                 onChange={event => setDateFrom(event.target.value)}
                 disabled={period !== "custom"}
-                className="h-10 rounded-xl bg-slate-50"
+                className="h-10 rounded-xl bg-muted/50"
               />
             </div>
             <div className="space-y-1">
@@ -547,10 +547,10 @@ export default function OperationRiskCenter() {
                 value={dateTo}
                 onChange={event => setDateTo(event.target.value)}
                 disabled={period !== "custom"}
-                className="h-10 rounded-xl bg-slate-50"
+                className="h-10 rounded-xl bg-muted/50"
               />
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               {data?.period.label ?? "최근 7일"} 기준
             </p>
           </CardContent>
@@ -587,7 +587,7 @@ export default function OperationRiskCenter() {
             data-testid="operation-risk-tab-scroll"
             className="-mx-4 max-w-[calc(100%+2rem)] overflow-x-auto px-4 pb-1 sm:mx-0 sm:max-w-full sm:px-0"
           >
-            <TabsList className="h-auto min-w-max flex-nowrap justify-start gap-1 rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-full sm:min-w-0 sm:flex-wrap">
+            <TabsList className="h-auto min-w-max flex-nowrap justify-start gap-1 rounded-2xl border border-border bg-white p-1 shadow-sm sm:w-full sm:min-w-0 sm:flex-wrap">
               <TabsTrigger value="summary" className="flex-none shrink-0 px-3">
                 요약
               </TabsTrigger>
@@ -646,7 +646,7 @@ export default function OperationRiskCenter() {
         </Tabs>
 
         <Card className="border-emerald-100 bg-emerald-50/60 shadow-sm">
-          <CardContent className="flex items-start gap-3 p-4 text-sm text-emerald-900">
+          <CardContent className="flex items-start gap-3 p-4 text-sm text-boa-green">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               이 화면은 운영 리스크 탐지와 가시화만 제공합니다. 자동 제재, 자동
@@ -678,12 +678,12 @@ function TodayReviewSection({
 
   if (isLoading) {
     return (
-      <Card className="border-slate-200/80 bg-white shadow-sm">
+      <Card className="border-border/80 bg-white shadow-sm">
         <CardContent className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
           {[0, 1, 2].map(item => (
             <div
               key={item}
-              className="h-24 animate-pulse rounded-xl bg-slate-100"
+              className="h-24 animate-pulse rounded-xl bg-muted/60"
             />
           ))}
         </CardContent>
@@ -693,7 +693,7 @@ function TodayReviewSection({
 
   if (queueCards.length === 0 && recentHighRisk === 0) {
     return (
-      <Card className="border-emerald-100/80 bg-emerald-50/40 shadow-sm">
+      <Card className="border-boa-green/20 bg-boa-green/8 shadow-sm">
         <CardContent className="p-5">
           <EmptyState
             icon={ShieldCheck}
@@ -709,11 +709,11 @@ function TodayReviewSection({
   return (
     <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/40 via-white to-white shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="flex flex-wrap items-center gap-2 text-base text-slate-950">
-          <AlertTriangle className="h-4 w-4 text-amber-700" />
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base text-foreground">
+          <AlertTriangle className="h-4 w-4 text-amber-800" />
           오늘 확인 필요
           {recentHighRisk > 0 ? (
-            <Badge className="border-amber-200 bg-amber-100 text-amber-900">
+            <Badge className="border-amber-200 bg-boa-amber/16 text-amber-900">
               최근 고위험 {recentHighRisk}건
             </Badge>
           ) : null}
@@ -729,23 +729,23 @@ function TodayReviewSection({
             return (
               <div
                 key={card.category}
-                className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
+                className="flex flex-col rounded-2xl border border-border/80 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-700">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/50 text-foreground">
                     <Icon className="h-4 w-4" />
                   </span>
                   <Badge className={cn("border", levelClasses[level])}>
                     {levelLabels[level]}
                   </Badge>
                 </div>
-                <p className="mt-3 text-sm font-semibold text-slate-900">
+                <p className="mt-3 text-sm font-semibold text-foreground">
                   {card.title}
                 </p>
-                <p className="mt-1 text-2xl font-bold tabular-nums text-slate-950">
+                <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
                   {formatNumber(card.count)}
                 </p>
-                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
                   {card.description}
                 </p>
                 <Button
@@ -763,8 +763,8 @@ function TodayReviewSection({
           })}
         </div>
         {recentHighRisk > 0 ? (
-          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-600">
+          <div className="flex flex-col gap-2 rounded-xl border border-border bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
               최근 고위험 작업 {recentHighRisk}건이 기록되어 있습니다. 다운로드,
               삭제·복구, 권한 변경 내역을 먼저 확인해 주세요.
             </p>
@@ -798,11 +798,11 @@ function SummaryTab({
   return (
     <>
       <div className="grid gap-3 xl:grid-cols-[1.1fr_1.9fr]">
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardContent className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold text-slate-500">
+                <p className="text-sm font-semibold text-muted-foreground">
                   종합 리스크 등급
                 </p>
                 <div className="mt-2 flex items-center gap-2">
@@ -818,11 +818,11 @@ function SummaryTab({
                             : "text-emerald-700"
                     )}
                   />
-                  <span className="text-3xl font-bold text-slate-950">
+                  <span className="text-3xl font-bold text-foreground">
                     {levelLabels[overallLevel]}
                   </span>
                 </div>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {data?.overall.message ??
                     "운영 리스크 데이터를 계산하고 있습니다."}
                 </p>
@@ -831,14 +831,14 @@ function SummaryTab({
                 {levelLabels[overallLevel]}
               </Badge>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold text-slate-500">
+            <div className="rounded-2xl border border-border bg-muted/50 p-4">
+              <p className="text-xs font-semibold text-muted-foreground">
                 리스크 점수
               </p>
-              <p className="mt-1 text-4xl font-bold tabular-nums text-slate-950">
+              <p className="mt-1 text-4xl font-bold tabular-nums text-foreground">
                 {isLoading ? "-" : (data?.overall.score ?? 0)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-muted-foreground">
                 0점에 가까울수록 안정적이며, 70점 이상은 즉시 확인을 권장합니다.
               </p>
             </div>
@@ -855,7 +855,7 @@ function SummaryTab({
             return (
               <Card
                 key={card.category}
-                className="border-slate-200/80 bg-white shadow-sm"
+                className="border-border/80 bg-white shadow-sm"
               >
                 <CardContent className="flex h-full flex-col p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -863,7 +863,7 @@ function SummaryTab({
                       className={cn(
                         "flex h-10 w-10 items-center justify-center rounded-xl",
                         level === "danger"
-                          ? "bg-red-100 text-red-700"
+                          ? "bg-red-100 text-destructive"
                           : level === "warning"
                             ? "bg-orange-100 text-orange-700"
                             : level === "caution"
@@ -877,31 +877,31 @@ function SummaryTab({
                       {levelLabels[level]}
                     </Badge>
                   </div>
-                  <p className="mt-3 text-sm font-semibold text-slate-900">
+                  <p className="mt-3 text-sm font-semibold text-foreground">
                     {card.title}
                   </p>
                   <div className="mt-2 flex items-end justify-between gap-3">
-                    <p className="text-3xl font-bold tabular-nums text-slate-950">
+                    <p className="text-3xl font-bold tabular-nums text-foreground">
                       {formatNumber(card.count)}
                     </p>
-                    <p className="text-xs font-semibold text-slate-500">
+                    <p className="text-xs font-semibold text-muted-foreground">
                       점수 {formatNumber(card.score)}
                     </p>
                   </div>
-                  <p className="mt-2 min-h-10 text-xs leading-relaxed text-slate-500">
+                  <p className="mt-2 min-h-10 text-xs leading-relaxed text-muted-foreground">
                     {card.description}
                   </p>
-                  <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
+                  <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <p className="font-semibold text-slate-500">담당</p>
-                        <p className="mt-0.5 font-bold text-slate-900">
+                        <p className="font-semibold text-muted-foreground">담당</p>
+                        <p className="mt-0.5 font-bold text-foreground">
                           {actionMeta.owner}
                         </p>
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-500">기한</p>
-                        <p className="mt-0.5 font-bold text-slate-900">
+                        <p className="font-semibold text-muted-foreground">기한</p>
+                        <p className="mt-0.5 font-bold text-foreground">
                           {actionMeta.deadline}
                         </p>
                       </div>
@@ -928,10 +928,10 @@ function SummaryTab({
             ? Array.from({ length: 6 }).map((_, index) => (
                 <Card
                   key={index}
-                  className="border-slate-200/80 bg-white shadow-sm"
+                  className="border-border/80 bg-white shadow-sm"
                 >
                   <CardContent className="p-4">
-                    <div className="h-32 animate-pulse rounded-xl bg-slate-100" />
+                    <div className="h-32 animate-pulse rounded-xl bg-muted/60" />
                   </CardContent>
                 </Card>
               ))
@@ -940,7 +940,7 @@ function SummaryTab({
       </div>
 
       <div className="grid gap-3 lg:grid-cols-3">
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">다운로드 리스크</CardTitle>
           </CardHeader>
@@ -956,7 +956,7 @@ function SummaryTab({
             />
           </CardContent>
         </Card>
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">인수인계 리스크</CardTitle>
           </CardHeader>
@@ -978,7 +978,7 @@ function SummaryTab({
             />
           </CardContent>
         </Card>
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">푸시 알림 리스크</CardTitle>
           </CardHeader>
@@ -1002,7 +1002,7 @@ function ActionsTab({
 }) {
   return (
     <>
-      <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">
+      <Card className="overflow-hidden border-border/80 bg-white shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
             <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -1020,30 +1020,30 @@ function ActionsTab({
           return (
             <Card
               key={guide.title}
-              className="border-slate-200/80 bg-slate-50/70 shadow-sm"
+              className="border-border/80 bg-muted/40 shadow-sm"
             >
               <CardContent className="flex h-full flex-col p-4">
-                <p className="font-semibold text-slate-950">{guide.title}</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-500">
+                <p className="font-semibold text-foreground">{guide.title}</p>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {guide.description}
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-white/80 p-3 text-xs">
                   <div>
-                    <p className="text-slate-500">담당</p>
-                    <p className="font-bold text-slate-900">{meta.owner}</p>
+                    <p className="text-muted-foreground">담당</p>
+                    <p className="font-bold text-foreground">{meta.owner}</p>
                   </div>
                   <div>
-                    <p className="text-slate-500">기한</p>
-                    <p className="font-bold text-slate-900">{meta.deadline}</p>
+                    <p className="text-muted-foreground">기한</p>
+                    <p className="font-bold text-foreground">{meta.deadline}</p>
                   </div>
                 </div>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                   {meta.nextAction}
                 </p>
                 <Button
                   type="button"
                   variant="ghost"
-                  className="mt-auto min-h-10 justify-start px-0 text-slate-900"
+                  className="mt-auto min-h-10 justify-start px-0 text-foreground"
                   onClick={() => setLocation(guide.href)}
                 >
                   조치 화면 열기
@@ -1075,7 +1075,7 @@ function AuditLogsTab(props: {
   onRiskOnlyChange: (value: boolean) => void;
 }) {
   return (
-    <Card className="overflow-hidden border-slate-200/80 bg-white shadow-sm">
+    <Card className="overflow-hidden border-border/80 bg-white shadow-sm">
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-sm">
           <Activity className="h-4 w-4" /> 상세 운영 로그
@@ -1084,14 +1084,14 @@ function AuditLogsTab(props: {
       <CardContent className="space-y-3">
         <div className="grid gap-2 md:grid-cols-6">
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">기간</Label>
+            <Label className="text-[11px] text-muted-foreground">기간</Label>
             <Select
               value={props.auditDatePreset}
               onValueChange={value =>
                 props.onDatePresetChange(value as AuditPeriod)
               }
             >
-              <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+              <SelectTrigger className="h-10 rounded-xl bg-muted/50">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1103,12 +1103,12 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">분류</Label>
+            <Label className="text-[11px] text-muted-foreground">분류</Label>
             <Select
               value={props.auditCategory}
               onValueChange={props.onCategoryChange}
             >
-              <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+              <SelectTrigger className="h-10 rounded-xl bg-muted/50">
                 <SelectValue placeholder="분류" />
               </SelectTrigger>
               <SelectContent>
@@ -1121,12 +1121,12 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">대상</Label>
+            <Label className="text-[11px] text-muted-foreground">대상</Label>
             <Select
               value={props.auditTargetType}
               onValueChange={props.onTargetTypeChange}
             >
-              <SelectTrigger className="h-10 rounded-xl bg-slate-50">
+              <SelectTrigger className="h-10 rounded-xl bg-muted/50">
                 <SelectValue placeholder="대상" />
               </SelectTrigger>
               <SelectContent>
@@ -1141,20 +1141,20 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">작업 코드</Label>
+            <Label className="text-[11px] text-muted-foreground">작업 코드</Label>
             <Input
               value={props.auditAction}
               onChange={event => props.onActionChange(event.target.value)}
-              className="h-10 rounded-xl bg-slate-50"
+              className="h-10 rounded-xl bg-muted/50"
               placeholder="예: DATA_DOWNLOAD"
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">검색</Label>
+            <Label className="text-[11px] text-muted-foreground">검색</Label>
             <Input
               value={props.auditSearch}
               onChange={event => props.onSearchChange(event.target.value)}
-              className="h-10 rounded-xl bg-slate-50"
+              className="h-10 rounded-xl bg-muted/50"
               placeholder="작업자, 대상, 사유"
             />
           </div>
@@ -1168,7 +1168,7 @@ function AuditLogsTab(props: {
             </Button>
           </div>
         </div>
-        <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
           <span>
             표시 {props.auditLogs?.items.length ?? 0}건 / 전체{" "}
             {props.auditLogs?.total ?? 0}건
@@ -1191,13 +1191,13 @@ function AuditLogsTab(props: {
           </Button>
         </div>
         {props.isAuditFetching ? (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-muted-foreground">
             운영 로그를 갱신하고 있습니다.
           </p>
         ) : null}
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50/80">
+            <TableHeader className="bg-muted/40">
               <TableRow>
                 <TableHead>시각</TableHead>
                 <TableHead>작업자</TableHead>
@@ -1233,7 +1233,7 @@ function AuditLogsTab(props: {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs">
-                      <div className="font-semibold text-slate-900">
+                      <div className="font-semibold text-foreground">
                         {getActionLabel(entry.action)}
                       </div>
                     </TableCell>
@@ -1288,7 +1288,7 @@ function StatusTab({
     riskCount >= 10
       ? {
           label: "위험",
-          className: "bg-red-100 text-red-700",
+          className: "bg-red-100 text-destructive",
           helper:
             "위험 작업이 많습니다. 상세 운영 로그와 조치 필요 탭을 확인하세요.",
         }
@@ -1347,20 +1347,20 @@ function StatusTab({
   return (
     <>
       <div className="grid gap-3 xl:grid-cols-[1.05fr_1.95fr]">
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardContent className="space-y-4 p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-slate-500">
+                <p className="text-xs font-semibold text-muted-foreground">
                   운영 건강도
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-emerald-700" />
-                  <span className="text-2xl font-bold text-slate-950">
+                  <span className="text-2xl font-bold text-foreground">
                     {health.label}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-slate-500">{health.helper}</p>
+                <p className="mt-2 text-sm text-muted-foreground">{health.helper}</p>
               </div>
               <Badge className={health.className}>{health.label}</Badge>
             </div>
@@ -1372,7 +1372,7 @@ function StatusTab({
                 </p>
               </div>
               <div className="rounded-xl border border-red-100 bg-red-50/70 p-3">
-                <p className="text-xs text-red-700">위험 작업</p>
+                <p className="text-xs text-destructive">위험 작업</p>
                 <p className="mt-1 text-2xl font-bold text-red-800">
                   {riskCount}
                 </p>
@@ -1381,7 +1381,7 @@ function StatusTab({
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/80 bg-white shadow-sm">
+        <Card className="border-border/80 bg-white shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
@@ -1395,21 +1395,21 @@ function StatusTab({
               return (
                 <div
                   key={card.key}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+                  className="rounded-2xl border border-border bg-muted/40 p-3"
                 >
                   <div className="flex items-center justify-between gap-2">
-                    <Icon className="h-4 w-4 text-slate-600" />
+                    <Icon className="h-4 w-4 text-muted-foreground" />
                     {value > 0 && (
                       <Badge className="bg-amber-100 text-amber-800">
                         확인 필요
                       </Badge>
                     )}
                   </div>
-                  <p className="mt-3 text-xs text-slate-500">{card.label}</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
+                  <p className="mt-3 text-xs text-muted-foreground">{card.label}</p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">
                     {value}
                   </p>
-                  <p className="mt-1 min-h-8 text-xs text-slate-500">
+                  <p className="mt-1 min-h-8 text-xs text-muted-foreground">
                     {card.helper}
                   </p>
                   <Button
@@ -1428,10 +1428,10 @@ function StatusTab({
         </Card>
       </div>
 
-      <Card className="border-slate-200/80 bg-white shadow-sm">
+      <Card className="border-border/80 bg-white shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
-            <Activity className="h-4 w-4 text-slate-700" />
+            <Activity className="h-4 w-4 text-foreground" />
             시스템 상태
           </CardTitle>
         </CardHeader>
@@ -1439,13 +1439,13 @@ function StatusTab({
           {systemCards.map(card => (
             <div
               key={card.key}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+              className="rounded-2xl border border-border bg-muted/40 p-3"
             >
-              <p className="text-xs text-slate-500">{card.period}</p>
-              <p className="mt-1 text-sm font-medium text-slate-900">
+              <p className="text-xs text-muted-foreground">{card.period}</p>
+              <p className="mt-1 text-sm font-medium text-foreground">
                 {card.label}
               </p>
-              <p className="mt-2 text-2xl font-bold text-slate-950">
+              <p className="mt-2 text-2xl font-bold text-foreground">
                 {metric(card.key)}
               </p>
             </div>
@@ -1460,7 +1460,7 @@ function RiskEventsTable({ events }: { events: any[] }) {
   return (
     <div className="overflow-x-auto">
       <Table>
-        <TableHeader className="bg-slate-50/80">
+        <TableHeader className="bg-muted/40">
           <TableRow>
             <TableHead>발생 시각</TableHead>
             <TableHead>작업</TableHead>
@@ -1484,27 +1484,27 @@ function RiskEventsTable({ events }: { events: any[] }) {
           ) : (
             events.map(event => (
               <TableRow key={event.id}>
-                <TableCell className="whitespace-nowrap text-xs text-slate-500">
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
                   {formatDateTime(event.createdAt)}
                 </TableCell>
                 <TableCell className="text-xs">
-                  <div className="font-semibold text-slate-900">
+                  <div className="font-semibold text-foreground">
                     {getActionLabel(event.action)}
                   </div>
                 </TableCell>
                 <TableCell className="text-xs">
-                  <div className="font-medium text-slate-900">
+                  <div className="font-medium text-foreground">
                     {event.actor?.name ?? "-"}
                   </div>
-                  <div className="text-slate-400">
+                  <div className="text-muted-foreground">
                     {getRoleLabel(event.actor?.role)}
                   </div>
                 </TableCell>
-                <TableCell className="text-xs text-slate-500">
+                <TableCell className="text-xs text-muted-foreground">
                   {getTargetTypeLabel(event.targetType)}
                   {event.targetId ? ` #${event.targetId}` : ""}
                 </TableCell>
-                <TableCell className="max-w-sm truncate text-xs text-slate-500">
+                <TableCell className="max-w-sm truncate text-xs text-muted-foreground">
                   {event.reason ?? event.summary ?? "-"}
                 </TableCell>
                 <TableCell>
@@ -1534,9 +1534,9 @@ function Metric({
   value: number | null | undefined;
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
+    <div className="rounded-xl border border-border bg-muted/50 p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
         {formatNumber(value)}
       </p>
     </div>

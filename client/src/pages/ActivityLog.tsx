@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { adminPage } from "@/lib/adminDesignTokens";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -304,25 +305,21 @@ export default function ActivityLog() {
   return (
     <DashboardLayout>
       <div className="space-y-5">
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className={adminPage.card}>
           <CardContent className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-              보안/감사
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-slate-950">
-              활동 로그
-            </h1>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className={adminPage.eyebrow}>보안/감사</p>
+            <h1 className={cn("mt-1", adminPage.title)}>활동 로그</h1>
+            <p className={cn("mt-1", adminPage.subtitle)}>
               위험 작업을 빠르게 찾고, 작업명·위험도·사유 중심으로 감사 이력을
               확인합니다. 권한 범위 안에서만 조회할 수 있습니다.
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className="border-border/80 bg-card shadow-sm">
           <CardContent className="space-y-3 p-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-slate-600">빠른 필터</p>
+              <p className="text-xs font-semibold text-muted-foreground">빠른 필터</p>
               <div className="flex flex-wrap gap-2">
                 {QUICK_FILTERS.map(filter => (
                   <Button
@@ -333,7 +330,7 @@ export default function ActivityLog() {
                     className={cn(
                       "min-h-9 rounded-full",
                       activeQuickFilter === filter.id &&
-                        "bg-[#1f3b57] text-white hover:bg-[#173049]"
+                        "bg-boa-navy text-primary-foreground hover:bg-boa-navy/90"
                     )}
                     onClick={() => applyQuickFilter(filter.id)}
                   >
@@ -343,15 +340,15 @@ export default function ActivityLog() {
               </div>
             </div>
             {activeFilterChips.length > 0 ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <span className="text-xs font-medium text-slate-500">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2">
+                <span className="text-xs font-medium text-muted-foreground">
                   적용 중
                 </span>
                 {activeFilterChips.map(chip => (
                   <Badge
                     key={chip}
                     variant="secondary"
-                    className="rounded-full bg-white text-slate-700"
+                    className="rounded-full bg-white text-foreground"
                   >
                     {chip}
                   </Badge>
@@ -368,7 +365,7 @@ export default function ActivityLog() {
                 </Button>
               </div>
             ) : null}
-            <div className="grid gap-2 text-xs text-slate-500 md:grid-cols-5">
+            <div className="grid gap-2 text-xs text-muted-foreground md:grid-cols-5">
               <Label className="md:col-span-2">검색어</Label>
               <Label>사용자</Label>
               <Label>작업 유형</Label>
@@ -385,7 +382,7 @@ export default function ActivityLog() {
                     setSearch(e.target.value);
                     setActiveQuickFilter(null);
                   }}
-                  className="min-h-12 rounded-xl bg-slate-50 pl-9 md:h-10 md:min-h-10 md:pl-8"
+                  className="min-h-12 rounded-xl bg-muted/50 pl-9 md:h-10 md:min-h-10 md:pl-8"
                 />
               </div>
               <Select
@@ -395,7 +392,7 @@ export default function ActivityLog() {
                   setActiveQuickFilter(null);
                 }}
               >
-                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
+                <SelectTrigger className="min-h-12 rounded-xl bg-muted/50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="사용자" />
                 </SelectTrigger>
                 <SelectContent>
@@ -414,7 +411,7 @@ export default function ActivityLog() {
                   setActiveQuickFilter(null);
                 }}
               >
-                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
+                <SelectTrigger className="min-h-12 rounded-xl bg-muted/50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="작업 유형" />
                 </SelectTrigger>
                 <SelectContent>
@@ -434,7 +431,7 @@ export default function ActivityLog() {
                   setActiveQuickFilter(null);
                 }}
               >
-                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
+                <SelectTrigger className="min-h-12 rounded-xl bg-muted/50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="위험도" />
                 </SelectTrigger>
                 <SelectContent>
@@ -450,7 +447,7 @@ export default function ActivityLog() {
                   setActiveQuickFilter(null);
                 }}
               >
-                <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
+                <SelectTrigger className="min-h-12 rounded-xl bg-muted/50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="기간" />
                 </SelectTrigger>
                 <SelectContent>
@@ -462,7 +459,7 @@ export default function ActivityLog() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 rounded-xl border border-border bg-muted/50 px-3 py-2 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
               <span>
                 표시 {isLogsLoading || isLogsError ? "-" : filtered.length}건 /
                 전체 {isLogsLoading || isLogsError ? "-" : (logs ?? []).length}
@@ -481,7 +478,7 @@ export default function ActivityLog() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className="overflow-hidden border-border/80 bg-card shadow-sm">
           <CardContent className="p-0">
             <div className="space-y-3 p-4 md:hidden">
               {isLogsLoading ? (
@@ -500,15 +497,12 @@ export default function ActivityLog() {
                   className="border-0 bg-transparent py-6"
                 />
               ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-muted-foreground">
-                  <Activity className="h-8 w-8 opacity-30" />
-                  <p className="text-sm font-medium">
-                    표시할 활동 로그가 없습니다.
-                  </p>
-                  <p className="text-xs">
-                    필터를 초기화하거나 기간을 넓혀 보세요.
-                  </p>
-                </div>
+                <EmptyState
+                  icon={Activity}
+                  title="표시할 활동 로그가 없습니다."
+                  description="조건을 조금 넓혀 다시 확인해 주세요."
+                  className="border-0 bg-transparent py-4"
+                />
               ) : (
                 filtered.map(log => {
                   const risky = isRiskAction(log.action);
@@ -516,13 +510,13 @@ export default function ActivityLog() {
                     <div
                       key={log.id}
                       className={cn(
-                        "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-                        risky && "border-l-4 border-l-amber-400 bg-amber-50/20"
+                        "rounded-2xl border border-border bg-white p-4 shadow-sm",
+                        risky && "border-l-4 border-l-boa-amber bg-boa-amber/10"
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">
+                          <p className="line-clamp-2 text-sm font-semibold leading-5 text-foreground">
                             {actionLabel(log.action)}
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -530,23 +524,23 @@ export default function ActivityLog() {
                           </p>
                         </div>
                         {risky && (
-                          <Badge className="shrink-0 bg-amber-100 text-amber-900">
+                          <Badge className="shrink-0 bg-boa-amber/16 text-amber-900">
                             <ShieldAlert className="h-3 w-3" /> 고위험
                           </Badge>
                         )}
                       </div>
-                      <div className="mt-3 grid gap-2 text-xs text-slate-600">
-                        <div className="rounded-xl bg-slate-50 p-3">
+                      <div className="mt-3 grid gap-2 text-xs text-muted-foreground">
+                        <div className="rounded-xl bg-muted/50 p-3">
                           사용자: {getUserName(log.userId)}
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
+                        <div className="rounded-xl bg-muted/50 p-3">
                           대상:{" "}
                           {log.targetType
                             ? `${getTargetTypeLabel(log.targetType)}${log.targetId ? ` #${log.targetId}` : ""}`
                             : "-"}
                         </div>
-                        <div className="rounded-xl bg-slate-50 p-3">
-                          <p className="font-medium text-slate-700">
+                        <div className="rounded-xl bg-muted/50 p-3">
+                          <p className="font-medium text-foreground">
                             사유/요약
                           </p>
                           <p className="mt-1 line-clamp-3 leading-5">
@@ -569,7 +563,7 @@ export default function ActivityLog() {
             </div>
             <div className="hidden overflow-x-auto md:block">
               <Table>
-                <TableHeader className="bg-slate-50/80">
+                <TableHeader className="bg-muted/40">
                   <TableRow>
                     <TableHead>시각</TableHead>
                     <TableHead>사용자</TableHead>
@@ -605,16 +599,13 @@ export default function ActivityLog() {
                     </TableRow>
                   ) : filtered.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-12">
-                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                          <Activity className="h-8 w-8 opacity-30" />
-                          <p className="text-sm font-medium">
-                            표시할 활동 로그가 없습니다.
-                          </p>
-                          <p className="text-xs">
-                            필터를 초기화하거나 기간을 넓혀 보세요.
-                          </p>
-                        </div>
+                      <TableCell colSpan={6} className="py-12 text-center">
+                        <EmptyState
+                          icon={Activity}
+                          title="표시할 활동 로그가 없습니다."
+                          description="조건을 조금 넓혀 다시 확인해 주세요."
+                          className="mx-auto max-w-md border-0 bg-transparent py-0"
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -623,7 +614,7 @@ export default function ActivityLog() {
                       return (
                         <TableRow
                           key={log.id}
-                          className={risky ? "border-l-4 border-l-amber-400 bg-amber-50/15" : ""}
+                          className={risky ? "border-l-4 border-l-boa-amber bg-boa-amber/8" : ""}
                         >
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(log.createdAt).toLocaleString("ko-KR")}
@@ -633,11 +624,11 @@ export default function ActivityLog() {
                           </TableCell>
                           <TableCell>
                             <div className="flex flex-col gap-1">
-                              <span className="text-sm font-semibold text-slate-900">
+                              <span className="text-sm font-semibold text-foreground">
                                 {actionLabel(log.action)}
                               </span>
                               {risky && (
-                                <Badge className="bg-amber-100 text-amber-900">
+                                <Badge className="bg-boa-amber/16 text-amber-900">
                                   <ShieldAlert className="h-3 w-3" /> 고위험
                                 </Badge>
                               )}
@@ -714,7 +705,7 @@ export default function ActivityLog() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">안전 요약</p>
-                  <p className="mt-1 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">
+                  <p className="mt-1 rounded-lg border border-border bg-muted/50 p-3 text-xs text-foreground">
                     {safeLogSummary(selectedLog)}
                   </p>
                 </div>
@@ -722,7 +713,7 @@ export default function ActivityLog() {
                   <p className="text-xs text-muted-foreground">
                     원문 세부정보(민감정보 제거 후)
                   </p>
-                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-100 whitespace-pre-wrap">
+                  <pre className="mt-1 max-h-80 overflow-auto rounded-lg bg-foreground p-3 text-xs text-primary-foreground whitespace-pre-wrap">
                     {redactAuditDisplayText(
                       localizeKnownEnumText(selectedLog.details),
                       2000

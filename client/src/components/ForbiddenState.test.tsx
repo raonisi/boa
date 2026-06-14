@@ -9,7 +9,7 @@ describe("ForbiddenState", () => {
       <ForbiddenState description="이 화면은 지점 관리자 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
     );
 
-    expect(html).toContain("접근 권한이 없습니다.");
+    expect(html).toContain("권한이 필요한 화면입니다.");
     expect(html).toContain("지점 관리자 권한");
     expect(html).toContain("홈으로 이동");
     expect(html).toContain("이전 화면");

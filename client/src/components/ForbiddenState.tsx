@@ -4,8 +4,8 @@ import { Home, LockKeyhole, ShieldAlert } from "lucide-react";
 import React from "react";
 
 export function ForbiddenState({
-  title = "접근 권한이 없습니다.",
-  description = "권한 범위 안에서 확인할 수 있는 정보만 표시됩니다. 필요한 경우 관리자에게 문의해 주세요.",
+  title = "권한이 필요한 화면입니다.",
+  description = "접근 권한을 확인해 주세요. 필요한 경우 관리자에게 문의해 주세요.",
 }: {
   title?: string;
   description?: string;
