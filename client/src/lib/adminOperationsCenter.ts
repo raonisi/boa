@@ -61,7 +61,7 @@ export type AdminOperationCard = {
 export const PAGE_TITLE = "관리자 운영센터";
 
 export const PAGE_DESCRIPTION =
-  "조직 운영, 팀원 관리, 고객 DB 관리, 보안·위험 작업을 한곳에서 확인합니다.";
+  "오늘 조치, 팀 운영, 보안·감사, 데이터 관리를 한곳에서 확인하고 필요한 관리 화면으로 이동합니다.";
 
 export const COMING_SOON_NOTICE = [
   "현재 준비 중인 기능입니다.",
@@ -105,35 +105,35 @@ export const ADMIN_OPERATION_SECTIONS: Array<{
 }> = [
   {
     id: "organization-users",
-    title: "조직·사용자 관리",
+    title: "조직·사용자",
     description:
       "직원 계정, 조직 구조, 담당자 변경, 인수인계와 계정 보안을 관리합니다.",
   },
   {
     id: "customer-db",
-    title: "고객·DB 운영",
+    title: "데이터 관리",
     description:
       "고객 DB 조회, 배정, 병합, 삭제 데이터와 업로드 이력을 운영합니다.",
   },
   {
     id: "team-work",
-    title: "팀원 업무 관리",
+    title: "팀 운영",
     description: "팀원별 고객관리, SLA, 후속관리, 코칭과 온보딩을 점검합니다.",
   },
   {
     id: "operations-security",
-    title: "운영·보안 관리",
+    title: "보안·감사",
     description:
-      "운영 점검, 활동 로그, 위험 작업과 다운로드 사유를 확인합니다.",
+      "운영 리스크, 활동 로그, 위험 작업과 다운로드 사유를 확인합니다.",
   },
   {
     id: "notifications-push",
-    title: "알림·푸시 관리",
+    title: "알림 운영",
     description: "알림센터, 푸시 운영, 발송 로그와 미수신 원인을 확인합니다.",
   },
   {
     id: "goals-performance",
-    title: "목표·실적 관리",
+    title: "목표·실적",
     description: "목표, 실적, 업무 리듬과 팀원별 성과를 확인합니다.",
   },
 ];

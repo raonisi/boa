@@ -234,7 +234,7 @@ function ManagerScopedRiskView({
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-              Scoped Risk Summary
+              산하 조직 리스크
             </p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">
               {data?.scope?.label ?? "산하 조직 리스크"}
@@ -373,7 +373,7 @@ function ManagerScopedRiskView({
 
           {cards.length === 0 ? (
             <EmptyState
-              title="확인할 리스크가 없습니다."
+              title="오늘 확인할 위험 항목이 없습니다."
               description="현재 산하 범위에서 조치가 필요한 업무 리스크가 없습니다."
             />
           ) : null}
@@ -484,15 +484,14 @@ export default function OperationRiskCenter() {
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                Operation Risk Center
+                운영 리스크
               </p>
               <h1 className="mt-1 text-2xl font-bold text-slate-950">
                 운영 리스크 센터
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-500">
-                운영 위험을 한곳에서 확인하고 필요한 조치 화면으로 이동합니다.
-                운영점검의 상세 감사 로그와 운영 상태도 이 화면에서 함께
-                확인합니다.
+                오늘 확인할 위험과 조치가 필요한 항목을 먼저 보고, 상세 로그와
+                운영 상태로 이어집니다. 권한 범위 안에서만 확인할 수 있습니다.
               </p>
             </div>
             <Button
@@ -561,12 +560,22 @@ export default function OperationRiskCenter() {
           <Card className="border-red-200 bg-red-50">
             <CardContent className="p-5">
               <ErrorState
-                title="운영 리스크 정보를 불러오지 못했습니다."
+                title="정보를 다시 불러오지 못했습니다."
                 description="잠시 후 다시 시도해 주세요. 권한이 필요한 화면이면 관리자에게 문의해 주세요."
+                retryLabel="다시 시도"
                 onRetry={() => refetch()}
               />
             </CardContent>
           </Card>
+        ) : null}
+
+        {!isError ? (
+          <TodayReviewSection
+            data={data}
+            isLoading={isLoading}
+            setLocation={setLocation}
+            onViewActions={() => setLocation("/operation-risk?tab=actions")}
+          />
         ) : null}
 
         <Tabs
@@ -648,6 +657,130 @@ export default function OperationRiskCenter() {
         </Card>
       </div>
     </DashboardLayout>
+  );
+}
+
+function TodayReviewSection({
+  data,
+  isLoading,
+  setLocation,
+  onViewActions,
+}: {
+  data: any;
+  isLoading: boolean;
+  setLocation: (path: string) => void;
+  onViewActions: () => void;
+}) {
+  const queueCards = (data?.riskCards ?? []).filter(
+    (card: any) => card.count > 0 && card.level !== "normal"
+  );
+  const recentHighRisk = (data?.recentRiskEvents ?? []).length;
+
+  if (isLoading) {
+    return (
+      <Card className="border-slate-200/80 bg-white shadow-sm">
+        <CardContent className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
+          {[0, 1, 2].map(item => (
+            <div
+              key={item}
+              className="h-24 animate-pulse rounded-xl bg-slate-100"
+            />
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (queueCards.length === 0 && recentHighRisk === 0) {
+    return (
+      <Card className="border-emerald-100/80 bg-emerald-50/40 shadow-sm">
+        <CardContent className="p-5">
+          <EmptyState
+            icon={ShieldCheck}
+            title="오늘 확인할 위험 항목이 없습니다."
+            description="현재 기간 기준으로 즉시 조치가 필요한 운영 이슈가 없습니다. 아래 탭에서 상세 로그와 운영 상태를 확인할 수 있습니다."
+            className="border-0 bg-transparent py-2"
+          />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50/40 via-white to-white shadow-sm">
+      <CardHeader className="pb-2">
+        <CardTitle className="flex flex-wrap items-center gap-2 text-base text-slate-950">
+          <AlertTriangle className="h-4 w-4 text-amber-700" />
+          오늘 확인 필요
+          {recentHighRisk > 0 ? (
+            <Badge className="border-amber-200 bg-amber-100 text-amber-900">
+              최근 고위험 {recentHighRisk}건
+            </Badge>
+          ) : null}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 pb-5">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {queueCards.map((card: any) => {
+            const Icon =
+              categoryIcons[card.category as keyof typeof categoryIcons] ??
+              AlertTriangle;
+            const level = card.level as RiskLevel;
+            return (
+              <div
+                key={card.category}
+                className="flex flex-col rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-50 text-slate-700">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <Badge className={cn("border", levelClasses[level])}>
+                    {levelLabels[level]}
+                  </Badge>
+                </div>
+                <p className="mt-3 text-sm font-semibold text-slate-900">
+                  {card.title}
+                </p>
+                <p className="mt-1 text-2xl font-bold tabular-nums text-slate-950">
+                  {formatNumber(card.count)}
+                </p>
+                <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">
+                  {card.description}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 min-h-10 w-full"
+                  onClick={() => setLocation(card.href)}
+                >
+                  확인하기
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+        {recentHighRisk > 0 ? (
+          <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-slate-600">
+              최근 고위험 작업 {recentHighRisk}건이 기록되어 있습니다. 다운로드,
+              삭제·복구, 권한 변경 내역을 먼저 확인해 주세요.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="min-h-10 shrink-0"
+              onClick={onViewActions}
+            >
+              최근 고위험 보기
+            </Button>
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -761,13 +894,13 @@ function SummaryTab({
                   <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-xs text-slate-600">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <p className="font-semibold text-slate-500">Owner</p>
+                        <p className="font-semibold text-slate-500">담당</p>
                         <p className="mt-0.5 font-bold text-slate-900">
                           {actionMeta.owner}
                         </p>
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-500">Deadline</p>
+                        <p className="font-semibold text-slate-500">기한</p>
                         <p className="mt-0.5 font-bold text-slate-900">
                           {actionMeta.deadline}
                         </p>
@@ -851,7 +984,7 @@ function SummaryTab({
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-2 text-center">
             <Metric label="실패" value={data?.pushRisk.failed} />
-            <Metric label="skip" value={data?.pushRisk.skipped} />
+            <Metric label="발송 생략" value={data?.pushRisk.skipped} />
             <Metric label="비활성 토큰" value={data?.pushRisk.inactiveTokens} />
           </CardContent>
         </Card>
@@ -998,17 +1131,17 @@ function AuditLogsTab(props: {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">전체 대상</SelectItem>
-                <SelectItem value="user">user</SelectItem>
-                <SelectItem value="customer">customer</SelectItem>
-                <SelectItem value="contract">contract</SelectItem>
-                <SelectItem value="team">team</SelectItem>
-                <SelectItem value="customers">customers</SelectItem>
-                <SelectItem value="contracts">contracts</SelectItem>
+                <SelectItem value="user">사용자</SelectItem>
+                <SelectItem value="customer">고객</SelectItem>
+                <SelectItem value="contract">계약</SelectItem>
+                <SelectItem value="team">팀</SelectItem>
+                <SelectItem value="customers">고객(복수)</SelectItem>
+                <SelectItem value="contracts">계약(복수)</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-slate-500">Action</Label>
+            <Label className="text-[11px] text-slate-500">작업 코드</Label>
             <Input
               value={props.auditAction}
               onChange={event => props.onActionChange(event.target.value)}

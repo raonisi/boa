@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -163,6 +164,10 @@ export default function PushNotificationOperations() {
   ];
 
   const logRows = (logs ?? []) as PushLogListItem[];
+  const actionIssueCount =
+    (summary?.failed ?? 0) +
+    (summary?.skipped ?? 0) +
+    (summary?.inactiveTokens ?? 0);
 
   return (
     <DashboardLayout>
@@ -172,14 +177,15 @@ export default function PushNotificationOperations() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                  Push Operations
+                  알림 운영
                 </p>
                 <h1 className="mt-1 text-2xl font-bold text-slate-950">
                   푸시 알림 운영
                 </h1>
                 <p className="mt-1 text-sm text-slate-500">
-                  지점장 전용 화면입니다. device token 원문·고객 민감정보는
-                  표시하지 않습니다.
+                  지점장 전용 화면입니다. 기기 식별 정보 원문과 고객 민감정보는
+                  표시하지 않으며, 알림 제목·본문에도 민감정보가 포함되지
+                  않아야 합니다.
                 </p>
               </div>
               <Button
@@ -192,6 +198,69 @@ export default function PushNotificationOperations() {
             </div>
           </CardContent>
         </Card>
+
+        {summaryLoading ? (
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="p-5">
+              <EmptyState
+                variant="loading"
+                title="운영 정보를 불러오는 중입니다."
+                description="푸시 발송 상태와 최근 로그를 확인하고 있습니다."
+                className="border-0 bg-transparent py-4"
+              />
+            </CardContent>
+          </Card>
+        ) : actionIssueCount > 0 ? (
+          <Card className="border-amber-200/70 bg-amber-50/40 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <ShieldAlert className="h-4 w-4 text-amber-700" />
+                조치가 필요한 항목
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="grid gap-3 pb-5 sm:grid-cols-3">
+              {(summary?.failed ?? 0) > 0 ? (
+                <div className="rounded-xl border border-red-200/70 bg-white p-4">
+                  <p className="text-xs text-slate-500">발송 실패</p>
+                  <p className="mt-1 text-2xl font-bold text-red-700">
+                    {summary?.failed}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-600">
+                    실패 로그를 확인하고 현장 알림 누락 여부를 점검해 주세요.
+                  </p>
+                </div>
+              ) : null}
+              {(summary?.skipped ?? 0) > 0 ? (
+                <div className="rounded-xl border border-amber-200/70 bg-white p-4">
+                  <p className="text-xs text-slate-500">발송 생략</p>
+                  <p className="mt-1 text-2xl font-bold text-amber-800">
+                    {summary?.skipped}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-600">
+                    토큰 없음, 조용한 시간, 설정 누락 등으로 생략된 건입니다.
+                  </p>
+                </div>
+              ) : null}
+              {(summary?.inactiveTokens ?? 0) > 0 ? (
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs text-slate-500">비활성 기기</p>
+                  <p className="mt-1 text-2xl font-bold text-slate-800">
+                    {summary?.inactiveTokens}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-600">
+                    비활성·퇴사 계정의 기기 등록 상태를 확인해 주세요.
+                  </p>
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="border-emerald-100/80 bg-emerald-50/40 shadow-sm">
+            <CardContent className="p-4 text-sm text-emerald-900">
+              처리할 Push 운영 항목이 없습니다. 최근 발송 상태가 안정적입니다.
+            </CardContent>
+          </Card>
+        )}
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {cards.map(card => (
@@ -267,17 +336,26 @@ export default function PushNotificationOperations() {
 
             <div className="space-y-3 md:hidden">
               {logsLoading ? (
-                <p className="py-8 text-center text-sm text-slate-500">
-                  발송 로그를 불러오는 중입니다.
-                </p>
+                <EmptyState
+                  variant="loading"
+                  title="운영 정보를 불러오는 중입니다."
+                  description="발송 로그를 확인하고 있습니다."
+                  className="border-0 bg-transparent py-8"
+                />
               ) : logsError ? (
-                <p className="py-8 text-center text-sm text-red-600">
-                  발송 로그를 불러오지 못했습니다.
-                </p>
+                <ErrorState
+                  title="정보를 다시 불러오지 못했습니다."
+                  description="잠시 후 다시 시도해 주세요."
+                  retryLabel="다시 시도"
+                  onRetry={() => utils.pushNotifications.logs.invalidate()}
+                  className="border-0 bg-transparent py-8"
+                />
               ) : logRows.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-500">
-                  표시할 푸시 발송 로그가 없습니다.
-                </p>
+                <EmptyState
+                  title="처리할 Push 운영 항목이 없습니다."
+                  description="현재 조건에 맞는 발송 로그가 없습니다."
+                  className="border-0 bg-transparent py-8"
+                />
               ) : (
                 logRows.map(log => <PushLogCard key={log.id} log={log} />)
               )}
@@ -299,29 +377,35 @@ export default function PushNotificationOperations() {
                 <TableBody>
                   {logsLoading ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="py-8 text-center text-sm text-slate-500"
-                      >
-                        발송 로그를 불러오는 중입니다.
+                      <TableCell colSpan={7} className="py-8">
+                        <EmptyState
+                          variant="loading"
+                          title="운영 정보를 불러오는 중입니다."
+                          description="발송 로그를 확인하고 있습니다."
+                          className="mx-auto max-w-md border-0 bg-transparent py-0"
+                        />
                       </TableCell>
                     </TableRow>
                   ) : logsError ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="py-8 text-center text-sm text-red-600"
-                      >
-                        발송 로그를 불러오지 못했습니다.
+                      <TableCell colSpan={7} className="py-8">
+                        <ErrorState
+                          title="정보를 다시 불러오지 못했습니다."
+                          description="잠시 후 다시 시도해 주세요."
+                          retryLabel="다시 시도"
+                          onRetry={() => utils.pushNotifications.logs.invalidate()}
+                          className="mx-auto max-w-md border-0 bg-transparent py-0"
+                        />
                       </TableCell>
                     </TableRow>
                   ) : logRows.length === 0 ? (
                     <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="py-8 text-center text-sm text-slate-500"
-                      >
-                        표시할 푸시 발송 로그가 없습니다.
+                      <TableCell colSpan={7} className="py-8">
+                        <EmptyState
+                          title="처리할 Push 운영 항목이 없습니다."
+                          description="현재 조건에 맞는 발송 로그가 없습니다."
+                          className="mx-auto max-w-md border-0 bg-transparent py-0"
+                        />
                       </TableCell>
                     </TableRow>
                   ) : (

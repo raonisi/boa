@@ -376,7 +376,7 @@ export default function AdminOperationsCenter() {
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="space-y-2">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                  Admin Operations Center
+                  관리자 운영
                 </p>
                 <div className="flex items-center gap-2">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#1f3b57]/10 bg-[#1f3b57] text-white">
@@ -426,14 +426,14 @@ export default function AdminOperationsCenter() {
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-[#1f3b57]" />
             <h2 className="text-sm font-semibold text-slate-900">
-              오늘 확인할 운영 요약
+              오늘 확인 필요
             </h2>
           </div>
 
           {summaryError ? (
             <ErrorState
-              title="운영 요약을 불러오지 못했습니다"
-              description="네트워크 상태를 확인한 뒤 다시 시도해 주세요. 문제가 계속되면 관리자에게 문의해 주세요."
+              title="정보를 다시 불러오지 못했습니다."
+              description="네트워크 상태를 확인한 뒤 다시 시도해 주세요. 권한 범위 안에서 확인할 수 있는 정보만 표시됩니다."
               retryLabel="다시 시도"
               onRetry={() => refetchSummary()}
             />
@@ -458,10 +458,10 @@ export default function AdminOperationsCenter() {
               ))}
             </div>
           ) : (
-            <Card className="border-slate-200/80 bg-white/95">
-              <CardContent className="p-4 text-sm text-slate-500">
-                현재 강조할 운영 이슈가 없습니다. 아래 카드에서 필요한 관리
-                기능으로 이동하세요.
+            <Card className="border-emerald-100/80 bg-emerald-50/40">
+              <CardContent className="p-4 text-sm text-emerald-900">
+                확인할 항목이 없습니다. 아래 카드에서 필요한 관리 기능으로
+                이동하세요.
               </CardContent>
             </Card>
           )}

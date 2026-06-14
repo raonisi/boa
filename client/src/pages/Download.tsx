@@ -12,6 +12,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   Download as DownloadIcon,
@@ -19,8 +20,74 @@ import {
   ShieldCheck,
   Users,
 } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+
+export type DownloadReadinessItem = {
+  id: string;
+  label: string;
+  done: boolean;
+  hint: string;
+};
+
+export function getDownloadReadinessItems(input: {
+  previewLoading: boolean;
+  rowCount: number | undefined;
+  reason: string;
+  maskedDownload: boolean;
+  rawExportConfirmed: boolean;
+  finalConfirmed: boolean;
+}): DownloadReadinessItem[] {
+  const reasonDone = input.reason.trim().length >= 5;
+  const items: DownloadReadinessItem[] = [
+    {
+      id: "scope",
+      label: "대상 범위 확인",
+      done: !input.previewLoading,
+      hint: input.previewLoading
+        ? "다운로드 상태를 확인하는 중입니다."
+        : `총 ${input.rowCount ?? 0}건이 대상입니다.`,
+    },
+    {
+      id: "reason",
+      label: "다운로드 사유 입력",
+      done: reasonDone,
+      hint: reasonDone
+        ? "사유가 입력되었습니다."
+        : "다운로드 사유를 입력해 주세요. (5자 이상)",
+    },
+    {
+      id: "masking",
+      label: "마스킹 여부 확인",
+      done: true,
+      hint: input.maskedDownload
+        ? "고객정보 보호를 위해 기본값은 마스킹 다운로드입니다."
+        : "원본 데이터 export는 추가 확인이 필요합니다.",
+    },
+  ];
+
+  if (!input.maskedDownload) {
+    items.push({
+      id: "raw",
+      label: "원본 export 승인",
+      done: input.rawExportConfirmed,
+      hint: input.rawExportConfirmed
+        ? "원본 export 승인이 완료되었습니다."
+        : "원본 데이터 export 승인에 체크해 주세요.",
+    });
+  }
+
+  items.push({
+    id: "final",
+    label: "최종 확인",
+    done: input.finalConfirmed,
+    hint: input.finalConfirmed
+      ? "범위와 주의사항을 확인했습니다."
+      : "다운로드 범위와 외부 파일 생성 주의사항을 확인해 주세요.",
+  });
+
+  return items;
+}
 
 type DownloadType = "customers" | "contracts" | "schedules" | "performance";
 
@@ -145,6 +212,25 @@ export default function Download() {
 
   const pendingMeta = pendingType ? itemMeta[pendingType] : null;
   const pendingPreview = pendingType ? previewQuery.data?.[pendingType] : null;
+  const readinessItems = useMemo(
+    () =>
+      getDownloadReadinessItems({
+        previewLoading: previewQuery.isLoading,
+        rowCount: pendingPreview?.rowCount,
+        reason: downloadReason,
+        maskedDownload,
+        rawExportConfirmed,
+        finalConfirmed,
+      }),
+    [
+      downloadReason,
+      finalConfirmed,
+      maskedDownload,
+      pendingPreview?.rowCount,
+      previewQuery.isLoading,
+      rawExportConfirmed,
+    ]
+  );
   const canExecute =
     Boolean(pendingType) &&
     downloadReason.trim().length >= 5 &&
@@ -159,10 +245,32 @@ export default function Download() {
         <div>
           <h1 className="text-2xl font-bold">데이터 다운로드</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            지점장 전용 CSV 다운로드입니다. 실행 전 범위와 민감정보 포함 여부를
-            확인합니다.
+            지점장 전용 CSV 다운로드입니다. 다운로드 전 확인이 필요하며, 이
+            작업은 기록으로 남습니다.
           </p>
         </div>
+
+        <Card className="border-amber-200/70 bg-amber-50/50">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-800" />
+              <div className="text-sm text-amber-950">
+                <p className="mb-1 font-semibold">다운로드 전 확인이 필요합니다</p>
+                <ul className="space-y-1 text-xs text-amber-900/90">
+                  <li>
+                    고객정보 보호를 위해 기본값은 마스킹 다운로드입니다.
+                  </li>
+                  <li>
+                    다운로드 사유, 건수, 마스킹 여부는 감사 기록으로 남습니다.
+                  </li>
+                  <li>
+                    대상 범위와 마스킹 여부를 확인한 뒤 실행해 주세요.
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card className="border-destructive/40 bg-destructive/5">
           <CardContent className="p-4">
@@ -353,6 +461,48 @@ export default function Download() {
                 다운로드 범위와 외부 파일 생성 주의사항을 확인했습니다.
               </span>
             </label>
+
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-semibold text-slate-700">
+                다운로드 실행 전 확인
+              </p>
+              <ul className="mt-2 space-y-2">
+                {readinessItems.map(item => (
+                  <li
+                    key={item.id}
+                    className={cn(
+                      "flex items-start gap-2 rounded-lg border px-3 py-2 text-xs",
+                      item.done
+                        ? "border-emerald-200 bg-emerald-50/70 text-emerald-900"
+                        : "border-slate-200 bg-white text-slate-600"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                        item.done
+                          ? "bg-emerald-600 text-white"
+                          : "bg-slate-200 text-slate-600"
+                      )}
+                    >
+                      {item.done ? "✓" : "·"}
+                    </span>
+                    <span>
+                      <span className="font-semibold">{item.label}</span>
+                      <span className="mt-0.5 block text-[11px] leading-relaxed opacity-90">
+                        {item.hint}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {!canExecute ? (
+                <p className="mt-3 text-[11px] text-slate-500">
+                  아직 충족되지 않은 확인 항목이 있습니다. 위 체크리스트를
+                  완료하면 다운로드할 수 있습니다.
+                </p>
+              ) : null}
+            </div>
           </div>
           <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
             <Button

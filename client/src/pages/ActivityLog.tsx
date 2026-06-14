@@ -30,8 +30,64 @@ import { redactAuditDisplayText } from "@/lib/auditRedaction";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { getTargetTypeLabel, localizeKnownEnumText } from "@/lib/userRole";
-import { Activity, Search, ShieldAlert } from "lucide-react";
+import { Activity, Search, ShieldAlert, X } from "lucide-react";
 import { useMemo, useState } from "react";
+
+type QuickFilterId =
+  | "high_risk"
+  | "download"
+  | "delete_restore"
+  | "role_change"
+  | "user_mgmt"
+  | "today"
+  | "last_7d";
+
+const QUICK_FILTERS: Array<{
+  id: QuickFilterId;
+  label: string;
+  apply: () => Partial<{
+    categoryFilter: string;
+    riskFilter: string;
+    periodFilter: string;
+    search: string;
+  }>;
+}> = [
+  {
+    id: "high_risk",
+    label: "고위험 작업",
+    apply: () => ({ riskFilter: "risk", categoryFilter: "all", periodFilter: "30" }),
+  },
+  {
+    id: "download",
+    label: "다운로드",
+    apply: () => ({ categoryFilter: "download", riskFilter: "all", periodFilter: "30" }),
+  },
+  {
+    id: "delete_restore",
+    label: "삭제/복원",
+    apply: () => ({ categoryFilter: "delete", riskFilter: "all", periodFilter: "30" }),
+  },
+  {
+    id: "role_change",
+    label: "권한 변경",
+    apply: () => ({ search: "권한", categoryFilter: "user", riskFilter: "all", periodFilter: "30" }),
+  },
+  {
+    id: "user_mgmt",
+    label: "사용자 관리",
+    apply: () => ({ categoryFilter: "user", riskFilter: "all", periodFilter: "30", search: "" }),
+  },
+  {
+    id: "today",
+    label: "오늘",
+    apply: () => ({ periodFilter: "1", categoryFilter: "all", riskFilter: "all", search: "" }),
+  },
+  {
+    id: "last_7d",
+    label: "최근 7일",
+    apply: () => ({ periodFilter: "7", categoryFilter: "all", riskFilter: "all", search: "" }),
+  },
+];
 
 const actionLabels: Record<string, string> = {
   USER_LOGIN: "로그인",
@@ -81,6 +137,10 @@ function isRiskAction(action: string) {
   return riskyPatterns.some(pattern => action.includes(pattern));
 }
 
+function isRoleChangeAction(action: string) {
+  return action.includes("ROLE_CHANGED") || action.includes("STATUS_CHANGED");
+}
+
 function actionCategory(action: string) {
   if (action.includes("DOWNLOAD")) return "download";
   if (
@@ -124,6 +184,9 @@ export default function ActivityLog() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("30");
+  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterId | null>(
+    null
+  );
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const {
     data: logs,
@@ -161,15 +224,82 @@ export default function ActivityLog() {
     const matchUser = userFilter === "all" || String(log.userId) === userFilter;
     const matchCategory =
       categoryFilter === "all" || actionCategory(log.action) === categoryFilter;
+    const matchRoleChange =
+      activeQuickFilter !== "role_change" || isRoleChangeAction(log.action);
     const matchRisk =
       riskFilter === "all" ||
       (riskFilter === "risk"
         ? isRiskAction(log.action)
         : !isRiskAction(log.action));
     return (
-      withinPeriod && matchSearch && matchUser && matchCategory && matchRisk
+      withinPeriod &&
+      matchSearch &&
+      matchUser &&
+      matchCategory &&
+      matchRoleChange &&
+      matchRisk
     );
   });
+
+  const activeFilterChips = useMemo(() => {
+    const chips: string[] = [];
+    if (activeQuickFilter) {
+      chips.push(
+        QUICK_FILTERS.find(item => item.id === activeQuickFilter)?.label ?? ""
+      );
+    }
+    if (search) chips.push(`검색: ${search}`);
+    if (userFilter !== "all") chips.push(`사용자: ${getUserName(Number(userFilter))}`);
+    if (categoryFilter !== "all" && activeQuickFilter !== "download" && activeQuickFilter !== "delete_restore" && activeQuickFilter !== "user_mgmt") {
+      const categoryLabels: Record<string, string> = {
+        customer: "고객",
+        contract: "계약",
+        schedule: "일정",
+        download: "다운로드",
+        delete: "삭제/복구",
+        user: "사용자/보안",
+      };
+      chips.push(categoryLabels[categoryFilter] ?? categoryFilter);
+    }
+    if (riskFilter === "risk" && activeQuickFilter !== "high_risk") {
+      chips.push("위험 작업");
+    }
+    if (periodFilter === "1") chips.push("오늘");
+    else if (periodFilter === "7" && activeQuickFilter !== "last_7d") {
+      chips.push("최근 7일");
+    } else if (periodFilter === "30") chips.push("최근 30일");
+    else if (periodFilter === "90") chips.push("최근 90일");
+    else if (periodFilter === "all") chips.push("전체 기간");
+    return chips.filter(Boolean);
+  }, [
+    activeQuickFilter,
+    categoryFilter,
+    getUserName,
+    periodFilter,
+    riskFilter,
+    search,
+    userFilter,
+  ]);
+
+  const applyQuickFilter = (filterId: QuickFilterId) => {
+    const preset = QUICK_FILTERS.find(item => item.id === filterId);
+    if (!preset) return;
+    const next = preset.apply();
+    setActiveQuickFilter(filterId);
+    if (next.categoryFilter !== undefined) setCategoryFilter(next.categoryFilter);
+    if (next.riskFilter !== undefined) setRiskFilter(next.riskFilter);
+    if (next.periodFilter !== undefined) setPeriodFilter(next.periodFilter);
+    if (next.search !== undefined) setSearch(next.search);
+  };
+
+  const resetFilters = () => {
+    setSearch("");
+    setUserFilter("all");
+    setCategoryFilter("all");
+    setRiskFilter("all");
+    setPeriodFilter("30");
+    setActiveQuickFilter(null);
+  };
 
   return (
     <DashboardLayout>
@@ -177,20 +307,67 @@ export default function ActivityLog() {
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-              Activity Audit
+              보안/감사
             </p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">
               활동 로그
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              운영자가 이해할 수 있는 작업명, 위험도, 사유 중심으로 감사 이력을
-              확인합니다.
+              위험 작업을 빠르게 찾고, 작업명·위험도·사유 중심으로 감사 이력을
+              확인합니다. 권한 범위 안에서만 조회할 수 있습니다.
             </p>
           </CardContent>
         </Card>
 
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="space-y-3 p-4">
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-slate-600">빠른 필터</p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_FILTERS.map(filter => (
+                  <Button
+                    key={filter.id}
+                    type="button"
+                    size="sm"
+                    variant={activeQuickFilter === filter.id ? "default" : "outline"}
+                    className={cn(
+                      "min-h-9 rounded-full",
+                      activeQuickFilter === filter.id &&
+                        "bg-[#1f3b57] text-white hover:bg-[#173049]"
+                    )}
+                    onClick={() => applyQuickFilter(filter.id)}
+                  >
+                    {filter.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+            {activeFilterChips.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="text-xs font-medium text-slate-500">
+                  적용 중
+                </span>
+                {activeFilterChips.map(chip => (
+                  <Badge
+                    key={chip}
+                    variant="secondary"
+                    className="rounded-full bg-white text-slate-700"
+                  >
+                    {chip}
+                  </Badge>
+                ))}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-8 gap-1 px-2 text-xs"
+                  onClick={resetFilters}
+                >
+                  <X className="h-3.5 w-3.5" />
+                  필터 초기화
+                </Button>
+              </div>
+            ) : null}
             <div className="grid gap-2 text-xs text-slate-500 md:grid-cols-5">
               <Label className="md:col-span-2">검색어</Label>
               <Label>사용자</Label>
@@ -204,11 +381,20 @@ export default function ActivityLog() {
                 <Input
                   placeholder="작업, 사용자, 사유, 상세 검색"
                   value={search}
-                  onChange={e => setSearch(e.target.value)}
+                  onChange={e => {
+                    setSearch(e.target.value);
+                    setActiveQuickFilter(null);
+                  }}
                   className="min-h-12 rounded-xl bg-slate-50 pl-9 md:h-10 md:min-h-10 md:pl-8"
                 />
               </div>
-              <Select value={userFilter} onValueChange={setUserFilter}>
+              <Select
+                value={userFilter}
+                onValueChange={value => {
+                  setUserFilter(value);
+                  setActiveQuickFilter(null);
+                }}
+              >
                 <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="사용자" />
                 </SelectTrigger>
@@ -221,7 +407,13 @@ export default function ActivityLog() {
                   ))}
                 </SelectContent>
               </Select>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <Select
+                value={categoryFilter}
+                onValueChange={value => {
+                  setCategoryFilter(value);
+                  setActiveQuickFilter(null);
+                }}
+              >
                 <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="작업 유형" />
                 </SelectTrigger>
@@ -235,7 +427,13 @@ export default function ActivityLog() {
                   <SelectItem value="user">사용자/보안</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={riskFilter} onValueChange={setRiskFilter}>
+              <Select
+                value={riskFilter}
+                onValueChange={value => {
+                  setRiskFilter(value);
+                  setActiveQuickFilter(null);
+                }}
+              >
                 <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="위험도" />
                 </SelectTrigger>
@@ -245,11 +443,18 @@ export default function ActivityLog() {
                   <SelectItem value="normal">일반 작업</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={periodFilter} onValueChange={setPeriodFilter}>
+              <Select
+                value={periodFilter}
+                onValueChange={value => {
+                  setPeriodFilter(value);
+                  setActiveQuickFilter(null);
+                }}
+              >
                 <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-10 md:min-h-10">
                   <SelectValue placeholder="기간" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="1">오늘</SelectItem>
                   <SelectItem value="7">최근 7일</SelectItem>
                   <SelectItem value="30">최근 30일</SelectItem>
                   <SelectItem value="90">최근 90일</SelectItem>
@@ -268,13 +473,7 @@ export default function ActivityLog() {
                 variant="ghost"
                 size="sm"
                 className="min-h-12 justify-start px-0 text-xs sm:min-h-8 sm:px-2"
-                onClick={() => {
-                  setSearch("");
-                  setUserFilter("all");
-                  setCategoryFilter("all");
-                  setRiskFilter("all");
-                  setPeriodFilter("30");
-                }}
+                onClick={resetFilters}
               >
                 필터 초기화
               </Button>
@@ -304,10 +503,10 @@ export default function ActivityLog() {
                 <div className="flex flex-col items-center gap-2 rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-muted-foreground">
                   <Activity className="h-8 w-8 opacity-30" />
                   <p className="text-sm font-medium">
-                    조건에 맞는 활동 로그가 없습니다.
+                    표시할 활동 로그가 없습니다.
                   </p>
                   <p className="text-xs">
-                    필터를 초기화하거나 기간을 넓혀보세요.
+                    필터를 초기화하거나 기간을 넓혀 보세요.
                   </p>
                 </div>
               ) : (
@@ -318,7 +517,7 @@ export default function ActivityLog() {
                       key={log.id}
                       className={cn(
                         "rounded-2xl border border-slate-200 bg-white p-4 shadow-sm",
-                        risky && "border-red-100 bg-red-50/30"
+                        risky && "border-l-4 border-l-amber-400 bg-amber-50/20"
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -331,8 +530,8 @@ export default function ActivityLog() {
                           </p>
                         </div>
                         {risky && (
-                          <Badge className="shrink-0 bg-red-100 text-red-700">
-                            <ShieldAlert className="h-3 w-3" /> 위험
+                          <Badge className="shrink-0 bg-amber-100 text-amber-900">
+                            <ShieldAlert className="h-3 w-3" /> 고위험
                           </Badge>
                         )}
                       </div>
@@ -410,10 +609,10 @@ export default function ActivityLog() {
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">
                           <Activity className="h-8 w-8 opacity-30" />
                           <p className="text-sm font-medium">
-                            조건에 맞는 활동 로그가 없습니다.
+                            표시할 활동 로그가 없습니다.
                           </p>
                           <p className="text-xs">
-                            필터를 초기화하거나 기간을 넓혀보세요.
+                            필터를 초기화하거나 기간을 넓혀 보세요.
                           </p>
                         </div>
                       </TableCell>
@@ -424,7 +623,7 @@ export default function ActivityLog() {
                       return (
                         <TableRow
                           key={log.id}
-                          className={risky ? "bg-red-50/30" : ""}
+                          className={risky ? "border-l-4 border-l-amber-400 bg-amber-50/15" : ""}
                         >
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(log.createdAt).toLocaleString("ko-KR")}
@@ -438,8 +637,8 @@ export default function ActivityLog() {
                                 {actionLabel(log.action)}
                               </span>
                               {risky && (
-                                <Badge className="bg-red-100 text-red-700">
-                                  <ShieldAlert className="h-3 w-3" /> 위험
+                                <Badge className="bg-amber-100 text-amber-900">
+                                  <ShieldAlert className="h-3 w-3" /> 고위험
                                 </Badge>
                               )}
                             </div>
