@@ -44,7 +44,7 @@ class BoaSectionHeader extends StatelessWidget {
             onPressed: onAction,
             style: TextButton.styleFrom(
               foregroundColor: BoaColors.deepGreen,
-              minimumSize: const Size(48, 40),
+              minimumSize: const Size(48, 48),
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
             child: Text(
@@ -168,6 +168,6 @@ InputDecoration boaSearchDecoration(
       borderSide: const BorderSide(color: BoaColors.navy, width: 1.5),
     ),
     isDense: true,
-    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
   );
 }

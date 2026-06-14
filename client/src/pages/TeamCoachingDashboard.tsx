@@ -25,8 +25,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { format, isBefore, startOfToday } from "date-fns";
+import { LoadingState } from "@/components/ui/empty-state";
 import {
-  Loader2,
   Plus,
   ArrowRight,
   ClipboardList,
@@ -115,9 +115,7 @@ export default function TeamCoachingDashboard() {
   if (isLoading) {
     return (
       <DashboardLayout>
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
+        <LoadingState className="mx-auto my-16 max-w-md border-none bg-transparent" />
       </DashboardLayout>
     );
   }
@@ -233,7 +231,7 @@ export default function TeamCoachingDashboard() {
                   <TableRow>
                     <TableHead>팀원명</TableHead>
                     <TableHead>오픈 코칭</TableHead>
-                    <TableHead>High Priority</TableHead>
+                    <TableHead>중요도 높음</TableHead>
                     <TableHead>확인일 지연</TableHead>
                     <TableHead>최근 코칭일</TableHead>
                     <TableHead className="text-right">액션</TableHead>

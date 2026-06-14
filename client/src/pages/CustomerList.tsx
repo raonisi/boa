@@ -36,7 +36,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyState, ErrorState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState, renderMetricValue } from "@/components/ui/empty-state";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
@@ -673,7 +673,7 @@ export default function CustomerList() {
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Customer Database
+                고객 데이터베이스
               </p>
               <h1 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
                 고객 DB
@@ -687,7 +687,10 @@ export default function CustomerList() {
                       ? "내 고객 관리"
                       : "전체 고객 관리"}
                 {" · "}표시 고객{" "}
-                {isCustomersLoading || isCustomersError ? "-" : filtered.length}
+                {renderMetricValue(filtered.length, {
+                  isLoading: isCustomersLoading,
+                  isError: isCustomersError,
+                })}
                 명
               </p>
             </div>
@@ -699,8 +702,8 @@ export default function CustomerList() {
           <CardContent className="space-y-3 p-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8a6d2f]">
-                  Sales Workspace
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-primary/70">
+                  영업 실행 공간
                 </p>
                 <h2 className="text-lg font-bold text-slate-950">
                   오늘 볼 고객
@@ -727,56 +730,38 @@ export default function CustomerList() {
                 {
                   key: "all" as const,
                   label: "전체",
-                  value:
-                    isCustomersLoading || isCustomersError
-                      ? "-"
-                      : filtered.length,
-                  tone: "border-slate-200 bg-white",
+                  value: filtered.length,
+                  tone: "border-border bg-card",
                 },
                 {
                   key: "priority" as const,
                   label: "우선 연락",
-                  value:
-                    isCustomersLoading || isCustomersError
-                      ? "-"
-                      : workspaceStats.priority,
-                  tone: "border-emerald-200 bg-emerald-50",
+                  value: workspaceStats.priority,
+                  tone: "border-boa-green/25 bg-boa-green/8",
                 },
                 {
                   key: "warning" as const,
                   label: "주의 필요",
-                  value:
-                    isCustomersLoading || isCustomersError
-                      ? "-"
-                      : workspaceStats.warning,
-                  tone: "border-red-200 bg-red-50",
+                  value: workspaceStats.warning,
+                  tone: "border-destructive/20 bg-destructive/8",
                 },
                 {
                   key: "sla_overdue" as const,
                   label: "SLA 지연 (연락요청)",
-                  value:
-                    isCustomersLoading || isCustomersError
-                      ? "-"
-                      : workspaceStats.slaOverdue,
+                  value: workspaceStats.slaOverdue,
                   tone: "border-destructive/20 bg-destructive/10",
                 },
                 {
                   key: "no_next_action" as const,
                   label: "다음 액션 없음",
-                  value:
-                    isCustomersLoading || isCustomersError
-                      ? "-"
-                      : workspaceStats.noNextAction,
-                  tone: "border-amber-200 bg-amber-50",
+                  value: workspaceStats.noNextAction,
+                  tone: "border-boa-amber/25 bg-boa-amber/10",
                 },
                 {
                   key: "uncontacted" as const,
                   label: "미상담",
-                  value:
-                    isCustomersLoading || isCustomersError
-                      ? "-"
-                      : workspaceStats.uncontacted,
-                  tone: "border-slate-200 bg-slate-50",
+                  value: workspaceStats.uncontacted,
+                  tone: "border-border bg-muted/40",
                 },
               ].map(item => (
                 <button
@@ -788,8 +773,11 @@ export default function CustomerList() {
                   <span className="text-xs font-medium text-muted-foreground">
                     {item.label}
                   </span>
-                  <span className="mt-1 block text-2xl font-bold tabular-nums text-slate-950">
-                    {item.value}
+                  <span className="mt-1 block text-2xl font-bold tabular-nums text-foreground">
+                    {renderMetricValue(item.value, {
+                      isLoading: isCustomersLoading,
+                      isError: isCustomersError,
+                    })}
                   </span>
                 </button>
               ))}

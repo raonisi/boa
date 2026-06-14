@@ -9,7 +9,7 @@ import {
   PriorityBadge,
   StatusBadge,
 } from "@/components/StatusBadge";
-import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState } from "./empty-state";
+import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState, LoadingMetric, renderMetricValue } from "./empty-state";
 
 describe("shared state components", () => {
   it("renders empty states with a clear next action", () => {
@@ -35,6 +35,24 @@ describe("shared state components", () => {
     expect(html).toContain("고객 목록을 불러오는 중");
     expect(html).toContain("aria-label=\"불러오는 중\"");
     expect(html).toContain("aria-busy=\"true\"");
+  });
+
+  it("renders loading metrics with Korean accessibility label", () => {
+    const html = renderToStaticMarkup(<LoadingMetric className="h-7 w-12" />);
+    expect(html).toContain("aria-label=\"불러오는 중\"");
+    expect(html).toContain("role=\"status\"");
+  });
+
+  it("renders metric values with loading and error fallbacks", () => {
+    const loading = renderToStaticMarkup(
+      <span>{renderMetricValue(12, { isLoading: true, isError: false })}</span>
+    );
+    const error = renderToStaticMarkup(
+      <span>{renderMetricValue(12, { isLoading: false, isError: true })}</span>
+    );
+    expect(loading).toContain("불러오는 중");
+    expect(error).toContain("—");
+    expect(error).not.toContain("12");
   });
 
   it("renders recoverable errors without technical details", () => {

@@ -129,6 +129,29 @@ export function LoadingState({
   );
 }
 
+/** Inline numeric placeholder — avoids showing 0 or "-" while loading. */
+export function LoadingMetric({ className }: { className?: string }) {
+  return (
+    <span
+      role="status"
+      aria-label="불러오는 중"
+      className={cn(
+        "inline-block animate-pulse rounded-md bg-muted/70 align-middle",
+        className
+      )}
+    />
+  );
+}
+
+export function renderMetricValue(
+  value: number,
+  { isLoading, isError }: { isLoading: boolean; isError: boolean }
+) {
+  if (isLoading) return <LoadingMetric className="h-7 w-12" />;
+  if (isError) return "—";
+  return value;
+}
+
 export function ErrorState({
   title = "데이터를 불러오지 못했습니다.",
   description = "잠시 후 다시 시도해 주세요.",
