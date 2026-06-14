@@ -4,7 +4,7 @@ import { PremiumStatCard } from "@/components/dashboard/PremiumStatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ErrorState } from "@/components/ui/empty-state";
+import { ErrorState, renderMetricValue } from "@/components/ui/empty-state";
 import {
   classifyNotificationPriority,
   sortNotificationsForQueue,
@@ -193,7 +193,7 @@ export function TodayWorkSection({
     {
       key: "notifications",
       title: "미확인 알림",
-      count: isError ? "-" : (cards?.pendingNotificationCount ?? 0),
+      count: cards?.pendingNotificationCount ?? 0,
       hint: "즉시 확인이 필요한 알림",
       actionLabel: "알림센터",
       onClick: () => setLocation("/notifications"),
@@ -202,7 +202,7 @@ export function TodayWorkSection({
     {
       key: "overdueFollowUps",
       title: "미처리 후속",
-      count: isError ? "-" : (cards?.overdueFollowUpCount ?? 0),
+      count: cards?.overdueFollowUpCount ?? 0,
       hint: "기한이 지난 재연락 업무",
       actionLabel: "후속관리 열기",
       onClick: () => setLocation("/customers"),
@@ -211,7 +211,7 @@ export function TodayWorkSection({
     {
       key: "todayContacts",
       title: "오늘 연락 대상",
-      count: isError ? "-" : (cards?.todayFollowUpCount ?? 0),
+      count: cards?.todayFollowUpCount ?? 0,
       hint: "이전에 약속한 연락 업무",
       actionLabel: "고객 DB",
       onClick: () => setLocation("/customers"),
@@ -220,13 +220,61 @@ export function TodayWorkSection({
     {
       key: "schedules",
       title: "오늘 일정",
-      count: isError ? "-" : (cards?.todayScheduleCount ?? 0),
+      count: cards?.todayScheduleCount ?? 0,
       hint: "오늘 진행할 상담·계약 일정",
       actionLabel: "일정 캘린더",
       onClick: () => setLocation("/calendar"),
       tone: "border-amber-200 bg-amber-50/55 dark:border-amber-900/40 dark:bg-amber-950/20",
     },
   ];
+  const roleShortcutItems =
+    role === "branch_admin"
+      ? [
+          {
+            label: "운영 리스크",
+            hint: "오늘 확인이 필요한 위험 신호",
+            path: "/operation-risk",
+          },
+          {
+            label: "DB 배정",
+            hint: "고객 담당자를 지정합니다",
+            path: "/customers/assign",
+          },
+          {
+            label: "활동 로그",
+            hint: "위험 작업과 감사 흔적",
+            path: "/logs",
+          },
+          {
+            label: "데이터 다운로드",
+            hint: "승인 전 조건을 확인합니다",
+            path: "/download",
+          },
+        ]
+      : role === "sub_branch_admin" || role === "team_leader"
+        ? [
+            {
+              label: "팀원 관리",
+              hint: "팀원별 오늘 조치 확인",
+              path: "/team-insights",
+            },
+            {
+              label: "DB 배정",
+              hint: "담당자 지정과 배분",
+              path: "/customers/assign",
+            },
+            {
+              label: "운영 리스크",
+              hint: "팀 운영 위험 신호",
+              path: "/operation-risk",
+            },
+            {
+              label: "활동 로그",
+              hint: "운영 기록 확인",
+              path: "/logs",
+            },
+          ]
+        : [];
   const fieldQueue =
     role === "member"
       ? ["todayContacts", "overdueFollowUps", "schedules", "notifications"].map(
@@ -540,7 +588,10 @@ export function TodayWorkSection({
                   <p
                     className={`mt-1 text-2xl font-bold tabular-nums tracking-tight ${item.tone}`}
                   >
-                    {isLoading || isError ? "-" : item.value}
+                    {renderMetricValue(item.value, {
+                      isLoading,
+                      isError,
+                    })}
                   </p>
                 </button>
               ))}
@@ -578,7 +629,10 @@ export function TodayWorkSection({
                       <p className="mt-1 text-xs opacity-80">{item.helper}</p>
                     </div>
                     <p className="shrink-0 text-2xl font-bold tabular-nums tracking-tight">
-                      {isLoading || isError ? "-" : item.value}
+                      {renderMetricValue(item.value, {
+                        isLoading,
+                        isError,
+                      })}
                     </p>
                   </div>
                 </button>
@@ -588,57 +642,94 @@ export function TodayWorkSection({
         </CardContent>
       </Card>
 
+      {roleShortcutItems.length > 0 ? (
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {roleShortcutItems.map(item => (
+            <button
+              key={item.path}
+              type="button"
+              onClick={() => setLocation(item.path)}
+              className="crm-dashboard-action min-h-14 rounded-lg border border-border/80 bg-card p-4 text-left shadow-sm"
+            >
+              <p className="text-sm font-semibold text-foreground">{item.label}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {item.hint}
+              </p>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="hidden gap-3 md:grid md:grid-cols-4 xl:grid-cols-7">
         <PremiumStatCard
           title="오늘 연락 대상"
-          value={isLoading || isError ? "-" : cards?.todayFollowUpCount}
+          value={cards?.todayFollowUpCount}
           icon={Phone}
           tone="gold"
           helper="후속 연락 예정"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
         <PremiumStatCard
           title="미처리 후속관리"
-          value={isLoading || isError ? "-" : cards?.overdueFollowUpCount}
+          value={cards?.overdueFollowUpCount}
           icon={Clock3}
           tone="red"
           helper="기한 경과"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
         <PremiumStatCard
           title="오늘 상담 예정"
-          value={isLoading || isError ? "-" : cards?.todayScheduleCount}
+          value={cards?.todayScheduleCount}
           icon={CalendarDays}
           tone="blue"
           helper="오늘 진행할 일정"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
         <PremiumStatCard
           title="미완료 일정"
-          value={isLoading || isError ? "-" : cards?.incompleteScheduleCount}
+          value={cards?.incompleteScheduleCount}
           icon={AlertCircle}
           tone="orange"
           helper="처리 필요 일정"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
         <PremiumStatCard
           title="미확인 알림"
-          value={isLoading || isError ? "-" : cards?.pendingNotificationCount}
+          value={cards?.pendingNotificationCount}
           icon={Bell}
           tone="red"
           helper="확인 대기"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
         <PremiumStatCard
           title="이번 달 신규 계약"
-          value={isLoading || isError ? "-" : cards?.monthlyContractCount}
+          value={cards?.monthlyContractCount}
           icon={FileText}
           tone="green"
           helper="신규 영업 성과"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
         <PremiumStatCard
           title="월납보험료 실적"
-          value={
-            isLoading || isError ? "-" : formatWon(cards?.monthlyPremiumSum)
-          }
+          value={formatWon(cards?.monthlyPremiumSum)}
           icon={TrendingUp}
           tone="navy"
           helper="입력 계약 기준"
+          isLoading={isLoading}
+          isError={isError}
+          onRetry={retryTodayWork}
         />
       </div>
 
@@ -688,9 +779,12 @@ export function TodayWorkSection({
                 <p className="text-[11px] text-muted-foreground">
                   {item.label}
                 </p>
-                <p className="mt-1 text-lg font-bold tabular-nums tracking-tight">
-                  {isLoading || isError ? "-" : item.value}
-                </p>
+                <div className="mt-1 text-lg font-bold tabular-nums tracking-tight">
+                  {renderMetricValue(item.value, {
+                    isLoading,
+                    isError,
+                  })}
+                </div>
               </button>
             ))}
           </div>
@@ -906,7 +1000,21 @@ export function TodayWorkSection({
         </CardHeader>
         <CardContent className="space-y-3 px-5 pb-5">
           <div className="grid gap-2 md:grid-cols-4">
-            {isError ? (
+            {isLoading ? (
+              <div className="md:col-span-4 grid gap-2 md:grid-cols-4">
+                {fieldQueue.map(item => (
+                  <div
+                    key={item.key}
+                    className={`crm-dashboard-action rounded-lg border p-3 shadow-sm ${item.tone}`}
+                  >
+                    <p className="text-xs text-muted-foreground">{item.title}</p>
+                    <div className="mt-2">
+                      {renderMetricValue(0, { isLoading: true, isError: false })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : isError ? (
               <div className="md:col-span-4">
                 <ErrorState
                   title="현장 처리 업무를 불러오지 못했습니다."
@@ -924,7 +1032,10 @@ export function TodayWorkSection({
                 >
                   <p className="text-xs text-muted-foreground">{item.title}</p>
                   <p className="mt-1 text-2xl font-bold tabular-nums tracking-tight text-foreground">
-                    {item.count}
+                    {renderMetricValue(item.count, {
+                      isLoading,
+                      isError,
+                    })}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {item.hint}

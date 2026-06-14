@@ -23,16 +23,36 @@ function formatWon(value: number | undefined) {
 export default function Dashboard() {
   const { user } = useAuth();
   const [showBackToTop, setShowBackToTop] = useState(false);
-  const { data: stats } = trpc.performance.stats.useQuery();
-  const { data: myBranchAdminStats } = trpc.performance.stats.useQuery(
+  const {
+    data: stats,
+    isLoading: isStatsLoading,
+    isError: isStatsError,
+    refetch: refetchStats,
+  } = trpc.performance.stats.useQuery();
+  const {
+    data: myBranchAdminStats,
+    isLoading: isMyStatsLoading,
+    isError: isMyStatsError,
+    refetch: refetchMyStats,
+  } = trpc.performance.stats.useQuery(
     { scope: "mine" },
     { enabled: user?.role === "branch_admin" }
   );
-  const { data: customers } = trpc.customers.list.useQuery(
+  const {
+    data: customers,
+    isLoading: isCustomersLoading,
+    isError: isCustomersError,
+    refetch: refetchCustomers,
+  } = trpc.customers.list.useQuery(
     {},
     { enabled: user?.role === "branch_admin" }
   );
-  const { data: myBranchAdminCustomers } = trpc.customers.list.useQuery(
+  const {
+    data: myBranchAdminCustomers,
+    isLoading: isMyCustomersLoading,
+    isError: isMyCustomersError,
+    refetch: refetchMyCustomers,
+  } = trpc.customers.list.useQuery(
     { scope: "mine" },
     { enabled: user?.role === "branch_admin" }
   );
@@ -70,6 +90,9 @@ export default function Dashboard() {
               icon={Users}
               tone="blue"
               helper="지점장 직접 담당"
+              isLoading={isMyCustomersLoading}
+              isError={isMyCustomersError}
+              onRetry={() => void refetchMyCustomers()}
             />
             <PremiumStatCard
               title="내 신규 계약"
@@ -82,6 +105,9 @@ export default function Dashboard() {
               icon={FileText}
               tone="green"
               helper="내 담당 기준"
+              isLoading={isMyStatsLoading}
+              isError={isMyStatsError}
+              onRetry={() => void refetchMyStats()}
             />
             <PremiumStatCard
               title="내 월납보험료 실적"
@@ -92,6 +118,9 @@ export default function Dashboard() {
               icon={WalletCards}
               tone="gold"
               helper="내 담당 기준"
+              isLoading={isMyStatsLoading}
+              isError={isMyStatsError}
+              onRetry={() => void refetchMyStats()}
             />
             <PremiumStatCard
               title="전체 DB"
@@ -99,6 +128,9 @@ export default function Dashboard() {
               icon={Users}
               tone="navy"
               helper="지점 전체 권한"
+              isLoading={isCustomersLoading}
+              isError={isCustomersError}
+              onRetry={() => void refetchCustomers()}
             />
           </div>
         ) : null}
@@ -110,6 +142,9 @@ export default function Dashboard() {
             icon={Users}
             tone="navy"
             helper="권한 범위 기준"
+            isLoading={isStatsLoading}
+            isError={isStatsError}
+            onRetry={() => void refetchStats()}
           />
           <PremiumStatCard
             title="미상담"
@@ -117,6 +152,9 @@ export default function Dashboard() {
             icon={AlertCircle}
             tone="orange"
             helper="초기 접촉 필요"
+            isLoading={isStatsLoading}
+            isError={isStatsError}
+            onRetry={() => void refetchStats()}
           />
           <PremiumStatCard
             title="신규 계약"
@@ -128,6 +166,9 @@ export default function Dashboard() {
             icon={FileText}
             tone="green"
             helper="신규 영업 성과"
+            isLoading={isStatsLoading}
+            isError={isStatsError}
+            onRetry={() => void refetchStats()}
           />
           <PremiumStatCard
             title="월납보험료 실적"
@@ -137,6 +178,9 @@ export default function Dashboard() {
             icon={TrendingUp}
             tone="blue"
             helper="입력 계약 기준"
+            isLoading={isStatsLoading}
+            isError={isStatsError}
+            onRetry={() => void refetchStats()}
           />
         </div>
 

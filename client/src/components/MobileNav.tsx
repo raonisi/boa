@@ -8,180 +8,16 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
-import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import {
-  Activity,
-  ArrowRightLeft,
-  BarChart2,
-  BarChart3,
-  Bell,
-  BellRing,
-  CalendarDays,
-  ClipboardCheck,
-  Database,
-  Download,
-  FileText,
-  GitMerge,
-  Home,
-  LayoutDashboard,
-  LayoutGrid,
-  LogOut,
-  Menu,
-  Network,
-  RotateCcw,
-  Settings,
-  ShieldCheck,
-  Target,
-  Upload,
-  Users,
-} from "lucide-react";
+  filterNavGroups,
+  mobileMoreNavGroups,
+  mobilePrimaryItems,
+  mobileQuickLinksForRole,
+} from "@/lib/navigationConfig";
+import { getRoleLabel } from "@/lib/userRole";
+import { LogOut, Menu } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
-
-type MobileMenuItem = {
-  icon: React.ElementType;
-  label: string;
-  path: string;
-  roles?: string[];
-  canAccess?: (user: any) => boolean;
-};
-
-const primaryItems: MobileMenuItem[] = [
-  { icon: Home, label: "대시보드", path: "/" },
-  { icon: Users, label: "내 고객", path: "/customers" },
-  { icon: CalendarDays, label: "일정", path: "/calendar" },
-  { icon: Bell, label: "알림", path: "/notifications" },
-];
-
-const moreItems: MobileMenuItem[] = [
-  { icon: BarChart2, label: "영업 분석", path: "/analytics" },
-  { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
-  { icon: BellRing, label: "앱 알림 설정", path: "/notification-preferences" },
-  { icon: FileText, label: "계약관리", path: "/contracts" },
-  {
-    icon: ClipboardCheck,
-    label: "사후관리 캠페인",
-    path: "/aftercare-campaigns",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
-  },
-  {
-    icon: ClipboardCheck,
-    label: "온보딩 체크리스트",
-    path: "/onboarding-checklists",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
-  },
-  { icon: BarChart3, label: "실적관리", path: "/performance" },
-  { icon: Target, label: "목표관리", path: "/performance/goals" },
-  {
-    icon: Upload,
-    label: "고객 일괄 등록",
-    path: "/customers/bulk-import",
-    canAccess: hasCustomerBulkImportAccess,
-  },
-  {
-    icon: GitMerge,
-    label: "중복 고객 관리",
-    path: "/customers/merge",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: Database,
-    label: "DB 배정",
-    path: "/customers/assign",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: Database,
-    label: "고객 데이터 품질 점검",
-    path: "/customer-data-quality",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: Database,
-    label: "내 고객 데이터 보완",
-    path: "/customer-data-quality",
-    roles: ["member"],
-  },
-  {
-    icon: LayoutDashboard,
-    label: "관리자 운영센터",
-    path: "/admin/operations-center",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: FileText,
-    label: "관리자 보고서",
-    path: "/management-reports",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: Users,
-    label: "사용자 관리",
-    path: "/users",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: Network,
-    label: "조직 구조",
-    path: "/organization",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: ArrowRightLeft,
-    label: "인수인계 관리",
-    path: "/users/handoff",
-    roles: ["branch_admin"],
-  },
-  { icon: Users, label: "팀 관리", path: "/teams", roles: ["branch_admin"] },
-  {
-    icon: ShieldCheck,
-    label: "운영 리스크",
-    path: "/operation-risk",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: BellRing,
-    label: "푸시 알림 운영",
-    path: "/push-notifications",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: RotateCcw,
-    label: "삭제 데이터 관리",
-    path: "/deleted-data",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: RotateCcw,
-    label: "업로드 이력 관리",
-    path: "/customers/import-batches",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: Activity,
-    label: "활동 로그",
-    path: "/logs",
-    roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-  },
-  {
-    icon: Download,
-    label: "데이터 다운로드",
-    path: "/download",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: ClipboardCheck,
-    label: "상담 도구 관리",
-    path: "/consultation-tools",
-    roles: ["branch_admin"],
-  },
-  {
-    icon: Settings,
-    label: "설정 관리",
-    path: "/settings",
-    roles: ["branch_admin"],
-  },
-];
 
 export function MobileNav() {
   const [location, setLocation] = useLocation();
@@ -194,57 +30,87 @@ export function MobileNav() {
     }
   );
 
-  const visibleMoreItems = moreItems.filter(
-    item =>
-      item.canAccess?.(user) ??
-      (!item.roles || item.roles.includes(user?.role ?? ""))
-  );
+  const quickLinks = mobileQuickLinksForRole(user?.role);
+  const moreGroups = filterNavGroups(mobileMoreNavGroups, user);
 
   const goTo = (path: string) => {
     setLocation(path);
     setMoreOpen(false);
   };
 
+  const renderMenuButton = (
+    item: (typeof mobilePrimaryItems)[number],
+    options?: { compact?: boolean }
+  ) => {
+    const isActive =
+      location === item.path ||
+      (item.path !== "/" && location.startsWith(item.path));
+    const isNotif = item.path === "/notifications";
+
+    if (options?.compact) {
+      return (
+        <SheetClose asChild key={`${item.label}-${item.path}`}>
+          <button
+            type="button"
+            data-testid="mobile-more-menu-item"
+            onClick={() => goTo(item.path)}
+            className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
+              isActive
+                ? "border-sidebar-primary/50 bg-sidebar-primary/10 text-foreground"
+                : "border-border bg-muted/30 text-foreground hover:bg-muted/50"
+            }`}
+          >
+            <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1">
+              <span className="block whitespace-normal break-words leading-snug">
+                {item.label}
+              </span>
+              {item.description ? (
+                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                  {item.description}
+                </span>
+              ) : null}
+            </span>
+          </button>
+        </SheetClose>
+      );
+    }
+
+    return (
+      <button
+        key={item.path}
+        type="button"
+        onClick={() => goTo(item.path)}
+        className={`relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+        }`}
+      >
+        <span
+          className={`relative flex h-10 w-10 items-center justify-center rounded-lg ${
+            isActive
+              ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25"
+              : ""
+          }`}
+        >
+          <item.icon className="h-5 w-5" />
+          {isNotif && unreadCount && unreadCount > 0 ? (
+            <span className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          ) : null}
+        </span>
+        <span className="w-full truncate text-center leading-tight">
+          {item.label}
+        </span>
+      </button>
+    );
+  };
+
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bg-sidebar/98 text-sidebar-foreground shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:shadow-[0_-8px_28px_rgba(0,0,0,0.35)]">
         <div className="grid min-h-[64px] grid-cols-5 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5">
-          {primaryItems.map(item => {
-            const isActive =
-              location === item.path ||
-              (item.path !== "/" && location.startsWith(item.path));
-            const isNotif = item.path === "/notifications";
-            return (
-              <button
-                key={item.path}
-                type="button"
-                onClick={() => goTo(item.path)}
-                className={`relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
-                  isActive
-                    ? "text-sidebar-primary"
-                    : "text-sidebar-foreground/70"
-                }`}
-              >
-                <span
-                  className={`relative flex h-10 w-10 items-center justify-center rounded-lg ${
-                    isActive
-                      ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25"
-                      : ""
-                  }`}
-                >
-                  <item.icon className="h-5 w-5" />
-                  {isNotif && unreadCount && unreadCount > 0 ? (
-                    <span className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-                      {unreadCount > 9 ? "9+" : unreadCount}
-                    </span>
-                  ) : null}
-                </span>
-                <span className="w-full truncate text-center leading-tight">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
+          {mobilePrimaryItems.map(item => renderMenuButton(item))}
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
@@ -274,36 +140,39 @@ export function MobileNav() {
           className="max-h-[min(86vh,42rem)] rounded-t-2xl border-border bg-card pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 md:hidden"
         >
           <SheetHeader className="text-left">
-            <SheetTitle className="flex items-center gap-3 text-base font-semibold">
-              <BrandLogo className="h-9 w-24 justify-start" />
-              <span>더보기</span>
+            <SheetTitle className="flex flex-col gap-1 text-left text-base font-semibold">
+              <span className="flex items-center gap-3">
+                <BrandLogo className="h-9 w-24 justify-start" />
+                <span>업무 메뉴</span>
+              </span>
+              <span className="text-xs font-normal text-muted-foreground">
+                {getRoleLabel(user?.role)} · 권한 범위 안의 메뉴만 표시됩니다
+              </span>
             </SheetTitle>
           </SheetHeader>
-          <div className="mt-4 grid max-h-[calc(86vh-7rem)] grid-cols-1 gap-2 overflow-y-auto overscroll-contain pb-4">
-            {visibleMoreItems.map(item => {
-              const isActive =
-                location === item.path ||
-                (item.path !== "/" && location.startsWith(item.path));
-              return (
-                <SheetClose asChild key={item.path}>
-                  <button
-                    type="button"
-                    data-testid="mobile-more-menu-item"
-                    onClick={() => goTo(item.path)}
-                    className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
-                      isActive
-                        ? "border-sidebar-primary/50 bg-sidebar-primary/10 text-foreground"
-                        : "border-border bg-muted/30 text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">
-                      {item.label}
-                    </span>
-                  </button>
-                </SheetClose>
-              );
-            })}
+          <div className="mt-4 max-h-[calc(86vh-7rem)] space-y-5 overflow-y-auto overscroll-contain pb-4">
+            {quickLinks.length > 0 ? (
+              <section>
+                <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                  오늘 바로가기
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {quickLinks.map(item => renderMenuButton(item, { compact: true }))}
+                </div>
+              </section>
+            ) : null}
+
+            {moreGroups.map(group => (
+              <section key={group.label}>
+                <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {group.label}
+                </h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {group.items.map(item => renderMenuButton(item, { compact: true }))}
+                </div>
+              </section>
+            ))}
+
             <button
               type="button"
               data-testid="mobile-more-menu-item"
@@ -311,7 +180,7 @@ export function MobileNav() {
                 setMoreOpen(false);
                 logout();
               }}
-              className="flex min-h-14 items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-left text-sm font-medium text-destructive"
+              className="flex min-h-14 w-full items-center gap-3 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2 text-left text-sm font-medium text-destructive"
             >
               <LogOut className="h-4 w-4 shrink-0" />
               <span className="min-w-0 flex-1 whitespace-normal break-words leading-snug">

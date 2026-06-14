@@ -25,36 +25,7 @@ import {
 import { getLoginUrlResult } from "@/const";
 import { useFcmDeviceTokenRegistration } from "@/hooks/useFcmDeviceTokenRegistration";
 import { trpc } from "@/lib/trpc";
-import {
-  Activity,
-  ArrowRightLeft,
-  BarChart2,
-  BarChart3,
-  Bell,
-  BellRing,
-  BookOpen,
-  CalendarDays,
-  ClipboardCheck,
-  Database,
-  Download,
-  FileText,
-  GitMerge,
-  Home,
-  LayoutDashboard,
-  LayoutGrid,
-  LogOut,
-  Monitor,
-  Moon,
-  Network,
-  RotateCcw,
-  Settings,
-  ShieldCheck,
-  Sun,
-  Target,
-  Upload,
-  Users,
-  UserSquare2,
-} from "lucide-react";
+import { LogOut, Moon, Bell, Sun } from "lucide-react";
 import { BrandedLogin } from "./BrandedLogin";
 import { BrandLogo } from "./BrandLogo";
 import { MobileNav } from "./MobileNav";
@@ -68,254 +39,16 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "./ui/button";
 import { getRoleLabel } from "@/lib/userRole";
-import { hasCustomerBulkImportAccess } from "@shared/permissions";
+import {
+  filterNavGroups,
+  getPageTitle,
+  sidebarNavGroups,
+} from "@/lib/navigationConfig";
 
-type NavItem = {
-  icon: React.ElementType;
-  label: string;
-  path: string;
-  roles?: string[];
-  canAccess?: (user: any) => boolean;
-};
-
-type NavGroup = {
-  label: string;
-  items: NavItem[];
-};
-
-const navGroups: NavGroup[] = [
-  {
-    label: "핵심 업무",
-    items: [
-      { icon: Home, label: "대시보드", path: "/" },
-      { icon: BarChart2, label: "영업 분석", path: "/analytics" },
-      { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
-    ],
-  },
-  {
-    label: "고객 관리",
-    items: [
-      { icon: Users, label: "고객 DB", path: "/customers" },
-      {
-        icon: Database,
-        label: "고객 데이터 품질 점검",
-        path: "/customer-data-quality",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Database,
-        label: "내 고객 데이터 보완",
-        path: "/customer-data-quality",
-        roles: ["member"],
-      },
-      {
-        icon: ClipboardCheck,
-        label: "사후관리 캠페인",
-        path: "/aftercare-campaigns",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
-      },
-      {
-        icon: ClipboardCheck,
-        label: "온보딩 체크리스트",
-        path: "/onboarding-checklists",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
-      },
-      {
-        icon: Upload,
-        label: "고객 일괄 등록",
-        path: "/customers/bulk-import",
-        canAccess: hasCustomerBulkImportAccess,
-      },
-      {
-        icon: RotateCcw,
-        label: "업로드 이력 관리",
-        path: "/customers/import-batches",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: GitMerge,
-        label: "중복 고객 관리",
-        path: "/customers/merge",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: UserSquare2,
-        label: "DB 배정",
-        path: "/customers/assign",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-    ],
-  },
-  {
-    label: "실적 · 업무",
-    items: [
-      { icon: FileText, label: "계약관리", path: "/contracts" },
-      { icon: BarChart3, label: "실적관리", path: "/performance" },
-      { icon: Target, label: "목표관리", path: "/performance/goals" },
-      { icon: CalendarDays, label: "일정 캘린더", path: "/calendar" },
-      { icon: Bell, label: "알림센터", path: "/notifications" },
-      {
-        icon: BellRing,
-        label: "앱 알림 설정",
-        path: "/notification-preferences",
-      },
-    ],
-  },
-  {
-    label: "관리자",
-    items: [
-      {
-        icon: LayoutDashboard,
-        label: "관리자 운영센터",
-        path: "/admin/operations-center",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: FileText,
-        label: "관리자 보고서",
-        path: "/management-reports",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Monitor,
-        label: "팀원 관리",
-        path: "/team-insights",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Activity,
-        label: "첫 연락 SLA 관리",
-        path: "/admin/sla",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Activity,
-        label: "팀원 업무 처리율",
-        path: "/admin/team-completion",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Activity,
-        label: "팀원 코칭 노트",
-        path: "/admin/team-coaching",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: BookOpen,
-        label: "사용자 관리",
-        path: "/users",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: Network,
-        label: "조직 구조",
-        path: "/organization",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: ArrowRightLeft,
-        label: "인수인계 관리",
-        path: "/users/handoff",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: Users,
-        label: "팀 관리",
-        path: "/teams",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: ShieldCheck,
-        label: "운영 리스크 센터",
-        path: "/operation-risk",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: BellRing,
-        label: "푸시 알림 운영",
-        path: "/push-notifications",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: Activity,
-        label: "활동 로그",
-        path: "/logs",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: RotateCcw,
-        label: "삭제 데이터 관리",
-        path: "/deleted-data",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: Download,
-        label: "데이터 다운로드",
-        path: "/download",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: ClipboardCheck,
-        label: "상담 도구 관리",
-        path: "/consultation-tools",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: Settings,
-        label: "설정 관리",
-        path: "/settings",
-        roles: ["branch_admin"],
-      },
-    ],
-  },
-];
 const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";
 const DEFAULT_WIDTH = 220;
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 300;
-
-const pageTitles: Array<{ prefix: string; title: string }> = [
-  { prefix: "/analytics", title: "영업 분석" },
-  { prefix: "/sales-pipeline", title: "세일즈 파이프라인" },
-  { prefix: "/customers/assign", title: "DB 배정" },
-  { prefix: "/customers/bulk-import", title: "고객 일괄 등록" },
-  { prefix: "/customers/import-batches", title: "업로드 이력 관리" },
-  { prefix: "/admin/team-completion", title: "팀원 업무 처리율" },
-  { prefix: "/admin/team-coaching", title: "팀원 코칭 노트" },
-  { prefix: "/customers/merge", title: "중복 고객 관리" },
-  { prefix: "/customer-data-quality", title: "고객 데이터 품질 점검" },
-  { prefix: "/customers", title: "고객 DB" },
-  { prefix: "/contracts", title: "계약관리" },
-  { prefix: "/performance/goals", title: "목표관리" },
-  { prefix: "/performance", title: "실적관리" },
-  { prefix: "/notifications", title: "알림센터" },
-  { prefix: "/aftercare-campaigns", title: "사후관리 캠페인" },
-  { prefix: "/onboarding-checklists", title: "온보딩 체크리스트" },
-  { prefix: "/notification-preferences", title: "앱 알림 설정" },
-  { prefix: "/push-notifications", title: "푸시 알림 운영" },
-  { prefix: "/calendar", title: "일정 캘린더" },
-  { prefix: "/users/handoff", title: "인수인계 관리" },
-  { prefix: "/organization", title: "조직 구조 관리" },
-  { prefix: "/users", title: "사용자 관리" },
-  { prefix: "/admin/operations-center", title: "관리자 운영센터" },
-  { prefix: "/management-reports", title: "관리자 보고서" },
-  { prefix: "/team-insights", title: "팀원 관리" },
-  { prefix: "/admin/sla", title: "첫 연락 SLA 관리" },
-  { prefix: "/teams", title: "팀 관리" },
-  { prefix: "/operation-risk", title: "운영 리스크 센터" },
-  { prefix: "/logs", title: "활동 로그" },
-  { prefix: "/deleted-data", title: "삭제 데이터 관리" },
-  { prefix: "/download", title: "데이터 다운로드" },
-  { prefix: "/consultation-tools", title: "상담 도구 관리" },
-  { prefix: "/settings", title: "설정 관리" },
-];
-
-function getPageTitle(path: string) {
-  if (path === "/") return "대시보드";
-  return (
-    pageTitles.find(item => path.startsWith(item.prefix))?.title ?? "BOA CRM"
-  );
-}
 
 export default function DashboardLayout({
   children,
@@ -449,41 +182,45 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0 py-2">
-            {navGroups.map((group, gi) => {
-              const groupItems = group.items.filter(
-                item =>
-                  item.canAccess?.(user) ??
-                  (!item.roles || item.roles.includes(user?.role ?? ""))
-              );
-              if (groupItems.length === 0) return null;
-              return (
-                <div key={group.label}>
-                  {gi > 0 && (
-                    <div className="mx-3 my-1.5 border-t border-sidebar-border/40" />
-                  )}
-                  {!isCollapsed && (
-                    <p className="mb-0.5 select-none px-4 pt-0.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35">
+            {filterNavGroups(sidebarNavGroups, user).map((group, gi) => (
+              <div key={group.label}>
+                {gi > 0 && (
+                  <div className="mx-3 my-1.5 border-t border-sidebar-border/40" />
+                )}
+                {!isCollapsed && (
+                  <div className="px-4 pt-0.5">
+                    <p className="mb-0.5 select-none text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35">
                       {group.label}
                     </p>
-                  )}
-                  <SidebarMenu className="gap-0.5 px-2">
-                    {groupItems.map(item => {
-                      const isActive =
-                        location === item.path ||
-                        (item.path !== "/" && location.startsWith(item.path));
-                      const isNotif = item.path === "/notifications";
-                      return (
-                        <SidebarMenuItem key={item.path}>
-                          <SidebarMenuButton
-                            isActive={isActive}
-                            onClick={() => setLocation(item.path)}
-                            tooltip={item.label}
-                            className={`relative min-h-10 rounded-lg text-sidebar-foreground/85 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground transition-colors ${
-                              isActive
-                                ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r before:bg-sidebar-primary"
-                                : ""
-                            }`}
-                          >
+                    {group.description ? (
+                      <p className="mb-1 text-[10px] leading-snug text-sidebar-foreground/25">
+                        {group.description}
+                      </p>
+                    ) : null}
+                  </div>
+                )}
+                <SidebarMenu className="gap-0.5 px-2">
+                  {group.items.map(item => {
+                    const isActive =
+                      location === item.path ||
+                      (item.path !== "/" && location.startsWith(item.path));
+                    const isNotif = item.path === "/notifications";
+                    return (
+                      <SidebarMenuItem key={`${group.label}-${item.label}-${item.path}`}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => setLocation(item.path)}
+                          tooltip={
+                            item.description
+                              ? `${item.label} — ${item.description}`
+                              : item.label
+                          }
+                          className={`relative min-h-11 rounded-lg text-sidebar-foreground/85 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground transition-colors sm:min-h-10 ${
+                            isActive
+                              ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r before:bg-sidebar-primary"
+                              : ""
+                          }`}
+                        >
                             <item.icon className="h-4 w-4 shrink-0" />
                             <span className="text-sm">{item.label}</span>
                             {isNotif && unreadCount && unreadCount > 0 ? (
@@ -495,10 +232,9 @@ function DashboardLayoutContent({
                         </SidebarMenuItem>
                       );
                     })}
-                  </SidebarMenu>
-                </div>
-              );
-            })}
+                </SidebarMenu>
+              </div>
+            ))}
           </SidebarContent>
 
           <SidebarFooter className="border-t border-sidebar-border/80 p-2">

@@ -118,7 +118,7 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
           NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home),
-              label: '홈'),
+              label: '오늘 업무'),
           NavigationDestination(
               icon: Icon(Icons.people_outline),
               selectedIcon: Icon(Icons.people),
@@ -186,17 +186,17 @@ class _MoreDrawer extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-          child: Text('빠른 이동',
+          child: Text('오늘 바로가기',
               style: theme.textTheme.titleSmall
                   ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
         ),
         ListTile(
             leading: const Icon(Icons.home_outlined),
-            title: const Text('홈'),
+            title: const Text('오늘 업무'),
             onTap: () => onSelectShellTab(0)),
         ListTile(
             leading: const Icon(Icons.people_outline),
-            title: const Text('고객'),
+            title: const Text('내 고객'),
             onTap: () => onSelectShellTab(1)),
         ListTile(
             leading: const Icon(Icons.calendar_today_outlined),
@@ -209,13 +209,7 @@ class _MoreDrawer extends StatelessWidget {
         const Divider(),
         Padding(
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-          child: Text('업무',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-          child: Text('웹 보조 · 관리자',
+          child: Text('고객 · 계약',
               style: theme.textTheme.titleSmall
                   ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
         ),
@@ -246,7 +240,7 @@ class _MoreDrawer extends StatelessWidget {
         if (isManager) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text('조직 · 운영 로그',
+            child: Text('팀 · 운영',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
           ),
@@ -258,11 +252,15 @@ class _MoreDrawer extends StatelessWidget {
             routeKey: 'activity_log',
             onTap: () => onNavigate('activity_log', '활동 로그'),
           ),
+          buildCrmWebDrawerTile(
+            routeKey: 'ops',
+            onTap: () => onNavigate('ops', '운영 리스크'),
+          ),
         ],
         if (isAdmin) ...[
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-            child: Text('지점장 · 고위험 업무',
+            child: Text('보안 · 감사',
                 style: theme.textTheme.titleSmall
                     ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
           ),
@@ -287,10 +285,6 @@ class _MoreDrawer extends StatelessWidget {
             onTap: () => onNavigate('teams', '팀 관리'),
           ),
           buildCrmWebDrawerTile(
-            routeKey: 'ops',
-            onTap: () => onNavigate('ops', '운영 리스크 센터'),
-          ),
-          buildCrmWebDrawerTile(
             routeKey: 'push_ops',
             onTap: () => onNavigate('push_ops', '푸시 알림 운영'),
           ),
@@ -312,6 +306,12 @@ class _MoreDrawer extends StatelessWidget {
           ),
         ],
         const Divider(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+          child: Text('설정',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(color: BoaColors.deepGreen, fontWeight: FontWeight.w600)),
+        ),
         ListTile(
           leading: const Icon(Icons.notifications_active_outlined),
           title: const Text('앱 알림 설정'),

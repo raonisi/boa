@@ -1,4 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { LoadingMetric } from "@/components/ui/empty-state";
 import type { ElementType } from "react";
 
 export type PremiumStatCardTone =
@@ -16,6 +18,9 @@ export interface PremiumStatCardProps {
   tone?: PremiumStatCardTone;
   helper?: string;
   suffix?: string;
+  isLoading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
 function formatNumber(value: number | string | undefined) {
@@ -31,6 +36,9 @@ export function PremiumStatCard({
   tone = "navy",
   helper,
   suffix = "",
+  isLoading = false,
+  isError = false,
+  onRetry,
 }: PremiumStatCardProps) {
   const toneClass = {
     navy: "border border-primary/35 bg-primary/[0.07] text-primary",
@@ -51,15 +59,42 @@ export function PremiumStatCard({
             <p className="truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {title}
             </p>
-            <p className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl">
-              {formatNumber(value)}
-              {suffix ? (
-                <span className="ml-1 text-sm font-semibold text-muted-foreground">
-                  {suffix}
+            <div className="mt-2 text-2xl font-bold tabular-nums tracking-tight text-foreground sm:text-3xl">
+              {isLoading ? (
+                <LoadingMetric className="h-8 w-16" />
+              ) : isError ? (
+                <span className="text-base font-semibold text-destructive">
+                  불러오기 실패
                 </span>
-              ) : null}
-            </p>
-            {helper ? (
+              ) : (
+                <>
+                  {formatNumber(value)}
+                  {suffix ? (
+                    <span className="ml-1 text-sm font-semibold text-muted-foreground">
+                      {suffix}
+                    </span>
+                  ) : null}
+                </>
+              )}
+            </div>
+            {isError ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <p className="text-xs text-muted-foreground">
+                  0건으로 표시하지 않습니다
+                </p>
+                {onRetry ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 min-h-8"
+                    onClick={onRetry}
+                  >
+                    다시 시도
+                  </Button>
+                ) : null}
+              </div>
+            ) : helper ? (
               <p className="mt-1 truncate text-xs text-muted-foreground">
                 {helper}
               </p>
