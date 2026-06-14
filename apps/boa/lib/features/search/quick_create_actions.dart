@@ -4,6 +4,7 @@ import 'package:boa/features/customers/customer_detail_dialogs.dart';
 import 'package:boa/features/customers/customer_web_actions.dart';
 import 'package:boa/features/customers/customers_providers.dart';
 import 'package:boa/features/search/global_search_screen.dart';
+import 'package:boa/features/web/crm_web_navigation.dart';
 import 'package:boa/features/web/crm_web_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,13 +41,12 @@ void openCustomerRegistrationWeb(BuildContext context, WidgetRef ref) {
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
     return;
   }
-  Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) => CrmWebScreen.forPath(
-        path: '/customers',
-        sessionToken: session.sessionToken,
-        title: '고객 등록',
-      ),
+  pushCrmWebScreen(
+    context,
+    CrmWebScreen.forPath(
+      path: '/customers',
+      sessionToken: session.sessionToken,
+      title: '고객 등록',
     ),
   );
 }

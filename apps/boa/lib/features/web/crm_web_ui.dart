@@ -260,7 +260,7 @@ class CrmWebLoadingOverlay extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    title ?? '화면을 불러오는 중입니다.',
+                    title ?? '화면을 불러오고 있습니다.',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                   ),
@@ -339,7 +339,7 @@ class CrmWebErrorPanel extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '정보를 다시 불러오지 못했습니다.',
+                  '화면을 불러오지 못했습니다.',
                   textAlign: TextAlign.center,
                   style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -348,6 +348,12 @@ class CrmWebErrorPanel extends StatelessWidget {
                   message,
                   textAlign: TextAlign.center,
                   style: theme.textTheme.bodyMedium?.copyWith(color: BoaColors.textSecondary),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  '잠시 후 다시 시도해 주세요.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodySmall?.copyWith(color: BoaColors.textSecondary),
                 ),
                 if (showHttp2Hint) ...[
                   const SizedBox(height: 10),

@@ -476,6 +476,11 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
       child: Scaffold(
         backgroundColor: BoaColors.canvas,
         appBar: AppBar(
+          backgroundColor: BoaColors.card,
+          foregroundColor: BoaColors.navy,
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          surfaceTintColor: BoaColors.ivory,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             tooltip: '이전 화면',
@@ -484,6 +489,11 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
           title: Text(widget.title, maxLines: 1, overflow: TextOverflow.ellipsis),
           bottom: _buildAppBarBottom(),
           actions: [
+            IconButton(
+              tooltip: '오늘 업무로',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.home_outlined),
+            ),
             IconButton(
               tooltip: '다시 불러오기',
               onPressed: _reloadInProgress ? null : _retryLoad,
@@ -517,8 +527,8 @@ class _CrmWebScreenState extends State<CrmWebScreen> {
                               child: WebViewWidget(controller: _controller),
                             ),
                             if (_loading && _rawError == null)
-                              CrmWebLoadingOverlay(
-                                title: '${widget.title} 화면을 불러오는 중입니다.',
+                              const CrmWebLoadingOverlay(
+                                title: '화면을 불러오고 있습니다.',
                               ),
                             if (_rawError != null)
                               CrmWebErrorPanel(

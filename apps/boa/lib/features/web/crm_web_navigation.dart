@@ -47,12 +47,27 @@ void openCrmWebRoute(
     );
   }
 
-  Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) => CrmWebScreen.fromRouteKey(
-        routeKey: routeKey,
-        sessionToken: session.sessionToken,
-      ),
+  pushCrmWebScreen(
+    context,
+    CrmWebScreen.fromRouteKey(
+      routeKey: routeKey,
+      sessionToken: session.sessionToken,
+    ),
+  );
+}
+
+/// Native shell과 자연스럽게 이어지도록 fade 전환으로 WebView 화면을 연다.
+Future<void> pushCrmWebScreen(BuildContext context, CrmWebScreen screen) {
+  return Navigator.of(context).push<void>(
+    PageRouteBuilder<void>(
+      pageBuilder: (_, __, ___) => screen,
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 220),
     ),
   );
 }

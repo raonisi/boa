@@ -11,6 +11,8 @@ import 'package:boa/features/more/goals_screen.dart';
 import 'package:boa/features/more/performance_screen.dart';
 import 'package:boa/features/more/push_preferences_screen.dart';
 import 'package:boa/features/notifications/notifications_tab.dart';
+import 'package:boa/features/notifications/notification_badge.dart';
+import 'package:boa/features/notifications/unread_count_provider.dart';
 import 'package:boa/features/search/global_search_screen.dart';
 import 'package:boa/features/shell/shell_tab_provider.dart';
 import 'package:boa/features/web/crm_web_navigation.dart';
@@ -41,6 +43,8 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
     final session = ref.watch(sessionProvider);
     final role = session?.user.role;
     final tabIndex = ref.watch(shellTabIndexProvider);
+    final unreadAsync = ref.watch(unreadNotificationCountProvider);
+    final unreadCount = unreadAsync.maybeWhen(data: (count) => count, orElse: () => null);
 
     return Scaffold(
       key: _scaffoldKey,
@@ -67,6 +71,7 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
       ),
       endDrawer: _MoreDrawer(
         role: role,
+        unreadCount: unreadCount,
         onSelectShellTab: (i) {
           Navigator.of(context).pop();
           ref.read(shellTabIndexProvider.notifier).state = i;
@@ -113,28 +118,44 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
           if (i == tabIndex) return;
           boaSelectionHaptic();
           ref.read(shellTabIndexProvider.notifier).state = i;
+          if (i == 4) {
+            ref.invalidate(unreadNotificationCountProvider);
+          }
         },
-        destinations: const [
-          NavigationDestination(
+        destinations: [
+          const NavigationDestination(
               icon: Icon(Icons.home_outlined),
               selectedIcon: Icon(Icons.home),
               label: '오늘 업무'),
-          NavigationDestination(
+          const NavigationDestination(
               icon: Icon(Icons.people_outline),
               selectedIcon: Icon(Icons.people),
               label: '고객'),
-          NavigationDestination(
+          const NavigationDestination(
               icon: Icon(Icons.description_outlined),
               selectedIcon: Icon(Icons.description),
               label: '계약'),
-          NavigationDestination(
+          const NavigationDestination(
               icon: Icon(Icons.calendar_today_outlined),
               selectedIcon: Icon(Icons.calendar_today),
               label: '일정'),
           NavigationDestination(
-              icon: Icon(Icons.notifications_outlined),
-              selectedIcon: Icon(Icons.notifications),
-              label: '알림'),
+            icon: NotificationBadgeIcon(
+              unreadCount: unreadCount,
+              semanticsLabel: unreadCount != null && unreadCount > 0
+                  ? '읽지 않은 알림 ${formatUnreadBadgeLabel(unreadCount)}건'
+                  : null,
+              icon: const Icon(Icons.notifications_outlined),
+            ),
+            selectedIcon: NotificationBadgeIcon(
+              unreadCount: unreadCount,
+              semanticsLabel: unreadCount != null && unreadCount > 0
+                  ? '읽지 않은 알림 ${formatUnreadBadgeLabel(unreadCount)}건'
+                  : null,
+              icon: const Icon(Icons.notifications),
+            ),
+            label: '알림',
+          ),
         ],
         ),
         ),
@@ -146,12 +167,14 @@ class _BoaShellScreenState extends ConsumerState<BoaShellScreen> {
 class _MoreDrawer extends StatelessWidget {
   const _MoreDrawer({
     required this.role,
+    required this.unreadCount,
     required this.onNavigate,
     required this.onSelectShellTab,
     required this.onSignOut,
   });
 
   final BoaRole? role;
+  final int? unreadCount;
   final void Function(String routeKey, String title) onNavigate;
   final void Function(int tabIndex) onSelectShellTab;
   final VoidCallback onSignOut;
@@ -205,6 +228,7 @@ class _MoreDrawer extends StatelessWidget {
         ListTile(
             leading: const Icon(Icons.notifications_outlined),
             title: const Text('알림'),
+            trailing: NotificationUnreadTrailing(unreadCount: unreadCount),
             onTap: () => onSelectShellTab(4)),
         const Divider(),
         Padding(

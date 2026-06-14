@@ -1,4 +1,5 @@
 import 'package:boa/core/auth/session_controller.dart';
+import 'package:boa/features/web/crm_web_navigation.dart';
 import 'package:boa/features/web/crm_web_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,13 +16,12 @@ void openCustomerWebDetail(
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('로그인이 필요합니다.')));
     return;
   }
-  Navigator.of(context).push<void>(
-    MaterialPageRoute<void>(
-      builder: (_) => CrmWebScreen.forPath(
-        path: '/customers/$customerId',
-        sessionToken: session.sessionToken,
-        title: title,
-      ),
+  pushCrmWebScreen(
+    context,
+    CrmWebScreen.forPath(
+      path: '/customers/$customerId',
+      sessionToken: session.sessionToken,
+      title: title,
     ),
   );
 }
