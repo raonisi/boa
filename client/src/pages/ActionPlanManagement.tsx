@@ -46,6 +46,17 @@ import {
   getWeekDateRange,
   isActionPlanEditable,
 } from "@shared/actionPlans";
+import {
+  ACTION_PLAN_PR21_NOTICE,
+  weekLabelToNumber,
+} from "@shared/actionPlanDirectUpload";
+import {
+  NumberField,
+  PR21_SELECT_OPTIONS,
+  PrivacyConfirmField,
+  SelectField,
+  TextAreaField,
+} from "@/components/actionPlans/ActionPlanPr21Fields";
 import { ClipboardList, Download, Loader2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -77,59 +88,6 @@ function statusBadge(status?: string | null) {
   return <Badge className={className}>{label}</Badge>;
 }
 
-function NumberField({
-  label,
-  value,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: number;
-  onChange: (v: number) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      <Input
-        type="number"
-        min={0}
-        className="min-h-11"
-        value={value}
-        disabled={disabled}
-        onChange={e => onChange(Number(e.target.value) || 0)}
-      />
-    </div>
-  );
-}
-
-function TextAreaField({
-  label,
-  value,
-  onChange,
-  disabled,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      <Textarea
-        className="min-h-[88px]"
-        value={value}
-        disabled={disabled}
-        placeholder={placeholder}
-        onChange={e => onChange(e.target.value)}
-      />
-    </div>
-  );
-}
-
 const defaultMonthlyForm = {
   monthlyContractTarget: 0,
   monthlyPremiumTarget: 0,
@@ -137,11 +95,21 @@ const defaultMonthlyForm = {
   monthlyCallTarget: 0,
   monthlyMessageTarget: 0,
   monthlyFollowUpTarget: 0,
+  monthlyRevenueTarget: 0,
+  monthlyNewConsultationTarget: 0,
+  monthlyContactTarget: 0,
+  monthlyAnalysisTarget: 0,
+  monthlyProposalTarget: 0,
+  monthlyIntroductionRequestTarget: 0,
   focusCustomerGroup: "",
+  primaryCustomerSegment: "",
   monthlyStrategy: "",
   preparationMemo: "",
+  monthlyPreparationStatus: "",
   expectedRisk: "",
-  supportRequest: "",
+  supportRequest: "없음",
+  complianceCheckMemo: "",
+  privacyMinimizedConfirmed: false,
 };
 
 const defaultWeeklyForm = {
@@ -153,11 +121,27 @@ const defaultWeeklyForm = {
   weeklyVisitTarget: 0,
   weeklyProposalTarget: 0,
   weeklyFollowUpTarget: 0,
+  weeklyRevenueTarget: 0,
+  weeklyAnalysisTarget: 0,
+  weeklyIntroductionRequestTarget: 0,
+  weeklyReconnectTarget: 0,
   focusCustomerGroup: "",
+  targetCustomerSegment: "",
+  targetCustomerReference: "",
+  customerStage: "",
+  proposedProductCategory: "",
+  proposedCoverageArea: "",
+  proposalPurpose: "",
+  preparationMaterials: "",
   weeklyActionPlan: "",
   preparationMemo: "",
   expectedRisk: "",
-  supportRequest: "",
+  supportRequest: "없음",
+  complianceRiskCheck: "",
+  weeklyReviewMemo: "",
+  nextWeekImprovement: "",
+  coachingRequest: "",
+  privacyMinimizedConfirmed: false,
 };
 
 const defaultDailyForm = {
@@ -167,6 +151,19 @@ const defaultDailyForm = {
   visitTarget: 0,
   proposalTarget: 0,
   followUpTarget: 0,
+  dailyRevenueTarget: 0,
+  newContactTarget: 0,
+  analysisTarget: 0,
+  introductionRequestTarget: 0,
+  reconnectTarget: 0,
+  contractTarget: 0,
+  targetCustomerSegment: "",
+  targetCustomerReference: "",
+  customerStage: "",
+  proposedProductCategory: "",
+  proposedCoverageArea: "",
+  proposalPurpose: "",
+  preparationMaterials: "",
   todayPriority: "",
   preparationMemo: "",
   actualCallCount: 0,
@@ -175,8 +172,15 @@ const defaultDailyForm = {
   actualVisitCount: 0,
   actualProposalCount: 0,
   actualFollowUpCount: 0,
+  actualNewContactCount: 0,
+  actualAnalysisCount: 0,
+  actualIntroductionRequestCount: 0,
+  actualReconnectCount: 0,
+  actualContractCount: 0,
   actualResultMemo: "",
   nextDayMemo: "",
+  complianceRiskCheck: "",
+  privacyMinimizedConfirmed: false,
 };
 
 export default function ActionPlanManagement() {
@@ -209,7 +213,12 @@ export default function ActionPlanManagement() {
     { enabled: !!monthlyQuery.data?.id }
   );
   const weeklyPlan = useMemo(
-    () => weeklyQuery.data?.find(p => p.weekLabel === weekLabel),
+    () => {
+      const n = weekLabelToNumber(weekLabel);
+      return weeklyQuery.data?.find(
+        p => p.weekLabel === weekLabel || p.weekNumber === n
+      );
+    },
     [weeklyQuery.data, weekLabel]
   );
   const dailyQuery = trpc.actionPlans.getDailyPlans.useQuery(
@@ -268,11 +277,21 @@ export default function ActionPlanManagement() {
       monthlyCallTarget: m.monthlyCallTarget ?? 0,
       monthlyMessageTarget: m.monthlyMessageTarget ?? 0,
       monthlyFollowUpTarget: m.monthlyFollowUpTarget ?? 0,
+      monthlyRevenueTarget: m.monthlyRevenueTarget ?? m.monthlyPremiumTarget ?? 0,
+      monthlyNewConsultationTarget: m.monthlyNewConsultationTarget ?? 0,
+      monthlyContactTarget: m.monthlyContactTarget ?? m.monthlyCallTarget ?? 0,
+      monthlyAnalysisTarget: m.monthlyAnalysisTarget ?? 0,
+      monthlyProposalTarget: m.monthlyProposalTarget ?? 0,
+      monthlyIntroductionRequestTarget: m.monthlyIntroductionRequestTarget ?? 0,
       focusCustomerGroup: m.focusCustomerGroup ?? "",
+      primaryCustomerSegment: m.primaryCustomerSegment ?? m.focusCustomerGroup ?? "",
       monthlyStrategy: m.monthlyStrategy ?? "",
       preparationMemo: m.preparationMemo ?? "",
+      monthlyPreparationStatus: m.monthlyPreparationStatus ?? "",
       expectedRisk: m.expectedRisk ?? "",
-      supportRequest: m.supportRequest ?? "",
+      supportRequest: m.supportRequest ?? "없음",
+      complianceCheckMemo: m.complianceCheckMemo ?? "",
+      privacyMinimizedConfirmed: m.privacyMinimizedConfirmed ?? false,
     });
   }, [monthlyQuery.data]);
 
@@ -290,11 +309,27 @@ export default function ActionPlanManagement() {
       weeklyVisitTarget: weeklyPlan.weeklyVisitTarget ?? 0,
       weeklyProposalTarget: weeklyPlan.weeklyProposalTarget ?? 0,
       weeklyFollowUpTarget: weeklyPlan.weeklyFollowUpTarget ?? 0,
+      weeklyRevenueTarget: weeklyPlan.weeklyRevenueTarget ?? weeklyPlan.weeklyPremiumTarget ?? 0,
+      weeklyAnalysisTarget: weeklyPlan.weeklyAnalysisTarget ?? 0,
+      weeklyIntroductionRequestTarget: weeklyPlan.weeklyIntroductionRequestTarget ?? 0,
+      weeklyReconnectTarget: weeklyPlan.weeklyReconnectTarget ?? 0,
       focusCustomerGroup: weeklyPlan.focusCustomerGroup ?? "",
+      targetCustomerSegment: weeklyPlan.targetCustomerSegment ?? weeklyPlan.focusCustomerGroup ?? "",
+      targetCustomerReference: weeklyPlan.targetCustomerReference ?? "",
+      customerStage: weeklyPlan.customerStage ?? "",
+      proposedProductCategory: weeklyPlan.proposedProductCategory ?? "",
+      proposedCoverageArea: weeklyPlan.proposedCoverageArea ?? "",
+      proposalPurpose: weeklyPlan.proposalPurpose ?? "",
+      preparationMaterials: weeklyPlan.preparationMaterials ?? "",
       weeklyActionPlan: weeklyPlan.weeklyActionPlan ?? "",
       preparationMemo: weeklyPlan.preparationMemo ?? "",
       expectedRisk: weeklyPlan.expectedRisk ?? "",
-      supportRequest: weeklyPlan.supportRequest ?? "",
+      supportRequest: weeklyPlan.supportRequest ?? "없음",
+      complianceRiskCheck: weeklyPlan.complianceRiskCheck ?? "",
+      weeklyReviewMemo: weeklyPlan.weeklyReviewMemo ?? "",
+      nextWeekImprovement: weeklyPlan.nextWeekImprovement ?? "",
+      coachingRequest: weeklyPlan.coachingRequest ?? "",
+      privacyMinimizedConfirmed: weeklyPlan.privacyMinimizedConfirmed ?? false,
     });
   }, [weeklyPlan]);
 
@@ -310,6 +345,19 @@ export default function ActionPlanManagement() {
       visitTarget: dailyPlan.visitTarget ?? 0,
       proposalTarget: dailyPlan.proposalTarget ?? 0,
       followUpTarget: dailyPlan.followUpTarget ?? 0,
+      dailyRevenueTarget: dailyPlan.dailyRevenueTarget ?? 0,
+      newContactTarget: dailyPlan.newContactTarget ?? dailyPlan.callTarget ?? 0,
+      analysisTarget: dailyPlan.analysisTarget ?? 0,
+      introductionRequestTarget: dailyPlan.introductionRequestTarget ?? 0,
+      reconnectTarget: dailyPlan.reconnectTarget ?? dailyPlan.followUpTarget ?? 0,
+      contractTarget: dailyPlan.contractTarget ?? 0,
+      targetCustomerSegment: dailyPlan.targetCustomerSegment ?? "",
+      targetCustomerReference: dailyPlan.targetCustomerReference ?? "",
+      customerStage: dailyPlan.customerStage ?? "",
+      proposedProductCategory: dailyPlan.proposedProductCategory ?? "",
+      proposedCoverageArea: dailyPlan.proposedCoverageArea ?? "",
+      proposalPurpose: dailyPlan.proposalPurpose ?? "",
+      preparationMaterials: dailyPlan.preparationMaterials ?? "",
       todayPriority: dailyPlan.todayPriority ?? "",
       preparationMemo: dailyPlan.preparationMemo ?? "",
       actualCallCount: dailyPlan.actualCallCount ?? 0,
@@ -318,8 +366,15 @@ export default function ActionPlanManagement() {
       actualVisitCount: dailyPlan.actualVisitCount ?? 0,
       actualProposalCount: dailyPlan.actualProposalCount ?? 0,
       actualFollowUpCount: dailyPlan.actualFollowUpCount ?? 0,
+      actualNewContactCount: dailyPlan.actualNewContactCount ?? dailyPlan.actualCallCount ?? 0,
+      actualAnalysisCount: dailyPlan.actualAnalysisCount ?? 0,
+      actualIntroductionRequestCount: dailyPlan.actualIntroductionRequestCount ?? 0,
+      actualReconnectCount: dailyPlan.actualReconnectCount ?? dailyPlan.actualFollowUpCount ?? 0,
+      actualContractCount: dailyPlan.actualContractCount ?? 0,
       actualResultMemo: dailyPlan.actualResultMemo ?? "",
       nextDayMemo: dailyPlan.nextDayMemo ?? "",
+      complianceRiskCheck: dailyPlan.complianceRiskCheck ?? "",
+      privacyMinimizedConfirmed: dailyPlan.privacyMinimizedConfirmed ?? false,
     });
   }, [dailyPlan]);
 
@@ -457,6 +512,7 @@ export default function ActionPlanManagement() {
     }
     const payload = {
       monthlyPlanId: monthlyQuery.data.id,
+      weekNumber: weekLabelToNumber(weekLabel),
       weekLabel,
       weekStartDate: weekRange.weekStartDate,
       weekEndDate: weekRange.weekEndDate,
@@ -542,7 +598,7 @@ export default function ActionPlanManagement() {
 
           <TabsContent value="mine" className="space-y-4">
             <p className="rounded-md border border-amber-200 bg-amber-50/60 px-3 py-2 text-sm text-amber-900">
-              {ACTION_PLAN_SENSITIVE_INPUT_NOTICE}
+              {ACTION_PLAN_PR21_NOTICE}
             </p>
             <Accordion
               type="multiple"
@@ -681,14 +737,53 @@ export default function ActionPlanManagement() {
                           />
                         </div>
                         <div className="md:col-span-2">
-                          <TextAreaField
-                            label="도움 요청"
+                          <SelectField
+                            label="지점장 지원 요청"
+                            options={PR21_SELECT_OPTIONS.supportRequest}
                             value={monthlyForm.supportRequest}
+                            disabled={!monthlyEditable}
+                            onChange={v =>
+                              setMonthlyForm(f => ({ ...f, supportRequest: v }))
+                            }
+                          />
+                        </div>
+                        <NumberField
+                          label="월 목표 매출(원)"
+                          value={monthlyForm.monthlyRevenueTarget}
+                          disabled={!monthlyEditable}
+                          onChange={v =>
+                            setMonthlyForm(f => ({ ...f, monthlyRevenueTarget: v }))
+                          }
+                        />
+                        <NumberField
+                          label="월 목표 보장분석"
+                          value={monthlyForm.monthlyAnalysisTarget}
+                          disabled={!monthlyEditable}
+                          onChange={v =>
+                            setMonthlyForm(f => ({ ...f, monthlyAnalysisTarget: v }))
+                          }
+                        />
+                        <div className="md:col-span-2">
+                          <TextAreaField
+                            label="이번 달 주력 고객군"
+                            value={monthlyForm.primaryCustomerSegment}
                             disabled={!monthlyEditable}
                             onChange={v =>
                               setMonthlyForm(f => ({
                                 ...f,
-                                supportRequest: v,
+                                primaryCustomerSegment: v,
+                              }))
+                            }
+                          />
+                        </div>
+                        <div className="md:col-span-2">
+                          <PrivacyConfirmField
+                            checked={monthlyForm.privacyMinimizedConfirmed}
+                            disabled={!monthlyEditable}
+                            onChange={v =>
+                              setMonthlyForm(f => ({
+                                ...f,
+                                privacyMinimizedConfirmed: v,
                               }))
                             }
                           />
@@ -867,23 +962,116 @@ export default function ActionPlanManagement() {
                       </div>
                       <div className="md:col-span-2">
                         <TextAreaField
-                          label="예상 리스크"
-                          value={weeklyForm.expectedRisk}
+                          label="이번 주 만날 고객군"
+                          value={weeklyForm.targetCustomerSegment}
                           disabled={!weeklyEditable}
                           onChange={v =>
-                            setWeeklyForm(f => ({ ...f, expectedRisk: v }))
+                            setWeeklyForm(f => ({
+                              ...f,
+                              targetCustomerSegment: v,
+                            }))
                           }
                         />
                       </div>
                       <div className="md:col-span-2">
                         <TextAreaField
-                          label="도움 요청"
-                          value={weeklyForm.supportRequest}
+                          label="핵심 고객/DB (코드·이니셜·고객군)"
+                          placeholder="예: A-102, K고객"
+                          value={weeklyForm.targetCustomerReference}
                           disabled={!weeklyEditable}
                           onChange={v =>
                             setWeeklyForm(f => ({
                               ...f,
-                              supportRequest: v,
+                              targetCustomerReference: v,
+                            }))
+                          }
+                        />
+                      </div>
+                      <SelectField
+                        label="고객 단계"
+                        options={PR21_SELECT_OPTIONS.customerStage}
+                        value={weeklyForm.customerStage}
+                        disabled={!weeklyEditable}
+                        onChange={v =>
+                          setWeeklyForm(f => ({ ...f, customerStage: v }))
+                        }
+                      />
+                      <SelectField
+                        label="제안 준비 상품군"
+                        options={PR21_SELECT_OPTIONS.productCategory}
+                        value={weeklyForm.proposedProductCategory}
+                        disabled={!weeklyEditable}
+                        onChange={v =>
+                          setWeeklyForm(f => ({
+                            ...f,
+                            proposedProductCategory: v,
+                          }))
+                        }
+                      />
+                      <SelectField
+                        label="제안 준비 보장영역"
+                        options={PR21_SELECT_OPTIONS.coverageArea}
+                        value={weeklyForm.proposedCoverageArea}
+                        disabled={!weeklyEditable}
+                        onChange={v =>
+                          setWeeklyForm(f => ({
+                            ...f,
+                            proposedCoverageArea: v,
+                          }))
+                        }
+                      />
+                      <SelectField
+                        label="예상 장애요인"
+                        options={PR21_SELECT_OPTIONS.expectedBarrier}
+                        value={weeklyForm.expectedRisk}
+                        disabled={!weeklyEditable}
+                        onChange={v =>
+                          setWeeklyForm(f => ({ ...f, expectedRisk: v }))
+                        }
+                      />
+                      <SelectField
+                        label="지점장 지원 요청"
+                        options={PR21_SELECT_OPTIONS.supportRequest}
+                        value={weeklyForm.supportRequest}
+                        disabled={!weeklyEditable}
+                        onChange={v =>
+                          setWeeklyForm(f => ({ ...f, supportRequest: v }))
+                        }
+                      />
+                      <div className="md:col-span-2">
+                        <TextAreaField
+                          label="주간 복기"
+                          value={weeklyForm.weeklyReviewMemo}
+                          disabled={!weeklyEditable}
+                          onChange={v =>
+                            setWeeklyForm(f => ({
+                              ...f,
+                              weeklyReviewMemo: v,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <TextAreaField
+                          label="코칭 요청"
+                          value={weeklyForm.coachingRequest}
+                          disabled={!weeklyEditable}
+                          onChange={v =>
+                            setWeeklyForm(f => ({
+                              ...f,
+                              coachingRequest: v,
+                            }))
+                          }
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <PrivacyConfirmField
+                          checked={weeklyForm.privacyMinimizedConfirmed}
+                          disabled={!weeklyEditable}
+                          onChange={v =>
+                            setWeeklyForm(f => ({
+                              ...f,
+                              privacyMinimizedConfirmed: v,
                             }))
                           }
                         />
@@ -1081,7 +1269,7 @@ export default function ActionPlanManagement() {
                       />
                       <div className="md:col-span-2">
                         <TextAreaField
-                          label="마감 회고"
+                          label="오늘 결과/복기"
                           value={dailyForm.actualResultMemo}
                           disabled={!dailyEditable}
                           onChange={v =>
@@ -1094,11 +1282,23 @@ export default function ActionPlanManagement() {
                       </div>
                       <div className="md:col-span-2">
                         <TextAreaField
-                          label="다음날 보완점"
+                          label="내일 이어갈 일"
                           value={dailyForm.nextDayMemo}
                           disabled={!dailyEditable}
                           onChange={v =>
                             setDailyForm(f => ({ ...f, nextDayMemo: v }))
+                          }
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <PrivacyConfirmField
+                          checked={dailyForm.privacyMinimizedConfirmed}
+                          disabled={!dailyEditable}
+                          onChange={v =>
+                            setDailyForm(f => ({
+                              ...f,
+                              privacyMinimizedConfirmed: v,
+                            }))
                           }
                         />
                       </div>
@@ -1203,6 +1403,55 @@ export default function ActionPlanManagement() {
                     <CardContent className="text-2xl font-semibold">
                       {submissionQuery.data?.totals.dailySubmittedRateToday ?? 0}
                       %
+                    </CardContent>
+                  </Card>
+                  <Card className="md:col-span-3">
+                    <CardHeader>
+                      <CardTitle className="text-base">목표 미등록자</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-wrap gap-2">
+                      {(
+                        submissionQuery.data?.dashboard?.goalNotRegistered ?? []
+                      ).map(u => (
+                        <Badge key={u.id} variant="destructive">
+                          {u.name}
+                        </Badge>
+                      ))}
+                    </CardContent>
+                  </Card>
+                  <Card className="md:col-span-3">
+                    <CardHeader>
+                      <CardTitle className="text-base">
+                        오늘 계획/결과 누락 · 코칭 요청
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2 text-sm">
+                      <p>
+                        계획 누락:{" "}
+                        {(
+                          submissionQuery.data?.dashboard?.todayPlanMissing ?? []
+                        )
+                          .map(u => u.name)
+                          .join(", ") || "없음"}
+                      </p>
+                      <p>
+                        결과 누락:{" "}
+                        {(
+                          submissionQuery.data?.dashboard?.todayResultMissing ??
+                          []
+                        )
+                          .map(u => u.name)
+                          .join(", ") || "없음"}
+                      </p>
+                      <p>
+                        코칭 요청:{" "}
+                        {(
+                          submissionQuery.data?.dashboard?.coachingRequestUsers ??
+                          []
+                        )
+                          .map(u => u.name)
+                          .join(", ") || "없음"}
+                      </p>
                     </CardContent>
                   </Card>
                   <Card className="md:col-span-3">

@@ -46,6 +46,36 @@ const LABEL_FOLLOWING_NON_NAME_TOKENS = new Set([
   "분석",
 ]);
 
+const ALLOWED_CUSTOMER_REFERENCE_PATTERNS = [
+  /^[A-Z]-\d+$/,
+  /^[가-힣A-Z]고객$/,
+  /^\d+대\s*(기혼|미혼)?/,
+  /^(신규|기존|소개|유지).*(DB|고객군)/,
+  /^기존계약자군$/,
+  /^신규\s*DB$/,
+  /^소개고객군$/,
+];
+
+const ALLOWED_PRODUCT_COVERAGE_PHRASES = [
+  /건강보험\s*리밸런싱/,
+  /암[·・]뇌심\s*보장\s*점검/,
+  /간병\s*보장\s*검토/,
+  /수술비\s*보장영역/,
+  /운전자\s*보장영역/,
+  /고객\s*중심\s*전략/,
+  /계약자\s*보호\s*관점/,
+  /피보험자\s*기준\s*설명/,
+];
+
+function isAllowedCustomerReference(text: string): boolean {
+  const t = text.trim();
+  return ALLOWED_CUSTOMER_REFERENCE_PATTERNS.some(p => p.test(t));
+}
+
+function hasAllowedProductCoveragePhrase(text: string): boolean {
+  return ALLOWED_PRODUCT_COVERAGE_PHRASES.some(p => p.test(text));
+}
+
 const CUSTOMER_ID_LABEL_PATTERN =
   /(?:고객명|고객\s*이름|고객성명|고객\s*성명|계약자명|피보험자명|수익자명|가입자명|상담\s*고객|대상\s*고객|대상고객|보험대상자|계약자|피보험자|수익자|가입자|청약자|민원인|보호자)\s*[:：\-]?\s*([가-힣]{2,5})/g;
 
@@ -97,9 +127,26 @@ function collectStrings(value: unknown): string[] {
   return [];
 }
 
-export function findSensitiveActionPlanPattern(text: string): string | null {
+export function findSensitiveActionPlanPattern(
+  text: string,
+  fieldName?: string
+): string | null {
   const normalized = text.trim();
   if (!normalized) return null;
+  if (
+    fieldName === "targetCustomerReference" &&
+    isAllowedCustomerReference(normalized)
+  ) {
+    return null;
+  }
+  if (
+    (fieldName === "proposedProductCategory" ||
+      fieldName === "proposedCoverageArea" ||
+      fieldName === "preparationMaterials") &&
+    hasAllowedProductCoveragePhrase(normalized)
+  ) {
+    return null;
+  }
   const labelHit = findCustomerLabelNamePattern(normalized);
   if (labelHit) return labelHit;
   for (const item of SENSITIVE_PATTERNS) {
@@ -109,10 +156,10 @@ export function findSensitiveActionPlanPattern(text: string): string | null {
 }
 export function assertNoSensitiveActionPlanText(
   value: string | null | undefined,
-  _fieldName?: string
+  fieldName?: string
 ) {
   if (!value?.trim()) return;
-  const hit = findSensitiveActionPlanPattern(value);
+  const hit = findSensitiveActionPlanPattern(value, fieldName);
   if (hit) {
     throw new TRPCError({
       code: "BAD_REQUEST",
@@ -124,59 +171,103 @@ export function assertNoSensitiveActionPlanText(
 export function assertNoSensitiveActionPlanFields(
   fields: Record<string, string | null | undefined>
 ) {
-  for (const value of Object.values(fields)) {
-    assertNoSensitiveActionPlanText(value);
+  for (const [key, value] of Object.entries(fields)) {
+    assertNoSensitiveActionPlanText(value, key);
   }
 }
 
 export function assertNoSensitiveMonthlyPlanInput(input: {
   focusCustomerGroup?: string | null;
+  primaryCustomerSegment?: string | null;
   monthlyStrategy?: string | null;
   preparationMemo?: string | null;
+  monthlyPreparationStatus?: string | null;
   expectedRisk?: string | null;
   supportRequest?: string | null;
+  complianceCheckMemo?: string | null;
   managerComment?: string | null;
 }) {
   assertNoSensitiveActionPlanFields({
     focusCustomerGroup: input.focusCustomerGroup,
+    primaryCustomerSegment: input.primaryCustomerSegment,
     monthlyStrategy: input.monthlyStrategy,
     preparationMemo: input.preparationMemo,
+    monthlyPreparationStatus: input.monthlyPreparationStatus,
     expectedRisk: input.expectedRisk,
     supportRequest: input.supportRequest,
+    complianceCheckMemo: input.complianceCheckMemo,
     managerComment: input.managerComment,
   });
 }
 
 export function assertNoSensitiveWeeklyPlanInput(input: {
   focusCustomerGroup?: string | null;
+  targetCustomerSegment?: string | null;
+  targetCustomerReference?: string | null;
+  customerStage?: string | null;
+  proposedProductCategory?: string | null;
+  proposedCoverageArea?: string | null;
+  proposalPurpose?: string | null;
+  preparationMaterials?: string | null;
   weeklyActionPlan?: string | null;
   preparationMemo?: string | null;
   expectedRisk?: string | null;
   supportRequest?: string | null;
+  complianceRiskCheck?: string | null;
+  weeklyReviewMemo?: string | null;
+  nextWeekImprovement?: string | null;
+  coachingRequest?: string | null;
   managerComment?: string | null;
 }) {
   assertNoSensitiveActionPlanFields({
     focusCustomerGroup: input.focusCustomerGroup,
+    targetCustomerSegment: input.targetCustomerSegment,
+    targetCustomerReference: input.targetCustomerReference,
+    customerStage: input.customerStage,
+    proposedProductCategory: input.proposedProductCategory,
+    proposedCoverageArea: input.proposedCoverageArea,
+    proposalPurpose: input.proposalPurpose,
+    preparationMaterials: input.preparationMaterials,
     weeklyActionPlan: input.weeklyActionPlan,
     preparationMemo: input.preparationMemo,
     expectedRisk: input.expectedRisk,
     supportRequest: input.supportRequest,
+    complianceRiskCheck: input.complianceRiskCheck,
+    weeklyReviewMemo: input.weeklyReviewMemo,
+    nextWeekImprovement: input.nextWeekImprovement,
+    coachingRequest: input.coachingRequest,
     managerComment: input.managerComment,
   });
 }
 
 export function assertNoSensitiveDailyPlanInput(input: {
+  targetCustomerSegment?: string | null;
+  targetCustomerReference?: string | null;
+  customerStage?: string | null;
+  proposedProductCategory?: string | null;
+  proposedCoverageArea?: string | null;
+  proposalPurpose?: string | null;
+  preparationMaterials?: string | null;
   todayPriority?: string | null;
   preparationMemo?: string | null;
   actualResultMemo?: string | null;
   nextDayMemo?: string | null;
+  complianceRiskCheck?: string | null;
   managerComment?: string | null;
 }) {
   assertNoSensitiveActionPlanFields({
+    targetCustomerSegment: input.targetCustomerSegment,
+    targetCustomerReference: input.targetCustomerReference,
+    customerStage: input.customerStage,
+    proposedProductCategory: input.proposedProductCategory,
+    proposedCoverageArea: input.proposedCoverageArea,
+    proposalPurpose: input.proposalPurpose,
+    preparationMaterials: input.preparationMaterials,
     todayPriority: input.todayPriority,
     preparationMemo: input.preparationMemo,
     actualResultMemo: input.actualResultMemo,
     nextDayMemo: input.nextDayMemo,
+    complianceRiskCheck: input.complianceRiskCheck,
     managerComment: input.managerComment,
   });
 }

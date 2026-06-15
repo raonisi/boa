@@ -1018,6 +1018,22 @@ export const branchActionPlans = mysqlTable(
     preparationMemo: text("preparationMemo"),
     expectedRisk: text("expectedRisk"),
     supportRequest: text("supportRequest"),
+    monthlyRevenueTarget: int("monthlyRevenueTarget").default(0).notNull(),
+    monthlyNewConsultationTarget: int("monthlyNewConsultationTarget")
+      .default(0)
+      .notNull(),
+    monthlyContactTarget: int("monthlyContactTarget").default(0).notNull(),
+    monthlyAnalysisTarget: int("monthlyAnalysisTarget").default(0).notNull(),
+    monthlyProposalTarget: int("monthlyProposalTarget").default(0).notNull(),
+    monthlyIntroductionRequestTarget: int("monthlyIntroductionRequestTarget")
+      .default(0)
+      .notNull(),
+    primaryCustomerSegment: text("primaryCustomerSegment"),
+    monthlyPreparationStatus: text("monthlyPreparationStatus"),
+    complianceCheckMemo: text("complianceCheckMemo"),
+    privacyMinimizedConfirmed: boolean("privacyMinimizedConfirmed")
+      .default(false)
+      .notNull(),
     managerComment: text("managerComment"),
     status: mysqlEnum("status", actionPlanStatusEnum)
       .default("draft")
@@ -1062,6 +1078,28 @@ export const weeklyActionPlans = mysqlTable(
     preparationMemo: text("preparationMemo"),
     expectedRisk: text("expectedRisk"),
     supportRequest: text("supportRequest"),
+    targetMonth: varchar("targetMonth", { length: 7 }),
+    weekNumber: int("weekNumber"),
+    targetCustomerSegment: text("targetCustomerSegment"),
+    targetCustomerReference: text("targetCustomerReference"),
+    customerStage: varchar("customerStage", { length: 50 }),
+    proposedProductCategory: varchar("proposedProductCategory", { length: 100 }),
+    proposedCoverageArea: varchar("proposedCoverageArea", { length: 100 }),
+    proposalPurpose: text("proposalPurpose"),
+    preparationMaterials: text("preparationMaterials"),
+    weeklyRevenueTarget: int("weeklyRevenueTarget").default(0).notNull(),
+    weeklyAnalysisTarget: int("weeklyAnalysisTarget").default(0).notNull(),
+    weeklyIntroductionRequestTarget: int("weeklyIntroductionRequestTarget")
+      .default(0)
+      .notNull(),
+    weeklyReconnectTarget: int("weeklyReconnectTarget").default(0).notNull(),
+    complianceRiskCheck: text("complianceRiskCheck"),
+    privacyMinimizedConfirmed: boolean("privacyMinimizedConfirmed")
+      .default(false)
+      .notNull(),
+    weeklyReviewMemo: text("weeklyReviewMemo"),
+    nextWeekImprovement: text("nextWeekImprovement"),
+    coachingRequest: text("coachingRequest"),
     managerComment: text("managerComment"),
     status: mysqlEnum("status", actionPlanStatusEnum)
       .default("draft")
@@ -1076,6 +1114,11 @@ export const weeklyActionPlans = mysqlTable(
     uniqueMonthlyWeek: unique("uq_weekly_action_plan_month_week").on(
       table.monthlyPlanId,
       table.weekStartDate
+    ),
+    uniqueUserMonthWeek: unique("uq_weekly_user_month_weeknum").on(
+      table.userId,
+      table.targetMonth,
+      table.weekNumber
     ),
   })
 );
@@ -1105,6 +1148,34 @@ export const dailyActionPlans = mysqlTable(
     actualFollowUpCount: int("actualFollowUpCount").default(0).notNull(),
     actualResultMemo: text("actualResultMemo"),
     nextDayMemo: text("nextDayMemo"),
+    targetMonth: varchar("targetMonth", { length: 7 }),
+    weekNumber: int("weekNumber"),
+    targetCustomerSegment: text("targetCustomerSegment"),
+    targetCustomerReference: text("targetCustomerReference"),
+    customerStage: varchar("customerStage", { length: 50 }),
+    proposedProductCategory: varchar("proposedProductCategory", { length: 100 }),
+    proposedCoverageArea: varchar("proposedCoverageArea", { length: 100 }),
+    proposalPurpose: text("proposalPurpose"),
+    preparationMaterials: text("preparationMaterials"),
+    dailyRevenueTarget: int("dailyRevenueTarget").default(0).notNull(),
+    newContactTarget: int("newContactTarget").default(0).notNull(),
+    analysisTarget: int("analysisTarget").default(0).notNull(),
+    introductionRequestTarget: int("introductionRequestTarget")
+      .default(0)
+      .notNull(),
+    reconnectTarget: int("reconnectTarget").default(0).notNull(),
+    contractTarget: int("contractTarget").default(0).notNull(),
+    actualNewContactCount: int("actualNewContactCount").default(0).notNull(),
+    actualAnalysisCount: int("actualAnalysisCount").default(0).notNull(),
+    actualIntroductionRequestCount: int("actualIntroductionRequestCount")
+      .default(0)
+      .notNull(),
+    actualReconnectCount: int("actualReconnectCount").default(0).notNull(),
+    actualContractCount: int("actualContractCount").default(0).notNull(),
+    complianceRiskCheck: text("complianceRiskCheck"),
+    privacyMinimizedConfirmed: boolean("privacyMinimizedConfirmed")
+      .default(false)
+      .notNull(),
     managerComment: text("managerComment"),
     status: mysqlEnum("status", actionPlanStatusEnum)
       .default("draft")

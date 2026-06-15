@@ -136,6 +136,46 @@ export async function getWeeklyActionPlansByUserIds(
     .orderBy(weeklyActionPlans.weekStartDate);
 }
 
+export async function getWeeklyActionPlanByUserMonthWeek(
+  userId: number,
+  targetMonth: string,
+  weekNumber: number
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(weeklyActionPlans)
+    .where(
+      and(
+        eq(weeklyActionPlans.userId, userId),
+        eq(weeklyActionPlans.targetMonth, targetMonth),
+        eq(weeklyActionPlans.weekNumber, weekNumber)
+      )
+    )
+    .limit(1);
+  return rows[0];
+}
+
+export async function getDailyActionPlanByWeeklyDate(
+  weeklyPlanId: number,
+  planDate: string
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(dailyActionPlans)
+    .where(
+      and(
+        eq(dailyActionPlans.weeklyPlanId, weeklyPlanId),
+        eq(dailyActionPlans.planDate, sql`${planDate}`)
+      )
+    )
+    .limit(1);
+  return rows[0];
+}
+
 export async function createWeeklyActionPlan(data: InsertWeeklyActionPlan) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
