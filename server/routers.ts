@@ -14,6 +14,12 @@ import {
 import { managementReportsRouter } from "./managementReports";
 import { customerDataQualityRouter } from "./customerDataQualityRouter";
 import { actionPlansRouter } from "./actionPlans";
+import { googleCalendarRouter } from "./googleCalendar";
+import {
+  triggerGoogleCalendarDeleteForSchedule,
+  triggerGoogleCalendarSyncForFollowUp,
+  triggerGoogleCalendarSyncForScheduleId,
+} from "./googleCalendarHooks";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -107,6 +113,7 @@ import {
   getPerformanceGoalDashboard,
   getPerformanceStats,
   getSchedules,
+  getScheduleById,
   getStatusHistory,
   getTeamPermanentDeleteBlockers,
   getTeamById,
@@ -11013,6 +11020,10 @@ export const appRouter = router({
               endTimeDate,
               input.title
             );
+          void triggerGoogleCalendarSyncForScheduleId(
+            ctx.user.id,
+            newSchedule.id
+          );
         }
         return { success: true };
       }),
@@ -11163,6 +11174,23 @@ export const appRouter = router({
             );
         }
         await log(ctx.user.id, actionLabel, "schedule", id);
+        const updatedSchedule = await getScheduleById(id);
+        if (updatedSchedule) {
+          if (
+            status === "취소" ||
+            status === "노쇼" ||
+            !updatedSchedule.isActive
+          ) {
+            const owner = await getUserById(updatedSchedule.userId);
+            triggerGoogleCalendarDeleteForSchedule(
+              ctx.user.id,
+              updatedSchedule,
+              owner?.role ?? null
+            );
+          } else {
+            void triggerGoogleCalendarSyncForScheduleId(ctx.user.id, id);
+          }
+        }
         return { success: true };
       }),
 
@@ -11183,6 +11211,12 @@ export const appRouter = router({
         await cancelScheduleTimingNotifications(existing.userId, input.id);
         await cancelScheduleIncompleteNotification(existing.userId, input.id);
         await log(ctx.user.id, "SCHEDULE_CANCELLED", "schedule", input.id);
+        const owner = await getUserById(existing.userId);
+        triggerGoogleCalendarDeleteForSchedule(
+          ctx.user.id,
+          existing,
+          owner?.role ?? null
+        );
         return { success: true };
       }),
   }),
@@ -11234,7 +11268,7 @@ export const appRouter = router({
           defaultType: input.nextAction === "방문" ? "고객상담" : "재통화",
           defaultMemo: input.memo ?? input.reason,
         });
-        await createFollowUp({
+        const followUpId = await createFollowUp({
           customerId: customer.id,
           assignedAgentId: customer.agentId,
           teamId: customer.assignedTeamId,
@@ -11250,6 +11284,15 @@ export const appRouter = router({
           ctx.user.id,
           preparedSchedule
         );
+        if (followUpId) {
+          triggerGoogleCalendarSyncForFollowUp(ctx.user.id, {
+            followUpId,
+            ownerUserId: customer.agentId ?? ctx.user.id,
+            startTime: nextContactDate,
+            reason: input.reason,
+            nextAction: input.nextAction,
+          });
+        }
         await log(
           ctx.user.id,
           "FOLLOW_UP_CREATED",
@@ -12401,6 +12444,7 @@ export const appRouter = router({
   onboardingAssignments: onboardingAssignmentsRouter,
   teamCoaching: teamCoachingRouter,
   actionPlans: actionPlansRouter,
+  googleCalendar: googleCalendarRouter,
 });
 
 export type AppRouter = typeof appRouter;

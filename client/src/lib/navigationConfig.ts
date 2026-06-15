@@ -282,6 +282,12 @@ export const sidebarNavGroups: NavGroup[] = [
         roles: ["branch_admin"],
       },
       {
+        icon: CalendarDays,
+        label: "Google Calendar 연동",
+        path: "/google-calendar-integration",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
+      {
         icon: Settings,
         label: "설정 관리",
         path: "/settings",
@@ -581,6 +587,7 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/admin/operations-center", title: "관리자 운영센터" },
   { prefix: "/management-reports", title: "관리자 보고서" },
   { prefix: "/action-plans", title: "지점원 실행계획 관리" },
+  { prefix: "/google-calendar-integration", title: "Google Calendar 연동 관리" },
   { prefix: "/team-insights", title: "팀원 관리" },
   { prefix: "/admin/sla", title: "첫 연락 SLA" },
   { prefix: "/teams", title: "팀 관리" },

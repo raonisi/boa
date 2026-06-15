@@ -74,6 +74,9 @@ const AdminOperationsCenter = lazy(
 );
 const ManagementReports = lazy(() => import("./pages/ManagementReports"));
 const ActionPlanManagement = lazy(() => import("./pages/ActionPlanManagement"));
+const GoogleCalendarIntegration = lazy(
+  () => import("./pages/GoogleCalendarIntegration")
+);
 const CustomerDataQualityDashboard = lazy(
   () => import("./pages/CustomerDataQualityDashboard")
 );
@@ -469,6 +472,13 @@ function Router() {
         <AuthGuard>
           <LazyRoute>
             <ActionPlanManagement />
+          </LazyRoute>
+        </AuthGuard>
+      </Route>
+      <Route path="/google-calendar-integration">
+        <AuthGuard>
+          <LazyRoute>
+            <GoogleCalendarIntegration />
           </LazyRoute>
         </AuthGuard>
       </Route>

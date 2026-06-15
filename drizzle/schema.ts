@@ -1217,3 +1217,119 @@ export type ExecutiveActionPlanReport =
   typeof executiveActionPlanReports.$inferSelect;
 export type InsertExecutiveActionPlanReport =
   typeof executiveActionPlanReports.$inferInsert;
+
+// ─── Google Calendar Integration ─────────────────────────────────────────────
+export const googleCalendarOauthCredentials = mysqlTable(
+  "google_calendar_oauth_credentials",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    organizationScope: int("organizationScope").default(1).notNull(),
+    provider: varchar("provider", { length: 32 })
+      .default("google_calendar")
+      .notNull(),
+    refreshTokenEnc: text("refreshTokenEnc").notNull(),
+    tokenScope: varchar("tokenScope", { length: 500 }),
+    connectedBy: int("connectedBy").notNull(),
+    isActive: boolean("isActive").default(true).notNull(),
+    lastTestedAt: timestamp("lastTestedAt"),
+    lastTestResult: varchar("lastTestResult", { length: 32 }),
+    lastTestErrorSafe: varchar("lastTestErrorSafe", { length: 500 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueOrgProvider: unique("uq_google_calendar_oauth_org").on(
+      table.organizationScope,
+      table.provider
+    ),
+  })
+);
+export type GoogleCalendarOauthCredential =
+  typeof googleCalendarOauthCredentials.$inferSelect;
+
+export const googleCalendarIntegrations = mysqlTable(
+  "google_calendar_integrations",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    organizationScope: int("organizationScope").default(1).notNull(),
+    provider: varchar("provider", { length: 32 })
+      .default("google_calendar")
+      .notNull(),
+    calendarType: mysqlEnum("calendarType", [
+      "branch_common",
+      "consultation_followup",
+      "admin",
+    ]).notNull(),
+    googleCalendarId: varchar("googleCalendarId", { length: 255 }).notNull(),
+    displayName: varchar("displayName", { length: 200 }).notNull(),
+    isActive: boolean("isActive").default(true).notNull(),
+    lastTestedAt: timestamp("lastTestedAt"),
+    lastTestResult: varchar("lastTestResult", { length: 32 }),
+    lastTestErrorSafe: varchar("lastTestErrorSafe", { length: 500 }),
+    createdBy: int("createdBy").notNull(),
+    updatedBy: int("updatedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueOrgCalendarType: unique("uq_google_calendar_integration_type").on(
+      table.organizationScope,
+      table.calendarType
+    ),
+  })
+);
+export type GoogleCalendarIntegration =
+  typeof googleCalendarIntegrations.$inferSelect;
+export type InsertGoogleCalendarIntegration =
+  typeof googleCalendarIntegrations.$inferInsert;
+
+export const googleCalendarEventSyncs = mysqlTable(
+  "google_calendar_event_syncs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    boaEventType: mysqlEnum("boaEventType", [
+      "calendar_event",
+      "follow_up",
+      "consultation",
+      "meeting",
+      "education",
+      "admin",
+    ]).notNull(),
+    boaEventId: int("boaEventId").notNull(),
+    googleCalendarId: varchar("googleCalendarId", { length: 255 }).notNull(),
+    googleEventId: varchar("googleEventId", { length: 255 }),
+    calendarType: mysqlEnum("calendarType", [
+      "branch_common",
+      "consultation_followup",
+      "admin",
+    ]).notNull(),
+    syncStatus: mysqlEnum("syncStatus", [
+      "pending",
+      "synced",
+      "failed",
+      "deleted",
+      "skipped",
+    ])
+      .default("pending")
+      .notNull(),
+    lastSyncedAt: timestamp("lastSyncedAt"),
+    lastErrorCode: varchar("lastErrorCode", { length: 64 }),
+    lastErrorMessageSafe: varchar("lastErrorMessageSafe", { length: 500 }),
+    retryCount: int("retryCount").default(0).notNull(),
+    ownerUserId: int("ownerUserId"),
+    createdBy: int("createdBy"),
+    updatedBy: int("updatedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueBoaEvent: unique("uq_google_calendar_event_sync").on(
+      table.boaEventType,
+      table.boaEventId
+    ),
+  })
+);
+export type GoogleCalendarEventSync =
+  typeof googleCalendarEventSyncs.$inferSelect;
+export type InsertGoogleCalendarEventSync =
+  typeof googleCalendarEventSyncs.$inferInsert;

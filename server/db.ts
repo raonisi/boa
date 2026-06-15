@@ -3110,8 +3110,9 @@ export async function createFollowUp(
   client?: DbExecutor
 ) {
   const db = client ?? (await getDb());
-  if (!db) return;
-  await db.insert(followUps).values(data);
+  if (!db) return undefined;
+  const result = await db.insert(followUps).values(data);
+  return result[0].insertId as number;
 }
 
 export async function getFollowUpById(id: number) {
@@ -3261,6 +3262,17 @@ export async function createSchedule(data: InsertSchedule) {
   const db = await getDb();
   if (!db) return;
   await db.insert(schedules).values({ ...data, isActive: true });
+}
+
+export async function getScheduleById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(schedules)
+    .where(eq(schedules.id, id))
+    .limit(1);
+  return rows[0];
 }
 
 export async function updateSchedule(

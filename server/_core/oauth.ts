@@ -1,4 +1,5 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { GOOGLE_CALENDAR_OAUTH_SCOPES } from "@shared/googleCalendar";
 import type { User } from "../../drizzle/schema";
 import type { Express, Request, Response } from "express";
 import * as db from "../db";
@@ -8,6 +9,8 @@ import {
   GoogleLoginError,
   completeGoogleLoginWithUserInfo,
 } from "./googleLoginFlow";
+import { exchangeGoogleCalendarAuthCode } from "../googleCalendarClient";
+import { storeGoogleCalendarRefreshToken } from "../googleCalendarSync";
 import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
@@ -84,6 +87,45 @@ function getExpectedRedirectUri(req: Request) {
   if (ENV.googleRedirectUri) return ENV.googleRedirectUri.trim();
   const origin = getRequestOrigin(req);
   return origin ? `${origin}/api/oauth/callback` : null;
+}
+
+function getCalendarRedirectUri(req: Request) {
+  const origin = getRequestOrigin(req);
+  return origin ? `${origin}/api/oauth/google-calendar/callback` : null;
+}
+
+function encodeCalendarOAuthState(redirectUri: string) {
+  return `calendar:${Buffer.from(redirectUri, "utf8").toString("base64")}`;
+}
+
+function decodeCalendarOAuthState(state: string): string | null {
+  if (!state.startsWith("calendar:")) return null;
+  try {
+    return Buffer.from(state.slice("calendar:".length), "base64").toString(
+      "utf8"
+    );
+  } catch {
+    return null;
+  }
+}
+
+export function buildGoogleCalendarOAuthAuthorizeUrl(origin: string) {
+  if (!ENV.googleClientId) {
+    throw new Error("Google OAuth Client ID is not configured");
+  }
+  const redirectUri = `${origin.replace(/\/$/, "")}/api/oauth/google-calendar/callback`;
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.searchParams.set("client_id", ENV.googleClientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set(
+    "scope",
+    ["openid", "email", ...GOOGLE_CALENDAR_OAUTH_SCOPES].join(" ")
+  );
+  url.searchParams.set("access_type", "offline");
+  url.searchParams.set("prompt", "consent");
+  url.searchParams.set("state", encodeCalendarOAuthState(redirectUri));
+  return url.toString();
 }
 
 async function logOAuthEvent({
@@ -206,4 +248,75 @@ export function registerOAuthRoutes(app: Express) {
       res.status(500).json({ error: "Google OAuth callback failed" });
     }
   });
+
+  app.get(
+    "/api/oauth/google-calendar/callback",
+    async (req: Request, res: Response) => {
+      const code = getQueryParam(req, "code");
+      const state = getQueryParam(req, "state");
+      const expectedRedirectUri = getCalendarRedirectUri(req);
+      const stateRedirectUri = state ? decodeCalendarOAuthState(state) : null;
+
+      if (!code || !state || !expectedRedirectUri) {
+        res.status(400).json({ error: "code and state are required" });
+        return;
+      }
+
+      if (stateRedirectUri !== expectedRedirectUri) {
+        res.status(403).json({ error: "OAuth state validation failed" });
+        return;
+      }
+
+      try {
+        const sessionToken = req.cookies?.[COOKIE_NAME];
+        if (!sessionToken) {
+          res.status(401).json({ error: "Login required" });
+          return;
+        }
+        const session = await sdk.verifySession(sessionToken);
+        if (!session?.openId) {
+          res.status(401).json({ error: "Invalid session" });
+          return;
+        }
+        const user = await db.getUserByOpenId(session.openId);
+        if (!user || user.role !== "branch_admin" || user.accountStatus !== "active") {
+          res.status(403).json({ error: "Branch admin access required" });
+          return;
+        }
+
+        const tokenResponse = await exchangeGoogleCalendarAuthCode(
+          code,
+          expectedRedirectUri
+        );
+        if (!tokenResponse.refreshToken) {
+          res.status(400).json({
+            error:
+              "Google refresh token was not issued. Reconnect with consent prompt.",
+          });
+          return;
+        }
+
+        await storeGoogleCalendarRefreshToken(
+          tokenResponse.refreshToken,
+          user.id,
+          tokenResponse.scope
+        );
+
+        await db.createActivityLog({
+          userId: user.id,
+          action: "GOOGLE_CALENDAR_OAUTH_CONNECTED",
+          targetType: "google_calendar",
+          details: JSON.stringify({
+            actor: user.id,
+            metadata: { connectedBy: user.id },
+          }),
+        });
+
+        res.redirect(302, "/google-calendar-integration?connected=1");
+      } catch (error) {
+        console.error("[OAuth] Google Calendar callback failed", error);
+        res.status(500).json({ error: "Google Calendar OAuth callback failed" });
+      }
+    }
+  );
 }

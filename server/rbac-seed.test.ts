@@ -12,6 +12,18 @@ import { registerOAuthRoutes } from "./_core/oauth";
 import { sdk } from "./_core/sdk";
 import { buildGoogleAuthorizeUrl } from "../client/src/const";
 
+function captureLoginOAuthCallback() {
+  const handlers = new Map<string, (...args: unknown[]) => unknown>();
+  registerOAuthRoutes({
+    get: (path: string, handler: (...args: unknown[]) => unknown) => {
+      handlers.set(path, handler);
+    },
+  } as any);
+  const callback = handlers.get("/api/oauth/callback");
+  if (!callback) throw new Error("Login OAuth callback was not registered");
+  return callback;
+}
+
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 
 const users = [
@@ -722,12 +734,7 @@ describe("OAuth pre-registration guard", () => {
   });
 
   it("does not auto-create an active member for an unregistered OAuth email", async () => {
-    let callback: any;
-    registerOAuthRoutes({
-      get: (_path: string, handler: any) => {
-        callback = handler;
-      },
-    } as any);
+    const callback = captureLoginOAuthCallback();
     vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({
       access_token: "token",
     } as any);
@@ -763,12 +770,7 @@ describe("OAuth pre-registration guard", () => {
   });
 
   it("blocks callback state mismatch before exchanging a Google code", async () => {
-    let callback: any;
-    registerOAuthRoutes({
-      get: (_path: string, handler: any) => {
-        callback = handler;
-      },
-    } as any);
+    const callback = captureLoginOAuthCallback();
     const exchangeSpy = vi
       .spyOn(sdk, "exchangeGoogleCodeForToken")
       .mockResolvedValue({ access_token: "token" } as any);
@@ -796,12 +798,7 @@ describe("OAuth pre-registration guard", () => {
   });
 
   it("blocks Google accounts when email is not verified", async () => {
-    let callback: any;
-    registerOAuthRoutes({
-      get: (_path: string, handler: any) => {
-        callback = handler;
-      },
-    } as any);
+    const callback = captureLoginOAuthCallback();
     vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({
       access_token: "token",
     } as any);
@@ -835,12 +832,7 @@ describe("OAuth pre-registration guard", () => {
   });
 
   it("links an invited pre-registered user to a Google sub on first login", async () => {
-    let callback: any;
-    registerOAuthRoutes({
-      get: (_path: string, handler: any) => {
-        callback = handler;
-      },
-    } as any);
+    const callback = captureLoginOAuthCallback();
     vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({
       access_token: "token",
     } as any);
@@ -907,12 +899,7 @@ describe("OAuth pre-registration guard", () => {
   });
 
   it("blocks overwriting an already linked openId", async () => {
-    let callback: any;
-    registerOAuthRoutes({
-      get: (_path: string, handler: any) => {
-        callback = handler;
-      },
-    } as any);
+    const callback = captureLoginOAuthCallback();
     vi.spyOn(sdk, "exchangeGoogleCodeForToken").mockResolvedValue({
       access_token: "token",
     } as any);

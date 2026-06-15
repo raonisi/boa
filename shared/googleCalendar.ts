@@ -1,0 +1,44 @@
+export const GOOGLE_CALENDAR_TYPES = [
+  "branch_common",
+  "consultation_followup",
+  "admin",
+] as const;
+
+export type GoogleCalendarType = (typeof GOOGLE_CALENDAR_TYPES)[number];
+
+export const GOOGLE_CALENDAR_TYPE_LABELS: Record<GoogleCalendarType, string> = {
+  branch_common: "BOA 지점 공통 일정",
+  consultation_followup: "BOA 상담·후속관리 일정",
+  admin: "BOA 관리자 일정",
+};
+
+export const BOA_GOOGLE_EVENT_TYPES = [
+  "calendar_event",
+  "follow_up",
+  "consultation",
+  "meeting",
+  "education",
+  "admin",
+] as const;
+
+export type BoaGoogleEventType = (typeof BOA_GOOGLE_EVENT_TYPES)[number];
+
+export const GOOGLE_SYNC_STATUSES = [
+  "pending",
+  "synced",
+  "failed",
+  "deleted",
+  "skipped",
+] as const;
+
+export type GoogleSyncStatus = (typeof GOOGLE_SYNC_STATUSES)[number];
+
+export const GOOGLE_CALENDAR_OAUTH_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+] as const;
+
+export const DEFAULT_GOOGLE_CALENDAR_DESCRIPTION =
+  "BOA CRM에서 생성된 일정입니다.\n고객 식별정보는 외부 캘린더에 표시하지 않습니다.\n상세 내용은 BOA CRM에서 확인하세요.";
+
+export const ORGANIZATION_SCOPE_DEFAULT = 1;
