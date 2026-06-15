@@ -1283,6 +1283,69 @@ export type GoogleCalendarIntegration =
 export type InsertGoogleCalendarIntegration =
   typeof googleCalendarIntegrations.$inferInsert;
 
+export const googleCalendarOrgSettings = mysqlTable(
+  "google_calendar_org_settings",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    organizationScope: int("organizationScope").default(1).notNull(),
+    includeCustomerContactForActorCalendar: boolean(
+      "includeCustomerContactForActorCalendar"
+    )
+      .default(false)
+      .notNull(),
+    syncRawTitleToGoogleCalendar: boolean("syncRawTitleToGoogleCalendar")
+      .default(false)
+      .notNull(),
+    syncRawDescriptionToGoogleCalendar: boolean(
+      "syncRawDescriptionToGoogleCalendar"
+    )
+      .default(false)
+      .notNull(),
+    allowCustomerNameInGoogleCalendar: boolean("allowCustomerNameInGoogleCalendar")
+      .default(false)
+      .notNull(),
+    allowCustomerContactInGoogleCalendar: boolean(
+      "allowCustomerContactInGoogleCalendar"
+    )
+      .default(false)
+      .notNull(),
+    updatedBy: int("updatedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueOrgScope: unique("uq_google_calendar_org_settings_scope").on(
+      table.organizationScope
+    ),
+  })
+);
+export type GoogleCalendarOrgSettings =
+  typeof googleCalendarOrgSettings.$inferSelect;
+
+export const googleCalendarPersonalSettings = mysqlTable(
+  "google_calendar_personal_settings",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    personalCalendarId: varchar("personalCalendarId", { length: 255 }),
+    contactDisplayConsent: boolean("contactDisplayConsent")
+      .default(false)
+      .notNull(),
+    isActive: boolean("isActive").default(true).notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueUser: unique("uq_google_calendar_personal_settings_user").on(
+      table.userId
+    ),
+  })
+);
+export type GoogleCalendarPersonalSettings =
+  typeof googleCalendarPersonalSettings.$inferSelect;
+export type InsertGoogleCalendarPersonalSettings =
+  typeof googleCalendarPersonalSettings.$inferInsert;
+
 export const googleCalendarEventSyncs = mysqlTable(
   "google_calendar_event_syncs",
   {
@@ -1296,6 +1359,13 @@ export const googleCalendarEventSyncs = mysqlTable(
       "admin",
     ]).notNull(),
     boaEventId: int("boaEventId").notNull(),
+    syncTargetType: mysqlEnum("syncTargetType", [
+      "shared_calendar",
+      "actor_personal_calendar",
+    ])
+      .default("shared_calendar")
+      .notNull(),
+    targetUserId: int("targetUserId").default(0).notNull(),
     googleCalendarId: varchar("googleCalendarId", { length: 255 }).notNull(),
     googleEventId: varchar("googleEventId", { length: 255 }),
     calendarType: mysqlEnum("calendarType", [
@@ -1312,6 +1382,10 @@ export const googleCalendarEventSyncs = mysqlTable(
     ])
       .default("pending")
       .notNull(),
+    includeContactInDescription: boolean("includeContactInDescription")
+      .default(false)
+      .notNull(),
+    contactIncluded: boolean("contactIncluded").default(false).notNull(),
     lastSyncedAt: timestamp("lastSyncedAt"),
     lastErrorCode: varchar("lastErrorCode", { length: 64 }),
     lastErrorMessageSafe: varchar("lastErrorMessageSafe", { length: 500 }),
@@ -1323,9 +1397,11 @@ export const googleCalendarEventSyncs = mysqlTable(
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
   table => ({
-    uniqueBoaEvent: unique("uq_google_calendar_event_sync").on(
+    uniqueBoaEventTarget: unique("uq_google_calendar_event_sync_target").on(
       table.boaEventType,
-      table.boaEventId
+      table.boaEventId,
+      table.syncTargetType,
+      table.targetUserId
     ),
   })
 );

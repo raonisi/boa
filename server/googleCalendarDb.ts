@@ -1,16 +1,21 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import {
   ORGANIZATION_SCOPE_DEFAULT,
+  GOOGLE_CALENDAR_SHARED_TARGET_USER_ID,
   type GoogleCalendarType,
   type GoogleSyncStatus,
+  type GoogleSyncTargetType,
   type BoaGoogleEventType,
 } from "@shared/googleCalendar";
 import {
   googleCalendarEventSyncs,
   googleCalendarIntegrations,
   googleCalendarOauthCredentials,
+  googleCalendarOrgSettings,
+  googleCalendarPersonalSettings,
   type InsertGoogleCalendarEventSync,
   type InsertGoogleCalendarIntegration,
+  type InsertGoogleCalendarPersonalSettings,
 } from "../drizzle/schema";
 import { getDb } from "./db";
 
@@ -187,9 +192,113 @@ export async function updateGoogleCalendarIntegrationTestResult(
     .where(eq(googleCalendarIntegrations.id, id));
 }
 
+export async function getGoogleCalendarOrgSettings(
+  organizationScope = ORGANIZATION_SCOPE_DEFAULT
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(googleCalendarOrgSettings)
+    .where(eq(googleCalendarOrgSettings.organizationScope, organizationScope))
+    .limit(1);
+  return rows[0];
+}
+
+export async function upsertGoogleCalendarOrgSettings(input: {
+  organizationScope?: number;
+  updatedBy: number;
+  includeCustomerContactForActorCalendar?: boolean;
+  syncRawTitleToGoogleCalendar?: boolean;
+  syncRawDescriptionToGoogleCalendar?: boolean;
+  allowCustomerNameInGoogleCalendar?: boolean;
+  allowCustomerContactInGoogleCalendar?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const organizationScope =
+    input.organizationScope ?? ORGANIZATION_SCOPE_DEFAULT;
+  const existing = await getGoogleCalendarOrgSettings(organizationScope);
+  const merged = {
+    includeCustomerContactForActorCalendar:
+      input.includeCustomerContactForActorCalendar ??
+      existing?.includeCustomerContactForActorCalendar ??
+      false,
+    syncRawTitleToGoogleCalendar:
+      input.syncRawTitleToGoogleCalendar ??
+      existing?.syncRawTitleToGoogleCalendar ??
+      false,
+    syncRawDescriptionToGoogleCalendar:
+      input.syncRawDescriptionToGoogleCalendar ??
+      existing?.syncRawDescriptionToGoogleCalendar ??
+      false,
+    allowCustomerNameInGoogleCalendar:
+      input.allowCustomerNameInGoogleCalendar ??
+      existing?.allowCustomerNameInGoogleCalendar ??
+      false,
+    allowCustomerContactInGoogleCalendar:
+      input.allowCustomerContactInGoogleCalendar ??
+      existing?.allowCustomerContactInGoogleCalendar ??
+      false,
+  };
+  if (existing) {
+    await db
+      .update(googleCalendarOrgSettings)
+      .set({
+        ...merged,
+        updatedBy: input.updatedBy,
+        updatedAt: new Date(),
+      })
+      .where(eq(googleCalendarOrgSettings.id, existing.id));
+    return existing.id;
+  }
+  const inserted = await db.insert(googleCalendarOrgSettings).values({
+    organizationScope,
+    ...merged,
+    updatedBy: input.updatedBy,
+  });
+  return inserted[0].insertId;
+}
+
+export async function getGoogleCalendarPersonalSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(googleCalendarPersonalSettings)
+    .where(eq(googleCalendarPersonalSettings.userId, userId))
+    .limit(1);
+  return rows[0];
+}
+
+export async function upsertGoogleCalendarPersonalSettings(
+  input: InsertGoogleCalendarPersonalSettings
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const existing = await getGoogleCalendarPersonalSettings(input.userId);
+  if (existing) {
+    await db
+      .update(googleCalendarPersonalSettings)
+      .set({
+        personalCalendarId: input.personalCalendarId ?? existing.personalCalendarId,
+        contactDisplayConsent:
+          input.contactDisplayConsent ?? existing.contactDisplayConsent,
+        isActive: input.isActive ?? existing.isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(googleCalendarPersonalSettings.id, existing.id));
+    return existing.id;
+  }
+  const inserted = await db.insert(googleCalendarPersonalSettings).values(input);
+  return inserted[0].insertId;
+}
+
 export async function getGoogleCalendarEventSync(
   boaEventType: BoaGoogleEventType,
-  boaEventId: number
+  boaEventId: number,
+  syncTargetType: GoogleSyncTargetType = "shared_calendar",
+  targetUserId = GOOGLE_CALENDAR_SHARED_TARGET_USER_ID
 ) {
   const db = await getDb();
   if (!db) return undefined;
@@ -199,11 +308,30 @@ export async function getGoogleCalendarEventSync(
     .where(
       and(
         eq(googleCalendarEventSyncs.boaEventType, boaEventType),
-        eq(googleCalendarEventSyncs.boaEventId, boaEventId)
+        eq(googleCalendarEventSyncs.boaEventId, boaEventId),
+        eq(googleCalendarEventSyncs.syncTargetType, syncTargetType),
+        eq(googleCalendarEventSyncs.targetUserId, targetUserId)
       )
     )
     .limit(1);
   return rows[0];
+}
+
+export async function listGoogleCalendarEventSyncsForBoaEvent(
+  boaEventType: BoaGoogleEventType,
+  boaEventId: number
+) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(googleCalendarEventSyncs)
+    .where(
+      and(
+        eq(googleCalendarEventSyncs.boaEventType, boaEventType),
+        eq(googleCalendarEventSyncs.boaEventId, boaEventId)
+      )
+    );
 }
 
 export async function upsertGoogleCalendarEventSync(
@@ -211,9 +339,14 @@ export async function upsertGoogleCalendarEventSync(
 ) {
   const db = await getDb();
   if (!db) return undefined;
+  const syncTargetType = input.syncTargetType ?? "shared_calendar";
+  const targetUserId =
+    input.targetUserId ?? GOOGLE_CALENDAR_SHARED_TARGET_USER_ID;
   const existing = await getGoogleCalendarEventSync(
     input.boaEventType,
-    input.boaEventId
+    input.boaEventId,
+    syncTargetType,
+    targetUserId
   );
   if (existing) {
     await db
@@ -223,6 +356,9 @@ export async function upsertGoogleCalendarEventSync(
         googleEventId: input.googleEventId ?? existing.googleEventId,
         calendarType: input.calendarType,
         syncStatus: input.syncStatus ?? existing.syncStatus,
+        includeContactInDescription:
+          input.includeContactInDescription ?? existing.includeContactInDescription,
+        contactIncluded: input.contactIncluded ?? existing.contactIncluded,
         lastSyncedAt: input.lastSyncedAt ?? existing.lastSyncedAt,
         lastErrorCode: input.lastErrorCode ?? null,
         lastErrorMessageSafe: input.lastErrorMessageSafe ?? null,
@@ -234,7 +370,11 @@ export async function upsertGoogleCalendarEventSync(
       .where(eq(googleCalendarEventSyncs.id, existing.id));
     return existing.id;
   }
-  const inserted = await db.insert(googleCalendarEventSyncs).values(input);
+  const inserted = await db.insert(googleCalendarEventSyncs).values({
+    ...input,
+    syncTargetType,
+    targetUserId,
+  });
   return inserted[0].insertId;
 }
 

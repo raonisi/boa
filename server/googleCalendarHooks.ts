@@ -1,7 +1,8 @@
-import { getScheduleById, getUserById } from "./db";
+import { getCustomerById, getScheduleById, getUserById } from "./db";
 import {
   fireAndForgetGoogleCalendarScheduleDelete,
   fireAndForgetGoogleCalendarScheduleSync,
+  loadCustomerContactForSync,
   syncFollowUpToGoogleCalendar,
 } from "./googleCalendarSync";
 import {
@@ -18,6 +19,7 @@ export async function triggerGoogleCalendarSyncForScheduleId(
   const schedule = await getScheduleById(scheduleId);
   if (!schedule?.isActive || schedule.deletedAt) return;
   const owner = await getUserById(schedule.userId);
+  const customerContact = await loadCustomerContactForSync(schedule.customerId);
   fireAndForgetGoogleCalendarScheduleSync(
     { id: actorId },
     {
@@ -27,6 +29,7 @@ export async function triggerGoogleCalendarSyncForScheduleId(
         ? `A-${schedule.customerId}`
         : null,
       segmentLabel: schedule.type,
+      customerContact,
     }
   );
 }
@@ -54,22 +57,30 @@ export function triggerGoogleCalendarDeleteForSchedule(
   );
 }
 
-export function triggerGoogleCalendarSyncForFollowUp(
+export async function triggerGoogleCalendarSyncForFollowUp(
   actorId: number,
   input: {
     followUpId: number;
     ownerUserId: number;
+    createdBy: number;
+    customerId: number;
     startTime: Date;
     reason: string;
     nextAction: string;
   }
 ) {
-  void syncFollowUpToGoogleCalendar({ id: actorId }, {
-    followUpId: input.followUpId,
-    ownerUserId: input.ownerUserId,
-    startTime: input.startTime,
-    endTime: new Date(input.startTime.getTime() + 60 * 60 * 1000),
-    reason: input.reason,
-    nextAction: input.nextAction,
-  }).catch(() => undefined);
+  const customerContact = await loadCustomerContactForSync(input.customerId);
+  void syncFollowUpToGoogleCalendar(
+    { id: actorId },
+    {
+      followUpId: input.followUpId,
+      ownerUserId: input.ownerUserId,
+      createdBy: input.createdBy,
+      startTime: input.startTime,
+      endTime: new Date(input.startTime.getTime() + 60 * 60 * 1000),
+      reason: input.reason,
+      nextAction: input.nextAction,
+      customerContact,
+    }
+  ).catch(() => undefined);
 }

@@ -123,6 +123,21 @@ describe("PR22 Google Calendar integration", () => {
 
   it("syncs schedule with mocked Google API", async () => {
     googleCalendarClient.setGoogleCalendarApiClientForTests(mockClient);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+      id: 1,
+      organizationScope: 1,
+      includeCustomerContactForActorCalendar: false,
+      syncRawTitleToGoogleCalendar: false,
+      syncRawDescriptionToGoogleCalendar: false,
+      allowCustomerNameInGoogleCalendar: false,
+      allowCustomerContactInGoogleCalendar: false,
+      updatedBy: 1,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as any);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarPersonalSettings").mockResolvedValue(
+      undefined
+    );
     vi.spyOn(googleCalendarDb, "getGoogleCalendarOauthCredential").mockResolvedValue({
       id: 1,
       organizationScope: 1,
@@ -208,6 +223,16 @@ describe("PR22 Google Calendar integration", () => {
         });
       }),
     });
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+      syncRawTitleToGoogleCalendar: false,
+      syncRawDescriptionToGoogleCalendar: false,
+      allowCustomerNameInGoogleCalendar: false,
+      allowCustomerContactInGoogleCalendar: false,
+      includeCustomerContactForActorCalendar: false,
+    } as any);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarPersonalSettings").mockResolvedValue(
+      undefined
+    );
     vi.spyOn(googleCalendarDb, "getGoogleCalendarOauthCredential").mockResolvedValue({
       id: 1,
       refreshTokenEnc: "enc",
@@ -328,5 +353,88 @@ describe("PR22 Google Calendar integration", () => {
           boaEventId: 1,
         })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("allows only branch_admin to update sync policy", async () => {
+    const upsertSpy = vi
+      .spyOn(googleCalendarDb, "upsertGoogleCalendarOrgSettings")
+      .mockResolvedValue(1);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+      syncRawTitleToGoogleCalendar: true,
+      syncRawDescriptionToGoogleCalendar: false,
+      allowCustomerNameInGoogleCalendar: true,
+      allowCustomerContactInGoogleCalendar: false,
+      includeCustomerContactForActorCalendar: false,
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const result = await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .googleCalendar.updateSyncPolicy({
+        syncRawTitleToGoogleCalendar: true,
+        allowCustomerNameInGoogleCalendar: true,
+      });
+    expect(result.success).toBe(true);
+    expect(upsertSpy).toHaveBeenCalled();
+
+    for (const role of ["sub_branch_admin", "team_leader", "member"] as const) {
+      await expect(
+        appRouter
+          .createCaller(createCtx(role))
+          .googleCalendar.updateSyncPolicy({ syncRawTitleToGoogleCalendar: true })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    }
+  });
+
+  it("syncs raw title when org policy enabled", async () => {
+    googleCalendarClient.setGoogleCalendarApiClientForTests(mockClient);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+      syncRawTitleToGoogleCalendar: true,
+      syncRawDescriptionToGoogleCalendar: true,
+      allowCustomerNameInGoogleCalendar: true,
+      allowCustomerContactInGoogleCalendar: true,
+      includeCustomerContactForActorCalendar: false,
+    } as any);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarPersonalSettings").mockResolvedValue(
+      undefined
+    );
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarOauthCredential").mockResolvedValue({
+      id: 1,
+      refreshTokenEnc: "enc",
+      isActive: true,
+    } as any);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarIntegrationByType").mockResolvedValue({
+      calendarType: "consultation_followup",
+      googleCalendarId: "test-calendar@group.calendar.google.com",
+      isActive: true,
+    } as any);
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarEventSync").mockResolvedValue(undefined);
+    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(10);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    mockGoogleAuth();
+
+    const rawTitle = "홍길동 010-1234-5678 보장점검 상담";
+    await googleCalendarSync.syncScheduleToGoogleCalendar(
+      { id: 1 },
+      {
+        schedule: {
+          id: 99,
+          userId: 4,
+          type: "고객상담",
+          status: "예정",
+          startTime: new Date(),
+          endTime: null,
+          customerId: 102,
+          title: rawTitle,
+          description: "홍길동 고객 재상담",
+        } as any,
+        ownerRole: "member",
+        customerReference: "A-102",
+      }
+    );
+
+    const payload = (mockClient.createEvent as any).mock.calls[0][1];
+    expect(payload.title).toBe(rawTitle);
+    expect(payload.description).toContain("홍길동");
   });
 });

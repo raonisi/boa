@@ -211,6 +211,20 @@
       "when": 1781200000000,
       "tag": "0029_google_calendar_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "5",
+      "when": 1781300000000,
+      "tag": "0030_google_calendar_contact_policy",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "5",
+      "when": 1781400000000,
+      "tag": "0031_google_calendar_raw_sync_policy",
+      "breakpoints": true
     }
   ]
 }

@@ -16,26 +16,37 @@ import { createActivityLog, getScheduleById, getUserById } from "./db";
 import {
   disableGoogleCalendarIntegration,
   getGoogleCalendarEventSync,
+  getGoogleCalendarIntegrationByType,
+  getGoogleCalendarOrgSettings,
   listFailedGoogleCalendarEventSyncs,
   listGoogleCalendarEventSyncs,
   listGoogleCalendarIntegrations,
   updateGoogleCalendarIntegrationTestResult,
   upsertGoogleCalendarIntegration,
+  upsertGoogleCalendarOrgSettings,
+  upsertGoogleCalendarPersonalSettings,
 } from "./googleCalendarDb";
 import {
   buildScheduleGooglePayload,
   deleteGoogleCalendarEventForBoaEvent,
   getGoogleCalendarSettingsSummary,
+  loadCustomerContactForSync,
   retryFailedGoogleCalendarSync,
   syncScheduleToGoogleCalendar,
   testGoogleCalendarAccessForIntegration,
 } from "./googleCalendarSync";
 import {
+  assertGoogleCalendarPayloadPolicy,
   assertSafeGoogleCalendarEventPayload,
+  buildGoogleCalendarDescription,
+  buildGoogleCalendarTitle,
   buildSafeGoogleCalendarDescription,
   buildSafeGoogleCalendarTitle,
   findSensitiveCalendarPattern,
+  isRawPiiAllowed,
   mapBoaScheduleToGoogleCalendarType,
+  orgSettingsToPayloadPolicy,
+  sanitizeGoogleCalendarLogMetadata,
 } from "./googleCalendarSafePayload";
 
 type AppUser = {
@@ -55,7 +66,10 @@ async function logGoogleCalendarRouterAction(
     userId: actorId,
     action,
     targetType: "google_calendar",
-    details: JSON.stringify({ actor: actorId, metadata }),
+    details: JSON.stringify({
+      actor: actorId,
+      metadata: sanitizeGoogleCalendarLogMetadata(metadata),
+    }),
   });
 }
 
@@ -85,20 +99,112 @@ async function loadScheduleSyncContext(
   const schedule = await getScheduleById(boaEventId);
   if (!schedule) return null;
   const owner = await getUserById(schedule.userId);
+  const customerContact = await loadCustomerContactForSync(schedule.customerId);
   return {
     schedule,
     ownerRole: owner?.role ?? null,
     customerReference: schedule.customerId ? `A-${schedule.customerId}` : null,
     segmentLabel: schedule.type,
+    customerContact,
   };
 }
 
 export const googleCalendarRouter = router({
   getSettings: activeUserProcedure.query(async ({ ctx }) => {
-    const summary = await getGoogleCalendarSettingsSummary();
+    const summary = await getGoogleCalendarSettingsSummary(ctx.user.id);
     const canManage = ctx.user.role === "branch_admin";
     return { ...summary, canManage };
   }),
+
+  updateContactPolicy: branchAdminProcedure
+    .input(
+      z.object({
+        includeCustomerContactForActorCalendar: z.boolean(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await upsertGoogleCalendarOrgSettings({
+        includeCustomerContactForActorCalendar:
+          input.includeCustomerContactForActorCalendar,
+        updatedBy: ctx.user.id,
+      });
+      await logGoogleCalendarRouterAction(
+        ctx.user.id,
+        "GOOGLE_CALENDAR_CONTACT_POLICY_UPDATED",
+        {
+          actorId: ctx.user.id,
+        }
+      );
+      return { success: true };
+    }),
+
+  updateSyncPolicy: branchAdminProcedure
+    .input(
+      z.object({
+        syncRawTitleToGoogleCalendar: z.boolean().optional(),
+        syncRawDescriptionToGoogleCalendar: z.boolean().optional(),
+        allowCustomerNameInGoogleCalendar: z.boolean().optional(),
+        allowCustomerContactInGoogleCalendar: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await upsertGoogleCalendarOrgSettings({
+        syncRawTitleToGoogleCalendar: input.syncRawTitleToGoogleCalendar,
+        syncRawDescriptionToGoogleCalendar:
+          input.syncRawDescriptionToGoogleCalendar,
+        allowCustomerNameInGoogleCalendar: input.allowCustomerNameInGoogleCalendar,
+        allowCustomerContactInGoogleCalendar:
+          input.allowCustomerContactInGoogleCalendar,
+        updatedBy: ctx.user.id,
+      });
+      const { getGoogleCalendarOrgSettings } = await import("./googleCalendarDb");
+      const orgSettings = await getGoogleCalendarOrgSettings();
+      const policyFlags = {
+        rawTitleSynced: orgSettings?.syncRawTitleToGoogleCalendar ?? false,
+        rawDescriptionSynced:
+          orgSettings?.syncRawDescriptionToGoogleCalendar ?? false,
+        customerNameAllowed:
+          orgSettings?.allowCustomerNameInGoogleCalendar ?? false,
+        customerContactAllowed:
+          orgSettings?.allowCustomerContactInGoogleCalendar ?? false,
+      };
+      await logGoogleCalendarRouterAction(
+        ctx.user.id,
+        "GOOGLE_CALENDAR_SYNC_POLICY_UPDATED",
+        {
+          actorId: ctx.user.id,
+          ...policyFlags,
+        }
+      );
+      return { success: true, ...policyFlags };
+    }),
+
+  upsertPersonalSettings: activeUserProcedure
+    .input(
+      z.object({
+        personalCalendarId: z.string().min(3).max(255).optional(),
+        contactDisplayConsent: z.boolean().optional(),
+        isActive: z.boolean().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      await upsertGoogleCalendarPersonalSettings({
+        userId: ctx.user.id,
+        personalCalendarId: input.personalCalendarId?.trim() ?? null,
+        contactDisplayConsent: input.contactDisplayConsent ?? false,
+        isActive: input.isActive ?? true,
+      });
+      await logGoogleCalendarRouterAction(
+        ctx.user.id,
+        "GOOGLE_CALENDAR_PERSONAL_SETTINGS_UPDATED",
+        {
+          actorId: ctx.user.id,
+          contactDisplayConsent: input.contactDisplayConsent ?? false,
+          hasPersonalCalendar: Boolean(input.personalCalendarId?.trim()),
+        }
+      );
+      return { success: true };
+    }),
 
   getOAuthConnectUrl: branchAdminProcedure.query(({ ctx }) => {
     const forwardedProto = (
@@ -275,8 +381,11 @@ export const googleCalendarRouter = router({
         id: row.id,
         boaEventType: row.boaEventType,
         boaEventId: row.boaEventId,
+        syncTargetType: row.syncTargetType,
+        targetUserId: row.targetUserId,
         calendarType: row.calendarType,
         syncStatus: row.syncStatus,
+        contactIncluded: row.contactIncluded,
         lastSyncedAt: row.lastSyncedAt,
         lastErrorCode: row.lastErrorCode,
         lastErrorMessageSafe: row.lastErrorMessageSafe,
@@ -358,11 +467,23 @@ export const googleCalendarRouter = router({
           ])
           .optional(),
         customerId: z.number().nullable().optional(),
+        previewTargetType: z
+          .enum(["shared_calendar", "actor_personal_calendar"])
+          .default("shared_calendar"),
+        includeCustomerContact: z.boolean().default(false),
+        customerContactPreview: z.string().max(20).optional(),
+        viewerUserId: z.number().int().positive().optional(),
+        createdBy: z.number().int().positive().optional(),
+        ownerUserId: z.number().int().positive().optional(),
       })
     )
-    .query(({ input }) => {
-      if (input.rawTitle) {
-        const blocked = findSensitiveCalendarPattern(input.rawTitle);
+    .query(async ({ ctx, input }) => {
+      const orgSettings = await getGoogleCalendarOrgSettings();
+      const policy = orgSettingsToPayloadPolicy(orgSettings);
+      if (!isRawPiiAllowed(policy) && input.rawTitle) {
+        const blocked = findSensitiveCalendarPattern(input.rawTitle, {
+          field: "title",
+        });
         if (blocked) {
           return {
             blocked: true as const,
@@ -379,21 +500,54 @@ export const googleCalendarRouter = router({
               ownerRole: input.ownerRole,
             })
           : "consultation_followup";
-        const title = buildSafeGoogleCalendarTitle({
-          scheduleType: input.scheduleType,
-          boaEventType: input.boaEventType,
-          customerReference: input.customerReference,
-          segmentLabel: input.segmentLabel,
-          actionLabel: input.actionLabel,
-          rawTitle: input.rawTitle,
-        });
-        const description = buildSafeGoogleCalendarDescription();
-        assertSafeGoogleCalendarEventPayload({ title, description });
+        const viewerUserId = input.viewerUserId ?? ctx.user.id;
+        const title = buildGoogleCalendarTitle(
+          {
+            title: input.rawTitle,
+            scheduleType: input.scheduleType,
+            boaEventType: input.boaEventType,
+            customerReference: input.customerReference,
+            segmentLabel: input.segmentLabel,
+            actionLabel: input.actionLabel,
+            rawTitle: input.rawTitle,
+          },
+          policy
+        );
+        const description = buildGoogleCalendarDescription(
+          {
+            description: input.rawTitle,
+            targetType: input.previewTargetType,
+            includeCustomerContact: input.includeCustomerContact,
+            customerContact: input.customerContactPreview,
+            viewerUserId,
+            createdBy: input.createdBy ?? viewerUserId,
+            ownerUserId: input.ownerUserId ?? viewerUserId,
+          },
+          policy
+        );
+        assertGoogleCalendarPayloadPolicy(
+          { title, description },
+          policy,
+          {
+            targetType: input.previewTargetType,
+            includeCustomerContact: input.includeCustomerContact,
+            customerContact: input.customerContactPreview,
+            viewerUserId,
+            createdBy: input.createdBy ?? viewerUserId,
+            ownerUserId: input.ownerUserId ?? viewerUserId,
+          }
+        );
         return {
           blocked: false as const,
           calendarType,
+          previewTargetType: input.previewTargetType,
           title,
           description,
+          contactIncluded:
+            policy.allowCustomerContactInGoogleCalendar ||
+            (input.previewTargetType === "actor_personal_calendar" &&
+              input.includeCustomerContact),
+          policy,
         };
       } catch (error) {
         return {

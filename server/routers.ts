@@ -11285,9 +11285,11 @@ export const appRouter = router({
           preparedSchedule
         );
         if (followUpId) {
-          triggerGoogleCalendarSyncForFollowUp(ctx.user.id, {
+          void triggerGoogleCalendarSyncForFollowUp(ctx.user.id, {
             followUpId,
             ownerUserId: customer.agentId ?? ctx.user.id,
+            createdBy: ctx.user.id,
+            customerId: customer.id,
             startTime: nextContactDate,
             reason: input.reason,
             nextAction: input.nextAction,
