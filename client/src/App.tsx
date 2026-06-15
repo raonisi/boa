@@ -73,6 +73,7 @@ const AdminOperationsCenter = lazy(
   () => import("./pages/AdminOperationsCenter")
 );
 const ManagementReports = lazy(() => import("./pages/ManagementReports"));
+const ActionPlanManagement = lazy(() => import("./pages/ActionPlanManagement"));
 const CustomerDataQualityDashboard = lazy(
   () => import("./pages/CustomerDataQualityDashboard")
 );
@@ -462,6 +463,13 @@ function Router() {
               <ManagementReports />
             </LazyRoute>
           </ManagerGuard>
+        </AuthGuard>
+      </Route>
+      <Route path="/action-plans">
+        <AuthGuard>
+          <LazyRoute>
+            <ActionPlanManagement />
+          </LazyRoute>
         </AuthGuard>
       </Route>
       <Route path="/customer-data-quality">

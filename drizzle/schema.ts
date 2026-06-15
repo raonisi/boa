@@ -989,3 +989,160 @@ export type TeamMemberCoachingNote =
   typeof teamMemberCoachingNotes.$inferSelect;
 export type InsertTeamMemberCoachingNote =
   typeof teamMemberCoachingNotes.$inferInsert;
+
+// ─── Action Plans (지점원 실행계획) ───────────────────────────────────────────
+export const actionPlanStatusEnum = [
+  "draft",
+  "submitted",
+  "reviewed",
+  "revision_requested",
+  "closed",
+] as const;
+
+export const branchActionPlans = mysqlTable(
+  "branch_action_plans",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    userId: int("userId").notNull(),
+    targetMonth: varchar("targetMonth", { length: 7 }).notNull(),
+    monthlyContractTarget: int("monthlyContractTarget").default(0).notNull(),
+    monthlyPremiumTarget: int("monthlyPremiumTarget").default(0).notNull(),
+    monthlyConsultationTarget: int("monthlyConsultationTarget")
+      .default(0)
+      .notNull(),
+    monthlyCallTarget: int("monthlyCallTarget").default(0).notNull(),
+    monthlyMessageTarget: int("monthlyMessageTarget").default(0).notNull(),
+    monthlyFollowUpTarget: int("monthlyFollowUpTarget").default(0).notNull(),
+    focusCustomerGroup: text("focusCustomerGroup"),
+    monthlyStrategy: text("monthlyStrategy"),
+    preparationMemo: text("preparationMemo"),
+    expectedRisk: text("expectedRisk"),
+    supportRequest: text("supportRequest"),
+    managerComment: text("managerComment"),
+    status: mysqlEnum("status", actionPlanStatusEnum)
+      .default("draft")
+      .notNull(),
+    submittedAt: timestamp("submittedAt"),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueUserMonth: unique("uq_branch_action_plan_user_month").on(
+      table.userId,
+      table.targetMonth
+    ),
+  })
+);
+export type BranchActionPlan = typeof branchActionPlans.$inferSelect;
+export type InsertBranchActionPlan = typeof branchActionPlans.$inferInsert;
+
+export const weeklyActionPlans = mysqlTable(
+  "weekly_action_plans",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    monthlyPlanId: int("monthlyPlanId").notNull(),
+    userId: int("userId").notNull(),
+    weekStartDate: date("weekStartDate").notNull(),
+    weekEndDate: date("weekEndDate").notNull(),
+    weekLabel: varchar("weekLabel", { length: 50 }).notNull(),
+    weeklyContractTarget: int("weeklyContractTarget").default(0).notNull(),
+    weeklyPremiumTarget: int("weeklyPremiumTarget").default(0).notNull(),
+    weeklyConsultationTarget: int("weeklyConsultationTarget")
+      .default(0)
+      .notNull(),
+    weeklyCallTarget: int("weeklyCallTarget").default(0).notNull(),
+    weeklyMessageTarget: int("weeklyMessageTarget").default(0).notNull(),
+    weeklyVisitTarget: int("weeklyVisitTarget").default(0).notNull(),
+    weeklyProposalTarget: int("weeklyProposalTarget").default(0).notNull(),
+    weeklyFollowUpTarget: int("weeklyFollowUpTarget").default(0).notNull(),
+    focusCustomerGroup: text("focusCustomerGroup"),
+    weeklyActionPlan: text("weeklyActionPlan"),
+    preparationMemo: text("preparationMemo"),
+    expectedRisk: text("expectedRisk"),
+    supportRequest: text("supportRequest"),
+    managerComment: text("managerComment"),
+    status: mysqlEnum("status", actionPlanStatusEnum)
+      .default("draft")
+      .notNull(),
+    submittedAt: timestamp("submittedAt"),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueMonthlyWeek: unique("uq_weekly_action_plan_month_week").on(
+      table.monthlyPlanId,
+      table.weekStartDate
+    ),
+  })
+);
+export type WeeklyActionPlan = typeof weeklyActionPlans.$inferSelect;
+export type InsertWeeklyActionPlan = typeof weeklyActionPlans.$inferInsert;
+
+export const dailyActionPlans = mysqlTable(
+  "daily_action_plans",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    weeklyPlanId: int("weeklyPlanId").notNull(),
+    userId: int("userId").notNull(),
+    planDate: date("planDate").notNull(),
+    callTarget: int("callTarget").default(0).notNull(),
+    messageTarget: int("messageTarget").default(0).notNull(),
+    consultationTarget: int("consultationTarget").default(0).notNull(),
+    visitTarget: int("visitTarget").default(0).notNull(),
+    proposalTarget: int("proposalTarget").default(0).notNull(),
+    followUpTarget: int("followUpTarget").default(0).notNull(),
+    todayPriority: text("todayPriority"),
+    preparationMemo: text("preparationMemo"),
+    actualCallCount: int("actualCallCount").default(0).notNull(),
+    actualMessageCount: int("actualMessageCount").default(0).notNull(),
+    actualConsultationCount: int("actualConsultationCount").default(0).notNull(),
+    actualVisitCount: int("actualVisitCount").default(0).notNull(),
+    actualProposalCount: int("actualProposalCount").default(0).notNull(),
+    actualFollowUpCount: int("actualFollowUpCount").default(0).notNull(),
+    actualResultMemo: text("actualResultMemo"),
+    nextDayMemo: text("nextDayMemo"),
+    managerComment: text("managerComment"),
+    status: mysqlEnum("status", actionPlanStatusEnum)
+      .default("draft")
+      .notNull(),
+    submittedAt: timestamp("submittedAt"),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueWeeklyDate: unique("uq_daily_action_plan_week_date").on(
+      table.weeklyPlanId,
+      table.planDate
+    ),
+  })
+);
+export type DailyActionPlan = typeof dailyActionPlans.$inferSelect;
+export type InsertDailyActionPlan = typeof dailyActionPlans.$inferInsert;
+
+export const executiveActionPlanReports = mysqlTable(
+  "executive_action_plan_reports",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    reportMonth: varchar("reportMonth", { length: 7 }).notNull(),
+    reportWeekLabel: varchar("reportWeekLabel", { length: 50 }).notNull(),
+    generatedBy: int("generatedBy").notNull(),
+    reportTitle: varchar("reportTitle", { length: 200 }).notNull(),
+    branchSummary: text("branchSummary"),
+    branchStrategy: text("branchStrategy"),
+    keyRisks: text("keyRisks"),
+    supportRequest: text("supportRequest"),
+    executiveMessage: text("executiveMessage"),
+    downloadReason: text("downloadReason").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  }
+);
+export type ExecutiveActionPlanReport =
+  typeof executiveActionPlanReports.$inferSelect;
+export type InsertExecutiveActionPlanReport =
+  typeof executiveActionPlanReports.$inferInsert;

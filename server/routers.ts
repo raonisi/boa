@@ -13,6 +13,7 @@ import {
 } from "./onboarding";
 import { managementReportsRouter } from "./managementReports";
 import { customerDataQualityRouter } from "./customerDataQualityRouter";
+import { actionPlansRouter } from "./actionPlans";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -12399,6 +12400,7 @@ export const appRouter = router({
   onboardingTemplates: onboardingTemplatesRouter,
   onboardingAssignments: onboardingAssignmentsRouter,
   teamCoaching: teamCoachingRouter,
+  actionPlans: actionPlansRouter,
 });
 
 export type AppRouter = typeof appRouter;
