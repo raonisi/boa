@@ -52,6 +52,14 @@ import {
   resolveScheduleGoogleCalendarType,
   sanitizeGoogleCalendarLogMetadata,
 } from "./googleCalendarSafePayload";
+import {
+  EVENT_TYPE_FILTER_KEYS,
+  getMisclassifiedResyncHistory,
+  runDuplicateAuditDryRun,
+  runMisclassifiedResyncDryRun,
+  runMisclassifiedResyncExecute,
+} from "./googleCalendarMisclassifiedResync";
+import { MISCLASSIFIED_RESYNC_CONFIRMATION_TEXT } from "@shared/googleCalendar";
 
 type AppUser = {
   id: number;
@@ -608,4 +616,86 @@ export const googleCalendarRouter = router({
         };
       }
     }),
+  duplicateAuditDryRun: branchAdminProcedure
+    .input(
+      z.object({
+        fromCalendarType: z.literal("branch_common").default("branch_common"),
+        toCalendarType: z
+          .literal("consultation_followup")
+          .default("consultation_followup"),
+        eventTypeFilter: z.array(z.enum(EVENT_TYPE_FILTER_KEYS)).optional(),
+        dateFrom: z.coerce.date().optional(),
+        dateTo: z.coerce.date().optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return runDuplicateAuditDryRun(ctx.user.id, input);
+    }),
+  resyncMisclassifiedConsultationEventsDryRun: branchAdminProcedure
+    .input(
+      z.object({
+        fromCalendarType: z.literal("branch_common").default("branch_common"),
+        toCalendarType: z
+          .literal("consultation_followup")
+          .default("consultation_followup"),
+        eventTypeFilter: z.array(z.enum(EVENT_TYPE_FILTER_KEYS)).optional(),
+        dateFrom: z.coerce.date().optional(),
+        dateTo: z.coerce.date().optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      return runMisclassifiedResyncDryRun(ctx.user.id, input);
+    }),
+  resyncMisclassifiedConsultationEventsExecute: branchAdminProcedure
+    .input(
+      z.object({
+        fromCalendarType: z.literal("branch_common").default("branch_common"),
+        toCalendarType: z
+          .literal("consultation_followup")
+          .default("consultation_followup"),
+        eventTypeFilter: z.array(z.enum(EVENT_TYPE_FILTER_KEYS)).optional(),
+        dateFrom: z.coerce.date().optional(),
+        dateTo: z.coerce.date().optional(),
+        limit: z.number().int().min(1).max(100).default(25),
+        executeToken: z.string().min(1),
+        confirmationText: z.string().min(1),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        return await runMisclassifiedResyncExecute(ctx.user.id, input);
+      } catch (error) {
+        const err = error as Error & { code?: string };
+        if (
+          err.code === "INVALID_EXECUTE_TOKEN" ||
+          err.code === "EXECUTE_TOKEN_EXPIRED" ||
+          err.code === "CONFIRMATION_MISMATCH"
+        ) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err.message,
+          });
+        }
+        if (err.code === "FORBIDDEN") {
+          throw new TRPCError({ code: "FORBIDDEN", message: err.message });
+        }
+        throw error;
+      }
+    }),
+  getResyncHistory: branchAdminProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().int().min(1).max(50).default(20),
+        })
+        .optional()
+    )
+    .query(async ({ input }) => {
+      return getMisclassifiedResyncHistory(input?.limit ?? 20);
+    }),
+  getMisclassifiedResyncConfirmationText: branchAdminProcedure.query(() => ({
+    confirmationText: MISCLASSIFIED_RESYNC_CONFIRMATION_TEXT,
+  })),
 });

@@ -151,3 +151,92 @@ TimeTree는 Google Calendar 외부 캘린더 구독 보조 수단입니다.
 - [ ] Google Calendar 공유 대상 권한 확인 후 정책 활성화
 - [ ] activity_logs에 고객명·연락처·원문 제목/설명·token 없음
 - [ ] secret, token, Google raw response는 어떤 경우에도 저장하지 않음
+
+## 15. 오분류 일정 재동기화 (Hotfix Add-on)
+
+### 목적
+
+과거에 `branch_common`(공통일정)으로 잘못 Google Calendar에 올라간 **상담·후속관리 계열** CRM 일정을 `consultation_followup`(상담·후속관리) 캘린더로 안전하게 재동기화합니다.
+
+### dry-run 우선 원칙
+
+1. `resyncMisclassifiedConsultationEventsDryRun`으로 대상 건수·이동/재생성 예상을 먼저 확인합니다.
+2. dry-run은 DB `schedules.calendarCategory`, `google_calendar_event_syncs`, Google Calendar를 **변경하지 않습니다**.
+3. dry-run 결과의 `executeToken`은 30분 유효합니다. 만료 시 다시 dry-run해야 합니다.
+4. dry-run 없이 execute를 호출할 수 없습니다.
+
+### branch_admin 전용 실행
+
+- dry-run / execute / 이력 조회는 **`branch_admin`만** 가능합니다.
+- `sub_branch_admin`, `team_leader`, `member`, `inactive`, `resigned`는 차단됩니다.
+- execute 시 확인 문구 **`상담일정 재동기화`** 입력이 필요합니다.
+
+### 보정 기준 (`branch_common` → `consultation_followup`)
+
+대상 탐지:
+
+- CRM 일정 유형: 상담, 후속관리, 재연락, 보장점검, 방문상담(외근+고객연결) 계열
+- 현재 `schedules.calendarCategory` 또는 `google_calendar_event_syncs.calendarType`이 `branch_common`
+- 기대 분류: `consultation_followup`
+
+### Google event 처리 순서
+
+1. CRM `schedules.calendarCategory`를 `consultation_followup`으로 보정
+2. 기존 `googleEventId` / `googleCalendarId` 확인
+3. `consultation_followup` calendarId 확인 (없으면 **다른 캘린더로 대체하지 않음**)
+4. move 가능 시 `events.move` 우선
+5. move 실패 또는 불가 시 기존 event `delete` 후 `consultation_followup`에 `insert`
+6. delete 실패 시 `needs_manual_review`
+7. insert 실패 시 `resync_failed`
+8. 성공 시 `google_calendar_event_syncs` 갱신 (단일 sync row 유지)
+
+### 중복 event 방지
+
+- 동일 BOA 일정에 Google event가 2개 남지 않도록 **기존 sync row 1건만** 갱신합니다.
+- move 성공 시 새 calendarId/eventId로 업데이트합니다.
+- recreate 시 기존 branch_common event 삭제 후 insert합니다.
+- 실행 후 공통 캘린더에 중복 일정이 남지 않았는지 운영자가 수동 확인합니다.
+
+### 상태값
+
+| 결과 | 의미 |
+|---|---|
+| `resync_dry_run` | dry-run 완료 |
+| `resync_moved` | Google `events.move` 성공 |
+| `resync_recreated` | delete+insert 또는 신규 insert 성공 |
+| `resync_failed` | Google/DB 갱신 실패 |
+| `skipped_missing_calendar` | `consultation_followup` calendarId 미등록 |
+| `needs_manual_review` | delete 실패 등 수동 확인 필요 |
+
+### activity_logs 원문 개인정보 미저장
+
+재동기화 관련 action:
+
+- `GOOGLE_CALENDAR_MISCLASSIFIED_RESYNC_DRY_RUN`
+- `GOOGLE_CALENDAR_MISCLASSIFIED_RESYNC_EXECUTED`
+- `GOOGLE_CALENDAR_EVENT_MOVED`
+- `GOOGLE_CALENDAR_EVENT_RECREATED`
+- `GOOGLE_CALENDAR_EVENT_RESYNC_FAILED`
+- `GOOGLE_CALENDAR_EVENT_NEEDS_MANUAL_REVIEW`
+
+허용 metadata: `boaEventId`, `previousCalendarCategory`, `nextCalendarCategory`, `previousGoogleCalendarType`, `nextGoogleCalendarType`, `result`, `resyncMode`, `syncStatus`, 집계 카운트, `actorId`
+
+금지: 고객명·연락처·원문 제목/설명·Google token·raw API response
+
+dry-run API 응답에도 고객명·연락처·원문 제목은 기본 노출하지 않습니다.
+
+### 실행 전후 운영 체크리스트
+
+**실행 전**
+
+- [ ] Google Calendar OAuth 연결 및 3개 공유 캘린더 calendarId 등록 확인
+- [ ] `consultation_followup` 캘린더 연결 테스트 성공
+- [ ] 원문 표시 정책(`syncRawTitleToGoogleCalendar` 등) 의도 확인
+- [ ] dry-run으로 대상 건수·수동 확인 필요 건수 확인
+
+**실행 후**
+
+- [ ] 이동/재생성/실패/수동확인 건수 확인
+- [ ] 공통 캘린더(`branch_common`)에 중복 일정이 남지 않았는지 확인
+- [ ] `needs_manual_review` / `resync_failed` 건 수동 처리
+- [ ] activity_logs에 원문 PII가 없는지 확인

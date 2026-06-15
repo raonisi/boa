@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, or } from "drizzle-orm";
 import {
   ORGANIZATION_SCOPE_DEFAULT,
   GOOGLE_CALENDAR_SHARED_TARGET_USER_ID,
@@ -10,11 +10,14 @@ import {
 import {
   googleCalendarEventSyncs,
   googleCalendarIntegrations,
+  googleCalendarMisclassifiedResyncRuns,
   googleCalendarOauthCredentials,
   googleCalendarOrgSettings,
   googleCalendarPersonalSettings,
+  schedules,
   type InsertGoogleCalendarEventSync,
   type InsertGoogleCalendarIntegration,
+  type InsertGoogleCalendarMisclassifiedResyncRun,
   type InsertGoogleCalendarPersonalSettings,
 } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -430,4 +433,109 @@ export async function listGoogleCalendarEventSyncs(input?: {
 
 export async function listFailedGoogleCalendarEventSyncs(limit = 50) {
   return listGoogleCalendarEventSyncs({ syncStatus: "failed", limit });
+}
+
+export async function listMisclassifiedConsultationScheduleCandidates(input: {
+  scheduleTypes: Array<typeof schedules.$inferSelect.type>;
+  dateFrom?: Date;
+  dateTo?: Date;
+  limit?: number;
+}) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [
+    eq(schedules.isActive, true),
+    inArray(schedules.type, input.scheduleTypes),
+    or(
+      eq(schedules.calendarCategory, "branch_common"),
+      eq(googleCalendarEventSyncs.calendarType, "branch_common")
+    ),
+  ];
+  if (input.dateFrom) {
+    conditions.push(gte(schedules.startTime, input.dateFrom));
+  }
+  if (input.dateTo) {
+    conditions.push(lte(schedules.startTime, input.dateTo));
+  }
+  return db
+    .select({
+      schedule: schedules,
+      sync: googleCalendarEventSyncs,
+    })
+    .from(schedules)
+    .leftJoin(
+      googleCalendarEventSyncs,
+      and(
+        eq(googleCalendarEventSyncs.boaEventId, schedules.id),
+        eq(googleCalendarEventSyncs.syncTargetType, "shared_calendar"),
+        eq(
+          googleCalendarEventSyncs.targetUserId,
+          GOOGLE_CALENDAR_SHARED_TARGET_USER_ID
+        )
+      )
+    )
+    .where(and(...conditions))
+    .orderBy(desc(schedules.startTime))
+    .limit(input.limit ?? 25);
+}
+
+export async function updateScheduleCalendarCategory(
+  scheduleId: number,
+  calendarCategory: "branch_common" | "consultation_followup" | "admin"
+) {
+  const db = await getDb();
+  if (!db) return false;
+  await db
+    .update(schedules)
+    .set({ calendarCategory, updatedAt: new Date() })
+    .where(eq(schedules.id, scheduleId));
+  return true;
+}
+
+export async function insertMisclassifiedResyncRun(
+  input: InsertGoogleCalendarMisclassifiedResyncRun
+) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const inserted = await db
+    .insert(googleCalendarMisclassifiedResyncRuns)
+    .values(input);
+  return inserted[0].insertId;
+}
+
+export async function getMisclassifiedResyncRunByToken(executeToken: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const rows = await db
+    .select()
+    .from(googleCalendarMisclassifiedResyncRuns)
+    .where(eq(googleCalendarMisclassifiedResyncRuns.executeToken, executeToken))
+    .limit(1);
+  return rows[0];
+}
+
+export async function updateMisclassifiedResyncRun(
+  id: number,
+  data: Partial<{
+    status: "dry_run" | "executing" | "completed" | "expired";
+    resultJson: string | null;
+    executedAt: Date | null;
+  }>
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(googleCalendarMisclassifiedResyncRuns)
+    .set({ ...data, updatedAt: new Date() })
+    .where(eq(googleCalendarMisclassifiedResyncRuns.id, id));
+}
+
+export async function listMisclassifiedResyncRuns(limit = 20) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(googleCalendarMisclassifiedResyncRuns)
+    .orderBy(desc(googleCalendarMisclassifiedResyncRuns.createdAt))
+    .limit(limit);
 }

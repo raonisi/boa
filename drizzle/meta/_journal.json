@@ -225,6 +225,13 @@
       "when": 1781500000000,
       "tag": "0032_schedule_google_calendar_category",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "5",
+      "when": 1781600000000,
+      "tag": "0033_google_calendar_misclassified_resync",
+      "breakpoints": true
     }
   ]
 }

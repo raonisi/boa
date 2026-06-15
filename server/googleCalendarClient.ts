@@ -40,6 +40,12 @@ export interface GoogleCalendarApiClient {
     calendarId: string,
     eventId: string
   ): Promise<void>;
+  moveEvent(
+    accessToken: string,
+    sourceCalendarId: string,
+    eventId: string,
+    destinationCalendarId: string
+  ): Promise<GoogleCalendarEventResult>;
 }
 
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -183,6 +189,32 @@ class AxiosGoogleCalendarApiClient implements GoogleCalendarApiClient {
       if (axios.isAxiosError(error) && error.response?.status === 404) {
         return;
       }
+      const safe = sanitizeGoogleError(error);
+      throw Object.assign(new Error(safe.errorMessageSafe), {
+        code: safe.errorCode,
+      });
+    }
+  }
+
+  async moveEvent(
+    accessToken: string,
+    sourceCalendarId: string,
+    eventId: string,
+    destinationCalendarId: string
+  ): Promise<GoogleCalendarEventResult> {
+    try {
+      const { data } = await axios.post<{ id?: string }>(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(sourceCalendarId)}/events/${encodeURIComponent(eventId)}/move`,
+        {},
+        {
+          params: { destination: destinationCalendarId },
+          headers: { Authorization: `Bearer ${accessToken}` },
+          timeout: 15000,
+        }
+      );
+      if (!data.id) throw new Error("Missing event id");
+      return { eventId: data.id };
+    } catch (error) {
       const safe = sanitizeGoogleError(error);
       throw Object.assign(new Error(safe.errorMessageSafe), {
         code: safe.errorCode,

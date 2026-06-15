@@ -1414,3 +1414,46 @@ export type GoogleCalendarEventSync =
   typeof googleCalendarEventSyncs.$inferSelect;
 export type InsertGoogleCalendarEventSync =
   typeof googleCalendarEventSyncs.$inferInsert;
+
+export const googleCalendarMisclassifiedResyncRuns = mysqlTable(
+  "google_calendar_misclassified_resync_runs",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    executeToken: varchar("executeToken", { length: 64 }).notNull(),
+    status: mysqlEnum("status", [
+      "dry_run",
+      "executing",
+      "completed",
+      "expired",
+    ])
+      .default("dry_run")
+      .notNull(),
+    fromCalendarType: mysqlEnum("fromCalendarType", [
+      "branch_common",
+      "consultation_followup",
+      "admin",
+    ]).notNull(),
+    toCalendarType: mysqlEnum("toCalendarType", [
+      "branch_common",
+      "consultation_followup",
+      "admin",
+    ]).notNull(),
+    summaryJson: text("summaryJson").notNull(),
+    candidateIdsJson: text("candidateIdsJson").notNull(),
+    resultJson: text("resultJson"),
+    actorId: int("actorId").notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    executedAt: timestamp("executedAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniqueToken: unique("uq_google_calendar_misclassified_resync_token").on(
+      table.executeToken
+    ),
+  })
+);
+export type GoogleCalendarMisclassifiedResyncRun =
+  typeof googleCalendarMisclassifiedResyncRuns.$inferSelect;
+export type InsertGoogleCalendarMisclassifiedResyncRun =
+  typeof googleCalendarMisclassifiedResyncRuns.$inferInsert;

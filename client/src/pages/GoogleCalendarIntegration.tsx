@@ -106,6 +106,28 @@ export default function GoogleCalendarIntegration() {
       onError: e => toast.error(e.message),
     });
 
+  const resyncDryRunMutation =
+    trpc.googleCalendar.resyncMisclassifiedConsultationEventsDryRun.useMutation({
+      onError: e => toast.error(e.message),
+    });
+  const resyncExecuteMutation =
+    trpc.googleCalendar.resyncMisclassifiedConsultationEventsExecute.useMutation({
+      onSuccess: async result => {
+        toast.success(
+          `재동기화 완료: 이동 ${result.movedCount}건, 재생성 ${result.recreatedCount}건`
+        );
+        await Promise.all([
+          utils.googleCalendar.listSyncStatus.invalidate(),
+          utils.googleCalendar.getResyncHistory.invalidate(),
+        ]);
+      },
+      onError: e => toast.error(e.message),
+    });
+  const duplicateAuditDryRunMutation =
+    trpc.googleCalendar.duplicateAuditDryRun.useMutation({
+      onError: e => toast.error(e.message),
+    });
+
   const [forms, setForms] = useState<Record<string, string>>({});
   const [previewTitle, setPreviewTitle] = useState("");
   const [previewType, setPreviewType] = useState("고객상담");
@@ -114,6 +136,16 @@ export default function GoogleCalendarIntegration() {
   >("shared_calendar");
   const [personalCalendarId, setPersonalCalendarId] = useState("");
   const [contactDisplayConsent, setContactDisplayConsent] = useState(false);
+  const [resyncConfirmation, setResyncConfirmation] = useState("");
+  const [dryRunResult, setDryRunResult] = useState<
+    | (typeof resyncDryRunMutation)["data"]
+    | null
+  >(null);
+  const [auditResult, setAuditResult] = useState<
+    | (typeof duplicateAuditDryRunMutation)["data"]
+    | null
+  >(null);
+
   const previewQuery = trpc.googleCalendar.previewSafeEventPayload.useQuery(
     {
       rawTitle: previewTitle || undefined,
@@ -131,6 +163,11 @@ export default function GoogleCalendarIntegration() {
   );
 
   const canManage = settingsQuery.data?.canManage ?? false;
+
+  const resyncHistoryEnabledQuery = trpc.googleCalendar.getResyncHistory.useQuery(
+    undefined,
+    { enabled: canManage }
+  );
 
   const integrationMap = useMemo(() => {
     const integrations = settingsQuery.data?.integrations ?? [];
@@ -179,6 +216,9 @@ export default function GoogleCalendarIntegration() {
             <TabsTrigger value="status">동기화 상태</TabsTrigger>
             <TabsTrigger value="retry">실패 재시도</TabsTrigger>
             <TabsTrigger value="preview">안전 제목 미리보기</TabsTrigger>
+            {canManage ? (
+              <TabsTrigger value="resync">오분류 재동기화</TabsTrigger>
+            ) : null}
             <TabsTrigger value="guide">지점원 안내</TabsTrigger>
           </TabsList>
 
@@ -591,6 +631,146 @@ export default function GoogleCalendarIntegration() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {canManage ? (
+            <TabsContent value="resync" className="space-y-4">
+              <Card className={adminPage.card}>
+                <CardHeader>
+                  <CardTitle className="text-lg">오분류 일정 재동기화</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4 text-sm">
+                  <p className="text-muted-foreground">
+                    공통일정으로 잘못 올라간 상담일정을 상담·후속관리 캘린더로
+                    재동기화합니다. 먼저 dry-run으로 대상 건수를 확인한 뒤
+                    실행하세요.
+                  </p>
+                  <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                    재동기화 전 Google Calendar 공유 캘린더 설정과 원문 표시
+                    설정을 확인하세요. 실행 후 공통 캘린더에 남은 중복 일정이
+                    없는지 확인해야 합니다.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={resyncDryRunMutation.isPending}
+                      onClick={async () => {
+                        const result =
+                          await resyncDryRunMutation.mutateAsync({});
+                        setDryRunResult(result);
+                        toast.success("대상 확인이 완료되었습니다.");
+                      }}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      대상 확인
+                    </Button>
+                  </div>
+                  {dryRunResult ? (
+                    <div className="grid gap-2 rounded-md border p-4 md:grid-cols-2">
+                      <p>대상 일정 수: {dryRunResult.totalCandidates}</p>
+                      <p>Google eventId 있음: {dryRunResult.withGoogleEventId}</p>
+                      <p>Google eventId 없음: {dryRunResult.withoutGoogleEventId}</p>
+                      <p>이동 가능 예상: {dryRunResult.movableCandidates}</p>
+                      <p>재생성 필요 예상: {dryRunResult.recreateRequiredCandidates}</p>
+                      <p>
+                        상담 캘린더 미등록:{" "}
+                        {dryRunResult.missingConsultationCalendarCount}
+                      </p>
+                      <p>수동 확인 필요: {dryRunResult.needsManualReviewCount}</p>
+                      <p className="text-xs text-muted-foreground md:col-span-2">
+                        토큰 만료: {new Date(dryRunResult.expiresAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ) : null}
+                  <div className="space-y-2">
+                    <Label htmlFor="resync-confirm">
+                      실행 확인 문구 (상담일정 재동기화)
+                    </Label>
+                    <Input
+                      id="resync-confirm"
+                      value={resyncConfirmation}
+                      onChange={e => setResyncConfirmation(e.target.value)}
+                      placeholder="상담일정 재동기화"
+                    />
+                  </div>
+                  <Button
+                    disabled={
+                      !dryRunResult?.executeToken ||
+                      resyncExecuteMutation.isPending ||
+                      resyncConfirmation !== "상담일정 재동기화"
+                    }
+                    onClick={async () => {
+                      if (!dryRunResult?.executeToken) return;
+                      await resyncExecuteMutation.mutateAsync({
+                        executeToken: dryRunResult.executeToken,
+                        confirmationText: resyncConfirmation,
+                      });
+                    }}
+                  >
+                    재동기화 실행
+                  </Button>
+                  <div className="flex flex-wrap gap-2 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      disabled={duplicateAuditDryRunMutation.isPending}
+                      onClick={async () => {
+                        const result =
+                          await duplicateAuditDryRunMutation.mutateAsync({});
+                        setAuditResult(result);
+                        toast.success("중복 감사(Audit)가 완료되었습니다.");
+                      }}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      중복 잔존 여부 감사 (Audit)
+                    </Button>
+                  </div>
+                  {auditResult ? (
+                    <div className="grid gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-4 text-indigo-900 md:grid-cols-2 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
+                      <p>총 검사 대상: {auditResult.totalChecked}</p>
+                      <p>잠재적 중복 위험 건수: {auditResult.duplicateCandidates}</p>
+                      <p>공통일정 잔존 건수: {auditResult.activeInBranchCommon}</p>
+                      <p>상담일정 이동 완료 건수: {auditResult.activeInConsultationFollowup}</p>
+                      <p>동시 활성 건수: {auditResult.activeInBothCalendars}</p>
+                      <p>공통일정 잔류 상담(미동기화): {auditResult.staleBranchCommonEvent}</p>
+                      <p>수동 확인 필요: {auditResult.needsManualReview}</p>
+                    </div>
+                  ) : null}
+                  {resyncHistoryEnabledQuery.data?.length ? (
+                    <div className="space-y-2 pt-4">
+                      <p className="font-medium">최근 실행 이력</p>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>상태</TableHead>
+                            <TableHead>대상</TableHead>
+                            <TableHead>이동</TableHead>
+                            <TableHead>재생성</TableHead>
+                            <TableHead>실패</TableHead>
+                            <TableHead>수동확인</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {resyncHistoryEnabledQuery.data.slice(0, 5).map(run => (
+                            <TableRow key={run.id}>
+                              <TableCell>{run.status}</TableCell>
+                              <TableCell>{run.candidateCount}</TableCell>
+                              <TableCell>{run.result?.movedCount ?? "-"}</TableCell>
+                              <TableCell>
+                                {run.result?.recreatedCount ?? "-"}
+                              </TableCell>
+                              <TableCell>{run.result?.failedCount ?? "-"}</TableCell>
+                              <TableCell>
+                                {run.result?.manualReviewCount ?? "-"}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ) : null}
 
           <TabsContent value="guide" className="space-y-4">
             <Card className={adminPage.card}>

@@ -72,3 +72,17 @@ export const DEFAULT_GOOGLE_CALENDAR_PAYLOAD_POLICY: GoogleCalendarPayloadPolicy
     allowCustomerNameInGoogleCalendar: false,
     allowCustomerContactInGoogleCalendar: false,
   };
+
+export const MISCLASSIFIED_RESYNC_CONFIRMATION_TEXT = "상담일정 재동기화";
+
+export const MISCLASSIFIED_RESYNC_RESULTS = [
+  "resync_dry_run",
+  "resync_moved",
+  "resync_recreated",
+  "resync_failed",
+  "skipped_missing_calendar",
+  "needs_manual_review",
+] as const;
+
+export type MisclassifiedResyncResult =
+  (typeof MISCLASSIFIED_RESYNC_RESULTS)[number];
