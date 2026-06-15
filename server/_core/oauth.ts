@@ -268,18 +268,15 @@ export function registerOAuthRoutes(app: Express) {
       }
 
       try {
-        const sessionToken = req.cookies?.[COOKIE_NAME];
-        if (!sessionToken) {
+        let user: User;
+        try {
+          user = await sdk.authenticateRequest(req);
+        } catch (error) {
           res.status(401).json({ error: "Login required" });
           return;
         }
-        const session = await sdk.verifySession(sessionToken);
-        if (!session?.openId) {
-          res.status(401).json({ error: "Invalid session" });
-          return;
-        }
-        const user = await db.getUserByOpenId(session.openId);
-        if (!user || user.role !== "branch_admin" || user.accountStatus !== "active") {
+
+        if (user.role !== "branch_admin" || user.accountStatus !== "active") {
           res.status(403).json({ error: "Branch admin access required" });
           return;
         }
