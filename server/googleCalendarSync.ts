@@ -38,6 +38,7 @@ import {
   mapScheduleTypeToBoaEventType,
   orgSettingsToPayloadPolicy,
   resolvePersonalCalendarActorUserIds,
+  resolveScheduleGoogleCalendarType,
   sanitizeGoogleCalendarLogMetadata,
   syncMetadataFlagsFromPolicy,
 } from "./googleCalendarSafePayload";
@@ -270,8 +271,8 @@ async function syncSharedEvent(input: {
       syncStatus: "skipped",
       includeContactInDescription: false,
       contactIncluded: false,
-      lastErrorCode: "INTEGRATION_INACTIVE",
-      lastErrorMessageSafe: "캘린더 연동이 비활성화되어 있습니다.",
+      lastErrorCode: "SKIPPED_MISSING_CALENDAR",
+      lastErrorMessageSafe: "해당 Google Calendar 연동이 비활성화되었거나 calendarId가 없습니다.",
       ownerUserId: input.ownerUserId,
       createdBy: input.actor.id,
       updatedBy: input.actor.id,
@@ -314,6 +315,7 @@ async function syncSharedEvent(input: {
 
   await logGoogleCalendarActivity(input.actor.id, "GOOGLE_CALENDAR_EVENT_SYNCED", {
     calendarType: input.calendarType,
+    calendarCategory: input.calendarType,
     syncTargetType: "shared_calendar",
     boaEventType: input.boaEventType,
     boaEventId: input.boaEventId,
@@ -483,11 +485,12 @@ async function syncPersonalActorEvents(input: {
 }
 
 export async function buildScheduleGooglePayload(ctx: ScheduleSyncContext) {
-  const calendarType = mapBoaScheduleToGoogleCalendarType({
+  const calendarType = resolveScheduleGoogleCalendarType({
     scheduleType: ctx.schedule.type,
     customerId: ctx.schedule.customerId,
     ownerRole: ctx.ownerRole,
     status: ctx.schedule.status,
+    calendarCategory: ctx.schedule.calendarCategory,
   });
   if (calendarType === "skipped") {
     return { calendarType, skipped: true as const };
@@ -571,11 +574,12 @@ export async function syncScheduleToGoogleCalendar(
     });
   } catch (error) {
     const err = error as Error & { code?: string };
-    const calendarType = mapBoaScheduleToGoogleCalendarType({
+    const calendarType = resolveScheduleGoogleCalendarType({
       scheduleType: ctx.schedule.type,
       customerId: ctx.schedule.customerId,
       ownerRole: ctx.ownerRole,
       status: ctx.schedule.status,
+      calendarCategory: ctx.schedule.calendarCategory,
     });
     const resolvedCalendarType =
       calendarType === "skipped" ? "branch_common" : calendarType;

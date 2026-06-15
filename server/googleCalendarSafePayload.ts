@@ -8,6 +8,7 @@ import {
   type GoogleCalendarType,
   type GoogleSyncTargetType,
 } from "@shared/googleCalendar";
+import type { ScheduleCalendarCategory } from "@shared/scheduleCalendarCategory";
 
 export type SafeCalendarTitleInput = {
   scheduleType?: string;
@@ -542,7 +543,24 @@ export type ScheduleCalendarMappingInput = {
   customerId?: number | null;
   ownerRole?: string | null;
   status?: string | null;
+  calendarCategory?: ScheduleCalendarCategory | null;
+  explicitCalendarType?: GoogleCalendarType | null;
 };
+
+export function resolveScheduleGoogleCalendarType(
+  schedule: ScheduleCalendarMappingInput
+): GoogleCalendarType | "skipped" {
+  if (schedule.status === "취소" || schedule.scheduleType === "휴무") {
+    return "skipped";
+  }
+  if (schedule.calendarCategory) {
+    return schedule.calendarCategory;
+  }
+  if (schedule.explicitCalendarType) {
+    return schedule.explicitCalendarType;
+  }
+  return mapBoaScheduleToGoogleCalendarType(schedule);
+}
 
 export function mapBoaScheduleToGoogleCalendarType(
   schedule: ScheduleCalendarMappingInput

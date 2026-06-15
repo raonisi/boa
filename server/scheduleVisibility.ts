@@ -1,6 +1,12 @@
 import { TRPCError } from "@trpc/server";
 import { parseKstLocalDateTime } from "@shared/timePolicy";
 import {
+  recommendScheduleCalendarCategory,
+  SCHEDULE_CALENDAR_CATEGORIES,
+  SCHEDULE_CALENDAR_CATEGORY_LABELS,
+  type ScheduleCalendarCategory,
+} from "@shared/scheduleCalendarCategory";
+import {
   getAllTeams,
   getAllUsers,
   getCustomerById,
@@ -17,6 +23,7 @@ export type ScheduleListInput = {
   viewMode?: ScheduleViewMode;
   ownerUserId?: number;
   teamId?: number;
+  calendarCategory?: ScheduleCalendarCategory | "all";
 };
 
 export type CalendarScheduleItem = {
@@ -36,6 +43,8 @@ export type CalendarScheduleItem = {
   canEdit: boolean;
   canDelete: boolean;
   memo?: string | null;
+  calendarCategory: ScheduleCalendarCategory;
+  calendarCategoryLabel: string;
 };
 
 export type ScheduleViewUser = {
@@ -236,6 +245,14 @@ export async function listCalendarSchedules(
         }
       }
 
+      const effectiveCategory =
+        schedule.calendarCategory ??
+        recommendScheduleCalendarCategory({
+          scheduleType: schedule.type,
+          customerId: schedule.customerId,
+          ownerRole: (await getUserById(schedule.userId))?.role ?? null,
+        });
+
       const item: CalendarScheduleItem = {
         id: schedule.id,
         userId: schedule.userId,
@@ -253,6 +270,8 @@ export async function listCalendarSchedules(
         canViewCustomerDetail,
         canEdit,
         canDelete,
+        calendarCategory: effectiveCategory,
+        calendarCategoryLabel: SCHEDULE_CALENDAR_CATEGORY_LABELS[effectiveCategory],
       };
 
       if ((isOwnSchedule || canEdit) && schedule.memo) {
@@ -263,10 +282,16 @@ export async function listCalendarSchedules(
     })
   );
 
+  const categoryFilter = input.calendarCategory ?? "all";
+  const schedulesFiltered =
+    categoryFilter === "all"
+      ? schedules
+      : schedules.filter(item => item.calendarCategory === categoryFilter);
+
   let organizationViewWarning: string | undefined;
   if (
     viewMode === "organization" &&
-    schedules.length >= ORGANIZATION_VIEW_WARNING_THRESHOLD
+    schedulesFiltered.length >= ORGANIZATION_VIEW_WARNING_THRESHOLD
   ) {
     organizationViewWarning =
       "전체 일정이 많습니다. 기간을 좁히면 더 빠르게 확인할 수 있습니다.";
@@ -289,7 +314,7 @@ export async function listCalendarSchedules(
     }));
 
   return {
-    schedules,
+    schedules: schedulesFiltered,
     users,
     teams,
     organizationViewWarning,

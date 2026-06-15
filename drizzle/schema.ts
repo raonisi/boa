@@ -501,6 +501,11 @@ export const schedules = mysqlTable("schedules", {
   endTime: timestamp("endTime"),
   completedAt: timestamp("completedAt"),
   memo: text("memo"),
+  calendarCategory: mysqlEnum("calendarCategory", [
+    "branch_common",
+    "consultation_followup",
+    "admin",
+  ]),
   reminderDayBefore: boolean("reminderDayBefore").default(true),
   reminderSameDay: boolean("reminderSameDay").default(true),
   reminderOneHourBefore: boolean("reminderOneHourBefore").default(true),

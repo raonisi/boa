@@ -14,7 +14,28 @@ BOA 지점관리 CRM의 일정, 상담 예정, 후속관리, 회의/교육 일�
 | `consultation_followup` | BOA 상담·후속관리 일정 | 상담, 후속관리, 재연락, 보장점검, 방문 |
 | `admin` | BOA 관리자 일정 | 지점장/팀장/부지점장 운영 회의 |
 
-## 3. 원문 동기화 정책 (branch_admin 전용)
+## 3. 캘린더 분류 수동 선택 (Hotfix)
+
+캘린더 분류는 **자동 분기보다 사용자가 CRM에서 선택한 값이 우선**합니다.
+
+- CRM 일정 등록/수정 시 **공통일정 / 상담일정 / 관리자일정**을 직접 선택할 수 있습니다.
+- 저장 컬럼: `schedules.calendarCategory` (`branch_common` | `consultation_followup` | `admin`)
+- 일정 유형 변경 시 기본 추천 분류는 자동으로 제안되지만, 사용자가 분류를 바꾸면 그 값이 유지됩니다.
+- `member`는 관리자일정 선택이 서버에서 차단됩니다.
+
+### Google Calendar sync 대상
+
+| calendarCategory | Google Calendar |
+|---|---|
+| `branch_common` | BOA 지점 공통 일정 |
+| `consultation_followup` | BOA 상담·후속관리 일정 |
+| `admin` | BOA 관리자 일정 |
+
+동기화 우선순위: (1) 저장된 `calendarCategory` → (2) 명시 파라미터 → (3) 일정 유형 추천 → (4) `branch_common` fallback
+
+calendarId가 비활성/미등록이면 `SKIPPED_MISSING_CALENDAR`로 기록하며 다른 캘린더로 대체 sync하지 않습니다.
+
+## 4. 원문 동기화 정책 (branch_admin 전용)
 
 `google_calendar_org_settings` 설정 (모두 기본값 `false`):
 
@@ -28,7 +49,10 @@ BOA 지점관리 CRM의 일정, 상담 예정, 후속관리, 회의/교육 일�
 ### 운영 방식
 
 - 설정이 `false`이면 기존 안전 제목/설명 모드를 사용합니다 (`[BOA] 상담 예정 · A-102` 형식).
-- 설정이 `true`이면 사용자가 입력한 제목/설명과 고객명/연락처를 Google Calendar에 반영할 수 있습니다.
+- 설정이 `true`이면 사용자가 입력한 제목/설명과 고객명/연락처를 **공유 캘린더 포함** Google Calendar에 반영할 수 있습니다.
+- `syncRawTitleToGoogleCalendar=true`이면 입력 제목을 그대로 사용합니다 (A-38 익명 치환 없음).
+- `allowCustomerNameInGoogleCalendar=true`이면 고객 이름을 A-38로 치환하지 않습니다.
+- `allowCustomerContactInGoogleCalendar=true`이면 연락처를 제거하지 않습니다.
 - **Google Calendar 공유 대상에게 고객 이름과 연락처가 보일 수 있으므로** 공유 권한을 확인한 뒤 사용합니다.
 - `branch_admin`만 전체 정책을 켜고 끌 수 있습니다.
 

@@ -7,7 +7,7 @@ import {
 } from "./googleCalendarSync";
 import {
   mapScheduleTypeToBoaEventType,
-  mapBoaScheduleToGoogleCalendarType,
+  resolveScheduleGoogleCalendarType,
 } from "./googleCalendarSafePayload";
 import type { BoaGoogleEventType } from "@shared/googleCalendar";
 import type { Schedule } from "../drizzle/schema";
@@ -36,14 +36,15 @@ export async function triggerGoogleCalendarSyncForScheduleId(
 
 export function triggerGoogleCalendarDeleteForSchedule(
   actorId: number,
-  schedule: Pick<Schedule, "id" | "type" | "customerId" | "userId">,
+  schedule: Pick<Schedule, "id" | "type" | "customerId" | "userId" | "calendarCategory">,
   ownerRole?: string | null
 ) {
-  const calendarType = mapBoaScheduleToGoogleCalendarType({
+  const calendarType = resolveScheduleGoogleCalendarType({
     scheduleType: schedule.type,
     customerId: schedule.customerId,
     ownerRole,
     status: "취소",
+    calendarCategory: schedule.calendarCategory,
   });
   if (calendarType === "skipped") return;
   const boaEventType = mapScheduleTypeToBoaEventType(

@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { useAuth } from "@/_core/hooks/useAuth";
 import {
   getStatusLabel,
   StatusBadge,
@@ -55,17 +56,26 @@ import {
   AlertTriangle,
   ExternalLink,
   UserRound,
+  Check,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 import { formatUserWithRole } from "@/lib/userRole";
+import { cn } from "@/lib/utils";
 import {
   formatKstLocalDateTime,
   formatKstLocalDateTimeForInput,
   isSameKstDate,
   parseKstLocalDateTime,
 } from "@shared/timePolicy";
+import {
+  recommendScheduleCalendarCategory,
+  SCHEDULE_CALENDAR_CATEGORIES,
+  SCHEDULE_CALENDAR_CATEGORY_CARDS,
+  SCHEDULE_CALENDAR_CATEGORY_LABELS,
+  type ScheduleCalendarCategory,
+} from "@shared/scheduleCalendarCategory";
 
 type ViewMode = "month" | "week" | "day";
 type MobileRange = "today" | "week" | "month" | "all" | "custom";
@@ -88,7 +98,152 @@ type CalendarSchedule = {
   canViewCustomerDetail?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  calendarCategory?: ScheduleCalendarCategory;
+  calendarCategoryLabel?: string;
 };
+
+function CalendarCategoryFilterBar({
+  value,
+  onChange,
+}: {
+  value: ScheduleCalendarCategory | "all";
+  onChange: (value: ScheduleCalendarCategory | "all") => void;
+}) {
+  const items: Array<{ value: ScheduleCalendarCategory | "all"; label: string }> =
+    [
+      { value: "all", label: "전체" },
+      ...SCHEDULE_CALENDAR_CATEGORIES.map(category => ({
+        value: category,
+        label: SCHEDULE_CALENDAR_CATEGORY_LABELS[category],
+      })),
+    ];
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map(item => (
+        <Button
+          key={item.value}
+          type="button"
+          size="sm"
+          variant={value === item.value ? "default" : "outline"}
+          className="min-h-9"
+          onClick={() => onChange(item.value)}
+        >
+          {item.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function CalendarCategoryBadge({
+  category,
+  label,
+}: {
+  category?: ScheduleCalendarCategory;
+  label?: string;
+}) {
+  if (!category && !label) return null;
+  const tone =
+    category === "consultation_followup"
+      ? "bg-sky-50 text-sky-800"
+      : category === "admin"
+        ? "bg-violet-50 text-violet-800"
+        : "bg-emerald-50 text-emerald-800";
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}
+    >
+      {label ?? (category ? SCHEDULE_CALENDAR_CATEGORY_LABELS[category] : "")}
+    </span>
+  );
+}
+
+function CalendarCategoryCardPicker({
+  value,
+  userRole,
+  onChange,
+}: {
+  value: ScheduleCalendarCategory;
+  userRole?: string;
+  onChange: (value: ScheduleCalendarCategory) => void;
+}) {
+  const isMember = userRole === "member";
+
+  return (
+    <div className="space-y-3">
+      <div>
+        <Label className="text-xs font-medium" id="calendar-category-label">
+          캘린더 분류
+        </Label>
+        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+          이 일정이 Google Calendar의 어느 공유 캘린더에 표시될지 선택하세요.
+          자동 추천보다 직접 선택한 값이 우선 적용됩니다.
+        </p>
+      </div>
+      <div
+        role="radiogroup"
+        aria-labelledby="calendar-category-label"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        {SCHEDULE_CALENDAR_CATEGORY_CARDS.map(card => {
+          const selected = value === card.value;
+          const disabled = isMember && card.value === "admin";
+          return (
+            <button
+              key={card.value}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-disabled={disabled}
+              disabled={disabled}
+              onClick={() => {
+                if (!disabled) onChange(card.value);
+              }}
+              className={cn(
+                "relative flex min-h-[8.5rem] w-full flex-col rounded-xl border p-3.5 text-left transition",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                selected
+                  ? "border-primary bg-primary/5 shadow-sm"
+                  : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
+                disabled && "cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-white"
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-950">
+                    {card.label}
+                  </p>
+                  <p className="mt-1 text-xs font-medium text-slate-700">
+                    {card.summary}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-slate-300 bg-white text-transparent"
+                  )}
+                  aria-hidden="true"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </span>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                {card.helper}
+              </p>
+              {disabled ? (
+                <p className="mt-2 text-[11px] font-medium text-amber-700">
+                  팀원 계정에서는 선택할 수 없습니다.
+                </p>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 const typeColors: Record<string, string> = {
   고객상담: "bg-blue-500",
@@ -199,6 +354,10 @@ function ScheduleWorkItem({
         <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
           <span>{schedule.type}</span>
           <StatusBadge status={schedule.status} />
+          <CalendarCategoryBadge
+            category={schedule.calendarCategory}
+            label={schedule.calendarCategoryLabel}
+          />
           {readOnly ? (
             <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
               조회 전용
@@ -388,7 +547,11 @@ export default function Calendar() {
   );
   const [location, setLocation] = useLocation();
   const [initialCustomerApplied, setInitialCustomerApplied] = useState(false);
-  const isMobile = useIsMobile();
+  const [calendarCategoryFilter, setCalendarCategoryFilter] = useState<
+    ScheduleCalendarCategory | "all"
+  >("all");
+  const { user } = useAuth();
+  const userRole = user?.role ?? "member";
 
   const utils = trpc.useUtils();
   const scheduleListInput = useMemo(() => {
@@ -398,6 +561,9 @@ export default function Calendar() {
       return { viewMode: "mine" as const };
     return {
       viewMode: ownerViewMode,
+      ...(calendarCategoryFilter !== "all"
+        ? { calendarCategory: calendarCategoryFilter }
+        : {}),
       ...(ownerViewMode === "user" && selectedOwnerUserId
         ? { ownerUserId: Number(selectedOwnerUserId) }
         : {}),
@@ -405,7 +571,13 @@ export default function Calendar() {
         ? { teamId: Number(selectedTeamId) }
         : {}),
     };
-  }, [ownerViewMode, selectedOwnerUserId, selectedTeamId]);
+  }, [
+    ownerViewMode,
+    selectedOwnerUserId,
+    selectedTeamId,
+    calendarCategoryFilter,
+  ]);
+  const isMobile = useIsMobile();
   const { data: scheduleListData } =
     trpc.schedules.list.useQuery(scheduleListInput);
   const schedules = (scheduleListData?.schedules ?? []) as CalendarSchedule[];
@@ -644,6 +816,11 @@ export default function Calendar() {
             onOwnerSearchChange={setOwnerSearch}
           />
 
+          <CalendarCategoryFilterBar
+            value={calendarCategoryFilter}
+            onChange={setCalendarCategoryFilter}
+          />
+
           <div className="grid grid-cols-2 gap-2">
             {summaryCards.map(item => (
               <Card
@@ -877,6 +1054,7 @@ export default function Calendar() {
           loading={createMutation.isPending}
           users={users}
           customers={customerOptions}
+          userRole={userRole}
         />
         {selectedSchedule && (
           <ScheduleDetailModal
@@ -886,6 +1064,7 @@ export default function Calendar() {
             canDelete={selectedSchedule.canDelete ?? true}
             canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
             customers={customerOptions}
+            userRole={userRole}
             onViewCustomer={() => openCustomerDetail(selectedSchedule)}
             onClose={() => setSelectedSchedule(null)}
             onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
@@ -953,6 +1132,11 @@ export default function Calendar() {
           onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
           onSelectedTeamIdChange={setSelectedTeamId}
           onOwnerSearchChange={setOwnerSearch}
+        />
+
+        <CalendarCategoryFilterBar
+          value={calendarCategoryFilter}
+          onChange={setCalendarCategoryFilter}
         />
 
         <div className="grid gap-3 md:grid-cols-4">
@@ -1246,6 +1430,7 @@ export default function Calendar() {
         loading={createMutation.isPending}
         users={users}
         customers={customerOptions}
+        userRole={userRole}
       />
       {selectedSchedule && (
         <ScheduleDetailModal
@@ -1255,6 +1440,7 @@ export default function Calendar() {
           canDelete={selectedSchedule.canDelete ?? true}
           canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
           customers={customerOptions}
+          userRole={userRole}
           onViewCustomer={() => openCustomerDetail(selectedSchedule)}
           onClose={() => setSelectedSchedule(null)}
           onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
@@ -1277,6 +1463,7 @@ function ScheduleModal({
   loading,
   users,
   customers,
+  userRole,
 }: {
   open: boolean;
   onClose: () => void;
@@ -1286,6 +1473,7 @@ function ScheduleModal({
   loading: boolean;
   users: any[] | undefined;
   customers: CustomerOption[];
+  userRole?: string;
 }) {
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({
     category: "scheduleType",
@@ -1307,9 +1495,19 @@ function ScheduleModal({
     reminderOffsetMinutes: "30",
     customerId: defaultCustomerId ? String(defaultCustomerId) : "none",
   });
+  const [calendarCategory, setCalendarCategory] =
+    useState<ScheduleCalendarCategory>("branch_common");
+  const [categoryTouched, setCategoryTouched] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    setCategoryTouched(false);
+    setCalendarCategory(
+      recommendScheduleCalendarCategory({
+        scheduleType: "기타",
+        customerId: defaultCustomerId ?? null,
+      })
+    );
     setForm({
       title: "",
       type: "기타",
@@ -1322,6 +1520,17 @@ function ScheduleModal({
       customerId: defaultCustomerId ? String(defaultCustomerId) : "none",
     });
   }, [defaultCustomerId, defaultStart, open]);
+
+  useEffect(() => {
+    if (!open || categoryTouched) return;
+    setCalendarCategory(
+      recommendScheduleCalendarCategory({
+        scheduleType: form.type,
+        customerId:
+          form.customerId !== "none" ? Number(form.customerId) : null,
+      })
+    );
+  }, [form.type, form.customerId, categoryTouched, open]);
 
   const handleSubmit = () => {
     if (
@@ -1346,6 +1555,7 @@ function ScheduleModal({
           : undefined,
       customerId:
         form.customerId !== "none" ? Number(form.customerId) : undefined,
+      calendarCategory,
     });
   };
 
@@ -1402,6 +1612,14 @@ function ScheduleModal({
               </Select>
             </div>
           </div>
+          <CalendarCategoryCardPicker
+            value={calendarCategory}
+            userRole={userRole}
+            onChange={value => {
+              setCategoryTouched(true);
+              setCalendarCategory(value);
+            }}
+          />
           <div>
             <Label className="text-xs">알림 시간</Label>
             <Select
@@ -1529,6 +1747,7 @@ function ScheduleDetailModal({
   canDelete,
   canViewCustomerDetail,
   customers,
+  userRole,
   onViewCustomer,
   onClose,
   onDelete,
@@ -1541,12 +1760,16 @@ function ScheduleDetailModal({
   canDelete: boolean;
   canViewCustomerDetail: boolean;
   customers: CustomerOption[];
+  userRole?: string;
   onViewCustomer: () => void;
   onClose: () => void;
   onDelete: () => void;
   onUpdate: (data: any) => void;
   loading: boolean;
 }) {
+  const syncSummaryQuery = trpc.googleCalendar.getScheduleSyncSummary.useQuery({
+    scheduleId: schedule.id,
+  });
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({
     category: "scheduleType",
   });
@@ -1554,6 +1777,15 @@ function ScheduleDetailModal({
     ? scheduleTypeOptions.map(item => item.value)
     : SCHEDULE_TYPES;
   const [editing, setEditing] = useState(false);
+  const initialCategory =
+    schedule.calendarCategory ??
+    recommendScheduleCalendarCategory({
+      scheduleType: schedule.type,
+      customerId: schedule.customerId,
+    });
+  const [calendarCategory, setCalendarCategory] =
+    useState<ScheduleCalendarCategory>(initialCategory);
+  const [categoryTouched, setCategoryTouched] = useState(false);
   const [form, setForm] = useState({
     title: schedule.title,
     type: schedule.type,
@@ -1567,6 +1799,14 @@ function ScheduleDetailModal({
 
   useEffect(() => {
     setEditing(false);
+    setCategoryTouched(false);
+    setCalendarCategory(
+      schedule.calendarCategory ??
+        recommendScheduleCalendarCategory({
+          scheduleType: schedule.type,
+          customerId: schedule.customerId,
+        })
+    );
     setForm({
       title: schedule.title,
       type: schedule.type,
@@ -1578,6 +1818,17 @@ function ScheduleDetailModal({
       customerId: schedule.customerId ? String(schedule.customerId) : "none",
     });
   }, [schedule]);
+
+  useEffect(() => {
+    if (!editing || categoryTouched) return;
+    setCalendarCategory(
+      recommendScheduleCalendarCategory({
+        scheduleType: form.type,
+        customerId:
+          form.customerId !== "none" ? Number(form.customerId) : null,
+      })
+    );
+  }, [form.type, form.customerId, categoryTouched, editing]);
 
   const handleUpdate = () => {
     if (
@@ -1597,6 +1848,7 @@ function ScheduleDetailModal({
       memo: form.memo,
       reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
       customerId: form.customerId === "none" ? null : Number(form.customerId),
+      calendarCategory,
     });
   };
 
@@ -1613,6 +1865,10 @@ function ScheduleDetailModal({
             />
             <span>{schedule.type}</span>
             <StatusBadge status={schedule.status} />
+            <CalendarCategoryBadge
+              category={schedule.calendarCategory}
+              label={schedule.calendarCategoryLabel}
+            />
             {schedule.ownerName ? (
               <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-700">
                 담당: {schedule.ownerName}
@@ -1652,6 +1908,27 @@ function ScheduleDetailModal({
             <p className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
               <BellRing className="h-3 w-3" /> {scheduleReminderText(schedule)}
             </p>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
+            <p className="text-xs text-muted-foreground">Google Calendar 동기화</p>
+            {syncSummaryQuery.isLoading ? (
+              <p className="mt-1 text-sm text-slate-500">확인 중...</p>
+            ) : syncSummaryQuery.data?.googleCalendarLabel ? (
+              <p className="mt-1 text-sm font-medium text-slate-900">
+                {schedule.calendarCategoryLabel ?? "일정"} ·{" "}
+                {syncSummaryQuery.data.googleCalendarLabel}
+                {syncSummaryQuery.data.syncStatus
+                  ? ` · ${syncSummaryQuery.data.syncStatus}`
+                  : ""}
+              </p>
+            ) : (
+              <p className="mt-1 text-sm text-slate-500">동기화 정보 없음</p>
+            )}
+            {syncSummaryQuery.data?.lastErrorMessageSafe ? (
+              <p className="mt-1 text-xs text-destructive">
+                {syncSummaryQuery.data.lastErrorMessageSafe}
+              </p>
+            ) : null}
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
             <p className="text-xs text-muted-foreground">연결 고객</p>
@@ -1710,6 +1987,14 @@ function ScheduleDetailModal({
                   </SelectContent>
                 </Select>
               </div>
+              <CalendarCategoryCardPicker
+                value={calendarCategory}
+                userRole={userRole}
+                onChange={value => {
+                  setCategoryTouched(true);
+                  setCalendarCategory(value);
+                }}
+              />
               <div>
                 <Label className="text-xs">상태 변경</Label>
                 <Select

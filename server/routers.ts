@@ -20,7 +20,15 @@ import {
   triggerGoogleCalendarSyncForFollowUp,
   triggerGoogleCalendarSyncForScheduleId,
 } from "./googleCalendarHooks";
+import {
+  assertCanSelectCalendarCategory,
+  logCalendarCategoryActivity,
+  resolveCalendarCategoryForSave,
+} from "./scheduleCalendarCategory";
 import { COOKIE_NAME } from "@shared/const";
+import {
+  SCHEDULE_CALENDAR_CATEGORIES,
+} from "@shared/scheduleCalendarCategory";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
@@ -10896,6 +10904,10 @@ export const appRouter = router({
               .default("mine"),
             ownerUserId: z.number().optional(),
             teamId: z.number().optional(),
+            calendarCategory: z
+              .enum(SCHEDULE_CALENDAR_CATEGORIES)
+              .or(z.literal("all"))
+              .optional(),
           })
           .optional()
       )
@@ -10942,6 +10954,7 @@ export const appRouter = router({
             .default(30),
           targetUserId: z.number().optional(),
           customerId: z.number().optional(),
+          calendarCategory: z.enum(SCHEDULE_CALENDAR_CATEGORIES).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -10952,6 +10965,7 @@ export const appRouter = router({
           await assertActiveScheduleTarget(input.targetUserId);
           targetUserId = input.targetUserId;
         }
+        const targetUser = await getUserById(targetUserId);
         let linkedCustomerId: number | undefined;
         if (input.customerId !== undefined) {
           const customer = await verifyCustomerAccess(user, input.customerId);
@@ -10973,6 +10987,13 @@ export const appRouter = router({
         const reminderFlags = reminderFlagsFromOffset(
           input.reminderOffsetMinutes
         );
+        const resolvedCategory = resolveCalendarCategoryForSave({
+          requestedCategory: input.calendarCategory,
+          scheduleType: input.type,
+          customerId: linkedCustomerId,
+          ownerRole: targetUser?.role ?? user.role,
+        });
+        assertCanSelectCalendarCategory(user.role, resolvedCategory);
 
         await createSchedule({
           userId: targetUserId,
@@ -10984,6 +11005,7 @@ export const appRouter = router({
           endTime: endTimeDate,
           memo: input.memo,
           description: input.description,
+          calendarCategory: resolvedCategory,
           reminderOffsetMinutes: input.reminderOffsetMinutes,
           ...reminderFlags,
           createdBy: ctx.user.id,
@@ -11023,6 +11045,16 @@ export const appRouter = router({
           void triggerGoogleCalendarSyncForScheduleId(
             ctx.user.id,
             newSchedule.id
+          );
+          await logCalendarCategoryActivity(
+            ctx.user,
+            "CALENDAR_CATEGORY_SELECTED",
+            {
+              calendarCategory: resolvedCategory,
+              boaEventId: newSchedule.id,
+              boaEventType: "calendar_event",
+              actorId: ctx.user.id,
+            }
           );
         }
         return { success: true };
@@ -11065,6 +11097,7 @@ export const appRouter = router({
             ])
             .optional(),
           customerId: z.number().nullable().optional(),
+          calendarCategory: z.enum(SCHEDULE_CALENDAR_CATEGORIES).optional(),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -11075,6 +11108,7 @@ export const appRouter = router({
           status,
           reminderOffsetMinutes,
           customerId,
+          calendarCategory,
           ...rest
         } = input;
         const user = ctx.user;
@@ -11139,6 +11173,20 @@ export const appRouter = router({
           );
         }
 
+        const ownerUser = await getUserById(existing.userId);
+        const previousCategory =
+          existing.calendarCategory ??
+          resolveCalendarCategoryForSave({
+            scheduleType: existing.type,
+            customerId: existing.customerId,
+            ownerRole: ownerUser?.role ?? null,
+            existingCategory: existing.calendarCategory,
+          });
+        if (calendarCategory !== undefined) {
+          assertCanSelectCalendarCategory(user.role, calendarCategory);
+          updateData.calendarCategory = calendarCategory;
+        }
+
         if (status === "완료") {
           if (Object.keys(updateData).length)
             await updateSchedule(id, updateData);
@@ -11176,6 +11224,31 @@ export const appRouter = router({
         await log(ctx.user.id, actionLabel, "schedule", id);
         const updatedSchedule = await getScheduleById(id);
         if (updatedSchedule) {
+          const nextCategory =
+            updatedSchedule.calendarCategory ??
+            resolveCalendarCategoryForSave({
+              scheduleType: updatedSchedule.type,
+              customerId: updatedSchedule.customerId,
+              ownerRole: ownerUser?.role ?? null,
+              existingCategory: updatedSchedule.calendarCategory,
+            });
+          if (
+            calendarCategory !== undefined &&
+            nextCategory !== previousCategory
+          ) {
+            await logCalendarCategoryActivity(
+              ctx.user,
+              "CALENDAR_CATEGORY_CHANGED",
+              {
+                previousCalendarCategory: previousCategory,
+                nextCalendarCategory: nextCategory,
+                calendarCategory: nextCategory,
+                boaEventId: id,
+                boaEventType: "calendar_event",
+                actorId: ctx.user.id,
+              }
+            );
+          }
           if (
             status === "취소" ||
             status === "노쇼" ||

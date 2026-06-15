@@ -20,6 +20,7 @@ import {
   getGoogleCalendarOrgSettings,
   listFailedGoogleCalendarEventSyncs,
   listGoogleCalendarEventSyncs,
+  listGoogleCalendarEventSyncsForBoaEvent,
   listGoogleCalendarIntegrations,
   updateGoogleCalendarIntegrationTestResult,
   upsertGoogleCalendarIntegration,
@@ -44,8 +45,11 @@ import {
   buildSafeGoogleCalendarTitle,
   findSensitiveCalendarPattern,
   isRawPiiAllowed,
+  getCalendarDisplayName,
   mapBoaScheduleToGoogleCalendarType,
+  mapScheduleTypeToBoaEventType,
   orgSettingsToPayloadPolicy,
+  resolveScheduleGoogleCalendarType,
   sanitizeGoogleCalendarLogMetadata,
 } from "./googleCalendarSafePayload";
 
@@ -425,6 +429,50 @@ export const googleCalendarRouter = router({
         input.boaEventId
       );
       return { success: true };
+    }),
+
+  getScheduleSyncSummary: activeUserProcedure
+    .input(z.object({ scheduleId: z.number().int().positive() }))
+    .query(async ({ ctx, input }) => {
+      const schedule = await getScheduleById(input.scheduleId);
+      if (!schedule?.isActive || schedule.deletedAt) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "일정을 찾을 수 없습니다.",
+        });
+      }
+      await assertCanAccessSyncRow(ctx.user, schedule.userId);
+      const owner = await getUserById(schedule.userId);
+      const calendarType = resolveScheduleGoogleCalendarType({
+        scheduleType: schedule.type,
+        customerId: schedule.customerId,
+        ownerRole: owner?.role ?? null,
+        status: schedule.status,
+        calendarCategory: schedule.calendarCategory,
+      });
+      const boaEventType =
+        calendarType === "skipped"
+          ? ("calendar_event" as const)
+          : mapScheduleTypeToBoaEventType(schedule.type, calendarType);
+      const rows = await listGoogleCalendarEventSyncsForBoaEvent(
+        boaEventType,
+        schedule.id
+      );
+      const shared = rows.find(row => row.syncTargetType === "shared_calendar");
+      return {
+        calendarCategory:
+          schedule.calendarCategory ??
+          (calendarType === "skipped" ? null : calendarType),
+        googleCalendarType: calendarType === "skipped" ? null : calendarType,
+        googleCalendarLabel:
+          calendarType === "skipped"
+            ? null
+            : getCalendarDisplayName(calendarType),
+        syncStatus: shared?.syncStatus ?? null,
+        lastErrorCode: shared?.lastErrorCode ?? null,
+        lastErrorMessageSafe: shared?.lastErrorMessageSafe ?? null,
+        lastSyncedAt: shared?.lastSyncedAt ?? null,
+      };
     }),
 
   previewSafeEventPayload: activeUserProcedure
