@@ -78,7 +78,7 @@ class AxiosGoogleCalendarApiClient implements GoogleCalendarApiClient {
   ): Promise<GoogleCalendarAccessTestResult> {
     try {
       await axios.get(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}`,
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?maxResults=1`,
         {
           headers: { Authorization: `Bearer ${accessToken}` },
           timeout: 10000,
