@@ -221,22 +221,56 @@ function buildPersonalPayload(
 async function upsertGoogleEvent(
   accessToken: string,
   calendarId: string,
-  googleEventId: string | null | undefined,
+  existingSync: { googleEventId: string | null; googleCalendarId: string } | null | undefined,
   payload: BuiltPayload,
   startTime: Date,
   endTime?: Date | null
 ) {
   const client = getGoogleCalendarApiClient();
-  if (googleEventId) {
-    const updated = await client.updateEvent(accessToken, calendarId, googleEventId, {
-      calendarId,
-      title: payload.title,
-      description: payload.description,
-      startTime,
-      endTime,
-    });
-    return updated.eventId;
+  let googleEventId = existingSync?.googleEventId;
+
+  if (
+    googleEventId &&
+    existingSync?.googleCalendarId &&
+    existingSync.googleCalendarId !== "unassigned" &&
+    existingSync.googleCalendarId !== calendarId
+  ) {
+    try {
+      const moved = await client.moveEvent(
+        accessToken,
+        existingSync.googleCalendarId,
+        googleEventId,
+        calendarId
+      );
+      googleEventId = moved.eventId;
+    } catch (error: any) {
+      if (error?.code === "HTTP_404") {
+        googleEventId = undefined; // Deleted or not found, fallback to insert
+      } else {
+        throw error;
+      }
+    }
   }
+
+  if (googleEventId) {
+    try {
+      const updated = await client.updateEvent(accessToken, calendarId, googleEventId, {
+        calendarId,
+        title: payload.title,
+        description: payload.description,
+        startTime,
+        endTime,
+      });
+      return updated.eventId;
+    } catch (error: any) {
+      if (error?.code === "HTTP_404") {
+        // Fallback to insert
+      } else {
+        throw error;
+      }
+    }
+  }
+
   const created = await client.createEvent(accessToken, {
     calendarId,
     title: payload.title,
@@ -290,7 +324,7 @@ async function syncSharedEvent(input: {
   const googleEventId = await upsertGoogleEvent(
     accessToken,
     integration!.googleCalendarId,
-    existing?.googleEventId,
+    existing,
     input.payload,
     input.startTime,
     input.endTime
@@ -408,7 +442,7 @@ async function syncPersonalActorEvents(input: {
       const googleEventId = await upsertGoogleEvent(
         accessToken,
         personal.personalCalendarId,
-        existing?.googleEventId,
+        existing,
         payload,
         input.startTime,
         input.endTime
