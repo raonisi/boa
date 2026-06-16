@@ -259,7 +259,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState("info");
+  const [activeTab, setActiveTab] = useState("consult");
   const isMobile = useIsMobile();
   const [timelineFilter, setTimelineFilter] =
     useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
@@ -768,6 +768,18 @@ export default function CustomerDetail({ id }: { id: number }) {
         new Date(a.nextContactDate).getTime() -
         new Date(b.nextContactDate).getTime()
     )[0];
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  const dueTodayFollowUpCount = openFollowUps.filter((item: any) => {
+    const due = new Date(item.nextContactDate).getTime();
+    return due >= todayStart.getTime() && due <= todayEnd.getTime();
+  }).length;
+  const overdueFollowUpCount = openFollowUps.filter(
+    (item: any) => new Date(item.nextContactDate).getTime() < todayStart.getTime()
+  ).length;
   const latestConsultDate =
     latestConsult?.consultationDate ??
     latestConsult?.createdAt ??
@@ -1094,6 +1106,72 @@ export default function CustomerDetail({ id }: { id: number }) {
                   </div>
                 </div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-100 bg-gradient-to-br from-blue-50/70 to-white shadow-sm">
+          <CardContent className="space-y-3 p-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">상담 실행 요약</p>
+                <p className="text-xs text-muted-foreground">
+                  오늘 확인할 일과 다음 행동을 먼저 보고 바로 실행하세요.
+                </p>
+              </div>
+              <span className="w-fit rounded-full border border-blue-200 bg-white px-2 py-0.5 text-xs font-medium text-blue-800">
+                다음 행동 · {recommendedAction.next}
+              </span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] text-slate-500">최근 상담</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
+                  {latestConsultDate ? formatDate(latestConsultDate) : "상담 없음"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+                <p className="text-[11px] text-slate-500">다음 연락일</p>
+                <p className="mt-0.5 text-sm font-semibold text-slate-900">
+                  {nextFollowUp ? formatDate(nextFollowUp.nextContactDate) : "설정 필요"}
+                </p>
+              </div>
+              <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
+                <p className="text-[11px] text-amber-700">오늘 확인할 후속</p>
+                <p className="mt-0.5 text-sm font-semibold text-amber-900">
+                  {dueTodayFollowUpCount}건
+                </p>
+              </div>
+              <div className="rounded-lg border border-red-200 bg-red-50/70 px-3 py-2">
+                <p className="text-[11px] text-red-700">지연된 후속관리</p>
+                <p className="mt-0.5 text-sm font-semibold text-red-900">
+                  {overdueFollowUpCount}건
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                <MessageSquare className="mr-1 h-4 w-4" /> 상담기록 추가
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowFollowUpQuickModal(true)}
+              >
+                <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 후속 등록
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  setLocation(`/calendar?customerId=${customer.id}&action=quick-create`)
+                }
+              >
+                <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 일정 등록
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => setShowEditModal(true)}>
+                <Edit2 className="mr-1 h-4 w-4" /> 고객 정보 수정
+              </Button>
             </div>
           </CardContent>
         </Card>
