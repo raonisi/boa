@@ -23,6 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ScheduleCustomerLinkPicker from "@/components/schedule/ScheduleCustomerLinkPicker";
 import { trpc } from "@/lib/trpc";
 import {
   getUserFacingErrorMessage,
@@ -80,7 +81,6 @@ import {
 type ViewMode = "month" | "week" | "day";
 type MobileRange = "today" | "week" | "month" | "all" | "custom";
 type ScheduleOwnerViewMode = "mine" | "user" | "team" | "organization";
-type CustomerOption = { id: number; name: string };
 type CalendarSchedule = {
   id: number;
   userId: number;
@@ -586,11 +586,6 @@ export default function Calendar() {
   const organizationViewWarning = scheduleListData?.organizationViewWarning;
   const showOwnerName = ownerViewMode !== "mine";
   const { data: users } = trpc.users.list.useQuery({ activeOnly: true });
-  const { data: customers } = trpc.customers.list.useQuery({});
-  const customerOptions = (customers ?? []) as CustomerOption[];
-  const customerMap = new Map(
-    customerOptions.map(customer => [customer.id, customer])
-  );
   const browserSearch =
     typeof window !== "undefined" ? window.location.search : "";
   const query = location.includes("?")
@@ -603,14 +598,10 @@ export default function Calendar() {
     Number.isFinite(queryCustomerId) && queryCustomerId > 0
       ? queryCustomerId
       : undefined;
-  const getScheduleCustomer = (schedule: CalendarSchedule) =>
-    schedule?.customerId
-      ? customerMap.get(Number(schedule.customerId))
-      : undefined;
   const getScheduleCustomerLabel = (schedule: CalendarSchedule) =>
-    schedule.customerDisplayName ?? getScheduleCustomer(schedule)?.name ?? null;
+    schedule.customerDisplayName ?? null;
   const canOpenCustomerDetail = (schedule: CalendarSchedule) =>
-    schedule.canViewCustomerDetail ?? !!getScheduleCustomer(schedule);
+    schedule.canViewCustomerDetail ?? false;
   const openCustomerDetail = (schedule: CalendarSchedule) => {
     if (canOpenCustomerDetail(schedule) && schedule.customerId)
       setLocation(`/customers/${schedule.customerId}`);
@@ -1053,7 +1044,6 @@ export default function Calendar() {
           onSubmit={data => createMutation.mutate(data)}
           loading={createMutation.isPending}
           users={users}
-          customers={customerOptions}
           userRole={userRole}
         />
         {selectedSchedule && (
@@ -1063,7 +1053,6 @@ export default function Calendar() {
             canEdit={selectedSchedule.canEdit ?? true}
             canDelete={selectedSchedule.canDelete ?? true}
             canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
-            customers={customerOptions}
             userRole={userRole}
             onViewCustomer={() => openCustomerDetail(selectedSchedule)}
             onClose={() => setSelectedSchedule(null)}
@@ -1429,7 +1418,6 @@ export default function Calendar() {
         onSubmit={data => createMutation.mutate(data)}
         loading={createMutation.isPending}
         users={users}
-        customers={customerOptions}
         userRole={userRole}
       />
       {selectedSchedule && (
@@ -1439,7 +1427,6 @@ export default function Calendar() {
           canEdit={selectedSchedule.canEdit ?? true}
           canDelete={selectedSchedule.canDelete ?? true}
           canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
-          customers={customerOptions}
           userRole={userRole}
           onViewCustomer={() => openCustomerDetail(selectedSchedule)}
           onClose={() => setSelectedSchedule(null)}
@@ -1462,7 +1449,6 @@ function ScheduleModal({
   onSubmit,
   loading,
   users,
-  customers,
   userRole,
 }: {
   open: boolean;
@@ -1472,7 +1458,6 @@ function ScheduleModal({
   onSubmit: (data: any) => void;
   loading: boolean;
   users: any[] | undefined;
-  customers: CustomerOption[];
   userRole?: string;
 }) {
   const { data: scheduleTypeOptions } = trpc.settings.formOptions.useQuery({
@@ -1686,28 +1671,16 @@ function ScheduleModal({
               </Select>
             </div>
           )}
-          <div>
-            <Label className="text-xs">연결 고객</Label>
-            <Select
-              value={form.customerId}
-              onValueChange={v => setForm({ ...form, customerId: v })}
-            >
-              <SelectTrigger className="h-9 mt-1">
-                <SelectValue placeholder="고객을 선택하세요" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">연결 고객 없음</SelectItem>
-                {customers.map(customer => (
-                  <SelectItem key={customer.id} value={String(customer.id)}>
-                    {customer.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="mt-1 text-[11px] text-muted-foreground">
-              권한 범위 내 고객만 선택할 수 있습니다.
-            </p>
-          </div>
+          <ScheduleCustomerLinkPicker
+            value={form.customerId === "none" ? null : Number(form.customerId)}
+            onChange={customerId =>
+              setForm({
+                ...form,
+                customerId: customerId == null ? "none" : String(customerId),
+              })
+            }
+            disabled={loading}
+          />
           <div>
             <Label className="text-xs">메모</Label>
             <textarea
@@ -1746,7 +1719,6 @@ function ScheduleDetailModal({
   canEdit,
   canDelete,
   canViewCustomerDetail,
-  customers,
   userRole,
   onViewCustomer,
   onClose,
@@ -1759,7 +1731,6 @@ function ScheduleDetailModal({
   canEdit: boolean;
   canDelete: boolean;
   canViewCustomerDetail: boolean;
-  customers: CustomerOption[];
   userRole?: string;
   onViewCustomer: () => void;
   onClose: () => void;
@@ -2062,28 +2033,16 @@ function ScheduleDetailModal({
                   저장 시 기존 알림 정책에 따라 설정한 시각에 알림이 표시됩니다.
                 </p>
               </div>
-              <div>
-                <Label className="text-xs">연결 고객</Label>
-                <Select
-                  value={form.customerId}
-                  onValueChange={v => setForm({ ...form, customerId: v })}
-                >
-                  <SelectTrigger className="h-9 mt-1">
-                    <SelectValue placeholder="고객을 선택하세요" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">연결 고객 없음</SelectItem>
-                    {customers.map(item => (
-                      <SelectItem key={item.id} value={String(item.id)}>
-                        {item.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  권한 범위 내 고객만 선택할 수 있습니다.
-                </p>
-              </div>
+              <ScheduleCustomerLinkPicker
+                value={form.customerId === "none" ? null : Number(form.customerId)}
+                onChange={customerId =>
+                  setForm({
+                    ...form,
+                    customerId: customerId == null ? "none" : String(customerId),
+                  })
+                }
+                disabled={loading}
+              />
               <div>
                 <Label className="text-xs">메모</Label>
                 <textarea

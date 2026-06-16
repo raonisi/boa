@@ -7562,6 +7562,21 @@ export const appRouter = router({
         return getCustomers({ ...baseFilter, agentId: user.id });
       }),
 
+    searchForSchedulePicker: activeUserProcedure
+      .input(
+        z.object({
+          search: z.string().max(100).optional(),
+          limit: z.number().int().min(1).max(20).default(20),
+          selectedCustomerId: z.number().int().positive().optional(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const { searchCustomersForSchedulePicker } = await import(
+          "./scheduleCustomerPicker"
+        );
+        return searchCustomersForSchedulePicker(ctx.user, input);
+      }),
+
     get: activeUserProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {

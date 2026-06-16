@@ -1084,6 +1084,7 @@ export async function getCustomers(filter: {
   search?: string;
   assignedDateFrom?: Date;
   assignedDateTo?: Date;
+  limit?: number;
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -1170,11 +1171,17 @@ export async function getCustomers(filter: {
   if (filter.assignedDateTo)
     conditions.push(lte(customers.assignedAt, filter.assignedDateTo) as any);
 
-  return db
+  let query = db
     .select()
     .from(customers)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(customers.createdAt));
+
+  if (filter.limit != null && filter.limit > 0) {
+    query = query.limit(filter.limit) as typeof query;
+  }
+
+  return query;
 }
 
 const CONSULT_TA_OR_BEYOND = [
