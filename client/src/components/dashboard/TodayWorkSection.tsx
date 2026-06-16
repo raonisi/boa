@@ -289,6 +289,16 @@ export function TodayWorkSection({
             },
           ]
         : [];
+  const personalExecutionCount =
+    (cards?.todayScheduleCount ?? 0) +
+    (cards?.todayFollowUpCount ?? 0) +
+    (cards?.overdueFollowUpCount ?? 0) +
+    (cards?.pendingNotificationCount ?? 0);
+  const branchOperationsCount =
+    role === "branch_admin"
+      ? (cards?.longUnmanagedCustomerCount ?? 0) +
+        (cards?.incompleteScheduleCount ?? 0)
+      : 0;
   const fieldQueue =
     role === "member"
       ? ["todayContacts", "overdueFollowUps", "schedules", "notifications"].map(
@@ -606,6 +616,39 @@ export function TodayWorkSection({
             </button>
           ))}
         </div>
+      ) : null}
+
+      {role === "branch_admin" ? (
+        <Card className="crm-dashboard-card border-primary/20 bg-primary/[0.04]">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-foreground">
+                내 오늘 업무와 지점 운영 확인을 분리해 보여드립니다.
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                직접 처리가 필요한 개인 업무와 운영 점검 항목을 구분해 확인하세요.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
+                <p className="text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
+                  내 오늘 업무
+                </p>
+                <p className="mt-1 text-xl font-bold text-emerald-900 dark:text-emerald-100">
+                  {renderMetricValue(personalExecutionCount, { isLoading, isError })}
+                </p>
+              </div>
+              <div className="rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2 text-center dark:border-violet-900/40 dark:bg-violet-950/30">
+                <p className="text-[11px] font-medium text-violet-800 dark:text-violet-200">
+                  지점 운영 확인
+                </p>
+                <p className="mt-1 text-xl font-bold text-violet-900 dark:text-violet-100">
+                  {renderMetricValue(branchOperationsCount, { isLoading, isError })}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ) : null}
 
       <TodayWorkExecutionQueue
@@ -1257,10 +1300,8 @@ export function TodayWorkSection({
             </EmptyState>
           ) : (
             data?.todaySchedules.slice(0, 5).map(schedule => (
-              <button
+              <div
                 key={schedule.id}
-                type="button"
-                onClick={() => setLocation("/calendar")}
                 className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -1275,7 +1316,43 @@ export function TodayWorkSection({
                   }).slice(11, 16)}{" "}
                   · {schedule.type}
                 </p>
-              </button>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {schedule.customerId ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setLocation(`/customers/${schedule.customerId}`)}
+                    >
+                      고객 보기
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() =>
+                      setLocation(
+                        schedule.customerId
+                          ? `/customers/${schedule.customerId}?action=quick-followup`
+                          : "/customers?action=quick-followup"
+                      )
+                    }
+                  >
+                    후속 등록
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setLocation("/calendar")}
+                  >
+                    일정 변경
+                  </Button>
+                </div>
+              </div>
             ))
           )}
         </SectionCard>
@@ -1318,10 +1395,8 @@ export function TodayWorkSection({
             </EmptyState>
           ) : (
             data?.pendingNotifications.slice(0, 5).map(notification => (
-              <button
+              <div
                 key={notification.id}
-                type="button"
-                onClick={() => setLocation("/notifications")}
                 className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -1338,7 +1413,69 @@ export function TodayWorkSection({
                     : ""}
                   {getDashboardNotificationTypeLabel(notification.type)}
                 </p>
-              </button>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={markReadMutation.isPending}
+                    onClick={() => markReadMutation.mutate({ id: notification.id })}
+                  >
+                    읽음
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    disabled={completeMutation.isPending}
+                    onClick={() =>
+                      completeMutation.mutate({
+                        id: notification.id,
+                        processStatus: "처리완료",
+                      })
+                    }
+                  >
+                    처리완료
+                  </Button>
+                  {notification.relatedType === "customer" && notification.relatedId ? (
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setLocation(`/customers/${notification.relatedId}`)}
+                      >
+                        고객 보기
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() =>
+                          setLocation(
+                            `/customers/${notification.relatedId}?action=quick-followup`
+                          )
+                        }
+                      >
+                        후속 등록
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={() => setLocation("/notifications")}
+                    >
+                      바로 처리
+                    </Button>
+                  )}
+                </div>
+              </div>
             ))
           )}
         </SectionCard>
@@ -1430,10 +1567,8 @@ export function TodayWorkSection({
             </EmptyState>
           ) : (
             data?.todayFollowUps.slice(0, 5).map(followUp => (
-              <button
+              <div
                 key={followUp.id}
-                type="button"
-                onClick={() => setLocation(`/customers/${followUp.customerId}`)}
                 className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm"
               >
                 <div className="flex items-center justify-between gap-2">
@@ -1447,7 +1582,56 @@ export function TodayWorkSection({
                 <p className="mt-1 truncate text-xs text-muted-foreground">
                   {followUp.reason}
                 </p>
-              </button>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    disabled={followUpCompleteMutation.isPending}
+                    onClick={() => followUpCompleteMutation.mutate({ id: followUp.id })}
+                  >
+                    완료
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    disabled={followUpPostponeMutation.isPending}
+                    onClick={() =>
+                      followUpPostponeMutation.mutate({
+                        id: followUp.id,
+                        nextContactDate: postponedDate(1),
+                        reason: followUp.reason,
+                      })
+                    }
+                  >
+                    연기
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() => setLocation(`/customers/${followUp.customerId}`)}
+                  >
+                    고객 보기
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 px-2 text-xs"
+                    onClick={() =>
+                      setLocation(
+                        `/calendar?customerId=${followUp.customerId}&action=quick-create`
+                      )
+                    }
+                  >
+                    일정 등록
+                  </Button>
+                </div>
+              </div>
             ))
           )}
         </SectionCard>
