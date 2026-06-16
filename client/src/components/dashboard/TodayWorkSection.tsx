@@ -64,7 +64,7 @@ const dashboardNotificationTypeLabels: Record<string, string> = {
   schedule_today: "오늘 일정",
   schedule_1hour: "일정 1시간 전",
   schedule_incomplete: "미완료 일정",
-  customer_assigned: "고객 배정",
+  customer_assigned: "고객 DB 배정",
   today_follow_up: "오늘 연락 대상",
   schedule_30min: "일정 30분 전",
   contract_delete_request: "계약 삭제 요청",
@@ -105,7 +105,7 @@ function getNotificationTargetPath(notification: {
   }
   if (notification.relatedType === "follow_up" || notification.type === "today_follow_up") {
     return {
-      label: "후속 보기",
+      label: "후속관리 보기",
       path: "/customers?action=quick-followup",
     };
   }
@@ -1400,7 +1400,7 @@ export function TodayWorkSection({
                       )
                     }
                   >
-                    후속 등록
+                    후속관리 등록
                   </Button>
                   <Button
                     type="button"
@@ -1523,7 +1523,7 @@ export function TodayWorkSection({
                           )
                         }
                       >
-                        후속 등록
+                        후속관리 등록
                       </Button>
                       <Button
                         type="button"
@@ -1559,7 +1559,7 @@ export function TodayWorkSection({
                           className="h-7 px-2 text-xs"
                           onClick={() => setLocation("/customers?action=quick-followup")}
                         >
-                          후속 등록
+                          후속관리 등록
                         </Button>
                       )}
                     </>
@@ -1643,7 +1643,7 @@ export function TodayWorkSection({
                     variant="outline"
                     onClick={() => setLocation("/customers?action=quick-followup")}
                   >
-                    빠른 후속 등록
+                    빠른 후속관리 등록
                   </Button>
                   <Button
                     type="button"

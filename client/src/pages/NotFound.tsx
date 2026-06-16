@@ -14,17 +14,17 @@ export default function NotFound() {
         <div className="space-y-2">
           <p className="text-5xl font-bold tabular-nums text-foreground">404</p>
           <h1 className="text-lg font-semibold text-foreground">
-            페이지를 찾을 수 없습니다
+            찾을 수 없는 화면입니다.
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            요청하신 페이지가 존재하지 않거나 삭제되었습니다.
+            주소가 변경되었거나 접근할 수 없는 화면입니다.
             <br />
-            주소를 다시 확인하거나 홈으로 돌아가세요.
+            주소를 다시 확인해 주세요.
           </p>
         </div>
         <Button onClick={() => setLocation("/")} className="gap-2">
           <Home className="h-4 w-4" />
-          홈으로 돌아가기
+          홈으로 이동
         </Button>
       </div>
     </div>

@@ -53,7 +53,7 @@ const typeLabels: Record<string, string> = {
   schedule_today: "일정 당일",
   schedule_1hour: "일정 1시간 전",
   schedule_incomplete: "미완료 일정",
-  customer_assigned: "고객 배정",
+  customer_assigned: "고객 DB 배정",
   today_follow_up: "오늘 후속관리",
   contract_delete_request: "계약 삭제 요청",
   test: "테스트 알림",
@@ -373,7 +373,7 @@ export default function Notifications() {
     }
     if (notification.relatedType === "follow_up") {
       return {
-        label: "후속 보기",
+        label: "후속관리 보기",
         path: "/customers?action=quick-followup",
       };
     }
@@ -407,7 +407,7 @@ export default function Notifications() {
           <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ring">
-                Notifications
+                오늘 업무 알림
               </p>
               <h1 className="mt-1 text-2xl font-bold text-foreground">
                 {titleMap[user?.role ?? ""] ?? "알림센터"}
@@ -922,7 +922,7 @@ export default function Notifications() {
                               )
                             }
                           >
-                            후속 등록
+                            후속관리 등록
                           </Button>
                           <Button
                             size="sm"
