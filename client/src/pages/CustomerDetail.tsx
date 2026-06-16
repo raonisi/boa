@@ -1141,7 +1141,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                   className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
                   onClick={() =>
                     setLocation(
-                      `/calendar?customerId=${customer.id}&action=create`
+                      `/calendar?customerId=${customer.id}&action=quick-create`
                     )
                   }
                 >
@@ -2336,7 +2336,7 @@ export default function CustomerDetail({ id }: { id: number }) {
               className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
               onClick={() =>
                 setLocation(
-                  `/calendar?customerId=${customer.id}&action=create`
+                  `/calendar?customerId=${customer.id}&action=quick-create`
                 )
               }
             >

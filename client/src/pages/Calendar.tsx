@@ -24,6 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import ScheduleCustomerLinkPicker from "@/components/schedule/ScheduleCustomerLinkPicker";
+import ScheduleQuickCreateDialog, {
+  type DetailedScheduleSeed,
+} from "@/components/schedule/ScheduleQuickCreateDialog";
 import { trpc } from "@/lib/trpc";
 import {
   getUserFacingErrorMessage,
@@ -530,6 +533,10 @@ export default function Calendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showModal, setShowModal] = useState(false);
+  const [showQuickModal, setShowQuickModal] = useState(false);
+  const [detailedSeed, setDetailedSeed] = useState<DetailedScheduleSeed | null>(
+    null
+  );
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedSchedule, setSelectedSchedule] =
     useState<CalendarSchedule | null>(null);
@@ -612,22 +619,36 @@ export default function Calendar() {
     if (value !== "team") setSelectedTeamId("");
   };
 
-  useEffect(() => {
-    if (
-      initialCustomerApplied ||
-      queryAction !== "create" ||
-      !defaultCustomerId
-    )
-      return;
-    setSelectedDate(new Date());
+  const openQuickCreate = (date: Date | null = new Date()) => {
+    setSelectedDate(date);
+    setShowQuickModal(true);
+  };
+
+  const openDetailedCreate = (seed: DetailedScheduleSeed | null = null) => {
+    setDetailedSeed(seed);
+    setShowQuickModal(false);
     setShowModal(true);
+  };
+
+  useEffect(() => {
+    if (initialCustomerApplied) return;
+    if (!defaultCustomerId) return;
+    if (queryAction !== "create" && queryAction !== "quick-create") return;
+    setSelectedDate(new Date());
+    if (queryAction === "create" && queryParams.get("mode") === "full") {
+      setShowModal(true);
+    } else {
+      setShowQuickModal(true);
+    }
     setInitialCustomerApplied(true);
-  }, [defaultCustomerId, initialCustomerApplied, queryAction]);
+  }, [defaultCustomerId, initialCustomerApplied, queryAction, queryParams]);
 
   const createMutation = trpc.schedules.create.useMutation({
     onSuccess: () => {
-      toast.success("일정이 저장되었습니다. 알림은 설정한 시간에 표시됩니다.");
+      toast.success("일정을 등록했습니다.");
       setShowModal(false);
+      setShowQuickModal(false);
+      setDetailedSeed(null);
       utils.schedules.list.invalidate();
       utils.notifications.list.invalidate();
     },
@@ -783,10 +804,7 @@ export default function Calendar() {
               <Button
                 size="sm"
                 className="min-h-12 shrink-0"
-                onClick={() => {
-                  setSelectedDate(new Date());
-                  setShowModal(true);
-                }}
+                onClick={() => openQuickCreate()}
               >
                 <Plus className="h-4 w-4 mr-1" /> 일정 추가
               </Button>
@@ -847,10 +865,7 @@ export default function Calendar() {
                 <ScheduleEmptyState
                   title="오늘 일정이 없습니다."
                   description="상담 예약이나 후속관리 일정을 등록해보세요."
-                  onCreate={() => {
-                    setSelectedDate(new Date());
-                    setShowModal(true);
-                  }}
+                  onCreate={() => openQuickCreate()}
                 />
               ) : (
                 todaySchedules.map(s => (
@@ -992,10 +1007,7 @@ export default function Calendar() {
                 <ScheduleEmptyState
                   title="선택한 조건에 해당하는 일정이 없습니다."
                   description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
-                  onCreate={() => {
-                    setSelectedDate(new Date());
-                    setShowModal(true);
-                  }}
+                  onCreate={() => openQuickCreate()}
                 />
               ) : (
                 mobileList.map(s => (
@@ -1036,11 +1048,26 @@ export default function Calendar() {
         </div>
 
         {/* 모달들 */}
+        <ScheduleQuickCreateDialog
+          open={showQuickModal}
+          onClose={() => setShowQuickModal(false)}
+          defaultCustomerId={defaultCustomerId}
+          onSubmit={data => {
+            const { presetLabel: _presetLabel, ...payload } = data;
+            createMutation.mutate(payload);
+          }}
+          onOpenDetailed={openDetailedCreate}
+          loading={createMutation.isPending}
+        />
         <ScheduleModal
           open={showModal}
-          onClose={() => setShowModal(false)}
+          onClose={() => {
+            setShowModal(false);
+            setDetailedSeed(null);
+          }}
           defaultDate={selectedDate}
           defaultCustomerId={defaultCustomerId}
+          seed={detailedSeed}
           onSubmit={data => createMutation.mutate(data)}
           loading={createMutation.isPending}
           users={users}
@@ -1098,10 +1125,7 @@ export default function Calendar() {
               </div>
               <Button
                 size="sm"
-                onClick={() => {
-                  setSelectedDate(new Date());
-                  setShowModal(true);
-                }}
+                onClick={() => openQuickCreate()}
               >
                 <Plus className="h-4 w-4 mr-1" /> 상담·계약·후속관리 일정 등록
               </Button>
@@ -1204,8 +1228,7 @@ export default function Calendar() {
                               title="일정 추가"
                               onClick={e => {
                                 e.stopPropagation();
-                                setSelectedDate(day);
-                                setShowModal(true);
+                                openQuickCreate(day);
                               }}
                             >
                               <Plus className="h-3.5 w-3.5" />
@@ -1274,8 +1297,7 @@ export default function Calendar() {
                               title="일정 추가"
                               onClick={e => {
                                 e.stopPropagation();
-                                setSelectedDate(day);
-                                setShowModal(true);
+                                openQuickCreate(day);
                               }}
                             >
                               <Plus className="h-3.5 w-3.5" />
@@ -1322,10 +1344,7 @@ export default function Calendar() {
                     <ScheduleEmptyState
                       title="이 날 일정이 없습니다."
                       description="상담 예약이나 후속관리 일정을 등록해보세요."
-                      onCreate={() => {
-                        setSelectedDate(currentDate);
-                        setShowModal(true);
-                      }}
+                      onCreate={() => openQuickCreate(currentDate)}
                     />
                   ) : (
                     getSchedulesForDay(currentDate).map(s => (
@@ -1360,10 +1379,7 @@ export default function Calendar() {
                   size="sm"
                   variant="outline"
                   className="h-8"
-                  onClick={() => {
-                    setSelectedDate(selectedDay);
-                    setShowModal(true);
-                  }}
+                  onClick={() => openQuickCreate(selectedDay)}
                 >
                   <Plus className="mr-1 h-3.5 w-3.5" /> 추가
                 </Button>
@@ -1380,10 +1396,7 @@ export default function Calendar() {
                 <ScheduleEmptyState
                   title="선택한 날짜에 일정이 없습니다."
                   description="상담·계약·후속관리 일정을 등록하세요."
-                  onCreate={() => {
-                    setSelectedDate(selectedDay);
-                    setShowModal(true);
-                  }}
+                  onCreate={() => openQuickCreate(selectedDay)}
                 />
               ) : (
                 <div className="space-y-2">
@@ -1410,11 +1423,26 @@ export default function Calendar() {
         </div>
       </div>
 
+      <ScheduleQuickCreateDialog
+        open={showQuickModal}
+        onClose={() => setShowQuickModal(false)}
+        defaultCustomerId={defaultCustomerId}
+        onSubmit={data => {
+          const { presetLabel: _presetLabel, ...payload } = data;
+          createMutation.mutate(payload);
+        }}
+        onOpenDetailed={openDetailedCreate}
+        loading={createMutation.isPending}
+      />
       <ScheduleModal
         open={showModal}
-        onClose={() => setShowModal(false)}
+        onClose={() => {
+          setShowModal(false);
+          setDetailedSeed(null);
+        }}
         defaultDate={selectedDate}
         defaultCustomerId={defaultCustomerId}
+        seed={detailedSeed}
         onSubmit={data => createMutation.mutate(data)}
         loading={createMutation.isPending}
         users={users}
@@ -1446,6 +1474,7 @@ function ScheduleModal({
   onClose,
   defaultDate,
   defaultCustomerId,
+  seed,
   onSubmit,
   loading,
   users,
@@ -1455,6 +1484,7 @@ function ScheduleModal({
   onClose: () => void;
   defaultDate: Date | null;
   defaultCustomerId?: number;
+  seed?: DetailedScheduleSeed | null;
   onSubmit: (data: any) => void;
   loading: boolean;
   users: any[] | undefined;
@@ -1486,25 +1516,29 @@ function ScheduleModal({
 
   useEffect(() => {
     if (!open) return;
-    setCategoryTouched(false);
+    setCategoryTouched(Boolean(seed?.calendarCategory));
+    const initialType = seed?.type ?? "기타";
+    const initialCustomerId =
+      seed?.customerId ?? defaultCustomerId ?? null;
     setCalendarCategory(
-      recommendScheduleCalendarCategory({
-        scheduleType: "기타",
-        customerId: defaultCustomerId ?? null,
-      })
+      seed?.calendarCategory ??
+        recommendScheduleCalendarCategory({
+          scheduleType: initialType,
+          customerId: initialCustomerId,
+        })
     );
     setForm({
-      title: "",
-      type: "기타",
+      title: seed?.title ?? "",
+      type: initialType,
       status: "예정",
-      startTime: defaultStart,
-      endTime: "",
-      memo: "",
+      startTime: seed?.startTime ?? defaultStart,
+      endTime: seed?.endTime ?? "",
+      memo: seed?.memo ?? "",
       targetUserId: "self",
       reminderOffsetMinutes: "30",
-      customerId: defaultCustomerId ? String(defaultCustomerId) : "none",
+      customerId: initialCustomerId ? String(initialCustomerId) : "none",
     });
-  }, [defaultCustomerId, defaultStart, open]);
+  }, [defaultCustomerId, defaultStart, open, seed]);
 
   useEffect(() => {
     if (!open || categoryTouched) return;
@@ -1549,6 +1583,7 @@ function ScheduleModal({
       <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
         <DialogHeader>
           <DialogTitle>일정 추가</DialogTitle>
+          <p className="text-xs text-muted-foreground">상세 입력 모드</p>
         </DialogHeader>
         <div className="space-y-3">
           <div>
