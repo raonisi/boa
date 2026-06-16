@@ -96,11 +96,11 @@ void main() {
 
     expect(find.text('오늘의 업무 보드'), findsOneWidget);
     expect(find.text('[TEST] Agent님'), findsOneWidget);
-    expect(find.text('오늘 확인할 일정과 후속관리를 정리했습니다.'), findsOneWidget);
-    expect(find.text('업무·실적 요약'), findsOneWidget);
+    expect(find.text('오늘 일정, 후속관리, 알림을 같은 흐름으로 정리했습니다.'), findsOneWidget);
+    expect(find.text('오늘 업무'), findsOneWidget);
     expect(find.text('신규 계약'), findsOneWidget);
     expect(find.text('월납보험료 실적'), findsOneWidget);
-    expect(find.text('우선 처리 업무'), findsOneWidget);
+    expect(find.text('먼저 처리할 일'), findsOneWidget);
     expect(find.text('아직 처리할 업무가 없습니다'), findsOneWidget);
     expect(find.text('처리할 후속관리가 없습니다'), findsOneWidget);
     expect(find.text('오늘 등록된 일정이 없습니다'), findsOneWidget);
@@ -124,7 +124,9 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('미완료 후속'), findsOneWidget);
+    expect(find.text('오늘 후속관리'), findsOneWidget);
+    expect(find.text('지연된 후속관리'), findsOneWidget);
+    expect(find.text('읽지 않은 알림'), findsOneWidget);
     expect(find.text('오늘 연락 대상'), findsOneWidget);
     expect(find.text('[TEST] Choi'), findsWidgets);
     expect(find.text('[TEST] Park'), findsOneWidget);

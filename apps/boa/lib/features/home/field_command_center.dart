@@ -51,14 +51,9 @@ class FieldCommandCenterView extends ConsumerWidget {
       overdue: payload.overdueFollowUps,
       today: payload.todayFollowUps,
     );
-    final pendingFollowUpCount = c.overdueFollowUpCount + c.todayFollowUpCount;
     final unreadCount = resolveUnreadCount(
       unreadFromProvider: unreadAsync.maybeWhen(data: (n) => n, orElse: () => null),
       pendingNotificationCount: c.pendingNotificationCount,
-    );
-    final goalRates = goalsAsync.maybeWhen(
-      data: (dash) => parseGoalPulseRates(dash),
-      orElse: () => (contractRate: null, premiumRate: null, goalCompletion: null),
     );
     final now = DateTime.now();
 
@@ -86,14 +81,12 @@ class FieldCommandCenterView extends ConsumerWidget {
           const SizedBox(height: 18),
           _KpiMetricsRow(
             todayScheduleCount: c.todayScheduleCount,
-            pendingFollowUpCount: pendingFollowUpCount,
+            todayFollowUpCount: c.todayFollowUpCount,
             overdueFollowUpCount: c.overdueFollowUpCount,
-            monthlyContractCount: c.monthlyContractCount,
             unreadCount: unreadCount,
-            goalRates: goalRates,
             onOpenCalendar: () => ref.read(shellTabIndexProvider.notifier).state = 3,
+            onOpenFollowUps: () => ref.read(shellTabIndexProvider.notifier).state = 3,
             onOpenNotifications: () => ref.read(shellTabIndexProvider.notifier).state = 4,
-            onOpenContracts: () => ref.read(shellTabIndexProvider.notifier).state = 2,
           ),
           const SizedBox(height: 16),
           _DashboardWorkPulsePanel(
@@ -254,7 +247,7 @@ class _DashboardHeader extends StatelessWidget {
           ],
           const SizedBox(height: 8),
           Text(
-            '오늘 확인할 일정과 후속관리를 정리했습니다.',
+            '오늘 일정, 후속관리, 알림을 같은 흐름으로 정리했습니다.',
             style: theme.textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant, height: 1.4),
           ),
         ],
@@ -266,25 +259,21 @@ class _DashboardHeader extends StatelessWidget {
 class _KpiMetricsRow extends StatelessWidget {
   const _KpiMetricsRow({
     required this.todayScheduleCount,
-    required this.pendingFollowUpCount,
+    required this.todayFollowUpCount,
     required this.overdueFollowUpCount,
-    required this.monthlyContractCount,
     required this.unreadCount,
-    required this.goalRates,
     required this.onOpenCalendar,
+    required this.onOpenFollowUps,
     required this.onOpenNotifications,
-    required this.onOpenContracts,
   });
 
   final int todayScheduleCount;
-  final int pendingFollowUpCount;
+  final int todayFollowUpCount;
   final int overdueFollowUpCount;
-  final int monthlyContractCount;
   final int unreadCount;
-  final ({double? contractRate, double? premiumRate, double? goalCompletion}) goalRates;
   final VoidCallback onOpenCalendar;
+  final VoidCallback onOpenFollowUps;
   final VoidCallback onOpenNotifications;
-  final VoidCallback onOpenContracts;
 
   @override
   Widget build(BuildContext context) {
@@ -301,36 +290,32 @@ class _KpiMetricsRow extends StatelessWidget {
       ),
       _KpiMetricData(
         icon: Icons.add_task_outlined,
-        label: '미완료 후속',
-        value: '$pendingFollowUpCount',
+        label: '오늘 후속관리',
+        value: '$todayFollowUpCount',
         unit: '건',
-        hint: overdueFollowUpCount > 0 ? '연체 $overdueFollowUpCount건 포함' : '오늘 연락 예정',
-        progress: kpiCardPulseProgress(value: pendingFollowUpCount, kind: 'followup'),
-        onTap: onOpenCalendar,
+        hint: '오늘 처리할 후속',
+        progress: kpiCardPulseProgress(value: todayFollowUpCount, kind: 'followup'),
+        onTap: onOpenFollowUps,
+        accent: null,
+      ),
+      _KpiMetricData(
+        icon: Icons.warning_amber_outlined,
+        label: '지연된 후속관리',
+        value: '$overdueFollowUpCount',
+        unit: '건',
+        hint: '먼저 확인할 일',
+        progress: kpiCardPulseProgress(value: overdueFollowUpCount, kind: 'followup'),
+        onTap: onOpenFollowUps,
         accent: overdueFollowUpCount > 0 ? BoaColors.urgent : null,
       ),
       _KpiMetricData(
         icon: Icons.notifications_outlined,
-        label: '새 알림',
+        label: '읽지 않은 알림',
         value: '$unreadCount',
         unit: '건',
-        hint: '미확인 알림',
+        hint: '알림 보기',
         progress: kpiCardPulseProgress(value: unreadCount, kind: 'notification'),
         onTap: onOpenNotifications,
-        accent: null,
-      ),
-      _KpiMetricData(
-        icon: Icons.description_outlined,
-        label: '이번 달 계약',
-        value: '$monthlyContractCount',
-        unit: '건',
-        hint: '신규 계약',
-        progress: kpiCardPulseProgress(
-          value: monthlyContractCount,
-          kind: 'contract',
-          goalRate: goalRates.contractRate,
-        ),
-        onTap: onOpenContracts,
         accent: null,
       ),
     ];
@@ -491,7 +476,7 @@ class _DashboardWorkPulsePanel extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  '업무·실적 요약',
+                  '오늘 업무',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: BoaColors.navy,
@@ -558,7 +543,7 @@ class _PriorityWorkSection extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const BoaSectionHeader(title: '우선 처리 업무'),
+          const BoaSectionHeader(title: '먼저 처리할 일'),
           const SizedBox(height: 8),
           BoaSurfaceCard(
             margin: EdgeInsets.zero,
@@ -592,7 +577,7 @@ class _PriorityWorkSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const BoaSectionHeader(title: '우선 처리 업무'),
+        const BoaSectionHeader(title: '먼저 처리할 일'),
         const SizedBox(height: 8),
         if (firstFollowUp != null)
           FollowUpQuickActionTile(
@@ -714,16 +699,16 @@ class _NotificationSummarySectionState extends ConsumerState<_NotificationSummar
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         BoaSectionHeader(
-          title: '최근 알림',
-          actionLabel: '알림함 보기',
+          title: '읽지 않은 알림',
+          actionLabel: '알림 보기',
           onAction: widget.onOpenNotifications,
         ),
         const SizedBox(height: 8),
         if (notifications.isEmpty)
           const BoaEmptyState(
             icon: Icons.notifications_none_outlined,
-            title: '아직 처리할 알림이 없습니다',
-            message: '새 알림이 오면 여기에 표시됩니다.',
+            title: '읽지 않은 알림이 없습니다',
+            message: '새 알림이 생기면 여기에 표시됩니다.',
           )
         else
           ...top.map(
