@@ -340,7 +340,7 @@ export function CustomerListDesktopWorkspace({
                       title="후속 등록"
                       onClick={e => {
                         e.stopPropagation();
-                        onNavigate(`/customers/${customer.id}?action=followup`);
+                        onNavigate(`/customers/${customer.id}?action=quick-followup`);
                       }}
                     >
                       <CalendarPlus className="h-4 w-4" />

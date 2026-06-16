@@ -1525,14 +1525,24 @@ export function TodayWorkSection({
           ) : (data?.todayFollowUps ?? []).length === 0 ? (
             <EmptyState
               action={
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setLocation("/customers")}
-                >
-                  고객 목록에서 후속관리 확인
-                </Button>
+                <>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setLocation("/customers?action=quick-followup")}
+                  >
+                    빠른 후속 등록
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setLocation("/customers")}
+                  >
+                    고객 목록에서 후속관리 확인
+                  </Button>
+                </>
               }
             >
               오늘 연락할 고객이 없습니다.

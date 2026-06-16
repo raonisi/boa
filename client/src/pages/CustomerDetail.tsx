@@ -43,7 +43,10 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
+import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
+import FollowUpModal from "@/components/followups/FollowUpModal";
 import { buildCustomerExecutionScore } from "@shared/customerExecution";
+import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -249,7 +252,10 @@ export default function CustomerDetail({ id }: { id: number }) {
   );
   const [requestReason, setRequestReason] = useState("");
   const [requestMemo, setRequestMemo] = useState("");
+  const [showFollowUpQuickModal, setShowFollowUpQuickModal] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpDetailedSeed, setFollowUpDetailedSeed] =
+    useState<DetailedFollowUpSeed | null>(null);
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(
     null
   );
@@ -286,7 +292,9 @@ export default function CustomerDetail({ id }: { id: number }) {
 
     const action = new URLSearchParams(query).get("action");
     if (action === "consult") setShowConsultModal(true);
-    if (action === "followup") setShowFollowUpModal(true);
+    if (action === "followup" || action === "quick-followup") {
+      setShowFollowUpQuickModal(true);
+    }
     if (action === "contract") setShowContractModal(true);
     if (action === "message") setActiveTab("tools");
   }, [location]);
@@ -479,17 +487,30 @@ export default function CustomerDetail({ id }: { id: number }) {
     onSuccess: (_result, variables) => {
       toast.success(
         variables.calendarSchedule
-          ? "다음 연락일과 캘린더 일정이 설정되었습니다."
-          : "다음 연락일이 설정되었습니다."
+          ? "후속관리를 등록했습니다. 캘린더 일정도 함께 등록되었습니다."
+          : "후속관리를 등록했습니다."
       );
+      setShowFollowUpQuickModal(false);
       setShowFollowUpModal(false);
+      setFollowUpDetailedSeed(null);
       refetchFollowUps();
       utils.dashboard.todayWork.invalidate();
+      utils.followUps.listToday.invalidate();
+      utils.followUps.listOverdue.invalidate();
       if (variables.calendarSchedule) utils.schedules.list.invalidate();
     },
     onError: err =>
-      toast.error(err.message || "다음 연락일 설정에 실패했습니다."),
+      toast.error(err.message || "후속관리 등록에 실패했습니다."),
   });
+
+  const openDetailedFollowUp = (
+    seed: DetailedFollowUpSeed,
+    _customerId: number
+  ) => {
+    setFollowUpDetailedSeed(seed);
+    setShowFollowUpQuickModal(false);
+    setShowFollowUpModal(true);
+  };
 
   const completeFollowUpMutation = trpc.followUps.complete.useMutation({
     onSuccess: () => {
@@ -1130,7 +1151,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <Button
                   variant="secondary"
                   className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                  onClick={() => setShowFollowUpModal(true)}
+                  onClick={() => setShowFollowUpQuickModal(true)}
                 >
                   <CalendarPlus className="h-4 w-4" /> 후속 등록
                 </Button>
@@ -1382,7 +1403,7 @@ export default function CustomerDetail({ id }: { id: number }) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowFollowUpModal(true)}
+                onClick={() => setShowFollowUpQuickModal(true)}
               >
                 <CalendarPlus className="h-4 w-4 mr-1" /> 후속 등록
               </Button>
@@ -1506,7 +1527,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             </Card>
             <FollowUpPanel
               followUps={followUps ?? []}
-              onCreate={() => setShowFollowUpModal(true)}
+              onCreate={() => setShowFollowUpQuickModal(true)}
               onComplete={followUpId =>
                 completeFollowUpMutation.mutate({ id: followUpId })
               }
@@ -2326,7 +2347,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <Button
               variant="secondary"
               className="min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200"
-              onClick={() => setShowFollowUpModal(true)}
+              onClick={() => setShowFollowUpQuickModal(true)}
             >
               <CalendarPlus className="h-4 w-4" />
               후속
@@ -2407,9 +2428,22 @@ export default function CustomerDetail({ id }: { id: number }) {
       )}
 
       {/* 담당자 변경 모달 */}
+      <FollowupQuickCreateDialog
+        open={showFollowUpQuickModal}
+        onClose={() => setShowFollowUpQuickModal(false)}
+        defaultCustomerId={id}
+        onSubmit={data => createFollowUpMutation.mutate(data)}
+        onOpenDetailed={openDetailedFollowUp}
+        loading={createFollowUpMutation.isPending}
+      />
+
       <FollowUpModal
         open={showFollowUpModal}
-        onClose={() => setShowFollowUpModal(false)}
+        onClose={() => {
+          setShowFollowUpModal(false);
+          setFollowUpDetailedSeed(null);
+        }}
+        seed={followUpDetailedSeed ?? undefined}
         onSubmit={data =>
           createFollowUpMutation.mutate({ customerId: id, ...data })
         }
@@ -3033,236 +3067,6 @@ function FollowUpPanel({
         )}
       </CardContent>
     </Card>
-  );
-}
-
-function FollowUpModal({
-  open,
-  onClose,
-  onSubmit,
-  loading,
-  mode = "create",
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (data: {
-    nextContactDate: string;
-    reason: string;
-    nextAction:
-      | "전화"
-      | "카톡"
-      | "문자"
-      | "방문"
-      | "설계안 발송"
-      | "계약 확인"
-      | "보장분석"
-      | "사후관리"
-      | "기타";
-    memo?: string;
-    calendarSchedule?: {
-      title?: string;
-      startTime: string;
-      type?: "고객상담" | "재통화";
-      memo?: string;
-      reminderOffsetMinutes: -1 | 0 | 30 | 60 | 120 | 1440;
-    };
-  }) => void;
-  loading: boolean;
-  mode?: "create" | "postpone";
-}) {
-  const defaultDate = getKstLocalDateTimeAfter(new Date(), {
-    days: 1,
-    defaultHour: 10,
-  });
-  const [nextContactDate, setNextContactDate] = useState(defaultDate);
-  const [reason, setReason] = useState("");
-  const [nextAction, setNextAction] = useState<
-    | "전화"
-    | "카톡"
-    | "문자"
-    | "방문"
-    | "설계안 발송"
-    | "계약 확인"
-    | "보장분석"
-    | "사후관리"
-    | "기타"
-  >("전화");
-  const [memo, setMemo] = useState("");
-  const [createCalendarSchedule, setCreateCalendarSchedule] = useState(
-    mode === "create"
-  );
-  const [scheduleTitle, setScheduleTitle] = useState("");
-  const [scheduleReminderOffset, setScheduleReminderOffset] = useState("30");
-  const actions = [
-    "전화",
-    "카톡",
-    "문자",
-    "방문",
-    "설계안 발송",
-    "계약 확인",
-    "보장분석",
-    "사후관리",
-    "기타",
-  ] as const;
-  const reasons = [
-    "설계안 전달 후 재상담",
-    "보험료 조정 상담",
-    "보장분석 후속 연락",
-    "계약 전 확인",
-    "계약 후 사후관리",
-    "생일/기념일 관리",
-    "장기 미관리 고객 재접촉",
-    "기타",
-  ];
-  const canCreateSchedule = mode === "create";
-  return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-2xl">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "postpone" ? "연락일 연기" : "다음 연락일 설정"}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            고객과 다시 연락할 날짜와 후속 사유를 기록합니다. 주민등록번호,
-            증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지 마세요.
-          </p>
-          <div>
-            <Label>다음 연락일 *</Label>
-            <Input
-              type="datetime-local"
-              value={nextContactDate}
-              onChange={e => setNextContactDate(e.target.value)}
-              className="mt-1"
-            />
-          </div>
-          <div>
-            <Label>후속관리 사유 *</Label>
-            <Select value={reason} onValueChange={setReason}>
-              <SelectTrigger className="mt-1">
-                <SelectValue placeholder="사유 선택" />
-              </SelectTrigger>
-              <SelectContent>
-                {reasons.map(item => (
-                  <SelectItem key={item} value={item}>
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>다음 액션</Label>
-            <Select
-              value={nextAction}
-              onValueChange={value => setNextAction(value as typeof nextAction)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {actions.map(item => (
-                  <SelectItem key={item} value={item}>
-                    {item}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>메모</Label>
-            <Textarea
-              value={memo}
-              onChange={e => setMemo(e.target.value)}
-              className="mt-1"
-              placeholder="민감정보 입력 금지"
-            />
-          </div>
-          {canCreateSchedule && (
-            <div className="rounded-xl border border-blue-100 bg-blue-50/70 p-3">
-              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-blue-950">
-                <input
-                  type="checkbox"
-                  checked={createCalendarSchedule}
-                  onChange={e => setCreateCalendarSchedule(e.target.checked)}
-                />
-                캘린더 일정도 함께 등록
-              </label>
-              {createCalendarSchedule && (
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label className="text-xs">일정 제목</Label>
-                    <Input
-                      value={scheduleTitle}
-                      onChange={e => setScheduleTitle(e.target.value)}
-                      className="mt-1"
-                      placeholder="비우면 후속관리 일정"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">일정 알림</Label>
-                    <Select
-                      value={scheduleReminderOffset}
-                      onValueChange={setScheduleReminderOffset}
-                    >
-                      <SelectTrigger className="mt-1">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {linkedScheduleReminderOptions.map(option => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <p className="text-[11px] text-blue-800">
-                    다음 연락일과 같은 시각에 고객 연결 일정이 생성됩니다.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-          <div className="sticky bottom-0 grid grid-cols-2 gap-2 bg-background pt-2">
-            <Button
-              className="min-h-12 md:min-h-11"
-              variant="outline"
-              onClick={onClose}
-            >
-              취소
-            </Button>
-            <Button
-              className="min-h-12 md:min-h-11"
-              disabled={!nextContactDate || !reason || loading}
-              onClick={() =>
-                onSubmit({
-                  nextContactDate,
-                  reason,
-                  nextAction,
-                  memo: memo || undefined,
-                  calendarSchedule:
-                    canCreateSchedule && createCalendarSchedule
-                      ? {
-                          title: scheduleTitle || undefined,
-                          startTime: nextContactDate,
-                          type: nextAction === "방문" ? "고객상담" : "재통화",
-                          memo: memo || reason,
-                          reminderOffsetMinutes: Number(
-                            scheduleReminderOffset
-                          ) as -1 | 0 | 30 | 60 | 120 | 1440,
-                        }
-                      : undefined,
-                })
-              }
-            >
-              {mode === "postpone" ? "연기" : "저장"}
-            </Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }
 

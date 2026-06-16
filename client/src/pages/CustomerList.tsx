@@ -56,6 +56,7 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
+import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   AlertTriangle,
@@ -76,8 +77,10 @@ import {
   UserCog,
   Zap,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
+import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
+import FollowUpModal from "@/components/followups/FollowUpModal";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 
@@ -116,7 +119,7 @@ const CUSTOMER_NEXT_ACTIONS = [
 
 export default function CustomerList() {
   const { user } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -146,7 +149,21 @@ export default function CustomerList() {
   const [selectedCustomerIds, setSelectedCustomerIds] = useState<number[]>([]);
   const [selectedQuickConsultCustomer, setSelectedQuickConsultCustomer] =
     useState<any>(null);
+  const [showFollowUpQuickModal, setShowFollowUpQuickModal] = useState(false);
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpDetailedSeed, setFollowUpDetailedSeed] =
+    useState<DetailedFollowUpSeed | null>(null);
+  const [followUpCustomerId, setFollowUpCustomerId] = useState<number | null>(
+    null
+  );
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    const query = location.split("?")[1]?.split("#")[0];
+    if (!query) return;
+    const action = new URLSearchParams(query).get("action");
+    if (action === "quick-followup") setShowFollowUpQuickModal(true);
+  }, [location]);
 
   const utils = trpc.useUtils();
   const {
@@ -186,6 +203,36 @@ export default function CustomerList() {
     },
     onError: err => toast.error(err.message || "등록에 실패했습니다."),
   });
+
+  const createFollowUpMutation = trpc.followUps.create.useMutation({
+    onSuccess: (_result, variables) => {
+      toast.success(
+        variables.calendarSchedule
+          ? "후속관리를 등록했습니다. 캘린더 일정도 함께 등록되었습니다."
+          : "후속관리를 등록했습니다."
+      );
+      setShowFollowUpQuickModal(false);
+      setShowFollowUpModal(false);
+      setFollowUpDetailedSeed(null);
+      setFollowUpCustomerId(null);
+      utils.dashboard.todayWork.invalidate();
+      utils.followUps.listToday.invalidate();
+      utils.followUps.listOverdue.invalidate();
+      if (variables.calendarSchedule) utils.schedules.list.invalidate();
+    },
+    onError: err =>
+      toast.error(err.message || "후속관리 등록에 실패했습니다."),
+  });
+
+  const openDetailedFollowUp = (
+    seed: DetailedFollowUpSeed,
+    customerId: number
+  ) => {
+    setFollowUpCustomerId(customerId);
+    setFollowUpDetailedSeed(seed);
+    setShowFollowUpQuickModal(false);
+    setShowFollowUpModal(true);
+  };
 
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => {
@@ -851,6 +898,14 @@ export default function CustomerList() {
                     <Upload className="mr-1 h-4 w-4" /> 엑셀 일괄 등록
                   </Button>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100"
+                  onClick={() => setShowFollowUpQuickModal(true)}
+                >
+                  <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 후속 등록
+                </Button>
                 {canCreateCustomer && (
                   <Button
                     size="sm"
@@ -1590,6 +1645,35 @@ export default function CustomerList() {
           onSuccess={() => refetch()}
         />
       )}
+
+      <FollowupQuickCreateDialog
+        open={showFollowUpQuickModal}
+        onClose={() => setShowFollowUpQuickModal(false)}
+        onSubmit={data => {
+          setFollowUpCustomerId(data.customerId);
+          createFollowUpMutation.mutate(data);
+        }}
+        onOpenDetailed={openDetailedFollowUp}
+        loading={createFollowUpMutation.isPending}
+      />
+
+      <FollowUpModal
+        open={showFollowUpModal}
+        onClose={() => {
+          setShowFollowUpModal(false);
+          setFollowUpDetailedSeed(null);
+          setFollowUpCustomerId(null);
+        }}
+        seed={followUpDetailedSeed ?? undefined}
+        onSubmit={data =>
+          followUpCustomerId &&
+          createFollowUpMutation.mutate({
+            customerId: followUpCustomerId,
+            ...data,
+          })
+        }
+        loading={createFollowUpMutation.isPending}
+      />
     </DashboardLayout>
   );
 }
