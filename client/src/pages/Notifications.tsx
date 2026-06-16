@@ -54,6 +54,9 @@ const typeLabels: Record<string, string> = {
   schedule_1hour: "일정 1시간 전",
   schedule_incomplete: "미완료 일정",
   customer_assigned: "고객 배정",
+  today_follow_up: "오늘 후속관리",
+  contract_delete_request: "계약 삭제 요청",
+  test: "테스트 알림",
   general: "일반",
 };
 
@@ -354,6 +357,48 @@ export default function Notifications() {
     setDateTo("");
     setOffset(0);
   };
+
+  const getNotificationPrimaryRoute = (notification: any) => {
+    if (notification.relatedType === "customer" && notification.relatedId) {
+      return {
+        label: "고객 보기",
+        path: `/customers/${notification.relatedId}`,
+      };
+    }
+    if (notification.relatedType === "schedule") {
+      return {
+        label: "일정 보기",
+        path: "/calendar",
+      };
+    }
+    if (notification.relatedType === "follow_up") {
+      return {
+        label: "후속 보기",
+        path: "/customers?action=quick-followup",
+      };
+    }
+    if (
+      notification.relatedType === "contract" ||
+      notification.relatedType === "delete_request" ||
+      notification.type === "contract_delete_request"
+    ) {
+      return {
+        label: "삭제 요청 보기",
+        path: "/contracts",
+      };
+    }
+    return {
+      label: "관련 화면으로 이동",
+      path: "/notifications",
+    };
+  };
+
+  const hasScheduleContext = (notification: any) =>
+    notification.relatedType === "schedule" ||
+    notification.type === "schedule_1day" ||
+    notification.type === "schedule_today" ||
+    notification.type === "schedule_1hour" ||
+    notification.type === "schedule_incomplete";
 
   return (
     <DashboardLayout>
@@ -722,6 +767,8 @@ export default function Notifications() {
                 processStatusColors[processStatus] ??
                 processStatusColors["미확인"];
               const priority = classifyNotificationPriority(n);
+              const primaryAction = getNotificationPrimaryRoute(n);
+              const canOpenCustomer = n.relatedType === "customer" && n.relatedId;
               const isSelected = selectedNotificationIds.includes(n.id);
               return (
                 <Card
@@ -842,7 +889,75 @@ export default function Notifications() {
                             처리완료
                           </Button>
                         )}
+                        {primaryAction.path !== "/notifications" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="min-h-12 text-xs sm:h-7 sm:min-h-7"
+                            onClick={() => setLocation(primaryAction.path)}
+                          >
+                            {primaryAction.label}
+                          </Button>
+                        )}
                       </div>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
+                      {canOpenCustomer && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 px-2 text-xs"
+                            onClick={() => setLocation(`/customers/${n.relatedId}`)}
+                          >
+                            고객 보기
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 px-2 text-xs"
+                            onClick={() =>
+                              setLocation(
+                                `/customers/${n.relatedId}?action=quick-followup`
+                              )
+                            }
+                          >
+                            후속 등록
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-10 px-2 text-xs"
+                            onClick={() =>
+                              setLocation(
+                                `/calendar?customerId=${n.relatedId}&action=quick-create`
+                              )
+                            }
+                          >
+                            일정 등록
+                          </Button>
+                        </>
+                      )}
+                      {hasScheduleContext(n) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="min-h-10 px-2 text-xs"
+                          onClick={() => setLocation("/calendar")}
+                        >
+                          일정 보기
+                        </Button>
+                      )}
+                      {!canOpenCustomer && !hasScheduleContext(n) && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="min-h-10 px-2 text-xs"
+                          onClick={() => setLocation(primaryAction.path)}
+                        >
+                          관련 화면으로 이동
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

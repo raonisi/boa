@@ -76,6 +76,55 @@ function getDashboardNotificationTypeLabel(type?: string | null) {
   return dashboardNotificationTypeLabels[type] ?? "기타 알림";
 }
 
+function isScheduleNotificationType(type?: string | null) {
+  return (
+    type === "schedule_1day" ||
+    type === "schedule_today" ||
+    type === "schedule_1hour" ||
+    type === "schedule_incomplete" ||
+    type === "schedule_30min"
+  );
+}
+
+function getNotificationTargetPath(notification: {
+  type?: string | null;
+  relatedType?: string | null;
+  relatedId?: number | null;
+}) {
+  if (notification.relatedType === "customer" && notification.relatedId) {
+    return {
+      label: "고객 보기",
+      path: `/customers/${notification.relatedId}`,
+    };
+  }
+  if (notification.relatedType === "schedule" || isScheduleNotificationType(notification.type)) {
+    return {
+      label: "일정 보기",
+      path: "/calendar",
+    };
+  }
+  if (notification.relatedType === "follow_up" || notification.type === "today_follow_up") {
+    return {
+      label: "후속 보기",
+      path: "/customers?action=quick-followup",
+    };
+  }
+  if (
+    notification.relatedType === "contract" ||
+    notification.relatedType === "delete_request" ||
+    notification.type === "contract_delete_request"
+  ) {
+    return {
+      label: "삭제 요청 보기",
+      path: "/contracts",
+    };
+  }
+  return {
+    label: "관련 화면으로 이동",
+    path: "/notifications",
+  };
+}
+
 function EmptyState({
   children,
   action,
@@ -1053,6 +1102,7 @@ export function TodayWorkSection({
           ) : (
             sortedPendingNotifications.slice(0, 3).map(notification => {
               const priority = classifyNotificationPriority(notification);
+              const notificationTarget = getNotificationTargetPath(notification);
               return (
                 <div
                   key={notification.id}
@@ -1103,6 +1153,15 @@ export function TodayWorkSection({
                         }
                       >
                         처리완료
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => setLocation(notificationTarget.path)}
+                      >
+                        {notificationTarget.label}
                       </Button>
                     </div>
                   </div>
@@ -1399,6 +1458,10 @@ export function TodayWorkSection({
                 key={notification.id}
                 className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm"
               >
+                {(() => {
+                  const notificationTarget = getNotificationTargetPath(notification);
+                  return (
+                    <>
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm font-semibold text-foreground">
                     {notification.title}
@@ -1462,19 +1525,49 @@ export function TodayWorkSection({
                       >
                         후속 등록
                       </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() =>
+                          setLocation(
+                            `/calendar?customerId=${notification.relatedId}&action=quick-create`
+                          )
+                        }
+                      >
+                        일정 등록
+                      </Button>
                     </>
                   ) : (
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 px-2 text-xs"
-                      onClick={() => setLocation("/notifications")}
-                    >
-                      바로 처리
-                    </Button>
+                    <>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setLocation(notificationTarget.path)}
+                      >
+                        {notificationTarget.label}
+                      </Button>
+                      {(notification.relatedType === "schedule" ||
+                        isScheduleNotificationType(notification.type)) && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => setLocation("/customers?action=quick-followup")}
+                        >
+                          후속 등록
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
+                    </>
+                  );
+                })()}
               </div>
             ))
           )}
