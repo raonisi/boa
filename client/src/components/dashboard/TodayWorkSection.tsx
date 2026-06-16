@@ -1,5 +1,9 @@
 import { getStatusLabel, StatusBadge } from "@/components/StatusBadge";
 import { MobileTaskSheet } from "@/components/dashboard/MobileTaskSheet";
+import {
+  TodayWorkExecutionQueue,
+  toDashboardMobileTask,
+} from "@/components/dashboard/TodayWorkExecutionQueue";
 import { PremiumStatCard } from "@/components/dashboard/PremiumStatCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +13,11 @@ import {
   classifyNotificationPriority,
   sortNotificationsForQueue,
 } from "@/lib/notificationPriority";
+import {
+  buildTodayWorkItems,
+  type TodayWorkItem,
+  type TodayWorkQueueFilter,
+} from "@/lib/todayWorkExecution";
 import { trpc } from "@/lib/trpc";
 import {
   formatKstLocalDateTime,
@@ -19,7 +28,6 @@ import {
   Bell,
   BellDot,
   CalendarDays,
-  CheckCircle2,
   Clock3,
   FileText,
   LayoutGrid,
@@ -29,7 +37,7 @@ import {
   Users,
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -121,6 +129,8 @@ export function TodayWorkSection({
   const [queuePriorityFilter, setQueuePriorityFilter] = useState<
     "all" | "urgent" | "today" | "general"
   >("all");
+  const [executionQueueFilter, setExecutionQueueFilter] =
+    useState<TodayWorkQueueFilter>("all");
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
   const [postponeMode, setPostponeMode] = useState<"quick" | "custom">("quick");
   const [customPostponeDate, setCustomPostponeDate] = useState("");
@@ -180,6 +190,10 @@ export function TodayWorkSection({
     void refetchRecommendationSummary();
   };
   const cards = data?.cards;
+  const todayWorkItems = useMemo(
+    () => buildTodayWorkItems(data ?? undefined),
+    [data]
+  );
   const topContacts = recommendationSummary?.topContacts ?? [];
   const rolePriorityText =
     role === "branch_admin"
@@ -386,59 +400,6 @@ export function TodayWorkSection({
         : (cards?.todayScheduleCount ?? 0) > 0
           ? "오늘 일정 보기"
           : "일정 등록하기";
-  const mobileFollowUpTasks = [
-    ...(data?.overdueFollowUps ?? []).map(item => ({
-      ...item,
-      taskType: "followUp",
-      priorityLabel: "기한 경과",
-    })),
-    ...(data?.todayFollowUps ?? []).map(item => ({
-      ...item,
-      taskType: "followUp",
-      priorityLabel: "오늘 연락",
-    })),
-  ]
-    .filter(
-      (item, index, rows) => rows.findIndex(row => row.id === item.id) === index
-    )
-    .slice(0, 4);
-  const mobileScheduleTasks = [
-    ...(data?.incompleteSchedules ?? []).map(item => ({
-      ...item,
-      taskType: "schedule",
-      priorityLabel: "미완료",
-    })),
-    ...(data?.todaySchedules ?? []).map(item => ({
-      ...item,
-      taskType: "schedule",
-      priorityLabel: "오늘 일정",
-    })),
-  ]
-    .filter(
-      (item, index, rows) => rows.findIndex(row => row.id === item.id) === index
-    )
-    .slice(0, 4);
-  const mobileNotificationTasks = (data?.pendingNotifications ?? [])
-    .slice(0, 4)
-    .map(item => ({
-      ...item,
-      taskType: "notification",
-      priorityLabel: "미확인",
-    }));
-  const mobileLongUnmanagedTasks = (data?.longUnmanagedCustomers ?? [])
-    .filter(Boolean)
-    .slice(0, 3)
-    .map(item => ({
-      ...item,
-      taskType: "customer",
-      priorityLabel: "장기 미관리",
-    }));
-  const hasMobileTasks =
-    mobileFollowUpTasks.length +
-      mobileScheduleTasks.length +
-      mobileNotificationTasks.length +
-      mobileLongUnmanagedTasks.length >
-    0;
   const isTaskBusy =
     Boolean(busyTaskKey) ||
     followUpCompleteMutation.isPending ||
@@ -480,6 +441,56 @@ export function TodayWorkSection({
       busyTaskKeyRef.current = null;
     }
   };
+
+  const handleExecutionPrimaryAction = (item: TodayWorkItem) => {
+    if (item.type === "followup") {
+      void runTask(
+        item.key,
+        () => followUpCompleteMutation.mutateAsync({ id: item.id }),
+        "후속관리를 완료했습니다."
+      );
+      return;
+    }
+    if (item.type === "schedule") {
+      void runTask(
+        item.key,
+        () =>
+          scheduleUpdateMutation.mutateAsync({
+            id: item.id,
+            status: "완료",
+          }),
+        "일정을 완료했습니다."
+      );
+      return;
+    }
+    if (item.type === "notification") {
+      void runTask(
+        item.key,
+        async () => {
+          await markReadMutation.mutateAsync({ id: item.id });
+        },
+        "알림을 확인했습니다."
+      );
+      return;
+    }
+    void runTask(
+      item.key,
+      () =>
+        customerUpdateMutation.mutateAsync({
+          id: item.id,
+          consultStatus: "통화완료",
+        }),
+      "연락 완료로 기록했습니다."
+    );
+  };
+
+  const openExecutionItem = (item: TodayWorkItem) => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setSelectedTask(toDashboardMobileTask(item));
+      return;
+    }
+    setLocation(item.route);
+  };
   const taskTitle = selectedTask
     ? selectedTask.taskType === "followUp"
       ? (selectedTask.customerName ?? `고객 #${selectedTask.customerId}`)
@@ -489,69 +500,6 @@ export function TodayWorkSection({
           ? selectedTask.title
           : selectedTask.name
     : "";
-
-  const mobileTaskPriorityTone = (task: any) => {
-    if (task.taskType === "followUp" && task.priorityLabel === "기한 경과") {
-      return "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200";
-    }
-    if (task.taskType === "followUp") {
-      return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/30 dark:text-amber-200";
-    }
-    if (task.taskType === "schedule" && task.priorityLabel === "미완료") {
-      return "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-200";
-    }
-    if (task.taskType === "schedule") {
-      return "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-200";
-    }
-    if (task.taskType === "notification") {
-      return "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900/40 dark:bg-blue-950/30 dark:text-blue-200";
-    }
-    if (task.taskType === "customer") {
-      return "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-800 dark:bg-slate-950/30 dark:text-slate-200";
-    }
-    return "border-border bg-muted text-muted-foreground";
-  };
-
-  const renderMobileTaskButton = (task: any) => {
-    const title =
-      task.taskType === "followUp"
-        ? (task.customerName ?? `고객 #${task.customerId}`)
-        : task.taskType === "schedule"
-          ? task.title
-          : task.taskType === "notification"
-            ? task.title
-            : task.name;
-    const description =
-      task.taskType === "followUp"
-        ? `${task.nextAction ?? "연락"} · ${task.reason ?? "후속관리"}`
-        : task.taskType === "schedule"
-          ? `${formatKstLocalDateTime(task.startTime, { seconds: false }).slice(11, 16)} · ${task.type}`
-          : task.taskType === "notification"
-            ? `${task.type}${task.customerName ? ` · ${task.customerName}` : ""}`
-            : `${task.consultStatus ?? "고객"} · 기존 기준 점검`;
-    return (
-      <button
-        key={`${task.taskType}-${task.id}`}
-        type="button"
-        onClick={() => setSelectedTask(task)}
-        className="crm-dashboard-action min-h-12 w-full rounded-lg border border-border bg-card p-3.5 text-left shadow-sm active:bg-muted/50"
-      >
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
-            {title}
-          </span>
-          <span
-            className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${mobileTaskPriorityTone(task)}`}
-          >
-            {task.priorityLabel}
-          </span>
-        </div>
-        <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
-          {description}
-        </p>
-      </button>
-    );
-  };
 
   return (
     <section className="space-y-5">
@@ -564,14 +512,14 @@ export function TodayWorkSection({
                 variant="outline"
                 className="border-sidebar-primary/45 bg-sidebar-primary/10 font-semibold text-foreground"
               >
-                오늘의 지휘센터 · {roleTitle}
+                오늘 업무 · {roleTitle}
               </Badge>
               <h1 className="mt-3 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-                {userName ?? "담당자"}님, 지금 처리할 업무부터 보세요.
+                {userName ?? "담당자"}님, 먼저 처리할 일부터 보세요.
               </h1>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {rolePriorityText} 오늘 연락할 고객, 미처리 업무, 일정, 알림을
-                한 번에 확인하세요.
+                {rolePriorityText} 일정·후속관리·알림을 한 화면에서 확인하고
+                바로 처리할 수 있습니다.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -659,6 +607,19 @@ export function TodayWorkSection({
           ))}
         </div>
       ) : null}
+
+      <TodayWorkExecutionQueue
+        items={todayWorkItems}
+        filter={executionQueueFilter}
+        onFilterChange={setExecutionQueueFilter}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={retryTodayWork}
+        onSelectItem={openExecutionItem}
+        onPrimaryAction={handleExecutionPrimaryAction}
+        onNavigate={setLocation}
+        busyItemKey={busyTaskKey}
+      />
 
       <div className="hidden gap-3 md:grid md:grid-cols-4 xl:grid-cols-7">
         <PremiumStatCard
@@ -788,86 +749,6 @@ export function TodayWorkSection({
               </button>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      <Card className="crm-dashboard-card md:hidden">
-        <CardHeader className="border-b border-border/60 pb-3">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-            3터치 빠른 처리
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4 px-4 pb-4">
-          {isLoading ? (
-            <div className="space-y-2">
-              {[0, 1, 2].map(item => (
-                <div
-                  key={item}
-                  className="h-16 animate-pulse rounded-lg bg-muted"
-                />
-              ))}
-            </div>
-          ) : isError ? (
-            <ErrorState
-              title="오늘 업무를 불러오지 못했습니다."
-              description="업무 수치를 0건으로 표시하지 않고 있습니다. 잠시 후 다시 시도해 주세요."
-              retryLabel="다시 시도"
-              onRetry={retryTodayWork}
-              className="border-0 bg-transparent py-6"
-            />
-          ) : !hasMobileTasks ? (
-            <EmptyState
-              action={
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={() => setLocation("/calendar")}
-                >
-                  일정 등록
-                </Button>
-              }
-            >
-              처리할 업무가 없습니다.
-            </EmptyState>
-          ) : (
-            <>
-              {mobileFollowUpTasks.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    미처리 후속관리
-                  </p>
-                  {mobileFollowUpTasks.map(renderMobileTaskButton)}
-                </div>
-              )}
-              {mobileScheduleTasks.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    오늘 일정
-                  </p>
-                  {mobileScheduleTasks.map(renderMobileTaskButton)}
-                </div>
-              )}
-              {mobileNotificationTasks.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    미확인 알림
-                  </p>
-                  {mobileNotificationTasks.map(renderMobileTaskButton)}
-                </div>
-              )}
-              {mobileLongUnmanagedTasks.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    장기 미관리 고객
-                  </p>
-                  {mobileLongUnmanagedTasks.map(renderMobileTaskButton)}
-                </div>
-              )}
-            </>
-          )}
         </CardContent>
       </Card>
 
@@ -1322,7 +1203,7 @@ export function TodayWorkSection({
                       className="h-8 px-2 text-xs"
                       onClick={() =>
                         setLocation(
-                          `/customers/${contact.customerId}?action=followup`
+                          `/customers/${contact.customerId}?action=quick-followup`
                         )
                       }
                     >

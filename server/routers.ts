@@ -11832,6 +11832,7 @@ export const appRouter = router({
             startTime: schedule.startTime,
             endTime: schedule.endTime,
             userId: schedule.userId,
+            customerId: schedule.customerId ?? null,
           })),
           incompleteSchedules: incompleteSchedules
             .slice(0, 8)
@@ -11843,6 +11844,7 @@ export const appRouter = router({
               startTime: schedule.startTime,
               endTime: schedule.endTime,
               userId: schedule.userId,
+              customerId: schedule.customerId ?? null,
             })),
           pendingNotifications: pendingNotifications
             .slice(0, 8)

@@ -156,7 +156,20 @@ export function MobileTaskSheet({
                   <Button
                     type="button"
                     variant="outline"
-                    className="min-h-12 text-red-700"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() =>
+                      onNavigate(
+                        `/customers/${selectedTask.customerId}?action=quick-followup`
+                      )
+                    }
+                  >
+                    후속 등록
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
                     disabled={isTaskBusy}
                     onClick={() => onConfirmActionChange("cancelFollowUp")}
                   >
@@ -236,14 +249,41 @@ export function MobileTaskSheet({
                 >
                   일정 보기
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={() => onNavigate("/customers")}
-                >
-                  상담기록
-                </Button>
+                {selectedTask.customerId ? (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-12"
+                      onClick={() =>
+                        onNavigate(`/customers/${selectedTask.customerId}`)
+                      }
+                    >
+                      고객 보기
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-12"
+                      onClick={() =>
+                        onNavigate(
+                          `/customers/${selectedTask.customerId}?action=quick-followup`
+                        )
+                      }
+                    >
+                      후속 등록
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={() => onNavigate("/customers")}
+                  >
+                    상담기록
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
@@ -277,9 +317,21 @@ export function MobileTaskSheet({
                   type="button"
                   variant="outline"
                   className="min-h-12"
-                  onClick={() => onNavigate("/notifications")}
+                  onClick={() => {
+                    if (
+                      selectedTask.relatedType === "customer" &&
+                      selectedTask.relatedId
+                    ) {
+                      onNavigate(`/customers/${selectedTask.relatedId}`);
+                      return;
+                    }
+                    onNavigate("/notifications");
+                  }}
                 >
-                  알림센터
+                  {selectedTask.relatedType === "customer" &&
+                  selectedTask.relatedId
+                    ? "고객 보기"
+                    : "알림센터"}
                 </Button>
                 <Button
                   type="button"
