@@ -817,7 +817,7 @@ export default function Notifications() {
                           </span>
                           {!n.isRead && (
                             <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
-                              미읽음
+                              읽지 않음
                             </span>
                           )}
                           <span className="text-xs text-muted-foreground sm:ml-auto">

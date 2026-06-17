@@ -159,11 +159,11 @@ List<DashboardPulseMetric> buildDashboardPulseMetrics({
       hasData: pendingFollowUpCount > 0,
     ),
     DashboardPulseMetric(
-      label: '미확인 알림',
+      label: '읽지 않은 알림',
       valueText: unreadNotificationCount > 0 ? '$unreadNotificationCount건' : '0건',
       hint: unreadNotificationCount > 0 ? '확인이 필요한 알림' : '새 알림이 없습니다',
       progress: notificationProgress,
-      progressLabel: unreadNotificationCount > 0 ? '미확인 $unreadNotificationCount건' : null,
+      progressLabel: unreadNotificationCount > 0 ? '읽지 않은 알림 $unreadNotificationCount건' : null,
       hasData: unreadNotificationCount > 0,
     ),
   ];

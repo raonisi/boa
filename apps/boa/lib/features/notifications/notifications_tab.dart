@@ -125,17 +125,17 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                       const SizedBox(height: 4),
                       unreadAsync.when(
                         data: (count) => Text(
-                          count > 0 ? '미확인 알림 $count건 · 긴급 → 오늘 → 일반 순' : '아직 처리할 알림이 없습니다.',
+                          count > 0 ? '읽지 않은 알림 $count건 · 긴급 → 오늘 → 일반 순' : '아직 처리할 알림이 없습니다.',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
                         loading: () => Text(
-                          '미확인 알림을 불러오는 중…',
+                          '읽지 않은 알림을 불러오는 중…',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
                         error: (_, __) => Text(
-                          unreadInList > 0 ? '미확인 $unreadInList건 (목록 기준)' : '새 알림이 없습니다.',
+                          unreadInList > 0 ? '읽지 않은 알림 $unreadInList건 (목록 기준)' : '새 알림이 없습니다.',
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
                       ),
@@ -227,7 +227,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
                   },
                 ),
                 ChoiceChip(
-                  label: Text('미확인${unreadInList > 0 ? ' ($unreadInList)' : ''}'),
+                  label: Text('읽지 않음${unreadInList > 0 ? ' ($unreadInList)' : ''}'),
                   selected: _readFilter == NotificationReadFilter.unread,
                   onSelected: (_) {
                     if (_readFilter == NotificationReadFilter.unread) return;
@@ -318,7 +318,7 @@ class _NotificationsTabState extends ConsumerState<NotificationsTab> {
 
   String _emptyTitle() {
     if (_readFilter == NotificationReadFilter.unread) {
-      return _priorityFilter == _NotificationFilter.all ? '새 알림이 없습니다.' : '미확인 알림이 없습니다.';
+      return _priorityFilter == _NotificationFilter.all ? '새 알림이 없습니다.' : '읽지 않은 알림이 없습니다.';
     }
     if (_readFilter == NotificationReadFilter.read) return '읽은 알림이 없습니다.';
     if (_priorityFilter != _NotificationFilter.all) return '선택한 우선순위 알림이 없습니다.';

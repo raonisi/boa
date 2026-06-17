@@ -255,7 +255,7 @@ export function TodayWorkSection({
   const fieldQueueBase = [
     {
       key: "notifications",
-      title: "미확인 알림",
+      title: "읽지 않은 알림",
       count: cards?.pendingNotificationCount ?? 0,
       hint: "즉시 확인이 필요한 알림",
       actionLabel: "알림센터",
@@ -377,7 +377,7 @@ export function TodayWorkSection({
   );
   const commandItems = [
     {
-      label: "미확인 알림",
+      label: "읽지 않은 알림",
       value: cards?.pendingNotificationCount ?? 0,
       path: "/notifications",
       tone: "text-red-700",
@@ -405,7 +405,7 @@ export function TodayWorkSection({
     {
       label: "긴급 알림 처리",
       value: priorityCounts.urgent,
-      helper: "미확인 알림 중 긴급 분류",
+      helper: "읽지 않은 알림 중 긴급 분류",
       path: "/notifications",
       tone: "border-red-200 bg-red-50/70 text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-200",
     },
@@ -755,7 +755,7 @@ export function TodayWorkSection({
           onRetry={retryTodayWork}
         />
         <PremiumStatCard
-          title="미확인 알림"
+          title="읽지 않은 알림"
           value={cards?.pendingNotificationCount}
           icon={Bell}
           tone="red"
@@ -818,7 +818,7 @@ export function TodayWorkSection({
                 path: "/calendar",
               },
               {
-                label: "미확인",
+                label: "읽지 않은 알림",
                 value: cards?.pendingNotificationCount ?? 0,
                 path: "/notifications",
               },
@@ -1077,7 +1077,7 @@ export function TodayWorkSection({
           {isError ? (
             <ErrorState
               title="알림 업무를 불러오지 못했습니다."
-              description="미확인 알림을 0건으로 표시하지 않고 있습니다. 다시 시도해 주세요."
+              description="읽지 않은 알림을 0건으로 표시하지 않고 있습니다. 다시 시도해 주세요."
               retryLabel="다시 시도"
               onRetry={retryTodayWork}
               className="py-6"
@@ -1096,7 +1096,7 @@ export function TodayWorkSection({
               }
             >
               {queuePriorityFilter === "all"
-                ? "즉시 처리할 미확인 알림이 없습니다. 오늘 일정과 후속관리만 확인하면 됩니다."
+                ? "즉시 처리할 읽지 않은 알림이 없습니다. 오늘 일정과 후속관리만 확인하면 됩니다."
                 : "선택한 우선순위 알림이 없습니다. 다른 우선순위 큐를 확인해보세요."}
             </EmptyState>
           ) : (
@@ -1132,7 +1132,7 @@ export function TodayWorkSection({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs"
+                        className="min-h-11 text-xs sm:h-7 sm:min-h-7"
                         disabled={markReadMutation.isPending}
                         onClick={() =>
                           markReadMutation.mutate({ id: notification.id })
@@ -1143,7 +1143,7 @@ export function TodayWorkSection({
                       <Button
                         type="button"
                         size="sm"
-                        className="h-7 text-xs"
+                        className="min-h-11 text-xs sm:h-7 sm:min-h-7"
                         disabled={completeMutation.isPending}
                         onClick={() =>
                           completeMutation.mutate({
@@ -1158,7 +1158,7 @@ export function TodayWorkSection({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs"
+                        className="min-h-11 text-xs sm:h-7 sm:min-h-7"
                         onClick={() => setLocation(notificationTarget.path)}
                       >
                         {notificationTarget.label}
@@ -1381,7 +1381,7 @@ export function TodayWorkSection({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="h-7 px-2 text-xs"
+                      className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                       onClick={() => setLocation(`/customers/${schedule.customerId}`)}
                     >
                       고객 보기
@@ -1391,7 +1391,7 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     onClick={() =>
                       setLocation(
                         schedule.customerId
@@ -1405,7 +1405,7 @@ export function TodayWorkSection({
                   <Button
                     type="button"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     onClick={() => setLocation("/calendar")}
                   >
                     일정 변경
@@ -1450,7 +1450,7 @@ export function TodayWorkSection({
                 </Button>
               }
             >
-              미확인 알림이 없습니다. 일정 알림은 설정한 시각에 표시됩니다.
+              읽지 않은 알림이 없습니다. 일정 알림은 설정한 시각에 표시됩니다.
             </EmptyState>
           ) : (
             data?.pendingNotifications.slice(0, 5).map(notification => (
@@ -1481,7 +1481,7 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     disabled={markReadMutation.isPending}
                     onClick={() => markReadMutation.mutate({ id: notification.id })}
                   >
@@ -1490,7 +1490,7 @@ export function TodayWorkSection({
                   <Button
                     type="button"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     disabled={completeMutation.isPending}
                     onClick={() =>
                       completeMutation.mutate({
@@ -1507,7 +1507,7 @@ export function TodayWorkSection({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                         onClick={() => setLocation(`/customers/${notification.relatedId}`)}
                       >
                         고객 보기
@@ -1516,7 +1516,7 @@ export function TodayWorkSection({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                         onClick={() =>
                           setLocation(
                             `/customers/${notification.relatedId}?action=quick-followup`
@@ -1529,7 +1529,7 @@ export function TodayWorkSection({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                         onClick={() =>
                           setLocation(
                             `/calendar?customerId=${notification.relatedId}&action=quick-create`
@@ -1545,7 +1545,7 @@ export function TodayWorkSection({
                         type="button"
                         size="sm"
                         variant="outline"
-                        className="h-7 px-2 text-xs"
+                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                         onClick={() => setLocation(notificationTarget.path)}
                       >
                         {notificationTarget.label}
@@ -1556,7 +1556,7 @@ export function TodayWorkSection({
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="h-7 px-2 text-xs"
+                          className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                           onClick={() => setLocation("/customers?action=quick-followup")}
                         >
                           후속관리 등록
@@ -1679,7 +1679,7 @@ export function TodayWorkSection({
                   <Button
                     type="button"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     disabled={followUpCompleteMutation.isPending}
                     onClick={() => followUpCompleteMutation.mutate({ id: followUp.id })}
                   >
@@ -1689,7 +1689,7 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     disabled={followUpPostponeMutation.isPending}
                     onClick={() =>
                       followUpPostponeMutation.mutate({
@@ -1705,7 +1705,7 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     onClick={() => setLocation(`/customers/${followUp.customerId}`)}
                   >
                     고객 보기
@@ -1714,7 +1714,7 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="h-7 px-2 text-xs"
+                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     onClick={() =>
                       setLocation(
                         `/calendar?customerId=${followUp.customerId}&action=quick-create`

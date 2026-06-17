@@ -81,12 +81,12 @@ export function MobileNav() {
         key={item.path}
         type="button"
         onClick={() => goTo(item.path)}
-        className={`relative flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+        className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
           isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
         }`}
       >
         <span
-          className={`relative flex h-10 w-10 items-center justify-center rounded-lg ${
+          className={`relative flex h-12 w-12 items-center justify-center rounded-lg ${
             isActive
               ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25"
               : ""
@@ -109,17 +109,17 @@ export function MobileNav() {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bg-sidebar/98 text-sidebar-foreground shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:shadow-[0_-8px_28px_rgba(0,0,0,0.35)]">
-        <div className="grid min-h-[64px] grid-cols-5 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5">
+        <div className="grid min-h-[68px] grid-cols-5 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5">
           {mobilePrimaryItems.map(item => renderMenuButton(item))}
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className={`flex min-h-[50px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+            className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
               moreOpen ? "text-sidebar-primary" : "text-sidebar-foreground/70"
             }`}
           >
             <span
-              className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+              className={`flex h-12 w-12 items-center justify-center rounded-lg ${
                 moreOpen
                   ? "bg-sidebar-primary/12 ring-1 ring-sidebar-primary/25"
                   : ""

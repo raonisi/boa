@@ -345,7 +345,7 @@ function DashboardLayoutContent({
             ) : null}
           </button>
         </header>
-        <main className="boa-page min-h-[calc(100vh-4rem)] flex-1 p-4 pb-20 md:p-7 md:pb-7">
+        <main className="boa-page min-h-[calc(100vh-4rem)] flex-1 p-3 pb-24 sm:p-4 sm:pb-20 md:p-7 md:pb-7">
           {children}
         </main>
         <MobileNav />

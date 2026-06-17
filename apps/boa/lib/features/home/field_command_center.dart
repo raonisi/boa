@@ -29,7 +29,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 @Deprecated('Use refreshFieldWorkData')
 void invalidateFieldCommandData(WidgetRef ref) => refreshFieldWorkData(ref);
 
-/// 현장 설계사용 Field Command Center — 오늘의 업무 보드.
+/// 현장 설계사용 Field Command Center — 오늘 업무.
 class FieldCommandCenterView extends ConsumerWidget {
   const FieldCommandCenterView({
     super.key,
@@ -204,7 +204,7 @@ class _DashboardHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '오늘의 업무 보드',
+                  '오늘 업무',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: BoaColors.navy,
@@ -223,7 +223,7 @@ class _DashboardHeader extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '오늘의 업무 보드',
+                    '오늘 업무',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: BoaColors.navy,

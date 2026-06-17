@@ -197,7 +197,7 @@ export default function ContractList() {
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                Contracts
+                계약 업무
               </p>
               <h1 className="mt-1 text-2xl font-bold text-slate-950">
                 계약관리
@@ -321,6 +321,18 @@ export default function ContractList() {
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
+                      <p className="text-muted-foreground">고객</p>
+                      <p className="font-medium">
+                        {c.customerId ? `고객 #${c.customerId}` : "-"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">담당자</p>
+                      <p className="font-medium">
+                        {c.agentId ? `담당자 #${c.agentId}` : "-"}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-muted-foreground">계약일</p>
                       <p className="font-medium">
                         {c.contractDate
@@ -346,15 +358,20 @@ export default function ContractList() {
                     </div>
                   </div>
                   {(canDeactivate || canRequestDelete) && (
-                    <div
-                      className="flex justify-end"
-                      onClick={e => e.stopPropagation()}
-                    >
+                    <div className="flex flex-wrap justify-end gap-2" onClick={e => e.stopPropagation()}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11"
+                        onClick={() => setLocation(`/customers/${c.customerId}`)}
+                      >
+                        상세 보기
+                      </Button>
                       {canDeactivate ? (
                         <Button
                           variant="outline"
                           size="sm"
-                          className="min-h-9 text-destructive"
+                          className="min-h-11 text-destructive"
                           onClick={e => handleDeactivate(c.id, e)}
                         >
                           <XCircle className="h-4 w-4 mr-1" /> 계약 삭제
@@ -363,7 +380,7 @@ export default function ContractList() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="min-h-9"
+                          className="min-h-11"
                           onClick={() => setRequestContractId(c.id)}
                         >
                           삭제 요청
