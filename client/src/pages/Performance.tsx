@@ -2,6 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -150,7 +151,12 @@ export default function Performance() {
     ]
   );
 
-  const { data: stats } = trpc.performance.stats.useQuery(statsInput);
+  const {
+    data: stats,
+    isLoading: isStatsLoading,
+    isError: isStatsError,
+    refetch: refetchStats,
+  } = trpc.performance.stats.useQuery(statsInput);
   const { data: goalDashboard } = trpc.performanceGoals.dashboard.useQuery({
     year: now.getFullYear(),
     month: now.getMonth() + 1,
@@ -216,6 +222,17 @@ export default function Performance() {
   const hasPerformanceData = Boolean(
     newContracts || monthlyPremium || stats?.consultRate || stats?.assigned
   );
+  const hasFilterInput =
+    Boolean(monthFilter) ||
+    Boolean(dateFrom) ||
+    Boolean(dateTo) ||
+    agentIdFilter !== "all" ||
+    teamIdFilter !== "all" ||
+    Boolean(productGroupFilter.trim()) ||
+    Boolean(companyFilter.trim()) ||
+    Boolean(regionFilter.trim()) ||
+    Boolean(sourceFilter.trim()) ||
+    (user?.role === "branch_admin" && scopeFilter !== "all");
 
   return (
     <DashboardLayout>
@@ -300,13 +317,31 @@ export default function Performance() {
                 </div>
               ))}
             </div>
-            {!hasPerformanceData && (
+            {isStatsLoading ? (
+              <LoadingState
+                title="실적 정보를 불러오는 중입니다."
+                description="선택한 조건의 실적을 계산하고 있습니다."
+                compact
+              />
+            ) : isStatsError ? (
+              <ErrorState
+                title="실적 정보를 불러오지 못했습니다."
+                description="잠시 후 다시 시도해 주세요."
+                retryLabel="새로고침"
+                onRetry={() => refetchStats()}
+                compact
+              />
+            ) : !hasPerformanceData ? (
               <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-white p-4">
                 <p className="text-sm font-semibold text-slate-900">
-                  아직 실적 데이터가 없습니다.
+                  {hasFilterInput
+                    ? "선택한 기간의 실적 데이터가 없습니다."
+                    : "등록된 실적 데이터가 없습니다."}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  신규 계약 또는 상담기록을 등록하면 실적 흐름이 표시됩니다.
+                  {hasFilterInput
+                    ? "기간 또는 필터를 조정한 뒤 다시 확인해 주세요."
+                    : "신규 계약 또는 상담기록을 등록하면 실적 흐름이 표시됩니다."}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   <Button
@@ -326,7 +361,7 @@ export default function Performance() {
                   </Button>
                 </div>
               </div>
-            )}
+            ) : null}
           </CardContent>
         </Card>
 

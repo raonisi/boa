@@ -70,7 +70,7 @@ class BoaListLoadingSkeleton extends StatelessWidget {
 class BoaLoadingState extends StatelessWidget {
   const BoaLoadingState({
     super.key,
-    this.title = '불러오는 중…',
+    this.title = '불러오고 있습니다.',
     this.message = '잠시만 기다려 주세요.',
   });
 
@@ -94,8 +94,8 @@ class BoaLoadingState extends StatelessWidget {
 class BoaForbiddenState extends StatelessWidget {
   const BoaForbiddenState({
     super.key,
-    this.title = '접근 권한이 없습니다',
-    this.message = '이 화면은 현재 권한으로 사용할 수 없습니다.',
+    this.title = '접근 권한이 없습니다.',
+    this.message = '이 화면을 볼 수 있는 권한이 없습니다. 필요한 경우 관리자에게 문의해 주세요.',
   });
 
   final String title;
@@ -178,7 +178,7 @@ class BoaErrorState extends StatelessWidget {
   const BoaErrorState({
     super.key,
     required this.message,
-    this.title = '정보를 불러오지 못했습니다',
+    this.title = '정보를 불러오지 못했습니다.',
     this.onRetry,
   });
 

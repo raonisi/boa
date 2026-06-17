@@ -24,7 +24,7 @@ import {
   sortNotificationsForQueue,
 } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Bell,
   BellOff,
@@ -139,7 +139,12 @@ export default function Notifications() {
     offset,
   };
 
-  const { data: result } = trpc.notifications.list.useQuery(queryInput);
+  const {
+    data: result,
+    isLoading: isNotificationsLoading,
+    isError: isNotificationsError,
+    refetch: refetchNotifications,
+  } = trpc.notifications.list.useQuery(queryInput);
   const notifications = result?.items ?? [];
   const filteredNotifications = notifications.filter(n =>
     priorityFilter === "all"
@@ -307,7 +312,7 @@ export default function Notifications() {
     isReadFilter !== "all"
       ? {
           key: "isRead",
-          label: isReadFilter === "unread" ? "읽음: 미읽음" : "읽음: 읽음",
+          label: isReadFilter === "unread" ? "읽음: 읽지 않음" : "읽음: 읽음",
           clear: () => {
             setIsReadFilter("all");
             setOffset(0);
@@ -532,7 +537,7 @@ export default function Notifications() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
-                  <SelectItem value="unread">미읽음</SelectItem>
+                  <SelectItem value="unread">읽지 않음</SelectItem>
                   <SelectItem value="read">읽음</SelectItem>
                 </SelectContent>
               </Select>
@@ -668,19 +673,65 @@ export default function Notifications() {
         </div>
 
         {/* 알림 목록 */}
-        {filteredNotifications.length === 0 ? (
+        {isNotificationsLoading ? (
+          <LoadingState
+            title="알림을 불러오는 중입니다."
+            description="현재 조건의 알림을 확인하고 있습니다."
+            fullPage
+          />
+        ) : isNotificationsError ? (
+          <ErrorState
+            title="알림 정보를 불러오지 못했습니다."
+            description="잠시 후 다시 시도해 주세요."
+            retryLabel="새로고침"
+            onRetry={() => refetchNotifications()}
+            fullPage
+          />
+        ) : filteredNotifications.length === 0 ? (
           <EmptyState
             icon={BellOff}
-            title="현재 확인할 알림이 없습니다."
-            description="일정 알림은 설정한 시각에 표시됩니다. 조건을 넓히거나 알림 설정을 확인하세요."
+            title={
+              hasActiveFilters
+                ? "조건에 맞는 알림이 없습니다."
+                : isReadFilter === "unread"
+                  ? "읽지 않은 알림이 없습니다."
+                  : priorityFilter === "urgent" || priorityFilter === "today"
+                    ? "처리할 알림이 없습니다."
+                    : "현재 확인할 알림이 없습니다."
+            }
+            description={
+              hasActiveFilters
+                ? "필터를 조정하거나 초기화해 보세요."
+                : "일정 알림은 설정한 시각에 표시됩니다. 알림 설정을 확인해 주세요."
+            }
             action={
+              hasActiveFilters ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="min-h-12 sm:min-h-8"
+                  onClick={clearFilters}
+                >
+                  <Filter className="h-4 w-4 mr-1" /> 필터 초기화
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="min-h-12 sm:min-h-8"
+                  onClick={() => setLocation("/notification-preferences")}
+                >
+                  <Settings className="h-4 w-4 mr-1" /> 알림 설정 보기
+                </Button>
+              )
+            }
+            secondaryAction={
               <Button
                 size="sm"
-                variant="outline"
                 className="min-h-12 sm:min-h-8"
-                onClick={() => setLocation("/notification-preferences")}
+                onClick={() => setLocation("/dashboard")}
               >
-                <Settings className="h-4 w-4 mr-1" /> 알림 설정 보기
+                오늘 업무로 이동
               </Button>
             }
           />

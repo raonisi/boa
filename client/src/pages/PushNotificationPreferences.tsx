@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ErrorState, LoadingState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -44,8 +45,12 @@ const notificationRows: Array<{
 
 export default function PushNotificationPreferences() {
   const utils = trpc.useUtils();
-  const { data: preferences, isLoading } =
-    trpc.pushNotifications.getPreferences.useQuery();
+  const {
+    data: preferences,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.pushNotifications.getPreferences.useQuery();
   const updateMutation = trpc.pushNotifications.updatePreferences.useMutation({
     onSuccess: () => {
       toast.success("앱 알림 설정이 저장되었습니다.");
@@ -83,10 +88,26 @@ export default function PushNotificationPreferences() {
           </CardContent>
         </Card>
 
-        {isLoading || !preferences ? (
+        {isLoading ? (
           <Card>
-            <CardContent className="p-8 text-center text-sm text-slate-500">
-              알림 설정을 불러오는 중입니다.
+            <CardContent className="p-4">
+              <LoadingState
+                title="알림 설정을 불러오는 중입니다."
+                description="설정 정보를 확인하고 있습니다."
+                compact
+              />
+            </CardContent>
+          </Card>
+        ) : isError || !preferences ? (
+          <Card>
+            <CardContent className="p-4">
+              <ErrorState
+                title="알림 설정을 불러오지 못했습니다."
+                description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+                retryLabel="새로고침"
+                onRetry={() => refetch()}
+                compact
+              />
             </CardContent>
           </Card>
         ) : (

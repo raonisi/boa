@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +43,12 @@ export default function Settings() {
   const [showAdd, setShowAdd] = useState(false);
   const [newValue, setNewValue] = useState("");
 
-  const { data: settings } = trpc.settings.list.useQuery({
+  const {
+    data: settings,
+    isLoading: isSettingsLoading,
+    isError: isSettingsError,
+    refetch: refetchSettings,
+  } = trpc.settings.list.useQuery({
     category: activeTab,
   });
 
@@ -116,9 +122,33 @@ export default function Settings() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
-                  {(settings ?? []).length === 0 ? (
-                    <div className="py-8 text-center text-muted-foreground text-sm">
-                      등록된 항목이 없습니다.
+                  {isSettingsLoading ? (
+                    <div className="p-4">
+                      <LoadingState
+                        title="설정을 불러오는 중입니다."
+                        description="설정 항목을 준비하고 있습니다."
+                        compact
+                      />
+                    </div>
+                  ) : isSettingsError ? (
+                    <div className="p-4">
+                      <ErrorState
+                        title="설정을 불러오지 못했습니다."
+                        description="잠시 후 다시 시도해 주세요."
+                        retryLabel="새로고침"
+                        onRetry={() => refetchSettings()}
+                        compact
+                      />
+                    </div>
+                  ) : (settings ?? []).length === 0 ? (
+                    <div className="p-4">
+                      <EmptyState
+                        title="등록된 설정이 없습니다."
+                        description="새 항목을 추가하면 이 화면에서 바로 관리할 수 있습니다."
+                        actionLabel="항목 추가"
+                        onAction={() => setShowAdd(true)}
+                        compact
+                      />
                     </div>
                   ) : (
                     <div className="divide-y">

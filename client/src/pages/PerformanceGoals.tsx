@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -97,7 +98,12 @@ export default function PerformanceGoals() {
   const [personalTargetRoleFilter, setPersonalTargetRoleFilter] =
     useState<PersonalGoalRoleFilter>("all");
 
-  const { data: dashboard } = trpc.performanceGoals.dashboard.useQuery({
+  const {
+    data: dashboard,
+    isLoading: isDashboardLoading,
+    isError: isDashboardError,
+    refetch: refetchDashboard,
+  } = trpc.performanceGoals.dashboard.useQuery({
     year,
     month,
   });
@@ -257,7 +263,31 @@ export default function PerformanceGoals() {
           </Card>
         </div>
 
-        {items.length === 0 && (
+        {isDashboardLoading ? (
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="p-4">
+              <LoadingState
+                title="목표 정보를 불러오는 중입니다."
+                description="선택한 기간의 목표를 확인하고 있습니다."
+                compact
+              />
+            </CardContent>
+          </Card>
+        ) : isDashboardError ? (
+          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <CardContent className="p-4">
+              <ErrorState
+                title="목표 정보를 불러오지 못했습니다."
+                description="잠시 후 다시 시도해 주세요."
+                retryLabel="새로고침"
+                onRetry={() => refetchDashboard()}
+                compact
+              />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {!isDashboardLoading && !isDashboardError && items.length === 0 && (
           <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
             <CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
               <div>
@@ -615,10 +645,11 @@ export default function PerformanceGoals() {
           </CardHeader>
           <CardContent className="space-y-3 p-4 md:hidden">
             {items.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
-                조건에 맞는 목표가 없습니다. 목표를 설정하면 필요한 상담량과
-                계약량을 계산할 수 있습니다.
-              </div>
+              <EmptyState
+                title="등록된 목표가 없습니다."
+                description="목표를 등록하면 진행률과 부족분을 확인할 수 있습니다."
+                compact
+              />
             ) : (
               items.map((item: any) => {
                 const status = goalStatus(item);
@@ -724,8 +755,8 @@ export default function PerformanceGoals() {
                       colSpan={user?.role === "branch_admin" ? 9 : 8}
                       className="py-8 text-center text-sm text-muted-foreground"
                     >
-                      조건에 맞는 목표가 없습니다. 목표를 설정하면 필요한
-                      상담량과 계약량을 계산할 수 있습니다.
+                      등록된 목표가 없습니다. 목표를 등록하면 진행률을 확인할 수
+                      있습니다.
                     </TableCell>
                   </TableRow>
                 ) : (

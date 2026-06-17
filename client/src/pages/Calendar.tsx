@@ -8,6 +8,7 @@ import {
 } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -307,15 +308,13 @@ function ScheduleEmptyState({
   onCreate: () => void;
 }) {
   return (
-    <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center">
-      <p className="text-sm font-semibold text-slate-900">{title}</p>
-      <p className="mt-1 text-xs text-slate-500">{description}</p>
-      <div className="mt-3 flex justify-center gap-2">
-        <Button size="sm" className="min-h-12 md:min-h-8" onClick={onCreate}>
-          <Plus className="h-4 w-4 mr-1" /> 일정 추가
-        </Button>
-      </div>
-    </div>
+    <EmptyState
+      title={title}
+      description={description}
+      actionLabel="일정 추가"
+      onAction={onCreate}
+      compact
+    />
   );
 }
 
@@ -585,8 +584,12 @@ export default function Calendar() {
     calendarCategoryFilter,
   ]);
   const isMobile = useIsMobile();
-  const { data: scheduleListData } =
-    trpc.schedules.list.useQuery(scheduleListInput);
+  const {
+    data: scheduleListData,
+    isLoading: isSchedulesLoading,
+    isError: isSchedulesError,
+    refetch: refetchSchedules,
+  } = trpc.schedules.list.useQuery(scheduleListInput);
   const schedules = (scheduleListData?.schedules ?? []) as CalendarSchedule[];
   const scheduleViewUsers = scheduleListData?.users ?? [];
   const scheduleViewTeams = scheduleListData?.teams ?? [];
@@ -783,10 +786,28 @@ export default function Calendar() {
       tone: "text-blue-700",
     },
   ];
+  const scheduleStatePanel = isSchedulesLoading ? (
+    <LoadingState
+      title="일정을 불러오는 중입니다."
+      description="선택한 범위의 일정을 확인하고 있습니다."
+      fullPage
+    />
+  ) : isSchedulesError ? (
+    <ErrorState
+      title="일정을 불러오지 못했습니다."
+      description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+      retryLabel="새로고침"
+      onRetry={() => refetchSchedules()}
+      fullPage
+    />
+  ) : null;
 
   if (isMobile) {
     return (
       <DashboardLayout>
+        {scheduleStatePanel ? (
+          scheduleStatePanel
+        ) : (
         <div className="space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
           <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="flex items-center justify-between gap-3 p-4">
@@ -1046,6 +1067,7 @@ export default function Calendar() {
             </CardContent>
           </Card>
         </div>
+        )}
 
         {/* 모달들 */}
         <ScheduleQuickCreateDialog
@@ -1097,6 +1119,9 @@ export default function Calendar() {
   // PC 뷰
   return (
     <DashboardLayout>
+      {scheduleStatePanel ? (
+        scheduleStatePanel
+      ) : (
       <div className="space-y-5">
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -1422,6 +1447,7 @@ export default function Calendar() {
           </Card>
         </div>
       </div>
+      )}
 
       <ScheduleQuickCreateDialog
         open={showQuickModal}

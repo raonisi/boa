@@ -1,6 +1,7 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -37,7 +38,7 @@ export default function CustomerMergeManagement() {
   const [confirmText, setConfirmText] = useState("");
   const [reason, setReason] = useState("");
 
-  const { data: groups, isLoading } =
+  const { data: groups, isLoading, isError, refetch } =
     trpc.customerMerge.findDuplicates.useQuery({
       search: search || undefined,
       onlyActive: true,
@@ -116,13 +117,31 @@ export default function CustomerMergeManagement() {
             </div>
 
             {isLoading ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                중복 후보를 확인하는 중입니다.
-              </div>
+              <LoadingState
+                title="중복 후보를 불러오는 중입니다."
+                description="연락처 기준 중복 고객을 확인하고 있습니다."
+                compact
+              />
+            ) : isError ? (
+              <ErrorState
+                title="중복 후보를 불러오지 못했습니다."
+                description="잠시 후 다시 시도해 주세요."
+                retryLabel="새로고침"
+                onRetry={() => refetch()}
+                compact
+              />
             ) : (groups ?? []).length === 0 ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                동일 연락처 기준 중복 후보가 없습니다.
-              </div>
+              <EmptyState
+                title="병합 후보 고객이 없습니다."
+                description={
+                  search
+                    ? "조건을 바꿔 다시 검색해 보세요."
+                    : "동일 연락처 기준 중복 후보가 없습니다."
+                }
+                actionLabel={search ? "검색 초기화" : undefined}
+                onAction={search ? () => setSearch("") : undefined}
+                compact
+              />
             ) : (
               <div className="space-y-4">
                 {(groups ?? []).map((group: any) => (
@@ -309,9 +328,11 @@ export default function CustomerMergeManagement() {
               <DialogTitle>고객 병합 미리보기</DialogTitle>
             </DialogHeader>
             {!preview ? (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                미리보기를 불러오는 중입니다.
-              </div>
+              <LoadingState
+                title="병합 미리보기를 불러오는 중입니다."
+                description="선택한 고객의 이관 항목을 확인하고 있습니다."
+                compact
+              />
             ) : (
               <div className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-3">

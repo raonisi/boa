@@ -2,6 +2,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -53,12 +54,22 @@ export default function UserHandoffManagement() {
   const [confirmText, setConfirmText] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const { data: users } = trpc.adminHandoff.listUsers.useQuery();
+  const {
+    data: users,
+    isLoading: isUsersLoading,
+    isError: isUsersError,
+    refetch: refetchUsers,
+  } = trpc.adminHandoff.listUsers.useQuery();
   const { data: preview } = trpc.adminHandoff.preview.useQuery(
     { sourceUserId: sourceUserId ?? 0 },
     { enabled: !!sourceUserId }
   );
-  const { data: histories } = trpc.adminHandoff.history.useQuery({ limit: 20 });
+  const {
+    data: histories,
+    isLoading: isHistoriesLoading,
+    isError: isHistoriesError,
+    refetch: refetchHistories,
+  } = trpc.adminHandoff.history.useQuery({ limit: 20 });
 
   const sourceUsers = users ?? [];
   const targetUsers = useMemo(
@@ -134,6 +145,22 @@ export default function UserHandoffManagement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
+              {isUsersLoading ? (
+                <LoadingState
+                  title="사용자 정보를 불러오는 중입니다."
+                  description="인수인계 대상 사용자를 준비하고 있습니다."
+                  compact
+                />
+              ) : isUsersError ? (
+                <ErrorState
+                  title="사용자 정보를 불러오지 못했습니다."
+                  description="잠시 후 다시 시도해 주세요."
+                  retryLabel="새로고침"
+                  onRetry={() => refetchUsers()}
+                  compact
+                />
+              ) : null}
+
               <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <p className="mb-3 text-xs font-semibold text-slate-500">
                   1. 인계자 · 인수자 선택
@@ -155,12 +182,18 @@ export default function UserHandoffManagement() {
                         <SelectValue placeholder="업무를 넘기는 사용자를 선택하세요" />
                       </SelectTrigger>
                       <SelectContent>
-                        {sourceUsers.map((user: any) => (
-                          <SelectItem key={user.id} value={String(user.id)}>
-                            {formatUserWithRole(user)} ·{" "}
-                            {getUserStatusLabel(user.accountStatus)}
+                        {sourceUsers.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            인수인계 대상 사용자가 없습니다.
                           </SelectItem>
-                        ))}
+                        ) : (
+                          sourceUsers.map((user: any) => (
+                            <SelectItem key={user.id} value={String(user.id)}>
+                              {formatUserWithRole(user)} ·{" "}
+                              {getUserStatusLabel(user.accountStatus)}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs leading-relaxed text-muted-foreground">
@@ -181,11 +214,17 @@ export default function UserHandoffManagement() {
                         <SelectValue placeholder="업무를 넘겨받을 사용자를 선택하세요" />
                       </SelectTrigger>
                       <SelectContent>
-                        {targetUsers.map((user: any) => (
-                          <SelectItem key={user.id} value={String(user.id)}>
-                            {formatUserWithRole(user)}
+                        {targetUsers.length === 0 ? (
+                          <SelectItem value="none" disabled>
+                            인수 가능한 사용자가 없습니다.
                           </SelectItem>
-                        ))}
+                        ) : (
+                          targetUsers.map((user: any) => (
+                            <SelectItem key={user.id} value={String(user.id)}>
+                              {formatUserWithRole(user)}
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <p className="text-xs leading-relaxed text-muted-foreground">
@@ -379,10 +418,26 @@ export default function UserHandoffManagement() {
             <CardTitle className="text-base">최근 인수인계 이력</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 p-4 md:hidden">
-            {(histories ?? []).length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
-                인수인계 이력이 없습니다.
-              </div>
+            {isHistoriesLoading ? (
+              <LoadingState
+                title="인수인계 이력을 불러오는 중입니다."
+                description="최근 실행 내역을 확인하고 있습니다."
+                compact
+              />
+            ) : isHistoriesError ? (
+              <ErrorState
+                title="인수인계 이력을 불러오지 못했습니다."
+                description="잠시 후 다시 시도해 주세요."
+                retryLabel="새로고침"
+                onRetry={() => refetchHistories()}
+                compact
+              />
+            ) : (histories ?? []).length === 0 ? (
+              <EmptyState
+                title="인수인계 이력이 없습니다."
+                description="실행된 인수인계 작업이 이 화면에 표시됩니다."
+                compact
+              />
             ) : (
               histories?.map((item: any) => (
                 <div

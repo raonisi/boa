@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -75,8 +76,18 @@ const securityActionLabels: Record<string, string> = {
 
 export default function UserManagement() {
   const utils = trpc.useUtils();
-  const { data: users } = trpc.users.list.useQuery();
-  const { data: teams } = trpc.users.teams.useQuery();
+  const {
+    data: users,
+    isLoading: isUsersLoading,
+    isError: isUsersError,
+    refetch: refetchUsers,
+  } = trpc.users.list.useQuery();
+  const {
+    data: teams,
+    isLoading: isTeamsLoading,
+    isError: isTeamsError,
+    refetch: refetchTeams,
+  } = trpc.users.teams.useQuery();
   const [editUser, setEditUser] = useState<any>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [forceLogoutUser, setForceLogoutUser] = useState<any>(null);
@@ -87,9 +98,12 @@ export default function UserManagement() {
   const [allLogoutOpen, setAllLogoutOpen] = useState(false);
   const [allLogoutReason, setAllLogoutReason] = useState("");
   const [allLogoutConfirm, setAllLogoutConfirm] = useState("");
-  const { data: loginHistory } = trpc.adminSecurity.loginHistory.useQuery({
-    limit: 50,
-  });
+  const {
+    data: loginHistory,
+    isLoading: isLoginHistoryLoading,
+    isError: isLoginHistoryError,
+    refetch: refetchLoginHistory,
+  } = trpc.adminSecurity.loginHistory.useQuery({ limit: 50 });
 
   const updateRoleMutation = trpc.users.updateRole.useMutation({
     onSuccess: () => {
@@ -247,11 +261,36 @@ export default function UserManagement() {
 
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-0">
+            {isUsersLoading || isTeamsLoading ? (
+              <div className="p-4">
+                <LoadingState
+                  title="사용자 정보를 불러오는 중입니다."
+                  description="사용자와 팀 정보를 준비하고 있습니다."
+                  compact
+                />
+              </div>
+            ) : isUsersError || isTeamsError ? (
+              <div className="p-4">
+                <ErrorState
+                  title="사용자 정보를 불러오지 못했습니다."
+                  description="잠시 후 다시 시도해 주세요."
+                  retryLabel="새로고침"
+                  onRetry={() => {
+                    refetchUsers();
+                    refetchTeams();
+                  }}
+                  compact
+                />
+              </div>
+            ) : null}
+            {!isUsersLoading && !isTeamsLoading && !isUsersError && !isTeamsError && (
             <div className="space-y-3 p-3 md:hidden">
               {(users ?? []).length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
-                  사용자가 없습니다.
-                </div>
+                <EmptyState
+                  title="등록된 사용자 정보가 없습니다."
+                  description="사용자를 추가하면 권한과 팀 배정을 설정할 수 있습니다."
+                  compact
+                />
               ) : (
                 (users ?? []).map(u => {
                   const team = teams?.find(t => t.id === u.teamId);
@@ -454,6 +493,8 @@ export default function UserManagement() {
                 })
               )}
             </div>
+            )}
+            {!isUsersLoading && !isTeamsLoading && !isUsersError && !isTeamsError && (
             <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader className="bg-slate-50/80">
@@ -667,6 +708,7 @@ export default function UserManagement() {
                 </TableBody>
               </Table>
             </div>
+            )}
           </CardContent>
         </Card>
 
@@ -691,11 +733,29 @@ export default function UserManagement() {
               Google OAuth 연결 초기화, 세션 무효화, 로그인 보안 이력을
               관리합니다. 토큰과 비밀값은 표시하지 않습니다.
             </p>
+            {isLoginHistoryLoading ? (
+              <LoadingState
+                title="보안 이력을 불러오는 중입니다."
+                description="최근 로그인 보안 이력을 확인하고 있습니다."
+                compact
+              />
+            ) : isLoginHistoryError ? (
+              <ErrorState
+                title="보안 이력을 불러오지 못했습니다."
+                description="잠시 후 다시 시도해 주세요."
+                retryLabel="새로고침"
+                onRetry={() => refetchLoginHistory()}
+                compact
+              />
+            ) : null}
+            {!isLoginHistoryLoading && !isLoginHistoryError && (
             <div className="space-y-2 md:hidden">
               {(loginHistory ?? []).slice(0, 10).length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-5 text-center text-sm text-muted-foreground">
-                  로그인 보안 이력이 없습니다.
-                </div>
+                <EmptyState
+                  title="표시할 활동 로그가 없습니다."
+                  description="최근 보안 작업이 이 영역에 표시됩니다."
+                  compact
+                />
               ) : (
                 (loginHistory ?? []).slice(0, 10).map(entry => (
                   <div
@@ -735,6 +795,8 @@ export default function UserManagement() {
                 ))
               )}
             </div>
+            )}
+            {!isLoginHistoryLoading && !isLoginHistoryError && (
             <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
@@ -783,6 +845,7 @@ export default function UserManagement() {
                 </TableBody>
               </Table>
             </div>
+            )}
           </CardContent>
         </Card>
 
