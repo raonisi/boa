@@ -10,6 +10,8 @@ export const ROLE_LABELS = {
   sub_branch_admin: "부지점장",
   team_leader: "팀장",
   member: "팀원",
+  inactive: "비활성 사용자",
+  resigned: "퇴사자",
 } as const;
 
 export const USER_STATUS_LABELS = {

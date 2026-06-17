@@ -422,7 +422,7 @@ export default function Notifications() {
                 수치는 현재 페이지 기준입니다.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                미래 일정 알림은 설정한 dueAt 시각이 도래한 뒤 표시됩니다.
+                미래 일정 알림은 설정한 알림 시간이 되면 표시됩니다.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -573,6 +573,9 @@ export default function Notifications() {
                 className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
               />
             </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              날짜 선택 (브라우저 기본 달력 형식은 기기 설정을 따릅니다)
+            </p>
             {hasActiveFilters && (
               <div className="mt-3 rounded-2xl border border-slate-100 bg-white p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -769,6 +772,10 @@ export default function Notifications() {
               const priority = classifyNotificationPriority(n);
               const primaryAction = getNotificationPrimaryRoute(n);
               const canOpenCustomer = n.relatedType === "customer" && n.relatedId;
+              const showScheduleQuickAction = hasScheduleContext(n);
+              const shouldShowPrimaryAction =
+                primaryAction.path !== "/notifications" &&
+                !(showScheduleQuickAction && primaryAction.path === "/calendar");
               const isSelected = selectedNotificationIds.includes(n.id);
               return (
                 <Card
@@ -889,7 +896,7 @@ export default function Notifications() {
                             처리완료
                           </Button>
                         )}
-                        {primaryAction.path !== "/notifications" && (
+                        {shouldShowPrimaryAction && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -938,7 +945,7 @@ export default function Notifications() {
                           </Button>
                         </>
                       )}
-                      {hasScheduleContext(n) && (
+                      {showScheduleQuickAction && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -1019,7 +1026,7 @@ export default function Notifications() {
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 dueAt 알림 노출
+            읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 알림 노출
             정책은 변경하지 않습니다.
           </div>
           <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">

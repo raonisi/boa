@@ -37,7 +37,12 @@ import {
 import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
-import { formatUserWithRole } from "@/lib/userRole";
+import { formatUserWithRole, getRoleLabel } from "@/lib/userRole";
+import {
+  getCustomerTimelineEventLabel,
+  getCustomerTimelineSummary,
+  shouldHideTimelineEvent,
+} from "@/lib/customerTimelineLabels";
 import {
   expectedPremiumManwonFormStringFromStoredWon,
   expectedPremiumStoredWonFromManwonInput,
@@ -2870,12 +2875,16 @@ function CustomerTimelinePanel({
   onRangeChange: (value: "all" | "30" | "90") => void;
 }) {
   const items = timeline?.items ?? [];
-  const latestConsult = items.find(item => item.source === "consultations");
-  const latestContract = items.find(
+  const visibleItems = items.filter(
+    item => !shouldHideTimelineEvent(item.eventType)
+  );
+  const hiddenViewedCount = items.length - visibleItems.length;
+  const latestConsult = visibleItems.find(item => item.source === "consultations");
+  const latestContract = visibleItems.find(
     item => item.source === "contracts" || item.source === "contract_history"
   );
-  const latestFollowUp = items.find(item => item.source === "follow_ups");
-  const latestAssignment = items.find(
+  const latestFollowUp = visibleItems.find(item => item.source === "follow_ups");
+  const latestAssignment = visibleItems.find(
     item => item.source === "assignment_history"
   );
   const severityClass: Record<string, string> = {
@@ -2902,9 +2911,15 @@ function CustomerTimelinePanel({
               </p>
             </div>
             <div className="text-sm text-muted-foreground">
-              총 {timeline?.totalCount ?? 0}건
+              총 {visibleItems.length}건
             </div>
           </div>
+          {hiddenViewedCount > 0 && (
+            <p className="text-xs text-muted-foreground">
+              조회 기록 {hiddenViewedCount}건은 기본 화면에서 숨기고 중요한 업무
+              기록을 우선 표시합니다.
+            </p>
+          )}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
             {[
               {
@@ -2980,7 +2995,7 @@ function CustomerTimelinePanel({
         </CardContent>
       </Card>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <EmptyState
           icon={History}
           title="아직 표시할 히스토리가 없습니다."
@@ -2988,46 +3003,54 @@ function CustomerTimelinePanel({
         />
       ) : (
         <div className="space-y-3">
-          {items.map(event => (
-            <Card key={event.id}>
-              <CardContent className="p-4">
-                <div className="flex gap-3">
-                  <div className="mt-1 h-9 w-9 rounded-full border flex items-center justify-center shrink-0 bg-background">
-                    <History className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`text-[11px] px-2 py-0.5 rounded-full border ${severityClass[event.severity] ?? severityClass.normal}`}
-                      >
-                        {event.eventLabel}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(event.occurredAt).toLocaleString("ko-KR")}
-                      </span>
+          {visibleItems.map(event => {
+            const eventLabel = getCustomerTimelineEventLabel(event.eventType);
+            const eventSummary = getCustomerTimelineSummary(
+              event.eventType,
+              event.summary
+            );
+            return (
+              <Card key={event.id}>
+                <CardContent className="p-4">
+                  <div className="flex gap-3">
+                    <div className="mt-1 h-9 w-9 rounded-full border flex items-center justify-center shrink-0 bg-background">
+                      <History className="h-4 w-4 text-muted-foreground" />
                     </div>
-                    <p className="text-sm font-medium mt-2 line-clamp-2">
-                      {event.summary}
-                    </p>
-                    {event.detail && (
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                        {event.detail}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className={`text-[11px] px-2 py-0.5 rounded-full border ${severityClass[event.severity] ?? severityClass.normal}`}
+                        >
+                          {eventLabel}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(event.occurredAt).toLocaleString("ko-KR")}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium mt-2 line-clamp-2">
+                        {eventSummary}
                       </p>
-                    )}
-                    <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                      <span>
-                        {event.actorName
-                          ? `처리자: ${event.actorName}`
-                          : "처리자: -"}
-                      </span>
-                      {event.actorRole && <span>역할: {event.actorRole}</span>}
-                      <span>출처: {event.source}</span>
+                      {event.detail && (
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {event.detail}
+                        </p>
+                      )}
+                      <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                        <span>
+                          {event.actorName
+                            ? `처리자: ${event.actorName}`
+                            : "처리자: -"}
+                        </span>
+                        {event.actorRole && (
+                          <span>역할: {getRoleLabel(event.actorRole)}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>
