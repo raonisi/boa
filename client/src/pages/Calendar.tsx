@@ -1073,6 +1073,7 @@ export default function Calendar() {
         <ScheduleQuickCreateDialog
           open={showQuickModal}
           onClose={() => setShowQuickModal(false)}
+          defaultDate={selectedDate}
           defaultCustomerId={defaultCustomerId}
           onSubmit={data => {
             const { presetLabel: _presetLabel, ...payload } = data;
@@ -1452,6 +1453,7 @@ export default function Calendar() {
       <ScheduleQuickCreateDialog
         open={showQuickModal}
         onClose={() => setShowQuickModal(false)}
+        defaultDate={selectedDate}
         defaultCustomerId={defaultCustomerId}
         onSubmit={data => {
           const { presetLabel: _presetLabel, ...payload } = data;

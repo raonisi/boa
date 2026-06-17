@@ -36,6 +36,7 @@ export type DetailedScheduleSeed = {
 type ScheduleQuickCreateDialogProps = {
   open: boolean;
   onClose: () => void;
+  defaultDate?: Date | null;
   defaultCustomerId?: number;
   onSubmit: (data: ReturnType<typeof buildQuickSchedulePayload>) => void;
   onOpenDetailed: (seed: DetailedScheduleSeed) => void;
@@ -69,6 +70,7 @@ function QuickChip({
 export default function ScheduleQuickCreateDialog({
   open,
   onClose,
+  defaultDate,
   defaultCustomerId,
   onSubmit,
   onOpenDetailed,
@@ -88,6 +90,7 @@ export default function ScheduleQuickCreateDialog({
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
   const [showMemo, setShowMemo] = useState(false);
+  const [timeModified, setTimeModified] = useState(false);
 
   const preset = useMemo(
     () => SCHEDULE_QUICK_PRESETS.find(item => item.id === presetId)!,
@@ -96,16 +99,19 @@ export default function ScheduleQuickCreateDialog({
 
   useEffect(() => {
     if (!open) return;
+    const defaultKey = defaultDate ? formatKstLocalDate(defaultDate) : formatKstLocalDate(new Date());
+    const todayKey = formatKstLocalDate(new Date());
     setPresetId("phone_consultation");
-    setDateChip("today");
+    setDateChip(defaultKey === todayKey ? "today" : "custom");
     setTimeChip("morning");
-    setCustomDateKey(formatKstLocalDate(new Date()));
+    setCustomDateKey(defaultKey);
     setCustomDateTime("");
     setCustomerId(defaultCustomerId ?? null);
     setTitle("");
     setMemo("");
     setShowMemo(false);
-  }, [defaultCustomerId, open]);
+    setTimeModified(false);
+  }, [defaultDate, defaultCustomerId, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -132,8 +138,8 @@ export default function ScheduleQuickCreateDialog({
     onOpenDetailed({
       title: title.trim() || preset.title,
       type: preset.scheduleType,
-      startTime: payload.startTime,
-      endTime: payload.endTime,
+      startTime: timeModified ? payload.startTime : undefined,
+      endTime: timeModified ? payload.endTime : undefined,
       memo: memo.trim() || undefined,
       customerId: customerId ?? undefined,
       calendarCategory: payload.calendarCategory,
@@ -182,7 +188,10 @@ export default function ScheduleQuickCreateDialog({
                   <QuickChip
                     key={chip}
                     selected={dateChip === chip}
-                    onClick={() => setDateChip(chip)}
+                    onClick={() => {
+                      setDateChip(chip);
+                      setTimeModified(true);
+                    }}
                   >
                     {QUICK_DATE_CHIP_LABELS[chip]}
                   </QuickChip>
@@ -193,7 +202,10 @@ export default function ScheduleQuickCreateDialog({
               <Input
                 type="date"
                 value={customDateKey}
-                onChange={e => setCustomDateKey(e.target.value)}
+                onChange={e => {
+                  setCustomDateKey(e.target.value);
+                  setTimeModified(true);
+                }}
                 className="h-11 md:h-9"
               />
             ) : null}
@@ -203,7 +215,10 @@ export default function ScheduleQuickCreateDialog({
                   <QuickChip
                     key={chip}
                     selected={timeChip === chip}
-                    onClick={() => setTimeChip(chip)}
+                    onClick={() => {
+                      setTimeChip(chip);
+                      setTimeModified(true);
+                    }}
                   >
                     {QUICK_TIME_CHIP_LABELS[chip]}
                   </QuickChip>
@@ -214,7 +229,10 @@ export default function ScheduleQuickCreateDialog({
               <Input
                 type="datetime-local"
                 value={customDateTime}
-                onChange={e => setCustomDateTime(e.target.value)}
+                onChange={e => {
+                  setCustomDateTime(e.target.value);
+                  setTimeModified(true);
+                }}
                 className="h-11 md:h-9"
               />
             ) : (
