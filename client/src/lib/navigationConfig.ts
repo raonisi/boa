@@ -13,6 +13,7 @@ import {
   Database,
   Download,
   FileText,
+  GitBranch,
   GitMerge,
   Home,
   LayoutDashboard,
@@ -99,6 +100,12 @@ export const sidebarNavGroups: NavGroup[] = [
         icon: LayoutGrid,
         label: "세일즈 파이프라인",
         path: "/sales-pipeline",
+      },
+      {
+        icon: GitBranch,
+        label: "소개 관리",
+        path: "/referrals",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
       {
         icon: Database,
@@ -374,6 +381,12 @@ export const mobileMoreNavGroups: NavGroup[] = [
     items: [
       { icon: BarChart2, label: "영업 분석", path: "/analytics" },
       { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
+      {
+        icon: GitBranch,
+        label: "소개 관리",
+        path: "/referrals",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
       { icon: FileText, label: "계약관리", path: "/contracts" },
       {
         icon: Upload,
@@ -563,6 +576,7 @@ export const mobileMoreNavGroups: NavGroup[] = [
 
 export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/analytics", title: "영업 분석" },
+  { prefix: "/referrals", title: "소개 관리" },
   { prefix: "/sales-pipeline", title: "세일즈 파이프라인" },
   { prefix: "/customers/assign", title: "DB 배정" },
   { prefix: "/customers/bulk-import", title: "고객 일괄 등록" },

@@ -80,6 +80,7 @@ const GoogleCalendarIntegration = lazy(
 const CustomerDataQualityDashboard = lazy(
   () => import("./pages/CustomerDataQualityDashboard")
 );
+const ReferralManagement = lazy(() => import("./pages/ReferralManagement"));
 
 function RouteFallback() {
   return (
@@ -486,6 +487,13 @@ function Router() {
         <AuthGuard>
           <LazyRoute>
             <CustomerDataQualityDashboard />
+          </LazyRoute>
+        </AuthGuard>
+      </Route>
+      <Route path="/referrals">
+        <AuthGuard>
+          <LazyRoute>
+            <ReferralManagement />
           </LazyRoute>
         </AuthGuard>
       </Route>

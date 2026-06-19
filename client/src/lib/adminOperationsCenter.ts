@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   Database,
   Download,
+  GitBranch,
   GitMerge,
   Home,
   LayoutDashboard,
@@ -306,6 +307,18 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     riskLevel: "normal",
     status: "available",
     icon: Database,
+  },
+  {
+    id: "referral-management",
+    title: "소개 관리",
+    description:
+      "소개 단계·감사 연락·계약 전환 현황을 기록된 소개 흐름 기준으로 확인합니다.",
+    section: "customer-db",
+    allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/referrals",
+    riskLevel: "normal",
+    status: "available",
+    icon: GitBranch,
   },
   {
     id: "team-insights",
