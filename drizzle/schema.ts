@@ -149,6 +149,51 @@ export const customers = mysqlTable("customers", {
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = typeof customers.$inferInsert;
 
+// ─── Customer Relationships ───────────────────────────────────────────────────
+export const customerRelationships = mysqlTable(
+  "customer_relationships",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    primaryCustomerId: int("primaryCustomerId").notNull(),
+    relatedCustomerId: int("relatedCustomerId").notNull(),
+    relationshipType: mysqlEnum("relationshipType", [
+      "family_spouse",
+      "family_child",
+      "family_parent",
+      "family_sibling",
+      "referral",
+      "coworker",
+      "corporate_representative",
+      "corporate_employee",
+      "friend",
+      "other",
+    ]).notNull(),
+    relationshipLabel: varchar("relationshipLabel", { length: 50 }).notNull(),
+    direction: mysqlEnum("direction", ["outbound", "inbound", "mutual"])
+      .default("mutual")
+      .notNull(),
+    note: varchar("note", { length: 500 }),
+    status: mysqlEnum("status", ["active", "inactive"])
+      .default("active")
+      .notNull(),
+    createdBy: int("createdBy").notNull(),
+    updatedBy: int("updatedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    deletedAt: timestamp("deletedAt"),
+  },
+  table => ({
+    uniquePairType: unique("uq_customer_relationship_pair_type").on(
+      table.primaryCustomerId,
+      table.relatedCustomerId,
+      table.relationshipType
+    ),
+  })
+);
+export type CustomerRelationship = typeof customerRelationships.$inferSelect;
+export type InsertCustomerRelationship =
+  typeof customerRelationships.$inferInsert;
+
 // ─── Status History ───────────────────────────────────────────────────────────
 export const statusHistory = mysqlTable("status_history", {
   id: int("id").autoincrement().primaryKey(),

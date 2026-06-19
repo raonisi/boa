@@ -77,7 +77,7 @@ import {
   UserCog,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
 import FollowUpModal from "@/components/followups/FollowUpModal";
@@ -194,6 +194,15 @@ export default function CustomerList() {
       limit: 50,
       includeWarnings: true,
     });
+  const listCustomerIds = useMemo(
+    () => (customers ?? []).map(customer => customer.id).slice(0, 200),
+    [customers]
+  );
+  const { data: relationFlags } =
+    trpc.customerRelationships.relationFlags.useQuery(
+      { customerIds: listCustomerIds },
+      { enabled: listCustomerIds.length > 0 }
+    );
 
   const createMutation = trpc.customers.create.useMutation({
     onSuccess: () => {
@@ -1152,6 +1161,11 @@ export default function CustomerList() {
                               {(c as any).priority && (
                                 <PriorityBadge priority={(c as any).priority} />
                               )}
+                              {relationFlags?.[c.id] ? (
+                                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                                  연결
+                                </span>
+                              ) : null}
                             </div>
                             <p className="mt-1 text-sm font-medium text-slate-800">
                               다음:{" "}
@@ -1321,6 +1335,7 @@ export default function CustomerList() {
             onDeactivateCustomer={handleDeactivateCustomer}
             onQuickConsult={setSelectedQuickConsultCustomer}
             isCustomerReclaimable={isCustomerReclaimable}
+            relationFlags={relationFlags}
           />
         )}
       </div>

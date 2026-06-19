@@ -22,6 +22,7 @@ import {
   contractHistory,
   contracts,
   customerHandoffNotes,
+  customerRelationships,
   customers,
   deleteRequests,
   followUps,
@@ -4649,6 +4650,9 @@ function timelineLabelForAction(action: string) {
     DELETE_REQUEST_REJECTED: "삭제 요청이 반려되었습니다.",
     CUSTOMER_MERGED: "고객 병합이 실행되었습니다.",
     CUSTOMER_MERGE_BLOCKED: "고객 병합이 차단되었습니다.",
+    CUSTOMER_RELATIONSHIP_CREATED: "고객 관계가 추가되었습니다.",
+    CUSTOMER_RELATIONSHIP_UPDATED: "고객 관계가 수정되었습니다.",
+    CUSTOMER_RELATIONSHIP_DELETED: "고객 관계가 삭제되었습니다.",
   };
   return labels[action] ?? action;
 }
@@ -4690,6 +4694,7 @@ export async function getCustomerTimeline(
     statusRows,
     relatedNotificationRows,
     requestRows,
+    relationshipRows,
   ] = await Promise.all([
     db.select().from(customers).where(eq(customers.id, customerId)).limit(1),
     db.select({ id: users.id, name: users.name, role: users.role }).from(users),
@@ -4720,6 +4725,16 @@ export async function getCustomerTimeline(
       .select()
       .from(deleteRequests)
       .where(eq(deleteRequests.customerId, customerId)),
+    db
+      .select()
+      .from(customerRelationships)
+      .where(
+        or(
+          eq(customerRelationships.primaryCustomerId, customerId),
+          eq(customerRelationships.relatedCustomerId, customerId)
+        )
+      )
+      .limit(100),
   ]);
 
   const customer = customerRows[0];
@@ -5029,11 +5044,43 @@ export async function getCustomerTimeline(
     });
   }
 
+  for (const row of relationshipRows) {
+    const deleted = row.deletedAt != null || row.status === "inactive";
+    pushEvent({
+      id: `customer_relationship:${row.id}:${deleted ? "deleted" : "active"}`,
+      eventType: deleted
+        ? "customer_relationship_deleted"
+        : row.createdAt.getTime() === row.updatedAt.getTime()
+          ? "customer_relationship_created"
+          : "customer_relationship_updated",
+      eventLabel: deleted
+        ? "고객 관계가 삭제되었습니다."
+        : row.createdAt.getTime() === row.updatedAt.getTime()
+          ? "고객 관계가 추가되었습니다."
+          : "고객 관계가 수정되었습니다.",
+      occurredAt: row.deletedAt ?? row.updatedAt ?? row.createdAt,
+      ...userLabel(userMap, row.updatedBy ?? row.createdBy),
+      source: "customer_relationships",
+      summary: row.relationshipLabel,
+      detail: null,
+      metadata: safeTimelineMetadata({
+        relationshipId: row.id,
+        relationshipType: row.relationshipType,
+        relationshipLabel: row.relationshipLabel,
+        status: row.status,
+      }),
+      severity: deleted ? "warning" : "info",
+      relatedId: row.id,
+      relatedType: "customer_relationship",
+    });
+  }
+
   for (const row of [
     ...customerActivityRows,
     ...contractActivityRows,
     ...requestActivityRows,
   ]) {
+    if (row.action.startsWith("CUSTOMER_RELATIONSHIP_")) continue;
     pushEvent({
       id: `activity:${row.id}`,
       eventType: row.action.toLowerCase(),

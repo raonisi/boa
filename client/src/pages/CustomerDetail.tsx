@@ -50,6 +50,7 @@ import {
 } from "@shared/expectedPremium";
 import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
 import FollowUpModal from "@/components/followups/FollowUpModal";
+import { CustomerRelationshipsPanel } from "@/components/customers/CustomerRelationshipsPanel";
 import { buildCustomerExecutionScore } from "@shared/customerExecution";
 import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import {
@@ -325,6 +326,8 @@ export default function CustomerDetail({ id }: { id: number }) {
     trpc.customers.assignmentHistory.useQuery({ customerId: id });
   const { data: followUps, refetch: refetchFollowUps } =
     trpc.followUps.listByCustomer.useQuery({ customerId: id });
+  const { data: customerRelationships } =
+    trpc.customerRelationships.list.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
   const { data: consultationTools } =
     trpc.consultationTools.listCustomerChecks.useQuery({ customerId: id });
@@ -758,6 +761,9 @@ export default function CustomerDetail({ id }: { id: number }) {
     user?.role === "sub_branch_admin" ||
     user?.role === "team_leader" ||
     user?.role === "member";
+  const canManageRelationships =
+    user?.accountStatus === "active" &&
+    (user?.role !== "member" || customer.agentId === user.id);
   const editingConsult = consultations?.find(c => c.id === editingConsultId);
   const editingContract = contracts?.find(c => c.id === editingContractId);
   const deleteTargetContract = contracts?.find(c => c.id === deleteContractId);
@@ -1521,6 +1527,9 @@ export default function CustomerDetail({ id }: { id: number }) {
               계약·보장 ({contracts?.length ?? 0})
             </TabsTrigger>
             <TabsTrigger value="info">상세 정보</TabsTrigger>
+            <TabsTrigger value="relationships">
+              연결 고객 ({customerRelationships?.length ?? 0})
+            </TabsTrigger>
             <TabsTrigger value="history">
               상태이력 ({statusHistoryData?.length ?? 0})
             </TabsTrigger>
@@ -2222,6 +2231,17 @@ export default function CustomerDetail({ id }: { id: number }) {
               onFilterChange={setTimelineFilter}
               onRangeChange={setTimelineRange}
             />
+          </TabsContent>
+
+          <TabsContent value="relationships">
+            <Card>
+              <CardContent className="p-4">
+                <CustomerRelationshipsPanel
+                  customerId={id}
+                  canManage={canManageRelationships}
+                />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* 상태 변경 이력 */}

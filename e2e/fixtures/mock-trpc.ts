@@ -466,6 +466,13 @@ const defaults: Record<string, unknown> = {
   "customers.consentLogs": [],
   "customers.assignmentHistory": [],
   "customers.timeline": { items: [], totalCount: 0 },
+  "customerRelationships.list": [],
+  "customerRelationships.relationFlags": {},
+  "customerRelationships.searchCustomers": {
+    items: [],
+    searchRequired: true,
+    hint: "2자 이상 입력해 주세요.",
+  },
   "followUps.listByCustomer": [],
   "consultationTools.listCustomerChecks": { templates: [], results: [] },
   "consultationTools.listMessageTemplates": [],

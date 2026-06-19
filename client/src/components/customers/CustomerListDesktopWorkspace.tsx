@@ -55,6 +55,7 @@ type CustomerListDesktopWorkspaceProps = {
   onDeactivateCustomer: (customerId: number, e: React.MouseEvent) => void;
   onQuickConsult: (customer: any) => void;
   isCustomerReclaimable: (customer: any) => boolean;
+  relationFlags?: Record<number, boolean>;
 };
 
 export function CustomerListDesktopWorkspace({
@@ -81,6 +82,7 @@ export function CustomerListDesktopWorkspace({
   onDeactivateCustomer,
   onQuickConsult,
   isCustomerReclaimable,
+  relationFlags,
 }: CustomerListDesktopWorkspaceProps) {
   const showSelection = canReclaimCustomer || canBulkChangeAssignee;
 
@@ -228,6 +230,11 @@ export function CustomerListDesktopWorkspace({
                       <StatusBadge status={customer.consultStatus} />
                       {customer.priority ? (
                         <PriorityBadge priority={customer.priority} />
+                      ) : null}
+                      {relationFlags?.[customer.id] ? (
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                          연결
+                        </span>
                       ) : null}
                     </div>
                     {customer.phone ? (

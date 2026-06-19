@@ -23,6 +23,9 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   follow_up_completed: "후속관리 완료",
   follow_up_postponed: "후속관리 연기",
   follow_up_cancelled: "후속관리 취소",
+  customer_relationship_created: "고객 관계 추가",
+  customer_relationship_updated: "고객 관계 수정",
+  customer_relationship_deleted: "고객 관계 삭제",
   notification_created: "알림 생성",
   notification_status_changed: "알림 상태 변경",
   reassignment: "담당자 변경",
@@ -40,6 +43,7 @@ const SOURCE_LABELS: Record<string, string> = {
   notifications: "알림",
   import_batches: "일괄 등록",
   assignment_history: "담당자 변경 이력",
+  customer_relationships: "고객 관계",
 };
 
 const RAW_TEXT_PATTERN = /^[a-z0-9_]+$/i;
