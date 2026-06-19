@@ -54,6 +54,7 @@ import { CustomerRelationshipsPanel } from "@/components/customers/CustomerRelat
 import { CustomerReferralFlowsPanel } from "@/components/referrals/CustomerReferralFlowsPanel";
 import { CustomerClaimGuidancePanel } from "@/components/claimGuidance/CustomerClaimGuidancePanel";
 import { CustomerRetentionRiskPanel } from "@/components/retentionRisk/CustomerRetentionRiskPanel";
+import { SmartConsultationPrepCard } from "@/components/customer/SmartConsultationPrepCard";
 import { buildCustomerExecutionScore } from "@shared/customerExecution";
 import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import {
@@ -1195,6 +1196,46 @@ export default function CustomerDetail({ id }: { id: number }) {
             </div>
           </CardContent>
         </Card>
+
+        <SmartConsultationPrepCard
+          isMobile={isMobile}
+          customer={{
+            consultStatus: customer.consultStatus,
+            priority: (customer as any).priority,
+            nextAction: (customer as any).nextAction,
+          }}
+          customerTags={customerTags}
+          agentName={agentName}
+          latestConsult={latestConsult}
+          latestConsultDate={latestConsultDate}
+          nextFollowUp={nextFollowUp}
+          contactReasons={contactReasons}
+          handoffNotes={handoffNotes as any}
+          hasOpenRetentionRisk={(retentionRiskCases ?? []).some(
+            row =>
+              !row.resolvedAt &&
+              !["retained", "adjusted", "surrendered", "closed"].includes(
+                row.retentionStatus
+              )
+          )}
+          hasOpenClaimGuidance={(claimGuidanceCases ?? []).some(
+            row =>
+              !row.closedAt &&
+              !["completed", "closed", "not_applicable"].includes(
+                row.guidanceStatus
+              )
+          )}
+          hasReferralFlows={(customerReferrals ?? []).length > 0}
+          hasRelationships={(customerRelationships ?? []).length > 0}
+          onConsultRecord={() => setShowConsultModal(true)}
+          onFollowUpCreate={() => setShowFollowUpQuickModal(true)}
+          onOpenTemplates={() => setActiveTab("tools")}
+          onOpenChecklist={() => setActiveTab("tools")}
+          onOpenTimeline={() => setActiveTab("timeline")}
+          onOpenHandoff={() => setActiveTab("consult")}
+          onOpenRelationships={() => setActiveTab("relationships")}
+          onOpenReferrals={() => setActiveTab("referrals")}
+        />
 
         <Card className="border-primary/15 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 md:sticky md:top-[4.6rem] md:z-20">
           <CardContent className="space-y-3 p-3 sm:p-4">
