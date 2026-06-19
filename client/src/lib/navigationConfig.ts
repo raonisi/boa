@@ -10,6 +10,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  ClipboardList,
   Database,
   Download,
   FileText,
@@ -105,6 +106,12 @@ export const sidebarNavGroups: NavGroup[] = [
         icon: GitBranch,
         label: "소개 관리",
         path: "/referrals",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
+      {
+        icon: ClipboardList,
+        label: "청구 안내 관리",
+        path: "/claim-guidance",
         roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
       {
@@ -387,6 +394,12 @@ export const mobileMoreNavGroups: NavGroup[] = [
         path: "/referrals",
         roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
+      {
+        icon: ClipboardList,
+        label: "청구 안내 관리",
+        path: "/claim-guidance",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
       { icon: FileText, label: "계약관리", path: "/contracts" },
       {
         icon: Upload,
@@ -576,6 +589,7 @@ export const mobileMoreNavGroups: NavGroup[] = [
 
 export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/analytics", title: "영업 분석" },
+  { prefix: "/claim-guidance", title: "청구 안내 관리" },
   { prefix: "/referrals", title: "소개 관리" },
   { prefix: "/sales-pipeline", title: "세일즈 파이프라인" },
   { prefix: "/customers/assign", title: "DB 배정" },

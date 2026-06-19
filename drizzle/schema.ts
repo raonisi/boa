@@ -275,6 +275,72 @@ export const customerReferrals = mysqlTable(
 export type CustomerReferral = typeof customerReferrals.$inferSelect;
 export type InsertCustomerReferral = typeof customerReferrals.$inferInsert;
 
+// ─── Claim Guidance Cases (PR22) ──────────────────────────────────────────────
+export const claimGuidanceCases = mysqlTable("claim_guidance_cases", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  contractId: int("contractId"),
+  guidanceType: mysqlEnum("guidanceType", [
+    "process_guidance",
+    "required_documents",
+    "additional_documents",
+    "submission_status",
+    "result_followup",
+    "other",
+  ]).notNull(),
+  guidanceStatus: mysqlEnum("guidanceStatus", [
+    "guidance_needed",
+    "guidance_provided",
+    "waiting_customer",
+    "documents_preparing",
+    "submitted_by_customer",
+    "additional_guidance_needed",
+    "completed",
+    "not_applicable",
+    "closed",
+  ])
+    .default("guidance_needed")
+    .notNull(),
+  documentGuideStatus: mysqlEnum("documentGuideStatus", [
+    "not_started",
+    "guide_sent",
+    "customer_checking",
+    "completed",
+    "not_applicable",
+  ])
+    .default("not_started")
+    .notNull(),
+  customerActionStatus: mysqlEnum("customerActionStatus", [
+    "no_action",
+    "preparing",
+    "submitted",
+    "waiting_result",
+    "completed",
+    "stopped",
+  ])
+    .default("no_action")
+    .notNull(),
+  followUpId: int("followUpId"),
+  nextFollowUpAt: timestamp("nextFollowUpAt"),
+  closedAt: timestamp("closedAt"),
+  closedReason: mysqlEnum("closedReason", [
+    "customer_completed",
+    "customer_declined",
+    "not_claimable_by_customer_report",
+    "duplicate",
+    "outdated",
+    "other",
+  ]),
+  memo: varchar("memo", { length: 500 }),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
+});
+export type ClaimGuidanceCase = typeof claimGuidanceCases.$inferSelect;
+export type InsertClaimGuidanceCase = typeof claimGuidanceCases.$inferInsert;
+
 // ─── Status History ───────────────────────────────────────────────────────────
 export const statusHistory = mysqlTable("status_history", {
   id: int("id").autoincrement().primaryKey(),

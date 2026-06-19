@@ -1,0 +1,20 @@
+CREATE TABLE `claim_guidance_cases` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`customerId` int NOT NULL,
+	`contractId` int,
+	`guidanceType` enum('process_guidance','required_documents','additional_documents','submission_status','result_followup','other') NOT NULL,
+	`guidanceStatus` enum('guidance_needed','guidance_provided','waiting_customer','documents_preparing','submitted_by_customer','additional_guidance_needed','completed','not_applicable','closed') NOT NULL DEFAULT 'guidance_needed',
+	`documentGuideStatus` enum('not_started','guide_sent','customer_checking','completed','not_applicable') NOT NULL DEFAULT 'not_started',
+	`customerActionStatus` enum('no_action','preparing','submitted','waiting_result','completed','stopped') NOT NULL DEFAULT 'no_action',
+	`followUpId` int,
+	`nextFollowUpAt` timestamp,
+	`closedAt` timestamp,
+	`closedReason` enum('customer_completed','customer_declined','not_claimable_by_customer_report','duplicate','outdated','other'),
+	`memo` varchar(500),
+	`createdBy` int NOT NULL,
+	`updatedBy` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`deletedAt` timestamp,
+	CONSTRAINT `claim_guidance_cases_id` PRIMARY KEY(`id`)
+);

@@ -16,6 +16,7 @@ import { customerDataQualityRouter } from "./customerDataQualityRouter";
 import { actionPlansRouter } from "./actionPlans";
 import { customerRelationshipsRouter } from "./customerRelationships";
 import { customerReferralsRouter } from "./customerReferrals";
+import { claimGuidanceRouter } from "./claimGuidance";
 import { googleCalendarRouter } from "./googleCalendar";
 import {
   triggerGoogleCalendarDeleteForSchedule,
@@ -12540,6 +12541,7 @@ export const appRouter = router({
   actionPlans: actionPlansRouter,
   customerRelationships: customerRelationshipsRouter,
   customerReferrals: customerReferralsRouter,
+  claimGuidance: claimGuidanceRouter,
   googleCalendar: googleCalendarRouter,
 });
 

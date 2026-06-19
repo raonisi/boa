@@ -10,6 +10,7 @@ import {
   Download,
   GitBranch,
   GitMerge,
+  ClipboardList,
   Home,
   LayoutDashboard,
   Network,
@@ -319,6 +320,18 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     riskLevel: "normal",
     status: "available",
     icon: GitBranch,
+  },
+  {
+    id: "claim-guidance-management",
+    title: "청구 안내 관리",
+    description:
+      "청구 안내 진행 상태를 기록된 안내 상태 기준으로 확인합니다. 청구 대행 기능이 아닙니다.",
+    section: "customer-db",
+    allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/claim-guidance",
+    riskLevel: "normal",
+    status: "available",
+    icon: ClipboardList,
   },
   {
     id: "team-insights",
