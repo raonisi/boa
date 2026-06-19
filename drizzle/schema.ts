@@ -194,6 +194,87 @@ export type CustomerRelationship = typeof customerRelationships.$inferSelect;
 export type InsertCustomerRelationship =
   typeof customerRelationships.$inferInsert;
 
+// ─── Customer Referrals (PR21) ────────────────────────────────────────────────
+export const customerReferrals = mysqlTable(
+  "customer_referrals",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    relationshipId: int("relationshipId").notNull(),
+    referrerCustomerId: int("referrerCustomerId").notNull(),
+    referredCustomerId: int("referredCustomerId").notNull(),
+    referralStage: mysqlEnum("referralStage", [
+      "introduced",
+      "contact_ready",
+      "contacted",
+      "consultation_scheduled",
+      "consultation_completed",
+      "proposal_made",
+      "contracted",
+      "deferred",
+      "declined",
+      "closed",
+    ])
+      .default("introduced")
+      .notNull(),
+    referralSourceType: mysqlEnum("referralSourceType", [
+      "customer_referral",
+      "family_referral",
+      "coworker_referral",
+      "corporate_referral",
+      "friend_referral",
+      "other",
+    ]).notNull(),
+    introductionMethod: mysqlEnum("introductionMethod", [
+      "phone",
+      "kakao",
+      "sms",
+      "in_person",
+      "group_chat",
+      "other",
+    ]),
+    thankYouStatus: mysqlEnum("thankYouStatus", [
+      "not_required",
+      "pending",
+      "completed",
+    ])
+      .default("pending")
+      .notNull(),
+    thankYouCompletedAt: timestamp("thankYouCompletedAt"),
+    firstContactedAt: timestamp("firstContactedAt"),
+    consultationStartedAt: timestamp("consultationStartedAt"),
+    proposalMadeAt: timestamp("proposalMadeAt"),
+    contractedAt: timestamp("contractedAt"),
+    declinedAt: timestamp("declinedAt"),
+    deferredUntil: timestamp("deferredUntil"),
+    resultStatus: mysqlEnum("resultStatus", [
+      "in_progress",
+      "contracted",
+      "deferred",
+      "declined",
+      "closed",
+    ])
+      .default("in_progress")
+      .notNull(),
+    memo: varchar("memo", { length: 500 }),
+    createdBy: int("createdBy").notNull(),
+    updatedBy: int("updatedBy"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+    deletedAt: timestamp("deletedAt"),
+  },
+  table => ({
+    uniqueRelationship: unique("uq_customer_referral_relationship").on(
+      table.relationshipId
+    ),
+    uniqueReferrerPair: unique("uq_customer_referral_pair").on(
+      table.referrerCustomerId,
+      table.referredCustomerId
+    ),
+  })
+);
+export type CustomerReferral = typeof customerReferrals.$inferSelect;
+export type InsertCustomerReferral = typeof customerReferrals.$inferInsert;
+
 // ─── Status History ───────────────────────────────────────────────────────────
 export const statusHistory = mysqlTable("status_history", {
   id: int("id").autoincrement().primaryKey(),
