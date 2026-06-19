@@ -15,6 +15,7 @@ import {
   normalizeCustomerPair,
   type CustomerRelationshipType,
 } from "@shared/customerRelationships";
+import { filterCustomerIdsInScope } from "./customerRelationshipsAccess";
 import { getDb, getCustomers, getUserById } from "./db";
 import type { CustomerRelationshipUser } from "./customerRelationshipsAccess";
 
@@ -101,7 +102,8 @@ async function loadRelatedCustomerContext(
 
 async function enrichRelationshipRows(
   rows: CustomerRelationship[],
-  viewingCustomerId: number
+  viewingCustomerId: number,
+  user: CustomerRelationshipUser
 ): Promise<CustomerRelationshipListItem[]> {
   if (rows.length === 0) return [];
   const db = await getDb();
@@ -117,12 +119,18 @@ async function enrichRelationshipRows(
     )
   );
 
+  const scopedRelatedIds = new Set(
+    await filterCustomerIdsInScope(user, relatedIds)
+  );
+  const visibleRelatedIds = relatedIds.filter(id => scopedRelatedIds.has(id));
+  if (visibleRelatedIds.length === 0) return [];
+
   const [customerRows, consultationRows, followUpRows, userRows] =
     await Promise.all([
       db
         .select()
         .from(customers)
-        .where(inArray(customers.id, relatedIds)),
+        .where(inArray(customers.id, visibleRelatedIds)),
       db
         .select({
           customerId: consultations.customerId,
@@ -131,7 +139,7 @@ async function enrichRelationshipRows(
         .from(consultations)
         .where(
           and(
-            inArray(consultations.customerId, relatedIds),
+            inArray(consultations.customerId, visibleRelatedIds),
             eq(consultations.isActive, true)
           )
         )
@@ -144,7 +152,7 @@ async function enrichRelationshipRows(
         .from(followUps)
         .where(
           and(
-            inArray(followUps.customerId, relatedIds),
+            inArray(followUps.customerId, visibleRelatedIds),
             eq(followUps.status, "scheduled")
           )
         )
@@ -174,6 +182,7 @@ async function enrichRelationshipRows(
       row.primaryCustomerId === viewingCustomerId
         ? row.relatedCustomerId
         : row.primaryCustomerId;
+    if (!scopedRelatedIds.has(otherId)) continue;
     const other = customerMap.get(otherId);
     if (!other || other.isActive === false || other.deletedAt) continue;
     items.push({
@@ -203,7 +212,8 @@ async function enrichRelationshipRows(
 }
 
 export async function listCustomerRelationships(
-  viewingCustomerId: number
+  viewingCustomerId: number,
+  user: CustomerRelationshipUser
 ): Promise<CustomerRelationshipListItem[]> {
   const db = await getDb();
   if (!db) return [];
@@ -220,7 +230,7 @@ export async function listCustomerRelationships(
       )
     )
     .orderBy(desc(customerRelationships.updatedAt));
-  return enrichRelationshipRows(rows, viewingCustomerId);
+  return enrichRelationshipRows(rows, viewingCustomerId, user);
 }
 
 export async function getCustomerRelationshipById(id: number) {

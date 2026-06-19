@@ -3,6 +3,7 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as db from "./db";
 import * as relationshipsDb from "./customerRelationshipsDb";
+import * as relationshipsAccess from "./customerRelationshipsAccess";
 import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
@@ -186,6 +187,32 @@ describe("customerRelationships RBAC", () => {
         .createCaller(createCtx("member", { accountStatus: "resigned" }))
         .customerRelationships.list({ customerId: 100 })
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  it("excludes relationships when related customer is outside user scope", async () => {
+    vi.spyOn(db, "getCustomerById").mockImplementation(async (id: number) => {
+      if (id === 100) return ownCustomer;
+      if (id === 101) return otherCustomer;
+      return undefined;
+    });
+    vi.spyOn(relationshipsAccess, "filterCustomerIdsInScope").mockResolvedValue(
+      []
+    );
+    vi.spyOn(db, "getDb").mockResolvedValue({
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            orderBy: () => Promise.resolve([relationshipRow]),
+          }),
+        }),
+      }),
+    } as any);
+
+    const result = await appRouter
+      .createCaller(createCtx("member", { id: 4 }))
+      .customerRelationships.list({ customerId: 100 });
+
+    expect(result).toEqual([]);
   });
 });
 

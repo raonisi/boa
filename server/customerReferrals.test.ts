@@ -222,6 +222,75 @@ describe("customerReferrals RBAC", () => {
         .customerReferrals.summary()
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
+
+  it("hides referral rows when only one side of the pair is in scope", async () => {
+    const memberUser = {
+      id: 4,
+      role: "member" as const,
+      teamId: null,
+      subBranchAdminId: null,
+      accountStatus: "active",
+    };
+    const scopedCustomerIds = [100];
+    const referralRows = [
+      {
+        ...referralRow,
+        id: 801,
+        referrerCustomerId: 100,
+        referredCustomerId: 101,
+        memo: "secret referral memo",
+      },
+    ];
+    let customersQuery = false;
+
+    vi.spyOn(db, "getDb").mockResolvedValue({
+      select: () => ({
+        from: () => ({
+          where: () => {
+            if (!customersQuery) {
+              customersQuery = true;
+              return Promise.resolve(scopedCustomerIds.map(id => ({ id })));
+            }
+            const scoped = new Set(scopedCustomerIds);
+            const filtered = referralRows.filter(
+              row =>
+                scoped.has(row.referrerCustomerId) &&
+                scoped.has(row.referredCustomerId)
+            );
+            return {
+              orderBy: () => ({
+                limit: () => ({
+                  offset: () => Promise.resolve(filtered),
+                }),
+              }),
+            };
+          },
+        }),
+      }),
+    } as any);
+
+    const result = await referralsDb.listCustomerReferrals(memberUser);
+
+    expect(result).toEqual([]);
+  });
+
+  it("blocks referral create when referred customer is outside scope", async () => {
+    mockCustomers({
+      100: referrerCustomer,
+      101: outOfScopeCustomer,
+    });
+    const createSpy = vi.spyOn(referralsDb, "createCustomerReferral");
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { id: 4 }))
+        .customerReferrals.create({
+          ...createInput,
+          referredCustomerId: 102,
+        })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(createSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("customerReferrals validation", () => {

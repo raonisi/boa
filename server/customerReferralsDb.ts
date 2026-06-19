@@ -87,7 +87,7 @@ async function referralScopeCondition(user: CustomerRelationshipUser) {
   const scopedIds = await getScopedCustomerIdsForReferrals(user);
   if (scopedIds === null) return undefined;
   if (scopedIds.length === 0) return sql`1 = 0`;
-  return or(
+  return and(
     inArray(customerReferrals.referrerCustomerId, scopedIds),
     inArray(customerReferrals.referredCustomerId, scopedIds)
   );

@@ -77,7 +77,7 @@ export const customerRelationshipsRouter = router({
     .input(z.object({ customerId: z.number().int().positive() }))
     .query(async ({ ctx, input }) => {
       await assertCustomerAccessible(ctx.user, input.customerId);
-      return listCustomerRelationships(input.customerId);
+      return listCustomerRelationships(input.customerId, ctx.user);
     }),
 
   relationFlags: activeUserProcedure
