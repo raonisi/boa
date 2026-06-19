@@ -334,6 +334,18 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
     icon: ClipboardList,
   },
   {
+    id: "retention-risk-management",
+    title: "해지위험 관리",
+    description:
+      "해지위험 상태와 대응 이력을 기록된 상태 기준으로 확인합니다. 해지방어 강요 기능이 아닙니다.",
+    section: "customer-db",
+    allowedRoles: ["branch_admin", "sub_branch_admin", "team_leader"],
+    route: "/retention-risk",
+    riskLevel: "normal",
+    status: "available",
+    icon: ShieldCheck,
+  },
+  {
     id: "team-insights",
     title: "관리자 밀착 대시보드",
     description:

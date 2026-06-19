@@ -253,6 +253,13 @@
       "when": 1781900000000,
       "tag": "0036_claim_guidance_cases",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "5",
+      "when": 1782000000000,
+      "tag": "0037_retention_risk_cases",
+      "breakpoints": true
     }
   ]
 }

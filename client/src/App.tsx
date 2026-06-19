@@ -84,6 +84,9 @@ const ReferralManagement = lazy(() => import("./pages/ReferralManagement"));
 const ClaimGuidanceManagement = lazy(
   () => import("./pages/ClaimGuidanceManagement")
 );
+const RetentionRiskManagement = lazy(
+  () => import("./pages/RetentionRiskManagement")
+);
 
 function RouteFallback() {
   return (
@@ -504,6 +507,13 @@ function Router() {
         <AuthGuard>
           <LazyRoute>
             <ClaimGuidanceManagement />
+          </LazyRoute>
+        </AuthGuard>
+      </Route>
+      <Route path="/retention-risk">
+        <AuthGuard>
+          <LazyRoute>
+            <RetentionRiskManagement />
           </LazyRoute>
         </AuthGuard>
       </Route>

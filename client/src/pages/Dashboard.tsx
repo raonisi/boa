@@ -5,6 +5,7 @@ import { PremiumStatCard } from "@/components/dashboard/PremiumStatCard";
 import { TodayWorkSection } from "@/components/dashboard/TodayWorkSection";
 import { ReferralSummaryStrip } from "@/components/referrals/ReferralSummaryStrip";
 import { ClaimGuidanceSummaryStrip } from "@/components/claimGuidance/ClaimGuidanceSummaryStrip";
+import { RetentionRiskSummaryStrip } from "@/components/retentionRisk/RetentionRiskSummaryStrip";
 import { WorkRhythmSummaryCard } from "@/components/dashboard/WorkRhythmSummaryCard";
 import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
@@ -87,6 +88,8 @@ export default function Dashboard() {
         <ReferralSummaryStrip user={user} />
 
         <ClaimGuidanceSummaryStrip user={user} />
+
+        <RetentionRiskSummaryStrip user={user} />
 
         {user?.role === "branch_admin" ? (
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">

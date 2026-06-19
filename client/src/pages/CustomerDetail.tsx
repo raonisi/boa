@@ -53,6 +53,7 @@ import FollowUpModal from "@/components/followups/FollowUpModal";
 import { CustomerRelationshipsPanel } from "@/components/customers/CustomerRelationshipsPanel";
 import { CustomerReferralFlowsPanel } from "@/components/referrals/CustomerReferralFlowsPanel";
 import { CustomerClaimGuidancePanel } from "@/components/claimGuidance/CustomerClaimGuidancePanel";
+import { CustomerRetentionRiskPanel } from "@/components/retentionRisk/CustomerRetentionRiskPanel";
 import { buildCustomerExecutionScore } from "@shared/customerExecution";
 import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import {
@@ -334,6 +335,8 @@ export default function CustomerDetail({ id }: { id: number }) {
     trpc.customerReferrals.listByCustomer.useQuery({ customerId: id });
   const { data: claimGuidanceCases } =
     trpc.claimGuidance.listByCustomer.useQuery({ customerId: id });
+  const { data: retentionRiskCases } =
+    trpc.retentionRisk.listByCustomer.useQuery({ customerId: id });
   const { data: users } = trpc.users.list.useQuery();
   const { data: consultationTools } =
     trpc.consultationTools.listCustomerChecks.useQuery({ customerId: id });
@@ -1542,6 +1545,9 @@ export default function CustomerDetail({ id }: { id: number }) {
             <TabsTrigger value="claim-guidance">
               청구 안내 ({claimGuidanceCases?.length ?? 0})
             </TabsTrigger>
+            <TabsTrigger value="retention-risk">
+              해지위험 ({retentionRiskCases?.length ?? 0})
+            </TabsTrigger>
             <TabsTrigger value="history">
               상태이력 ({statusHistoryData?.length ?? 0})
             </TabsTrigger>
@@ -2275,6 +2281,21 @@ export default function CustomerDetail({ id }: { id: number }) {
             <Card>
               <CardContent className="p-4">
                 <CustomerClaimGuidancePanel
+                  customerId={id}
+                  pageCustomer={{
+                    id: customer.id,
+                    agentId: customer.agentId,
+                  }}
+                  user={user}
+                />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="retention-risk">
+            <Card>
+              <CardContent className="p-4">
+                <CustomerRetentionRiskPanel
                   customerId={id}
                   pageCustomer={{
                     id: customer.id,

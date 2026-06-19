@@ -341,6 +341,90 @@ export const claimGuidanceCases = mysqlTable("claim_guidance_cases", {
 export type ClaimGuidanceCase = typeof claimGuidanceCases.$inferSelect;
 export type InsertClaimGuidanceCase = typeof claimGuidanceCases.$inferInsert;
 
+// ─── Retention Risk Cases (PR23) ──────────────────────────────────────────────
+export const retentionRiskCases = mysqlTable("retention_risk_cases", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customerId").notNull(),
+  contractId: int("contractId"),
+  riskReason: mysqlEnum("riskReason", [
+    "premium_burden",
+    "coverage_dissatisfaction",
+    "competitor_offer",
+    "cash_need",
+    "duplicate_coverage",
+    "trust_issue",
+    "claim_dissatisfaction",
+    "family_opposition",
+    "low_priority",
+    "no_response",
+    "other",
+  ]).notNull(),
+  riskLevel: mysqlEnum("riskLevel", ["low", "medium", "high", "critical"])
+    .default("medium")
+    .notNull(),
+  retentionStatus: mysqlEnum("retentionStatus", [
+    "detected",
+    "contacted",
+    "explanation_provided",
+    "adjustment_review",
+    "waiting_customer",
+    "retained",
+    "adjusted",
+    "surrendered",
+    "closed",
+  ])
+    .default("detected")
+    .notNull(),
+  responseStrategy: mysqlEnum("responseStrategy", [
+    "explain_existing_value",
+    "reduce_premium_review",
+    "coverage_gap_review",
+    "partial_adjustment",
+    "payment_method_review",
+    "wait_and_followup",
+    "no_retention_needed",
+    "other",
+  ])
+    .default("wait_and_followup")
+    .notNull(),
+  customerSentiment: mysqlEnum("customerSentiment", [
+    "calm",
+    "worried",
+    "dissatisfied",
+    "price_sensitive",
+    "distrustful",
+    "undecided",
+    "no_response",
+  ])
+    .default("undecided")
+    .notNull(),
+  financialPressureLevel: mysqlEnum("financialPressureLevel", [
+    "low",
+    "medium",
+    "high",
+  ]),
+  competitorMentioned: boolean("competitorMentioned").default(false).notNull(),
+  followUpId: int("followUpId"),
+  nextFollowUpAt: timestamp("nextFollowUpAt"),
+  resolvedAt: timestamp("resolvedAt"),
+  resolutionResult: mysqlEnum("resolutionResult", [
+    "retained",
+    "adjusted",
+    "surrendered",
+    "transferred_to_followup",
+    "no_action",
+    "unknown",
+  ]),
+  memo: varchar("memo", { length: 500 }),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  deletedAt: timestamp("deletedAt"),
+});
+export type RetentionRiskCase = typeof retentionRiskCases.$inferSelect;
+export type InsertRetentionRiskCase = typeof retentionRiskCases.$inferInsert;
+
 // ─── Status History ───────────────────────────────────────────────────────────
 export const statusHistory = mysqlTable("status_history", {
   id: int("id").autoincrement().primaryKey(),

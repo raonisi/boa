@@ -1,0 +1,23 @@
+CREATE TABLE `retention_risk_cases` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`customerId` int NOT NULL,
+	`contractId` int,
+	`riskReason` enum('premium_burden','coverage_dissatisfaction','competitor_offer','cash_need','duplicate_coverage','trust_issue','claim_dissatisfaction','family_opposition','low_priority','no_response','other') NOT NULL,
+	`riskLevel` enum('low','medium','high','critical') NOT NULL DEFAULT 'medium',
+	`retentionStatus` enum('detected','contacted','explanation_provided','adjustment_review','waiting_customer','retained','adjusted','surrendered','closed') NOT NULL DEFAULT 'detected',
+	`responseStrategy` enum('explain_existing_value','reduce_premium_review','coverage_gap_review','partial_adjustment','payment_method_review','wait_and_followup','no_retention_needed','other') NOT NULL DEFAULT 'wait_and_followup',
+	`customerSentiment` enum('calm','worried','dissatisfied','price_sensitive','distrustful','undecided','no_response') NOT NULL DEFAULT 'undecided',
+	`financialPressureLevel` enum('low','medium','high'),
+	`competitorMentioned` boolean NOT NULL DEFAULT false,
+	`followUpId` int,
+	`nextFollowUpAt` timestamp,
+	`resolvedAt` timestamp,
+	`resolutionResult` enum('retained','adjusted','surrendered','transferred_to_followup','no_action','unknown'),
+	`memo` varchar(500),
+	`createdBy` int NOT NULL,
+	`updatedBy` int,
+	`createdAt` timestamp NOT NULL DEFAULT (now()),
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	`deletedAt` timestamp,
+	CONSTRAINT `retention_risk_cases_id` PRIMARY KEY(`id`)
+);
