@@ -24,6 +24,10 @@ import {
   sortNotificationsForQueue,
 } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import {
   Bell,
@@ -70,6 +74,18 @@ const processStatusColors: Record<string, string> = {
 
 type ProcessStatus = "미확인" | "확인" | "처리완료" | "보류";
 type PriorityFilter = "all" | "urgent" | "today" | "general";
+type BulkCompleteConfirmation = {
+  ids: number[];
+  action: "complete" | "todayComplete";
+};
+
+export function createBulkCompleteConfirmation(
+  ids: number[],
+  action: "complete" | "todayComplete" = "complete"
+): BulkCompleteConfirmation | null {
+  if (ids.length === 0) return null;
+  return { ids, action };
+}
 
 const titleMap: Record<string, string> = {
   branch_admin: "전체 알림 관리",
@@ -122,6 +138,8 @@ export default function Notifications() {
   const [bulkAction, setBulkAction] = useState<
     "read" | "complete" | "todayComplete" | null
   >(null);
+  const [bulkCompleteConfirmation, setBulkCompleteConfirmation] =
+    useState<BulkCompleteConfirmation | null>(null);
 
   const queryInput = {
     processStatus:
@@ -266,11 +284,16 @@ export default function Notifications() {
     }
   };
 
-  const handleBulkComplete = async (
+  const openBulkCompleteConfirmation = (
     ids: number[],
     action: "complete" | "todayComplete" = "complete"
   ) => {
-    if (ids.length === 0) return;
+    setBulkCompleteConfirmation(createBulkCompleteConfirmation(ids, action));
+  };
+
+  const confirmBulkComplete = async () => {
+    if (!bulkCompleteConfirmation) return;
+    const { ids, action } = bulkCompleteConfirmation;
     setBulkAction(action);
     try {
       await Promise.all(
@@ -284,8 +307,14 @@ export default function Notifications() {
         utils.notifications.unreadCount.invalidate(),
       ]);
       toast.success(`${ids.length}개 알림을 처리완료했습니다.`);
-    } catch {
-      toast.error("선택 알림 처리완료에 실패했습니다.");
+      setBulkCompleteConfirmation(null);
+    } catch (error) {
+      toast.error(
+        getUserFacingErrorMessage(
+          error,
+          "선택 알림 처리완료에 실패했습니다."
+        )
+      );
     } finally {
       setBulkAction(null);
     }
@@ -767,9 +796,11 @@ export default function Notifications() {
                         size="sm"
                         className="min-h-11 border-blue-200 text-xs text-blue-700 hover:bg-blue-50 sm:min-h-8"
                         disabled={selectedCount === 0 || isBulkPending}
-                        onClick={() => handleBulkComplete(selectedVisibleIds)}
+                        onClick={() =>
+                          openBulkCompleteConfirmation(selectedVisibleIds)
+                        }
                       >
-                        선택 처리완료
+                        선택한 알림 처리완료
                       </Button>
                       <Button
                         data-testid="bulk-today-complete"
@@ -780,7 +811,7 @@ export default function Notifications() {
                           todayProcessingTargets.length === 0 || isBulkPending
                         }
                         onClick={() =>
-                          handleBulkComplete(
+                          openBulkCompleteConfirmation(
                             todayProcessingTargets.map(n => n.id),
                             "todayComplete"
                           )
@@ -1094,6 +1125,44 @@ export default function Notifications() {
               onClick={() => markAllReadMutation.mutate()}
             >
               모두 읽음 처리
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bulkCompleteConfirmation !== null}
+        onOpenChange={open => {
+          if (!open && !isBulkPending) setBulkCompleteConfirmation(null);
+        }}
+      >
+        <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCheck className="h-5 w-5 text-emerald-700" /> 처리완료 변경
+              확인
+            </DialogTitle>
+            <DialogDescription>
+              선택한 {bulkCompleteConfirmation?.ids.length ?? 0}개의 알림을
+              처리완료로 변경합니다. 알림은 삭제되지 않으며, 처리 상태만
+              변경됩니다.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
+            <Button
+              className="min-h-12 sm:min-h-10"
+              variant="outline"
+              disabled={isBulkPending}
+              onClick={() => setBulkCompleteConfirmation(null)}
+            >
+              취소
+            </Button>
+            <Button
+              className="min-h-12 sm:min-h-10"
+              disabled={isBulkPending}
+              onClick={confirmBulkComplete}
+            >
+              {isBulkPending ? "변경 중..." : "처리완료로 변경"}
             </Button>
           </DialogFooter>
         </DialogContent>

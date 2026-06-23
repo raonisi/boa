@@ -7556,6 +7556,26 @@ export const appRouter = router({
         if (user.role === "sub_branch_admin" || user.role === "team_leader") {
           if (input.scope === "mine")
             return getCustomers({ ...baseFilter, agentId: user.id });
+          if (input.agentIdFilter !== undefined) {
+            const target = await verifyTargetUserAccess(user, input.agentIdFilter);
+            if (
+              user.role === "sub_branch_admin" &&
+              target.role !== "team_leader" &&
+              target.role !== "member"
+            ) {
+              throw new TRPCError({
+                code: "FORBIDDEN",
+                message: "팀장 또는 팀원만 담당자 필터로 조회할 수 있습니다.",
+              });
+            }
+            if (user.role === "team_leader" && target.role !== "member") {
+              throw new TRPCError({
+                code: "FORBIDDEN",
+                message: "팀원만 담당자 필터로 조회할 수 있습니다.",
+              });
+            }
+            return getCustomers({ ...baseFilter, agentId: target.id });
+          }
           if (user.role === "team_leader" && user.teamId)
             return getCustomers({ ...baseFilter, teamId: user.teamId });
           if (user.role === "sub_branch_admin")

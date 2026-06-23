@@ -30,6 +30,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
 import {
   KeyRound,
@@ -74,6 +78,39 @@ const securityActionLabels: Record<string, string> = {
   LOGIN_BLOCKED: "로그인 차단",
 };
 
+type PendingUserChange =
+  | {
+      kind: "role";
+      userId: number;
+      userName: string;
+      previousValue: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+      nextValue: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+    }
+  | {
+      kind: "accountStatus";
+      userId: number;
+      userName: string;
+      previousValue: "active" | "inactive" | "resigned";
+      nextValue: "active" | "inactive" | "resigned";
+    };
+
+type EditableRole = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+type EditableAccountStatus = "active" | "inactive" | "resigned";
+
+export function shouldQueueUserRoleChange(
+  currentRole: EditableRole,
+  nextRole: EditableRole
+) {
+  return currentRole !== nextRole;
+}
+
+export function shouldQueueAccountStatusChange(
+  currentStatus: EditableAccountStatus,
+  nextStatus: EditableAccountStatus
+) {
+  return currentStatus !== nextStatus;
+}
+
 export default function UserManagement() {
   const utils = trpc.useUtils();
   const {
@@ -98,6 +135,8 @@ export default function UserManagement() {
   const [allLogoutOpen, setAllLogoutOpen] = useState(false);
   const [allLogoutReason, setAllLogoutReason] = useState("");
   const [allLogoutConfirm, setAllLogoutConfirm] = useState("");
+  const [pendingUserChange, setPendingUserChange] =
+    useState<PendingUserChange | null>(null);
   const {
     data: loginHistory,
     isLoading: isLoginHistoryLoading,
@@ -109,9 +148,13 @@ export default function UserManagement() {
     onSuccess: () => {
       toast.success("권한이 변경되었습니다.");
       utils.users.list.invalidate();
+      setPendingUserChange(null);
       setEditUser(null);
     },
-    onError: () => toast.error("권한 변경에 실패했습니다."),
+    onError: error =>
+      toast.error(
+        getUserFacingErrorMessage(error, "권한 변경에 실패했습니다.")
+      ),
   });
 
   const updateAccountStatusMutation =
@@ -119,8 +162,12 @@ export default function UserManagement() {
       onSuccess: () => {
         toast.success("계정 상태가 변경되었습니다.");
         utils.users.list.invalidate();
+        setPendingUserChange(null);
       },
-      onError: () => toast.error("상태 변경에 실패했습니다."),
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(error, "상태 변경에 실패했습니다.")
+        ),
     });
 
   const updateTeamMutation = trpc.users.updateTeam.useMutation({
@@ -230,6 +277,55 @@ export default function UserManagement() {
       }
     }
     updateSubBranchMutation.mutate({ userId, subBranchAdminId: newId });
+  };
+
+  const isUserChangePending =
+    updateRoleMutation.isPending || updateAccountStatusMutation.isPending;
+
+  const queueRoleChangeConfirmation = (
+    userInfo: { id: number; name: string | null; role: string },
+    nextRole: EditableRole
+  ) => {
+    const previousRole = userInfo.role as EditableRole;
+    if (!shouldQueueUserRoleChange(previousRole, nextRole)) return;
+    setPendingUserChange({
+      kind: "role",
+      userId: userInfo.id,
+      userName: userInfo.name ?? "사용자",
+      previousValue: previousRole,
+      nextValue: nextRole,
+    });
+  };
+
+  const queueAccountStatusConfirmation = (
+    userInfo: { id: number; name: string | null; accountStatus?: string | null },
+    nextStatus: EditableAccountStatus
+  ) => {
+    const previousStatus = (userInfo.accountStatus ??
+      "active") as EditableAccountStatus;
+    if (!shouldQueueAccountStatusChange(previousStatus, nextStatus)) return;
+    setPendingUserChange({
+      kind: "accountStatus",
+      userId: userInfo.id,
+      userName: userInfo.name ?? "사용자",
+      previousValue: previousStatus,
+      nextValue: nextStatus,
+    });
+  };
+
+  const confirmPendingUserChange = () => {
+    if (!pendingUserChange) return;
+    if (pendingUserChange.kind === "role") {
+      updateRoleMutation.mutate({
+        userId: pendingUserChange.userId,
+        role: pendingUserChange.nextValue,
+      });
+      return;
+    }
+    updateAccountStatusMutation.mutate({
+      userId: pendingUserChange.userId,
+      accountStatus: pendingUserChange.nextValue,
+    });
   };
 
   return (
@@ -893,15 +989,24 @@ export default function UserManagement() {
               <div>
                 <p className="text-xs text-muted-foreground mb-2">역할 변경</p>
                 <Select
-                  defaultValue={editUser.role}
+                  value={
+                    pendingUserChange &&
+                    pendingUserChange.kind === "role" &&
+                    pendingUserChange.userId === editUser.id
+                      ? pendingUserChange.nextValue
+                      : editUser.role
+                  }
                   onValueChange={v =>
-                    updateRoleMutation.mutate({
-                      userId: editUser.id,
-                      role: v as any,
-                    })
+                    queueRoleChangeConfirmation(
+                      editUser,
+                      v as "branch_admin" | "sub_branch_admin" | "team_leader" | "member"
+                    )
                   }
                 >
-                  <SelectTrigger className="min-h-12 md:h-9 md:min-h-9">
+                  <SelectTrigger
+                    className="min-h-12 md:h-9 md:min-h-9"
+                    disabled={isUserChangePending}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -917,15 +1022,24 @@ export default function UserManagement() {
                   계정 상태 변경
                 </p>
                 <Select
-                  defaultValue={(editUser as any).accountStatus ?? "active"}
+                  value={
+                    pendingUserChange &&
+                    pendingUserChange.kind === "accountStatus" &&
+                    pendingUserChange.userId === editUser.id
+                      ? pendingUserChange.nextValue
+                      : ((editUser as any).accountStatus ?? "active")
+                  }
                   onValueChange={v =>
-                    updateAccountStatusMutation.mutate({
-                      userId: editUser.id,
-                      accountStatus: v as any,
-                    })
+                    queueAccountStatusConfirmation(
+                      editUser,
+                      v as "active" | "inactive" | "resigned"
+                    )
                   }
                 >
-                  <SelectTrigger className="min-h-12 md:h-9 md:min-h-9">
+                  <SelectTrigger
+                    className="min-h-12 md:h-9 md:min-h-9"
+                    disabled={isUserChangePending}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -947,6 +1061,74 @@ export default function UserManagement() {
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog
+        open={pendingUserChange !== null}
+        onOpenChange={open => {
+          if (!open && !isUserChangePending) setPendingUserChange(null);
+        }}
+      >
+        <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <DialogHeader>
+            <DialogTitle>
+              {pendingUserChange?.kind === "role"
+                ? "역할 변경 확인"
+                : "계정 상태 변경 확인"}
+            </DialogTitle>
+          </DialogHeader>
+          {pendingUserChange ? (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                <p className="font-semibold text-foreground">
+                  {pendingUserChange.userName}
+                </p>
+                <p className="mt-1">
+                  현재:{" "}
+                  {pendingUserChange.kind === "role"
+                    ? getRoleLabel(pendingUserChange.previousValue)
+                    : getUserStatusLabel(pendingUserChange.previousValue)}
+                </p>
+                <p>
+                  변경:{" "}
+                  {pendingUserChange.kind === "role"
+                    ? getRoleLabel(pendingUserChange.nextValue)
+                    : getUserStatusLabel(pendingUserChange.nextValue)}
+                </p>
+              </div>
+              {pendingUserChange.kind === "role" ? (
+                <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-900">
+                  역할 변경은 고객 접근 범위와 업무 권한에 영향을 줄 수 있습니다.
+                </p>
+              ) : (
+                <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-900">
+                  계정 상태 변경 후 로그인 및 주요 기능 접근이 제한될 수 있습니다.
+                </p>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="min-h-12 md:min-h-8"
+                  disabled={isUserChangePending}
+                  onClick={() => setPendingUserChange(null)}
+                >
+                  취소
+                </Button>
+                <Button
+                  className="min-h-12 md:min-h-8"
+                  disabled={isUserChangePending}
+                  onClick={confirmPendingUserChange}
+                >
+                  {isUserChangePending
+                    ? "변경 중..."
+                    : pendingUserChange.kind === "role"
+                      ? "역할 변경 확정"
+                      : "계정 상태 변경 확정"}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {forceLogoutUser && (
         <Dialog open={true} onOpenChange={() => setForceLogoutUser(null)}>

@@ -188,7 +188,7 @@ export default function CustomerList() {
     assignedDateTo: assignedDateTo || undefined,
     scope: user?.role === "branch_admin" ? scopeFilter : undefined,
   });
-  const { data: allUsers } = trpc.users.list.useQuery();
+  const { data: allUsers } = trpc.users.list.useQuery({ activeOnly: true });
   const { data: priorityContacts } =
     trpc.recommendations.priorityContacts.useQuery({
       limit: 50,
@@ -323,6 +323,28 @@ export default function CustomerList() {
       )
   );
   const canBulkImportCustomers = hasCustomerBulkImportAccess(user);
+  const canFilterByAgent = Boolean(
+    user &&
+      ["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role)
+  );
+  const agentFilterOptions = agents.filter(agent => {
+    if (!user) return false;
+    if (user.role === "branch_admin") {
+      return (
+        agent.role === "branch_admin" ||
+        agent.role === "sub_branch_admin" ||
+        agent.role === "team_leader" ||
+        agent.role === "member"
+      );
+    }
+    if (user.role === "sub_branch_admin") {
+      return agent.role === "team_leader" || agent.role === "member";
+    }
+    if (user.role === "team_leader") {
+      return agent.role === "member";
+    }
+    return false;
+  });
   const recommendationByCustomerId = new Map(
     (priorityContacts ?? []).map(item => [item.customerId, item])
   );
@@ -837,7 +859,7 @@ export default function CustomerList() {
         className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9"
         title="배정일 종료"
       />
-      {(user?.role === "branch_admin" || user?.role === "team_leader") && (
+      {canFilterByAgent && (
         <Select value={agentFilter} onValueChange={setAgentFilter}>
           <SelectTrigger className="min-h-12 rounded-xl bg-white text-xs md:h-9 md:min-h-9">
             <SelectValue placeholder="담당자" />
@@ -845,7 +867,7 @@ export default function CustomerList() {
           <SelectContent>
             <SelectItem value="all">전체 담당자</SelectItem>
             <SelectItem value="unassigned">담당자 없음</SelectItem>
-            {agents.map(a => (
+            {agentFilterOptions.map(a => (
               <SelectItem key={a.id} value={String(a.id)}>
                 {formatUserWithRole(a)}
               </SelectItem>
