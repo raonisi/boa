@@ -456,9 +456,9 @@ export default function ContractList() {
                                 size="sm"
                                 className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
                                 onClick={e => handleDeactivate(c.id, e)}
-                                title="계약 삭제"
+                                aria-label="계약 삭제"
                               >
-                                <XCircle className="h-4 w-4" />
+                                <XCircle className="h-4 w-4" aria-hidden="true" />
                               </Button>
                             ) : (
                               <Button

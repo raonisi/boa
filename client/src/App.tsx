@@ -6,6 +6,7 @@ import { BrandedLogin } from "./components/BrandedLogin";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrlResult } from "./const";
+import { getLoginConfigurationNotice } from "./lib/loginConfigurationCopy";
 import { Loader2 } from "lucide-react";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { ForbiddenState } from "./components/ForbiddenState";
@@ -123,17 +124,18 @@ function LazyRoute({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<RouteFallback />}>{children}</Suspense>;
 }
 
-function LoginConfigurationNotice({ message }: { message: string }) {
+function LoginConfigurationNotice({
+  reason,
+}: {
+  reason: "missing" | "invalid";
+}) {
+  const { title, description } = getLoginConfigurationNotice(reason);
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-lg border bg-card p-6 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">
-          로그인 설정 확인 필요
-        </h1>
-        <p className="mt-3 text-sm text-muted-foreground">{message}</p>
-        <p className="mt-2 text-sm text-muted-foreground">
-          관리자에게 VITE_GOOGLE_CLIENT_ID 환경변수 설정을 요청해주세요.
-        </p>
+        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        <p className="mt-3 text-sm text-muted-foreground">{description}</p>
       </div>
     </div>
   );
@@ -157,7 +159,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     const loginUrl = getLoginUrlResult();
 
     if (!loginUrl.ok) {
-      return <LoginConfigurationNotice message={loginUrl.message} />;
+      return <LoginConfigurationNotice reason={loginUrl.reason} />;
     }
 
     return (

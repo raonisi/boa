@@ -215,7 +215,7 @@ export default function Dashboard() {
               onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
               aria-label="맨 위로"
             >
-              <ArrowUp className="h-4 w-4" />
+              <ArrowUp className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>
         ) : null}

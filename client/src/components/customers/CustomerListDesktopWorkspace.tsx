@@ -307,13 +307,13 @@ export function CustomerListDesktopWorkspace({
                         size="icon"
                         className="h-9 w-9 shrink-0"
                         asChild
-                        title="전화"
                       >
                         <a
                           href={`tel:${customer.phone}`}
+                          aria-label="전화 걸기"
                           onClick={e => e.stopPropagation()}
                         >
-                          <Phone className="h-4 w-4" />
+                          <Phone className="h-4 w-4" aria-hidden="true" />
                         </a>
                       </Button>
                     ) : (
@@ -322,46 +322,46 @@ export function CustomerListDesktopWorkspace({
                         size="icon"
                         className="h-9 w-9 shrink-0 text-muted-foreground"
                         disabled
-                        title="연락처 없음"
+                        aria-label="연락처 없음"
                       >
-                        <Phone className="h-4 w-4" />
+                        <Phone className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     )}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9 shrink-0"
-                      title="상담기록"
+                      aria-label="상담기록"
                       onClick={e => {
                         e.stopPropagation();
                         onNavigate(`/customers/${customer.id}?action=consult`);
                       }}
                     >
-                      <MessageSquare className="h-4 w-4" />
+                      <MessageSquare className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9 shrink-0"
-                      title="후속 등록"
+                      aria-label="후속 등록"
                       onClick={e => {
                         e.stopPropagation();
                         onNavigate(`/customers/${customer.id}?action=quick-followup`);
                       }}
                     >
-                      <CalendarPlus className="h-4 w-4" />
+                      <CalendarPlus className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-9 w-9 shrink-0"
-                      title="상세 보기"
+                      aria-label="고객 상세 보기"
                       onClick={e => {
                         e.stopPropagation();
                         onNavigate(`/customers/${customer.id}`);
                       }}
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-4 w-4" aria-hidden="true" />
                     </Button>
                     {canDeactivateCustomer || isCustomerReclaimable(customer) ? (
                       <DropdownMenu>
@@ -370,9 +370,9 @@ export function CustomerListDesktopWorkspace({
                             variant="ghost"
                             size="icon"
                             className="h-9 w-9 shrink-0"
-                            title="더보기"
+                            aria-label="고객 작업 메뉴"
                           >
-                            <MoreHorizontal className="h-4 w-4" />
+                            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">

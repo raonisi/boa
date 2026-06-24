@@ -763,9 +763,9 @@ export default function UserManagement() {
                                 size="sm"
                                 className="h-7 w-7 p-0"
                                 onClick={() => setEditUser(u)}
-                                title="권한 변경"
+                                aria-label="권한 변경"
                               >
-                                <UserCog className="h-3.5 w-3.5" />
+                                <UserCog className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                               {(u as any).accountStatus === "active" && (
                                 <Button
@@ -773,9 +773,9 @@ export default function UserManagement() {
                                   size="sm"
                                   className="h-7 w-7 p-0 text-destructive hover:text-destructive"
                                   onClick={() => handleBlock(u.id)}
-                                  title="퇴사 처리"
+                                  aria-label="퇴사 처리"
                                 >
-                                  <ShieldX className="h-3.5 w-3.5" />
+                                  <ShieldX className="h-3.5 w-3.5" aria-hidden="true" />
                                 </Button>
                               )}
                               <Button
@@ -783,18 +783,18 @@ export default function UserManagement() {
                                 size="sm"
                                 className="h-7 w-7 p-0"
                                 onClick={() => setForceLogoutUser(u)}
-                                title="강제 로그아웃"
+                                aria-label="강제 로그아웃"
                               >
-                                <LogOut className="h-3.5 w-3.5" />
+                                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0"
                                 onClick={() => setOauthResetUser(u)}
-                                title="OAuth 초기화"
+                                aria-label="OAuth 초기화"
                               >
-                                <KeyRound className="h-3.5 w-3.5" />
+                                <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
                               </Button>
                             </div>
                           </TableCell>

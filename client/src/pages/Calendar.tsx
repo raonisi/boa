@@ -1251,13 +1251,13 @@ export default function Calendar() {
                               variant="ghost"
                               size="icon"
                               className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
-                              title="일정 추가"
+                              aria-label="일정 추가"
                               onClick={e => {
                                 e.stopPropagation();
                                 openQuickCreate(day);
                               }}
                             >
-                              <Plus className="h-3.5 w-3.5" />
+                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                             </Button>
                           </div>
                           <div className="space-y-0.5">
@@ -1320,13 +1320,13 @@ export default function Calendar() {
                               variant="ghost"
                               size="icon"
                               className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
-                              title="일정 추가"
+                              aria-label="일정 추가"
                               onClick={e => {
                                 e.stopPropagation();
                                 openQuickCreate(day);
                               }}
                             >
-                              <Plus className="h-3.5 w-3.5" />
+                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
                             </Button>
                           </div>
                         </div>

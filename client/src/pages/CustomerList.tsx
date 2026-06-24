@@ -1458,7 +1458,7 @@ export default function CustomerList() {
                                 onClick={e => e.stopPropagation()}
                                 aria-label="고객 작업 메뉴"
                               >
-                                <MoreHorizontal className="h-5 w-5" />
+                                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent

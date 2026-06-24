@@ -477,17 +477,18 @@ function TeamListView() {
                       size="sm"
                       className="h-6 w-6 p-0 ml-auto"
                       onClick={() => setEditTeam(team)}
+                      aria-label="팀 수정"
                     >
-                      <Edit2 className="h-3 w-3" />
+                      <Edit2 className="h-3 w-3" aria-hidden="true" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="sm"
                       className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                       onClick={() => handleDeactivateTeam(team)}
-                      title="팀 삭제"
+                      aria-label="팀 삭제"
                     >
-                      <Trash2 className="h-3 w-3" />
+                      <Trash2 className="h-3 w-3" aria-hidden="true" />
                     </Button>
                   </CardTitle>
                 </CardHeader>

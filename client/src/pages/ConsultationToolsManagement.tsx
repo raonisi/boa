@@ -693,7 +693,7 @@ export default function ConsultationToolsManagement() {
                         disabled={updateChecklist.isPending}
                         aria-label="수정 취소"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </CardHeader>
                     <CardContent className="grid gap-3 md:grid-cols-6">
@@ -1046,7 +1046,7 @@ export default function ConsultationToolsManagement() {
                         disabled={updateTemplate.isPending}
                         aria-label="수정 취소"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </CardHeader>
                     <CardContent className="grid gap-3 md:grid-cols-4">
@@ -1375,7 +1375,7 @@ export default function ConsultationToolsManagement() {
                         disabled={updateScript.isPending}
                         aria-label="수정 취소"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-4 w-4" aria-hidden="true" />
                       </Button>
                     </CardHeader>
                     <CardContent className="grid gap-3 md:grid-cols-4">
