@@ -1403,8 +1403,8 @@ export default function CustomerList() {
                               onCheckedChange={checked =>
                                 toggleCustomerSelection(c.id, checked === true)
                               }
-                              aria-label={`${c.name} 고객 선택`}
-                              className="mt-1"
+                              aria-label="고객 선택"
+                              className="mt-0.5"
                             />
                           )}
                           <div className="flex-1 min-w-0">

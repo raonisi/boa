@@ -50,7 +50,7 @@ function KpiCard({ title, value }: { title: string; value: number }) {
       <p className="mt-2 text-2xl font-bold tabular-nums text-[#1f3b57]">
         {value}
       </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-xs text-muted-foreground">
         기록된 소개 흐름 기준
       </p>
     </div>
@@ -387,7 +387,7 @@ export default function ReferralManagement() {
                     <div key={row.id} className="space-y-2 p-4">
                       <div className="flex flex-wrap gap-2">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_STAGE_BADGE_CLASSES[row.referralStage as ReferralStage]}`}
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${REFERRAL_STAGE_BADGE_CLASSES[row.referralStage as ReferralStage]}`}
                         >
                           {
                             REFERRAL_STAGE_LABELS[
@@ -396,7 +396,7 @@ export default function ReferralManagement() {
                           }
                         </span>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_THANK_YOU_BADGE_CLASSES[row.thankYouStatus as ThankYouStatus]}`}
+                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${REFERRAL_THANK_YOU_BADGE_CLASSES[row.thankYouStatus as ThankYouStatus]}`}
                         >
                           감사{" "}
                           {
@@ -454,7 +454,7 @@ export default function ReferralManagement() {
                         <TableRow key={row.id}>
                           <TableCell>
                             <span
-                              className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_STAGE_BADGE_CLASSES[row.referralStage as ReferralStage]}`}
+                              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${REFERRAL_STAGE_BADGE_CLASSES[row.referralStage as ReferralStage]}`}
                             >
                               {
                                 REFERRAL_STAGE_LABELS[

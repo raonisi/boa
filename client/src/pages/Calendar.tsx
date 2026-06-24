@@ -301,6 +301,19 @@ function scheduleReminderText(schedule: any) {
   return reminderOffsetLabels[scheduleReminderOffset(schedule)] ?? "30분 전";
 }
 
+export function buildCalendarDayA11yLabel(input: {
+  day: Date;
+  isToday: boolean;
+  isSelected: boolean;
+  scheduleCount: number;
+}) {
+  const parts = [format(input.day, "yyyy년 M월 d일", { locale: ko })];
+  if (input.isToday) parts.push("오늘");
+  if (input.isSelected) parts.push("선택됨");
+  if (input.scheduleCount > 0) parts.push(`일정 ${input.scheduleCount}건`);
+  return parts.join(", ");
+}
+
 function scheduleDefaultReminderOffset(schedule: any) {
   return scheduleReminderOffset(schedule);
 }
@@ -875,7 +888,7 @@ export default function Calendar() {
                     <p className="mt-1 text-2xl font-bold text-slate-950">
                       {item.value}
                     </p>
-                    <p className="mt-0.5 text-[11px] text-slate-500">
+                    <p className="mt-0.5 text-xs text-slate-500">
                       {item.helper}
                     </p>
                   </CardContent>
@@ -1219,11 +1232,25 @@ export default function Calendar() {
                     variant="ghost"
                     size="sm"
                     onClick={() => navigate(-1)}
+                    aria-label={
+                      viewMode === "month"
+                        ? "이전 달 보기"
+                        : viewMode === "week"
+                          ? "이전 주 보기"
+                          : "이전 날 보기"
+                    }
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <h2 className="text-base font-semibold">{headerTitle}</h2>
                   <Button variant="ghost" size="sm" onClick={() => navigate(1)}>
+                    <span className="sr-only">
+                      {viewMode === "month"
+                        ? "다음 달 보기"
+                        : viewMode === "week"
+                          ? "다음 주 보기"
+                          : "다음 날 보기"}
+                    </span>
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1250,17 +1277,26 @@ export default function Calendar() {
                           <div
                             key={day.toISOString()}
                             className={`group bg-background min-h-[92px] p-1.5 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday ? "ring-2 ring-primary ring-inset" : ""} ${isSelectedDay ? "bg-primary/5" : ""}`}
-                            onClick={() => {
-                              setSelectedDate(day);
-                              setCurrentDate(day);
-                            }}
                           >
                             <div className="mb-1 flex items-center justify-between gap-1">
-                              <div
+                              <button
+                                type="button"
+                                aria-label={buildCalendarDayA11yLabel({
+                                  day,
+                                  isToday,
+                                  isSelected: isSelectedDay,
+                                  scheduleCount: daySchedules.length,
+                                })}
+                                aria-current={isToday ? "date" : undefined}
+                                data-selected={isSelectedDay}
                                 className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isSelectedDay ? "bg-slate-900 text-white" : ""}`}
+                                onClick={() => {
+                                  setSelectedDate(day);
+                                  setCurrentDate(day);
+                                }}
                               >
                                 {format(day, "d")}
-                              </div>
+                              </button>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1282,7 +1318,7 @@ export default function Calendar() {
                               {daySchedules.slice(0, 3).map(s => (
                                 <div
                                   key={s.id}
-                                  className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`}
+                                  className={`text-xs text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`}
                                   onClick={e => {
                                     e.stopPropagation();
                                     setSelectedSchedule(s);
@@ -1296,7 +1332,7 @@ export default function Calendar() {
                                 </div>
                               ))}
                               {daySchedules.length > 3 && (
-                                <div className="text-[10px] text-muted-foreground pl-1">
+                                <div className="text-xs text-muted-foreground pl-1">
                                   +{daySchedules.length - 3}개
                                 </div>
                               )}
@@ -1323,7 +1359,22 @@ export default function Calendar() {
                             className={`py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
                           >
                             <div className="flex items-start justify-between px-2">
-                              <span className="text-left">
+                              <button
+                                type="button"
+                                className="text-left"
+                                aria-label={buildCalendarDayA11yLabel({
+                                  day,
+                                  isToday,
+                                  isSelected: isSelectedDay,
+                                  scheduleCount: daySchedules.length,
+                                })}
+                                aria-current={isToday ? "date" : undefined}
+                                data-selected={isSelectedDay}
+                                onClick={() => {
+                                  setSelectedDate(day);
+                                  setCurrentDate(day);
+                                }}
+                              >
                                 <span className="block">
                                   {format(day, "EEE", { locale: ko })}
                                 </span>
@@ -1332,7 +1383,7 @@ export default function Calendar() {
                                 >
                                   {format(day, "d")}
                                 </span>
-                              </span>
+                              </button>
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1361,7 +1412,7 @@ export default function Calendar() {
                             {daySchedules.map(s => (
                               <div
                                 key={s.id}
-                                className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`}
+                                className={`text-xs text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`}
                                 onClick={e => {
                                   e.stopPropagation();
                                   setSelectedSchedule(s);
@@ -1710,7 +1761,7 @@ function ScheduleModal({
                 ))}
               </SelectContent>
             </Select>
-            <p className="mt-1 text-[11px] text-muted-foreground">
+            <p className="mt-1 text-xs text-muted-foreground">
               미래 dueAt 알림은 설정한 시각이 도래하면 알림센터에 표시됩니다.
             </p>
           </div>
@@ -2006,7 +2057,7 @@ function ScheduleDetailModal({
                     <ExternalLink className="mr-1 h-3.5 w-3.5" /> 고객 상세 보기
                   </Button>
                 ) : (
-                  <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  <p className="text-xs leading-relaxed text-muted-foreground">
                     고객 상세는 담당 권한이 있는 사용자만 볼 수 있습니다.
                   </p>
                 )}
@@ -2116,7 +2167,7 @@ function ScheduleDetailModal({
                     )}
                   </SelectContent>
                 </Select>
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-xs text-muted-foreground">
                   저장 시 기존 알림 정책에 따라 설정한 시각에 알림이 표시됩니다.
                 </p>
               </div>

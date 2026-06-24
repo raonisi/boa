@@ -91,6 +91,15 @@ export function createBulkCompleteConfirmation(
   return { ids, action };
 }
 
+export function getBulkSelectionCheckboxState(input: {
+  allVisibleSelected: boolean;
+  selectedVisibleCount: number;
+}): boolean | "indeterminate" {
+  if (input.allVisibleSelected) return true;
+  if (input.selectedVisibleCount > 0) return "indeterminate";
+  return false;
+}
+
 const titleMap: Record<string, string> = {
   branch_admin: "전체 알림 관리",
   sub_branch_admin: "본인 산하 알림 관리",
@@ -479,26 +488,26 @@ export default function Notifications() {
         <div className="grid gap-2 sm:grid-cols-3">
           <Card className="border-slate-200 bg-white shadow-sm">
             <CardContent className="p-3">
-              <p className="text-[11px] font-semibold text-muted-foreground">
+              <p className="text-xs font-semibold text-muted-foreground">
                 전체 검색 결과
               </p>
               <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                 {totalCount.toLocaleString()}건
               </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 서버 필터 적용 결과
               </p>
             </CardContent>
           </Card>
           <Card className="border-slate-200 bg-white shadow-sm">
             <CardContent className="p-3">
-              <p className="text-[11px] font-semibold text-muted-foreground">
+              <p className="text-xs font-semibold text-muted-foreground">
                 현재 페이지
               </p>
               <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
                 {pageVisibleCount.toLocaleString()}건
               </p>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">
+              <p className="mt-0.5 text-xs text-muted-foreground">
                 페이지 {currentPage.toLocaleString()} /{" "}
                 {Math.max(totalPages, 1).toLocaleString()}
               </p>
@@ -506,13 +515,13 @@ export default function Notifications() {
           </Card>
           <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
             <CardContent className="p-3">
-              <p className="text-[11px] font-semibold text-amber-800">
+              <p className="text-xs font-semibold text-amber-800">
                 현재 페이지 우선 처리
               </p>
               <p className="mt-1 text-xl font-bold tabular-nums text-amber-900">
                 {actionQueueCount.toLocaleString()}건
               </p>
-              <p className="mt-0.5 text-[11px] text-amber-700">
+              <p className="mt-0.5 text-xs text-amber-700">
                 긴급 {priorityCounts.urgent} · 오늘 처리 {priorityCounts.today}
               </p>
             </CardContent>
@@ -658,11 +667,11 @@ export default function Notifications() {
               setSelectedNotificationIds([]);
             }}
           >
-            <p className="text-[11px] font-semibold">긴급</p>
+            <p className="text-xs font-semibold">긴급</p>
             <p className="text-lg font-bold tabular-nums text-foreground">
               {priorityCounts.urgent}
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               위험·기한 임박 업무
             </p>
           </button>
@@ -675,11 +684,11 @@ export default function Notifications() {
               setSelectedNotificationIds([]);
             }}
           >
-            <p className="text-[11px] font-semibold">오늘 처리</p>
+            <p className="text-xs font-semibold">오늘 처리</p>
             <p className="text-lg font-bold tabular-nums text-foreground">
               {priorityCounts.today}
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               오늘 확인할 업무
             </p>
           </button>
@@ -694,11 +703,11 @@ export default function Notifications() {
               setSelectedNotificationIds([]);
             }}
           >
-            <p className="text-[11px] font-semibold">일반</p>
+            <p className="text-xs font-semibold">일반</p>
             <p className="text-lg font-bold tabular-nums text-foreground">
               {priorityCounts.general}
             </p>
-            <p className="text-[11px] text-muted-foreground">정보성 알림</p>
+            <p className="text-xs text-muted-foreground">정보성 알림</p>
           </button>
         </div>
 
@@ -774,11 +783,14 @@ export default function Notifications() {
               <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-foreground">
                   <Checkbox
-                    checked={allVisibleSelected}
+                    checked={getBulkSelectionCheckboxState({
+                      allVisibleSelected,
+                      selectedVisibleCount: selectedVisibleIds.length,
+                    })}
                     disabled={
                       visibleNotificationIds.length === 0 || isBulkPending
                     }
-                    aria-label="현재 목록 전체 선택"
+                    aria-label="현재 페이지 알림 전체 선택"
                     onCheckedChange={checked =>
                       toggleVisibleSelection(checked === true)
                     }
@@ -873,8 +885,8 @@ export default function Notifications() {
                       <Checkbox
                         checked={isSelected}
                         disabled={isBulkPending}
-                        className="mt-0.5 size-5"
-                        aria-label={`${n.title} 선택`}
+                        className="mt-0.5"
+                        aria-label="알림 선택"
                         onCheckedChange={checked =>
                           toggleNotificationSelection(n.id, checked === true)
                         }
@@ -886,7 +898,7 @@ export default function Notifications() {
                             {typeLabels[n.type] ?? "기타 알림"}
                           </span>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                               priority === "urgent"
                                 ? "crm-priority-urgent"
                                 : priority === "today"
@@ -897,12 +909,12 @@ export default function Notifications() {
                             {priorityLabel(priority)}
                           </span>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${processStatus === "처리완료" ? "bg-emerald-100 text-emerald-700" : processStatus === "미확인" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${processStatus === "처리완료" ? "bg-emerald-100 text-emerald-700" : processStatus === "미확인" ? "bg-red-50 text-red-700" : "bg-slate-100 text-slate-700"}`}
                           >
                             {processStatus}
                           </span>
                           {!n.isRead && (
-                            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-medium text-destructive">
+                            <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
                               읽지 않음
                             </span>
                           )}

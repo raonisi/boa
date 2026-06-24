@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { createBulkCompleteConfirmation } from "./Notifications";
+import {
+  createBulkCompleteConfirmation,
+  getBulkSelectionCheckboxState,
+} from "./Notifications";
 
 describe("Notifications bulk complete confirmation", () => {
   it("does not create a confirmation payload for empty selection", () => {
@@ -16,5 +19,21 @@ describe("Notifications bulk complete confirmation", () => {
       ids: [10],
       action: "todayComplete",
     });
+  });
+
+  it("returns mixed checkbox state for partial selection", () => {
+    expect(
+      getBulkSelectionCheckboxState({
+        allVisibleSelected: false,
+        selectedVisibleCount: 2,
+      })
+    ).toBe("indeterminate");
+
+    expect(
+      getBulkSelectionCheckboxState({
+        allVisibleSelected: true,
+        selectedVisibleCount: 2,
+      })
+    ).toBe(true);
   });
 });

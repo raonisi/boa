@@ -275,8 +275,8 @@ export function CustomerAssignCustomerList({
                         <Checkbox
                           checked={isSelected}
                           onCheckedChange={() => onToggle(customer.id)}
-                          aria-label={`${customer.name} 고객 선택`}
-                          className="mt-1"
+                          aria-label="고객 선택"
+                          className="mt-0.5"
                         />
                         <div className="min-w-0 flex-1 space-y-2">
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -319,7 +319,7 @@ export function CustomerAssignCustomerList({
                               )}
                             </p>
                           </div>
-                          <p className="text-[11px] text-muted-foreground">
+                          <p className="text-xs text-muted-foreground">
                             {isSelected ? "선택됨" : "미선택"} ·{" "}
                             {WORKFLOW_COPY.dbAssignment.unassignedLabel} DB
                           </p>
@@ -380,7 +380,7 @@ export function CustomerAssignCustomerList({
                           type="checkbox"
                           checked={selected.includes(customer.id)}
                           onChange={() => onToggle(customer.id)}
-                          aria-label={`${customer.name} 선택`}
+                          aria-label="고객 선택"
                         />
                       </TableCell>
                       <TableCell className="font-medium">
