@@ -50,7 +50,7 @@ const riskClasses: Record<string, string> = {
 
 const actionLabels: Record<string, string> = {
   DATA_DOWNLOAD: "데이터 다운로드",
-  CUSTOMER_DEACTIVATED: "고객 비활성화",
+  CUSTOMER_DEACTIVATED: "고객 삭제",
   CUSTOMER_RESTORED: "고객 복구",
   CONTRACT_DELETED: "계약 삭제",
   CONTRACT_RESTORED: "계약 복구",
