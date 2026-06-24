@@ -37,7 +37,6 @@ import {
 import { CoachingNoteDialog } from "@/components/CoachingNoteDialog";
 import { TeamMemberCoachingTimeline } from "@/components/TeamMemberCoachingTimeline";
 import { useAuth } from "@/_core/hooks/useAuth";
-import { ForbiddenState } from "@/components/ForbiddenState";
 import { getRoleLabel } from "@/lib/userRole";
 import DashboardLayout from "@/components/DashboardLayout";
 
@@ -46,14 +45,22 @@ export default function TeamCoachingDashboard() {
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
+  const isManager =
+    user?.role === "branch_admin" ||
+    user?.role === "sub_branch_admin" ||
+    user?.role === "team_leader";
+
   const { data: summary, isLoading: isSummaryLoading } =
-    trpc.teamCoaching.summary.useQuery();
+    trpc.teamCoaching.summary.useQuery(undefined, { enabled: isManager });
   const { data: usersData, isLoading: isUsersLoading } =
-    trpc.users.list.useQuery();
+    trpc.users.list.useQuery(undefined, { enabled: isManager });
   const { data: notes, isLoading: isNotesLoading } =
-    trpc.teamCoaching.list.useQuery({
-      status: "open",
-    });
+    trpc.teamCoaching.list.useQuery(
+      {
+        status: "open",
+      },
+      { enabled: isManager }
+    );
 
   const isLoading = isSummaryLoading || isUsersLoading || isNotesLoading;
 
@@ -103,14 +110,6 @@ export default function TeamCoachingDashboard() {
           b.highPriorityCount - a.highPriorityCount || b.openCount - a.openCount
       );
   }, [notes, usersData]);
-
-  if (user?.role === "member") {
-    return (
-      <DashboardLayout>
-        <ForbiddenState />
-      </DashboardLayout>
-    );
-  }
 
   if (isLoading) {
     return (

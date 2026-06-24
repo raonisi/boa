@@ -1,6 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { canAccessRoutePath } from "@/lib/routeAccess";
 import ClaimGuidanceManagement from "./ClaimGuidanceManagement";
 
 vi.mock("@/_core/hooks/useAuth", () => ({
@@ -100,12 +101,12 @@ describe("ClaimGuidanceManagement", () => {
     expect(html).not.toContain("지급 예상");
   });
 
-  it("renders empty access state for inactive users", async () => {
-    const { useAuth } = await import("@/_core/hooks/useAuth");
-    vi.mocked(useAuth).mockReturnValueOnce({
-      user: { id: 1, role: "member", accountStatus: "inactive" },
-    } as never);
-    const html = renderToStaticMarkup(<ClaimGuidanceManagement />);
-    expect(html).toContain("접근 권한이 없습니다");
+  it("denies inactive users at route access layer", () => {
+    expect(
+      canAccessRoutePath("/claim-guidance", {
+        role: "member",
+        accountStatus: "inactive",
+      })
+    ).toBe(false);
   });
 });

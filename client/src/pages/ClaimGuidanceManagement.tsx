@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -186,14 +186,6 @@ export default function ClaimGuidanceManagement() {
     }
     return Array.from(stats.values()).sort((a, b) => b.total - a.total);
   }, [filteredRows, lookup, agentById]);
-
-  if (!canAccess) {
-    return (
-      <DashboardLayout>
-        <ForbiddenInlineState fullPage />
-      </DashboardLayout>
-    );
-  }
 
   const waitingCustomer = summary?.byGuidanceStatus?.waiting_customer ?? 0;
 

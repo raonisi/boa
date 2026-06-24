@@ -3,7 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, ForbiddenInlineState } from "@/components/ui/empty-state";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -169,14 +169,6 @@ export default function ReferralManagement() {
     }
     return Array.from(stats.values()).sort((a, b) => b.referrals - a.referrals);
   }, [filteredRows, lookup, agentById]);
-
-  if (!canAccess) {
-    return (
-      <DashboardLayout>
-        <ForbiddenInlineState fullPage />
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>

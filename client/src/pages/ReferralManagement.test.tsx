@@ -1,6 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { canAccessRoutePath } from "@/lib/routeAccess";
 import ReferralManagement from "./ReferralManagement";
 
 vi.mock("@/_core/hooks/useAuth", () => ({
@@ -106,12 +107,12 @@ describe("ReferralManagement", () => {
     expect(html).toContain("팀원별 소개 현황");
   });
 
-  it("renders empty access state for inactive users", async () => {
-    const { useAuth } = await import("@/_core/hooks/useAuth");
-    vi.mocked(useAuth).mockReturnValueOnce({
-      user: { id: 1, role: "member", accountStatus: "inactive" },
-    } as never);
-    const html = renderToStaticMarkup(<ReferralManagement />);
-    expect(html).toContain("접근 권한이 없습니다");
+  it("denies inactive users at route access layer", () => {
+    expect(
+      canAccessRoutePath("/referrals", {
+        role: "member",
+        accountStatus: "inactive",
+      })
+    ).toBe(false);
   });
 });

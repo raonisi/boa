@@ -1,3 +1,5 @@
+import { canAccessRoutePath } from "@/lib/routeAccess";
+
 type ReferralFlowUser = {
   id?: number;
   role?: string | null;
@@ -18,5 +20,5 @@ export function canManageReferralFlow(
 export function canAccessReferralManagement(
   user: ReferralFlowUser | null | undefined
 ) {
-  return Boolean(user && user.accountStatus === "active");
+  return canAccessRoutePath("/referrals", user);
 }

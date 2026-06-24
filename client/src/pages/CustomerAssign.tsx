@@ -7,7 +7,6 @@ import {
 import { CustomerAssignMobileActionBar } from "@/components/customers/CustomerAssignMobileActionBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ForbiddenInlineState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -125,9 +124,6 @@ export default function CustomerAssign() {
       {isBranchAdmin && <BranchAdminAssign />}
       {isSubBranchAdmin && <SubBranchAdminAssign />}
       {isTeamLeader && <TeamLeaderAssign />}
-      {!isBranchAdmin && !isSubBranchAdmin && !isTeamLeader && (
-        <ForbiddenInlineState fullPage />
-      )}
     </DashboardLayout>
   );
 }

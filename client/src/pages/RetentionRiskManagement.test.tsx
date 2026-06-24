@@ -1,6 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { canAccessRoutePath } from "@/lib/routeAccess";
 import RetentionRiskManagement from "./RetentionRiskManagement";
 
 vi.mock("@/_core/hooks/useAuth", () => ({
@@ -107,12 +108,12 @@ describe("RetentionRiskManagement", () => {
     expect(html).not.toContain("해지 확률");
   });
 
-  it("renders empty access state for inactive users", async () => {
-    const { useAuth } = await import("@/_core/hooks/useAuth");
-    vi.mocked(useAuth).mockReturnValueOnce({
-      user: { id: 1, role: "member", accountStatus: "inactive" },
-    } as never);
-    const html = renderToStaticMarkup(<RetentionRiskManagement />);
-    expect(html).toContain("접근 권한이 없습니다");
+  it("denies inactive users at route access layer", () => {
+    expect(
+      canAccessRoutePath("/retention-risk", {
+        role: "member",
+        accountStatus: "inactive",
+      })
+    ).toBe(false);
   });
 });

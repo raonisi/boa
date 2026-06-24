@@ -18,7 +18,6 @@ import { Input } from "@/components/ui/input";
 import {
   EmptyState,
   ErrorState,
-  ForbiddenInlineState,
 } from "@/components/ui/empty-state";
 import {
   adminPage,
@@ -34,8 +33,6 @@ import {
   NO_VISIBLE_CARDS_TITLE,
   PAGE_DESCRIPTION,
   PAGE_TITLE,
-  PERMISSION_DENIED_DESCRIPTION,
-  PERMISSION_DENIED_TITLE,
   type AdminOperationCard,
   type ManagerRole,
   RISK_LEVEL_LABELS,
@@ -350,23 +347,6 @@ export default function AdminOperationsCenter() {
     scopedRisk,
     unreadCount,
   ]);
-
-  if (!canAccessAdminOperationsCenter(user)) {
-    return (
-      <DashboardLayout>
-        <ForbiddenInlineState
-          title={PERMISSION_DENIED_TITLE}
-          description={PERMISSION_DENIED_DESCRIPTION}
-          fullPage
-          action={
-            <Button type="button" onClick={() => setLocation("/")}>
-              대시보드로 이동
-            </Button>
-          }
-        />
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>

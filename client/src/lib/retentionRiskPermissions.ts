@@ -1,3 +1,5 @@
+import { canAccessRoutePath } from "@/lib/routeAccess";
+
 type RetentionRiskUser = {
   id?: number;
   role?: string | null;
@@ -16,5 +18,5 @@ export function canManageRetentionRisk(
 export function canAccessRetentionRiskManagement(
   user: RetentionRiskUser | null | undefined
 ) {
-  return Boolean(user && user.accountStatus === "active");
+  return canAccessRoutePath("/retention-risk", user);
 }

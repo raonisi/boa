@@ -9,6 +9,7 @@ import { getLoginUrlResult } from "./const";
 import { Loader2 } from "lucide-react";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { ForbiddenState } from "./components/ForbiddenState";
+import { RouteAccessGuard } from "./components/RouteAccessGuard";
 import { lazy, Suspense } from "react";
 
 // Pages
@@ -302,9 +303,11 @@ function Router() {
       </Route>
       <Route path="/performance/goals">
         <AuthGuard>
-          <LazyRoute>
-            <PerformanceGoals />
-          </LazyRoute>
+          <RouteAccessGuard path="/performance/goals">
+            <LazyRoute>
+              <PerformanceGoals />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/performance">
@@ -319,16 +322,20 @@ function Router() {
       </Route>
       <Route path="/aftercare-campaigns">
         <AuthGuard>
-          <LazyRoute>
-            <AftercareCampaigns />
-          </LazyRoute>
+          <RouteAccessGuard path="/aftercare-campaigns">
+            <LazyRoute>
+              <AftercareCampaigns />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/onboarding-checklists">
         <AuthGuard>
-          <LazyRoute>
-            <OnboardingDashboard />
-          </LazyRoute>
+          <RouteAccessGuard path="/onboarding-checklists">
+            <LazyRoute>
+              <OnboardingDashboard />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/notification-preferences">
@@ -469,44 +476,56 @@ function Router() {
       </Route>
       <Route path="/action-plans">
         <AuthGuard>
-          <LazyRoute>
-            <ActionPlanManagement />
-          </LazyRoute>
+          <RouteAccessGuard path="/action-plans">
+            <LazyRoute>
+              <ActionPlanManagement />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/google-calendar-integration">
         <AuthGuard>
-          <LazyRoute>
-            <GoogleCalendarIntegration />
-          </LazyRoute>
+          <RouteAccessGuard path="/google-calendar-integration">
+            <LazyRoute>
+              <GoogleCalendarIntegration />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/customer-data-quality">
         <AuthGuard>
-          <LazyRoute>
-            <CustomerDataQualityDashboard />
-          </LazyRoute>
+          <RouteAccessGuard path="/customer-data-quality">
+            <LazyRoute>
+              <CustomerDataQualityDashboard />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/referrals">
         <AuthGuard>
-          <LazyRoute>
-            <ReferralManagement />
-          </LazyRoute>
+          <RouteAccessGuard path="/referrals">
+            <LazyRoute>
+              <ReferralManagement />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/claim-guidance">
         <AuthGuard>
-          <LazyRoute>
-            <ClaimGuidanceManagement />
-          </LazyRoute>
+          <RouteAccessGuard path="/claim-guidance">
+            <LazyRoute>
+              <ClaimGuidanceManagement />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/retention-risk">
         <AuthGuard>
-          <LazyRoute>
-            <RetentionRiskManagement />
-          </LazyRoute>
+          <RouteAccessGuard path="/retention-risk">
+            <LazyRoute>
+              <RetentionRiskManagement />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/download">

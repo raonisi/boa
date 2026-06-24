@@ -1,3 +1,5 @@
+import { canAccessRoutePath } from "@/lib/routeAccess";
+
 type ClaimGuidanceUser = {
   id?: number;
   role?: string | null;
@@ -16,5 +18,5 @@ export function canManageClaimGuidance(
 export function canAccessClaimGuidanceManagement(
   user: ClaimGuidanceUser | null | undefined
 ) {
-  return Boolean(user && user.accountStatus === "active");
+  return canAccessRoutePath("/claim-guidance", user);
 }
