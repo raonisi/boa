@@ -17,7 +17,10 @@ import {
   mobileMoreNavGroups,
   mobilePrimaryItems,
   mobileQuickLinksForRole,
+  type NavItem,
 } from "@/lib/navigationConfig";
+import { resolveActiveNavItem } from "@/lib/navigationMatch";
+import { cn } from "@/lib/utils";
 import { getRoleLabel } from "@/lib/userRole";
 import { LogOut, Menu } from "lucide-react";
 import { useState } from "react";
@@ -44,6 +47,11 @@ export function MobileNav() {
 
   const quickLinks = mobileQuickLinksForRole(user?.role);
   const moreGroups = filterNavGroups(mobileMoreNavGroups, user);
+  const mobileNavContext = [
+    { label: "오늘 실행", items: mobilePrimaryItems },
+    ...moreGroups,
+  ];
+  const activeNav = resolveActiveNavItem(mobileNavContext, location);
 
   const goTo = (path: string) => {
     setLocation(path);
@@ -51,12 +59,10 @@ export function MobileNav() {
   };
 
   const renderMenuButton = (
-    item: (typeof mobilePrimaryItems)[number],
+    item: NavItem,
     options?: { compact?: boolean }
   ) => {
-    const isActive =
-      location === item.path ||
-      (item.path !== "/" && location.startsWith(item.path));
+    const isActive = activeNav?.item.path === item.path;
     const isNotif = item.path === "/notifications";
 
     if (options?.compact) {
@@ -66,11 +72,15 @@ export function MobileNav() {
             type="button"
             data-testid="mobile-more-menu-item"
             onClick={() => goTo(item.path)}
-            className={`flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors ${
+            className={cn(
+              "flex min-h-14 items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors",
               isActive
                 ? "border-sidebar-primary/50 bg-sidebar-primary/10 text-foreground"
-                : "border-border bg-muted/30 text-foreground hover:bg-muted/50"
-            }`}
+                : "border-border bg-muted/30 text-foreground hover:bg-muted/50",
+              item.emphasis === "risk" &&
+                !isActive &&
+                "border-amber-500/30 bg-amber-500/[0.04]"
+            )}
           >
             <item.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
             <span className="min-w-0 flex-1">
@@ -93,9 +103,10 @@ export function MobileNav() {
         key={item.path}
         type="button"
         onClick={() => goTo(item.path)}
-        className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+        className={cn(
+          "relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-xs font-semibold transition-colors",
           isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
-        }`}
+        )}
       >
         <span
           className={`relative flex h-12 w-12 items-center justify-center rounded-lg ${
@@ -132,9 +143,10 @@ export function MobileNav() {
           <button
             type="button"
             onClick={() => setMoreOpen(true)}
-            className={`flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[10px] font-semibold transition-colors ${
+            className={cn(
+              "flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-xs font-semibold transition-colors",
               moreOpen ? "text-sidebar-primary" : "text-sidebar-foreground/70"
-            }`}
+            )}
           >
             <span
               className={`flex h-12 w-12 items-center justify-center rounded-lg ${
@@ -182,7 +194,14 @@ export function MobileNav() {
 
             {moreGroups.map(group => (
               <section key={group.label}>
-                <h3 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <h3
+                  className={cn(
+                    "mb-2 px-1 text-xs font-semibold tracking-wide",
+                    activeNav?.groupLabel === group.label
+                      ? "text-primary"
+                      : "text-muted-foreground"
+                  )}
+                >
                   {group.label}
                 </h3>
                 <div className="grid grid-cols-1 gap-2">

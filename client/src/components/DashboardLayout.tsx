@@ -48,6 +48,13 @@ import {
   getPageTitle,
   sidebarNavGroups,
 } from "@/lib/navigationConfig";
+import {
+  getNavigationBreadcrumb,
+  isNavGroupActive,
+  resolveActiveNavItem,
+} from "@/lib/navigationMatch";
+import { NavigationBreadcrumb } from "./NavigationBreadcrumb";
+import { cn } from "@/lib/utils";
 
 const SIDEBAR_WIDTH_KEY = "crm-sidebar-width";
 const DEFAULT_WIDTH = 220;
@@ -134,6 +141,10 @@ function DashboardLayoutContent({
   };
   const unreadBadgeLabel = getUnreadBadgeLabel(unreadBadgeInput);
   const unreadBadgeAriaLabel = getUnreadBadgeAriaLabel(unreadBadgeInput);
+  const navGroups = filterNavGroups(sidebarNavGroups, user);
+  const activeNav = resolveActiveNavItem(navGroups, location);
+  const pageTitle = getPageTitle(location);
+  const breadcrumb = getNavigationBreadcrumb(location, navGroups, pageTitle);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -194,18 +205,27 @@ function DashboardLayoutContent({
           </SidebarHeader>
 
           <SidebarContent className="gap-0 py-2">
-            {filterNavGroups(sidebarNavGroups, user).map((group, gi) => (
+            {navGroups.map((group, gi) => {
+              const groupActive = isNavGroupActive(group, location, navGroups);
+              return (
               <div key={group.label}>
                 {gi > 0 && (
                   <div className="mx-3 my-1.5 border-t border-sidebar-border/40" />
                 )}
                 {!isCollapsed && (
                   <div className="px-4 pt-0.5">
-                    <p className="mb-0.5 select-none text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/35">
+                    <p
+                      className={cn(
+                        "mb-0.5 select-none text-xs font-semibold tracking-wide",
+                        groupActive
+                          ? "text-sidebar-primary"
+                          : "text-sidebar-foreground/50"
+                      )}
+                    >
                       {group.label}
                     </p>
                     {group.description ? (
-                      <p className="mb-1 text-[10px] leading-snug text-sidebar-foreground/25">
+                      <p className="mb-1 text-[11px] leading-snug text-sidebar-foreground/35">
                         {group.description}
                       </p>
                     ) : null}
@@ -213,9 +233,7 @@ function DashboardLayoutContent({
                 )}
                 <SidebarMenu className="gap-0.5 px-2">
                   {group.items.map(item => {
-                    const isActive =
-                      location === item.path ||
-                      (item.path !== "/" && location.startsWith(item.path));
+                    const isActive = activeNav?.item.path === item.path;
                     const isNotif = item.path === "/notifications";
                     return (
                       <SidebarMenuItem key={`${group.label}-${item.label}-${item.path}`}>
@@ -227,11 +245,15 @@ function DashboardLayoutContent({
                               ? `${item.label} — ${item.description}`
                               : item.label
                           }
-                          className={`relative min-h-11 rounded-lg text-sidebar-foreground/85 hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground transition-colors sm:min-h-10 ${
-                            isActive
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r before:bg-sidebar-primary"
-                              : ""
-                          }`}
+                          aria-current={isActive ? "page" : undefined}
+                          className={cn(
+                            "relative min-h-11 rounded-lg text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground sm:min-h-10",
+                            isActive &&
+                              "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r before:bg-sidebar-primary",
+                            item.emphasis === "risk" &&
+                              !isActive &&
+                              "border border-amber-500/20 bg-amber-500/[0.04]"
+                          )}
                         >
                             <item.icon className="h-4 w-4 shrink-0" />
                             <span className="text-sm">{item.label}</span>
@@ -249,7 +271,8 @@ function DashboardLayoutContent({
                     })}
                 </SidebarMenu>
               </div>
-            ))}
+            );
+            })}
           </SidebarContent>
 
           <SidebarFooter className="border-t border-sidebar-border/80 p-2">
@@ -310,11 +333,13 @@ function DashboardLayoutContent({
             mark
             className="hidden h-8 w-8 shrink-0 rounded-lg bg-card p-1.5 shadow-sm ring-1 ring-border sm:flex"
           />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold tracking-tight text-foreground">
-              {getPageTitle(location)}
-            </p>
-            <p className="hidden text-xs text-muted-foreground tabular-nums sm:block">
+          <div className="min-w-0 flex-1">
+            <NavigationBreadcrumb
+              groupLabel={breadcrumb.groupLabel}
+              pageTitle={breadcrumb.pageTitle}
+              onNavigateHome={() => setLocation("/")}
+            />
+            <p className="mt-0.5 hidden text-xs text-muted-foreground tabular-nums sm:block">
               {new Date().toLocaleDateString("ko-KR", {
                 month: "long",
                 day: "numeric",

@@ -38,6 +38,8 @@ export type NavItem = {
   path: string;
   roles?: string[];
   canAccess?: (user: { role?: string | null } | null | undefined) => boolean;
+  /** 고위험·감사 성격 메뉴 — 시각적 구분용 (권한과 무관) */
+  emphasis?: "risk";
 };
 
 export type NavGroup = {
@@ -74,11 +76,11 @@ export function filterNavGroups(
     .filter(group => group.items.length > 0);
 }
 
-/** PC Sidebar — 업무 흐름 중심 그룹 (RBAC 조건은 항목별 유지) */
+/** PC Sidebar — 업무 흐름형 그룹 (route·RBAC 조건은 항목별 유지) */
 export const sidebarNavGroups: NavGroup[] = [
   {
-    label: "오늘 처리",
-    description: "지금 확인·실행할 업무",
+    label: "오늘 실행",
+    description: "오늘 확인·처리할 업무",
     items: [
       { icon: Home, label: "오늘 업무", path: "/" },
       { icon: Bell, label: "알림센터", path: "/notifications" },
@@ -86,8 +88,8 @@ export const sidebarNavGroups: NavGroup[] = [
     ],
   },
   {
-    label: "고객 · DB",
-    description: "고객 조회와 담당 배정",
+    label: "고객·계약",
+    description: "고객 확인·상담·계약·실적",
     items: [
       { icon: Users, label: "고객 관리", path: "/customers" },
       {
@@ -97,11 +99,11 @@ export const sidebarNavGroups: NavGroup[] = [
         path: "/customers/assign",
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
-      {
-        icon: LayoutGrid,
-        label: "세일즈 파이프라인",
-        path: "/sales-pipeline",
-      },
+      { icon: FileText, label: "계약관리", path: "/contracts" },
+      { icon: BarChart3, label: "실적관리", path: "/performance" },
+      { icon: Target, label: "목표관리", path: "/performance/goals" },
+      { icon: BarChart2, label: "영업 분석", path: "/analytics" },
+      { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
       {
         icon: GitBranch,
         label: "소개 관리",
@@ -110,13 +112,13 @@ export const sidebarNavGroups: NavGroup[] = [
       },
       {
         icon: ClipboardList,
-        label: "청구 안내 관리",
+        label: "청구 안내",
         path: "/claim-guidance",
         roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
       {
         icon: ShieldCheck,
-        label: "해지위험 관리",
+        label: "해지위험",
         path: "/retention-risk",
         roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
@@ -150,32 +152,11 @@ export const sidebarNavGroups: NavGroup[] = [
         path: "/customers/bulk-import",
         canAccess: hasCustomerBulkImportAccess,
       },
-      {
-        icon: GitMerge,
-        label: "중복 고객 관리",
-        path: "/customers/merge",
-        roles: ["branch_admin"],
-      },
-      {
-        icon: RotateCcw,
-        label: "업로드 이력 관리",
-        path: "/customers/import-batches",
-        roles: ["branch_admin"],
-      },
     ],
   },
   {
-    label: "계약 · 실적",
-    items: [
-      { icon: FileText, label: "계약관리", path: "/contracts" },
-      { icon: BarChart3, label: "실적관리", path: "/performance" },
-      { icon: Target, label: "목표관리", path: "/performance/goals" },
-      { icon: BarChart2, label: "영업 분석", path: "/analytics" },
-    ],
-  },
-  {
-    label: "팀 운영",
-    description: "팀·조직 관리와 코칭",
+    label: "조직 운영",
+    description: "팀·조직·담당 배정·인수인계",
     items: [
       {
         icon: LayoutDashboard,
@@ -197,7 +178,7 @@ export const sidebarNavGroups: NavGroup[] = [
       },
       {
         icon: ListChecks,
-        label: "지점원 실행계획 관리",
+        label: "실행계획 관리",
         path: "/action-plans",
         roles: [
           "branch_admin",
@@ -239,13 +220,16 @@ export const sidebarNavGroups: NavGroup[] = [
       {
         icon: ArrowRightLeft,
         label: "인수인계 관리",
+        description: "고객·업무 인수인계",
         path: "/users/handoff",
         roles: ["branch_admin"],
+        emphasis: "risk",
       },
     ],
   },
   {
-    label: "운영 리스크",
+    label: "운영·감사",
+    description: "리스크·로그·병합·삭제 데이터",
     items: [
       {
         icon: ShieldCheck,
@@ -254,12 +238,6 @@ export const sidebarNavGroups: NavGroup[] = [
         path: "/operation-risk",
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
-    ],
-  },
-  {
-    label: "보안 · 감사",
-    description: "로그·다운로드·삭제 데이터",
-    items: [
       {
         icon: Activity,
         label: "활동 로그",
@@ -267,16 +245,31 @@ export const sidebarNavGroups: NavGroup[] = [
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
-        icon: Download,
-        label: "데이터 다운로드",
-        path: "/download",
+        icon: GitMerge,
+        label: "중복 고객 병합",
+        path: "/customers/merge",
         roles: ["branch_admin"],
+        emphasis: "risk",
       },
       {
         icon: RotateCcw,
         label: "삭제 데이터 관리",
         path: "/deleted-data",
         roles: ["branch_admin"],
+        emphasis: "risk",
+      },
+      {
+        icon: RotateCcw,
+        label: "업로드 이력 관리",
+        path: "/customers/import-batches",
+        roles: ["branch_admin"],
+      },
+      {
+        icon: Download,
+        label: "데이터 다운로드",
+        path: "/download",
+        roles: ["branch_admin"],
+        emphasis: "risk",
       },
       {
         icon: BellRing,
@@ -287,7 +280,8 @@ export const sidebarNavGroups: NavGroup[] = [
     ],
   },
   {
-    label: "설정 · 도구",
+    label: "설정·연동",
+    description: "개인 설정·외부 연동",
     items: [
       {
         icon: BookOpen,
@@ -387,13 +381,16 @@ export function mobileQuickLinksForRole(
   return filterNavItems(adminLinks, { role });
 }
 
-/** MobileNav 더보기 — 업무 그룹 */
+/** MobileNav 더보기 — Sidebar와 동일한 업무 그룹 체계 */
 export const mobileMoreNavGroups: NavGroup[] = [
   {
-    label: "고객 · 계약",
+    label: "고객·계약",
     items: [
       { icon: BarChart2, label: "영업 분석", path: "/analytics" },
       { icon: LayoutGrid, label: "세일즈 파이프라인", path: "/sales-pipeline" },
+      { icon: FileText, label: "계약관리", path: "/contracts" },
+      { icon: BarChart3, label: "실적관리", path: "/performance" },
+      { icon: Target, label: "목표관리", path: "/performance/goals" },
       {
         icon: GitBranch,
         label: "소개 관리",
@@ -402,28 +399,21 @@ export const mobileMoreNavGroups: NavGroup[] = [
       },
       {
         icon: ClipboardList,
-        label: "청구 안내 관리",
+        label: "청구 안내",
         path: "/claim-guidance",
         roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
       {
         icon: ShieldCheck,
-        label: "해지위험 관리",
+        label: "해지위험",
         path: "/retention-risk",
         roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
-      { icon: FileText, label: "계약관리", path: "/contracts" },
       {
         icon: Upload,
         label: "고객 일괄 등록",
         path: "/customers/bulk-import",
         canAccess: hasCustomerBulkImportAccess,
-      },
-      {
-        icon: GitMerge,
-        label: "중복 고객 관리",
-        path: "/customers/merge",
-        roles: ["branch_admin"],
       },
       {
         icon: Database,
@@ -452,19 +442,24 @@ export const mobileMoreNavGroups: NavGroup[] = [
     ],
   },
   {
-    label: "실적 · 목표",
+    label: "조직 운영",
     items: [
-      { icon: BarChart3, label: "실적관리", path: "/performance" },
-      { icon: Target, label: "목표관리", path: "/performance/goals" },
-    ],
-  },
-  {
-    label: "팀 · 조직",
-    items: [
+      {
+        icon: UserSquare2,
+        label: "DB 배정",
+        path: "/customers/assign",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
       {
         icon: LayoutDashboard,
         label: "관리자 운영센터",
         path: "/admin/operations-center",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
+        icon: Monitor,
+        label: "팀원 관리",
+        path: "/team-insights",
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
@@ -475,7 +470,7 @@ export const mobileMoreNavGroups: NavGroup[] = [
       },
       {
         icon: ListChecks,
-        label: "지점원 실행계획 관리",
+        label: "실행계획 관리",
         path: "/action-plans",
         roles: [
           "branch_admin",
@@ -483,12 +478,6 @@ export const mobileMoreNavGroups: NavGroup[] = [
           "team_leader",
           "member",
         ],
-      },
-      {
-        icon: Monitor,
-        label: "팀원 관리",
-        path: "/team-insights",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
         icon: Network,
@@ -507,6 +496,7 @@ export const mobileMoreNavGroups: NavGroup[] = [
         label: "인수인계 관리",
         path: "/users/handoff",
         roles: ["branch_admin"],
+        emphasis: "risk",
       },
       {
         icon: Activity,
@@ -529,7 +519,7 @@ export const mobileMoreNavGroups: NavGroup[] = [
     ],
   },
   {
-    label: "운영 · 보안",
+    label: "운영·감사",
     items: [
       {
         icon: ShieldCheck,
@@ -544,16 +534,18 @@ export const mobileMoreNavGroups: NavGroup[] = [
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
-        icon: BellRing,
-        label: "푸시 알림 운영",
-        path: "/push-notifications",
+        icon: GitMerge,
+        label: "중복 고객 병합",
+        path: "/customers/merge",
         roles: ["branch_admin"],
+        emphasis: "risk",
       },
       {
         icon: RotateCcw,
         label: "삭제 데이터 관리",
         path: "/deleted-data",
         roles: ["branch_admin"],
+        emphasis: "risk",
       },
       {
         icon: RotateCcw,
@@ -566,7 +558,19 @@ export const mobileMoreNavGroups: NavGroup[] = [
         label: "데이터 다운로드",
         path: "/download",
         roles: ["branch_admin"],
+        emphasis: "risk",
       },
+      {
+        icon: BellRing,
+        label: "푸시 알림 운영",
+        path: "/push-notifications",
+        roles: ["branch_admin"],
+      },
+    ],
+  },
+  {
+    label: "설정·연동",
+    items: [
       {
         icon: Users,
         label: "사용자 관리",
@@ -585,11 +589,6 @@ export const mobileMoreNavGroups: NavGroup[] = [
         path: "/settings",
         roles: ["branch_admin"],
       },
-    ],
-  },
-  {
-    label: "설정",
-    items: [
       {
         icon: BellRing,
         label: "앱 알림 설정",
@@ -607,8 +606,8 @@ export const mobileMoreNavGroups: NavGroup[] = [
 
 export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/analytics", title: "영업 분석" },
-  { prefix: "/claim-guidance", title: "청구 안내 관리" },
-  { prefix: "/retention-risk", title: "해지위험 관리" },
+  { prefix: "/claim-guidance", title: "청구 안내" },
+  { prefix: "/retention-risk", title: "해지위험" },
   { prefix: "/referrals", title: "소개 관리" },
   { prefix: "/sales-pipeline", title: "세일즈 파이프라인" },
   { prefix: "/customers/assign", title: "DB 배정" },
@@ -616,7 +615,7 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/customers/import-batches", title: "업로드 이력 관리" },
   { prefix: "/admin/team-completion", title: "팀원 업무 처리율" },
   { prefix: "/admin/team-coaching", title: "팀원 코칭 노트" },
-  { prefix: "/customers/merge", title: "중복 고객 관리" },
+  { prefix: "/customers/merge", title: "중복 고객 병합" },
   { prefix: "/customer-data-quality", title: "고객 데이터 품질" },
   { prefix: "/customers", title: "고객 관리" },
   { prefix: "/contracts", title: "계약관리" },
@@ -633,7 +632,7 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/users", title: "사용자 관리" },
   { prefix: "/admin/operations-center", title: "관리자 운영센터" },
   { prefix: "/management-reports", title: "관리자 보고서" },
-  { prefix: "/action-plans", title: "지점원 실행계획 관리" },
+  { prefix: "/action-plans", title: "실행계획 관리" },
   { prefix: "/google-calendar-integration", title: "Google Calendar 연동 관리" },
   { prefix: "/team-insights", title: "팀원 관리" },
   { prefix: "/admin/sla", title: "첫 연락 SLA" },
