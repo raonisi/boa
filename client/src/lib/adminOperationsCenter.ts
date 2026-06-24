@@ -255,7 +255,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   },
   {
     id: "customer-merge",
-    title: "고객 병합",
+    title: "중복 고객 관리",
     description: "중복 고객 후보를 확인하고 안전하게 병합합니다.",
     section: "customer-db",
     allowedRoles: ["branch_admin"],
@@ -299,7 +299,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   },
   {
     id: "customer-data-quality",
-    title: "고객 데이터 품질 점검",
+    title: "고객 데이터 점검",
     description:
       "전화번호 누락, 담당자 없음, 후속관리 공백, 중복 가능 고객 등 고객 DB의 보완 필요 항목을 확인합니다.",
     section: "customer-db",

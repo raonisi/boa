@@ -70,7 +70,7 @@ describe("navigationConfig IA groups", () => {
   });
 
   it("resolves page titles for reorganized labels", () => {
-    expect(getPageTitle("/customers/merge")).toBe("중복 고객 병합");
+    expect(getPageTitle("/customers/merge")).toBe("중복 고객 관리");
     expect(getPageTitle("/action-plans")).toBe("실행계획 관리");
   });
 });

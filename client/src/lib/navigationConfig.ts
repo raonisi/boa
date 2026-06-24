@@ -124,13 +124,14 @@ export const sidebarNavGroups: NavGroup[] = [
       },
       {
         icon: Database,
-        label: "고객 데이터 품질",
+        label: "고객 데이터 점검",
         path: "/customer-data-quality",
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
         icon: Database,
-        label: "내 고객 데이터 보완",
+        label: "고객 데이터 점검",
+        description: "내 담당 고객의 보완 필요 항목",
         path: "/customer-data-quality",
         roles: ["member"],
       },
@@ -241,7 +242,8 @@ export const sidebarNavGroups: NavGroup[] = [
       },
       {
         icon: GitMerge,
-        label: "중복 고객 병합",
+        label: "중복 고객 관리",
+        description: "중복 탐지·병합",
         path: "/customers/merge",
         roles: ["branch_admin"],
         emphasis: "risk",
@@ -410,13 +412,14 @@ export const mobileMoreNavGroups: NavGroup[] = [
       },
       {
         icon: Database,
-        label: "고객 데이터 품질",
+        label: "고객 데이터 점검",
         path: "/customer-data-quality",
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
         icon: Database,
-        label: "내 고객 데이터 보완",
+        label: "고객 데이터 점검",
+        description: "내 담당 고객의 보완 필요 항목",
         path: "/customer-data-quality",
         roles: ["member"],
       },
@@ -438,21 +441,9 @@ export const mobileMoreNavGroups: NavGroup[] = [
     label: "조직 운영",
     items: [
       {
-        icon: UserSquare2,
-        label: "DB 배정",
-        path: "/customers/assign",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
         icon: LayoutDashboard,
         label: "관리자 운영센터",
         path: "/admin/operations-center",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Monitor,
-        label: "팀원 관리",
-        path: "/team-insights",
         roles: ["branch_admin", "sub_branch_admin", "team_leader"],
       },
       {
@@ -510,20 +501,9 @@ export const mobileMoreNavGroups: NavGroup[] = [
     label: "운영·감사",
     items: [
       {
-        icon: ShieldCheck,
-        label: "운영 리스크",
-        path: "/operation-risk",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
-        icon: Activity,
-        label: "활동 로그",
-        path: "/logs",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      },
-      {
         icon: GitMerge,
-        label: "중복 고객 병합",
+        label: "중복 고객 관리",
+        description: "중복 탐지·병합",
         path: "/customers/merge",
         roles: ["branch_admin"],
         emphasis: "risk",
@@ -540,13 +520,6 @@ export const mobileMoreNavGroups: NavGroup[] = [
         label: "업로드 이력 관리",
         path: "/customers/import-batches",
         roles: ["branch_admin"],
-      },
-      {
-        icon: Download,
-        label: "데이터 다운로드",
-        path: "/download",
-        roles: ["branch_admin"],
-        emphasis: "risk",
       },
       {
         icon: BellRing,
@@ -603,8 +576,8 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/customers/import-batches", title: "업로드 이력 관리" },
   { prefix: "/admin/team-completion", title: "팀원 업무 처리율" },
   { prefix: "/admin/team-coaching", title: "팀원 코칭 노트" },
-  { prefix: "/customers/merge", title: "중복 고객 병합" },
-  { prefix: "/customer-data-quality", title: "고객 데이터 품질" },
+  { prefix: "/customers/merge", title: "중복 고객 관리" },
+  { prefix: "/customer-data-quality", title: "고객 데이터 점검" },
   { prefix: "/customers", title: "고객 관리" },
   { prefix: "/contracts", title: "계약관리" },
   { prefix: "/performance/goals", title: "목표관리" },
