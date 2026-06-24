@@ -11,6 +11,25 @@ type RouteAccessUser = {
   permissions?: string[] | null;
 };
 
+/** Active operational roles — unknown values fail closed on nav-restricted routes. */
+export const OPERATIONAL_ROLES = [
+  "branch_admin",
+  "sub_branch_admin",
+  "team_leader",
+  "member",
+] as const;
+
+export type OperationalRole = (typeof OPERATIONAL_ROLES)[number];
+
+export function isKnownOperationalRole(
+  role?: string | null
+): role is OperationalRole {
+  return (
+    !!role &&
+    (OPERATIONAL_ROLES as readonly string[]).includes(role)
+  );
+}
+
 const navGroupsForRouteAccess = [...sidebarNavGroups, ...mobileMoreNavGroups];
 
 function navItemsForPath(path: string): NavItem[] {
@@ -35,6 +54,15 @@ export function canAccessRoutePath(
 
   const items = navItemsForPath(path);
   if (items.length === 0) return true;
+
+  const hasExplicitRestrictions = items.some(
+    item =>
+      item.canAccess != null ||
+      (item.roles != null && item.roles.length > 0)
+  );
+  if (hasExplicitRestrictions && !isKnownOperationalRole(user.role)) {
+    return false;
+  }
 
   return items.some(item => canAccessNavItem(item, user));
 }
