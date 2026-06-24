@@ -57,6 +57,7 @@ import {
   UserRound,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -169,7 +170,7 @@ export function CustomerReferralFlowsPanel({
       resetCreateForm();
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toast.error(error.message || "등록에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.customerReferrals.update.useMutation({
@@ -178,7 +179,7 @@ export function CustomerReferralFlowsPanel({
       setEditTarget(null);
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toast.error(error.message || "수정에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeStageMutation = trpc.customerReferrals.changeStage.useMutation({
@@ -187,7 +188,7 @@ export function CustomerReferralFlowsPanel({
       setStageTarget(null);
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toast.error(error.message || "단계 변경에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const thankYouMutation = trpc.customerReferrals.completeThankYou.useMutation({
@@ -196,7 +197,7 @@ export function CustomerReferralFlowsPanel({
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
     onError: error =>
-      toast.error(error.message || "감사 연락 처리에 실패했습니다."),
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.customerReferrals.delete.useMutation({
@@ -205,7 +206,7 @@ export function CustomerReferralFlowsPanel({
       setDeleteTarget(null);
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toast.error(error.message || "삭제에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   function resetCreateForm() {

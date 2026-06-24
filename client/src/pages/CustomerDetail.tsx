@@ -42,7 +42,9 @@ import {
   WORKFLOW_COPY,
 } from "@/lib/assignmentWorkflowCopy";
 import {
+  CUSTOMER_ACCESS_UX,
   getUserFacingErrorMessage,
+  toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
 import { formatUserWithRole, getRoleLabel } from "@/lib/userRole";
@@ -400,7 +402,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       setShowEditModal(false);
       refetchCustomer();
     },
-    onError: () => toast.error("수정에 실패했습니다."),
+    onError: () => toastUserFacingError(null, USER_FACING_ERRORS.saveFailed),
   });
 
   const updateMetaMutation = trpc.customers.updateManagementMeta.useMutation({
@@ -410,7 +412,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       utils.customers.list.invalidate();
     },
     onError: err =>
-      toast.error(err.message || "고객 관리 정보 저장에 실패했습니다."),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const createConsultMutation = trpc.consultations.create.useMutation({
@@ -437,7 +439,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       refetchConsult();
       refetchCustomer();
     },
-    onError: () => toast.error("수정에 실패했습니다."),
+    onError: () => toastUserFacingError(null, USER_FACING_ERRORS.saveFailed),
   });
 
   const createContractMutation = trpc.contracts.create.useMutation({
@@ -454,7 +456,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       setEditingContractId(null);
       refetchContracts();
     },
-    onError: () => toast.error("계약 수정에 실패했습니다."),
+    onError: () => toastUserFacingError(null, USER_FACING_ERRORS.saveFailed),
   });
 
   const deactivateContractMutation = trpc.contracts.deactivate.useMutation({
@@ -463,7 +465,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       setDeleteContractId(null);
       refetchContracts();
     },
-    onError: err => toast.error(err.message || "계약 삭제에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const requestDeleteMutation =
@@ -476,7 +478,7 @@ export default function CustomerDetail({ id }: { id: number }) {
         refetchContracts();
         utils.deleteRequests.listMyRequests.invalidate();
       },
-      onError: err => toast.error(err.message || "삭제 요청에 실패했습니다."),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
@@ -500,10 +502,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       utils.customers.assignmentHistory.invalidate({ customerId: id });
       utils.customers.timeline.invalidate({ customerId: id });
     },
-    onError: err =>
-      toast.error(
-        getUserFacingErrorMessage(err, USER_FACING_ERRORS.saveFailed)
-      ),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const reclaimMutation = trpc.customers.reclaim.useMutation({
@@ -516,7 +515,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       utils.customers.assignmentHistory.invalidate({ customerId: id });
       utils.customers.timeline.invalidate({ customerId: id });
     },
-    onError: err => toast.error(err.message || "DB 회수에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const deactivateMutation = trpc.customers.deactivate.useMutation({
@@ -524,7 +523,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       toast.success("고객이 비활성화되었습니다.");
       setLocation("/customers");
     },
-    onError: () => toast.error("비활성화에 실패했습니다."),
+    onError: () => toastUserFacingError(null, USER_FACING_ERRORS.saveFailed),
   });
 
   const createFollowUpMutation = trpc.followUps.create.useMutation({
@@ -544,7 +543,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       if (variables.calendarSchedule) utils.schedules.list.invalidate();
     },
     onError: err =>
-      toast.error(err.message || "후속관리 등록에 실패했습니다."),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const openDetailedFollowUp = (
@@ -563,7 +562,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       utils.dashboard.todayWork.invalidate();
     },
     onError: err =>
-      toast.error(err.message || "후속관리 완료 처리에 실패했습니다."),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const postponeFollowUpMutation = trpc.followUps.postpone.useMutation({
@@ -573,7 +572,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       refetchFollowUps();
       utils.dashboard.todayWork.invalidate();
     },
-    onError: err => toast.error(err.message || "연락일 연기에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const cancelFollowUpMutation = trpc.followUps.cancel.useMutation({
@@ -582,7 +581,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       refetchFollowUps();
       utils.dashboard.todayWork.invalidate();
     },
-    onError: err => toast.error(err.message || "후속관리 취소에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const updateChecklistResultMutation =
@@ -594,14 +593,14 @@ export default function CustomerDetail({ id }: { id: number }) {
         toast.success("체크리스트가 저장되었습니다.");
       },
       onError: err =>
-        toast.error(err.message || "체크리스트 저장에 실패했습니다."),
+        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const logMessageCopyMutation =
     trpc.consultationTools.logMessageCopy.useMutation({
       onSuccess: () => toast.success("문구 복사 이력을 기록했습니다."),
       onError: err =>
-        toast.error(err.message || "문구 복사 이력 기록에 실패했습니다."),
+        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const createHandoffNoteMutation =
@@ -616,7 +615,7 @@ export default function CustomerDetail({ id }: { id: number }) {
         });
       },
       onError: err =>
-        toast.error(err.message || "인수인계 메모 저장에 실패했습니다."),
+        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const updateHandoffNoteMutation =
@@ -628,15 +627,13 @@ export default function CustomerDetail({ id }: { id: number }) {
         });
       },
       onError: err =>
-        toast.error(err.message || "인수인계 메모 변경에 실패했습니다."),
+        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const logScriptCopyMutation = trpc.consultationScripts.logCopy.useMutation({
     onSuccess: () => toast.success("상담 스크립트 복사 이력을 기록했습니다."),
     onError: err =>
-      toast.error(
-        err.message || "상담 스크립트 복사 이력 기록에 실패했습니다."
-      ),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const checklistTemplates = consultationTools?.templates ?? [];
@@ -682,8 +679,8 @@ export default function CustomerDetail({ id }: { id: number }) {
     return (
       <DashboardLayout>
         <ForbiddenInlineState
-          title="고객 정보를 표시할 수 없습니다."
-          description="데이터가 없거나 현재 권한으로 접근할 수 없습니다. 고객 정보 존재 여부는 표시하지 않습니다."
+          title={CUSTOMER_ACCESS_UX.title}
+          description={CUSTOMER_ACCESS_UX.description}
           className="min-h-64"
           action={
             <div className="flex flex-wrap justify-center gap-2">

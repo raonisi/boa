@@ -33,6 +33,7 @@ import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
 import { FileText, Plus, Search, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -89,7 +90,7 @@ export default function ContractList() {
       utils.contracts.list.invalidate();
       utils.performance.stats.invalidate();
     },
-    onError: err => toast.error(err.message || "계약 삭제에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const requestDeleteMutation =
@@ -101,7 +102,7 @@ export default function ContractList() {
         setRequestMemo("");
         utils.deleteRequests.listMyRequests.invalidate();
       },
-      onError: err => toast.error(err.message || "삭제 요청에 실패했습니다."),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const canDeactivate = user?.role === "branch_admin";

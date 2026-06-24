@@ -68,12 +68,11 @@ describe("shared state components", () => {
   });
 
   it("renders forbidden states without implying protected data exists", () => {
-    const html = renderToStaticMarkup(
-      <ForbiddenInlineState description="이 화면은 현재 권한으로 사용할 수 없습니다." />
-    );
+    const html = renderToStaticMarkup(<ForbiddenInlineState />);
 
-    expect(html).toContain("권한이 필요한 화면입니다.");
-    expect(html).toContain("현재 권한");
+    expect(html).toContain("접근 권한이 없습니다");
+    expect(html).toContain("현재 권한으로는 이 기능을 사용할 수 없습니다.");
+    expect(html).toContain("대시보드로 이동");
     expect(html).not.toContain("고객명");
     expect(html).not.toContain("전화번호");
     expect(html).not.toContain("생년월일");

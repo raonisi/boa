@@ -32,6 +32,7 @@ import {
 import { formatKstLocalDateTime } from "@shared/timePolicy";
 import { Edit2, Link2, Plus, Trash2, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -110,7 +111,7 @@ export function CustomerRelationshipsPanel({
         utils.customers.timeline.invalidate({ customerId }),
       ]);
     },
-    onError: error => toast.error(error.message || "관계 추가에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.customerRelationships.update.useMutation({
@@ -123,7 +124,7 @@ export function CustomerRelationshipsPanel({
         utils.customers.timeline.invalidate({ customerId }),
       ]);
     },
-    onError: error => toast.error(error.message || "관계 수정에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.customerRelationships.delete.useMutation({
@@ -135,7 +136,7 @@ export function CustomerRelationshipsPanel({
         utils.customers.timeline.invalidate({ customerId }),
       ]);
     },
-    onError: error => toast.error(error.message || "관계 삭제에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const previewLabel = useMemo(() => {

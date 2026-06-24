@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type OrgNode = {
@@ -220,7 +221,7 @@ export default function OrganizationManagement() {
       setNewParentId("none");
     },
     onError: err =>
-      toast.error(err.message || "조직 상위자 변경에 실패했습니다."),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const nodes = (treeQuery.data as any)?.nodes as OrgNode[] | undefined;

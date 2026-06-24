@@ -37,6 +37,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, LayoutGrid } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type PipelineScope = "all" | "mine" | "member";

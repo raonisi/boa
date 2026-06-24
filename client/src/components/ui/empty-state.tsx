@@ -1,4 +1,6 @@
+import { ForbiddenDefaultActions } from "@/components/ForbiddenDefaultActions";
 import { Button } from "@/components/ui/button";
+import { FORBIDDEN_UX } from "@/lib/userFacingMessages";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -272,8 +274,8 @@ export function ErrorState({
 }
 
 export function ForbiddenInlineState({
-  title = "권한이 필요한 화면입니다.",
-  description = "접근 권한을 확인해 주세요. 필요한 경우 관리자에게 문의해 주세요.",
+  title = FORBIDDEN_UX.title,
+  description = FORBIDDEN_UX.description,
   action,
   className,
   compact,
@@ -291,7 +293,7 @@ export function ForbiddenInlineState({
       variant="forbidden"
       title={title}
       description={description}
-      action={action}
+      action={action ?? <ForbiddenDefaultActions />}
       className={className}
       compact={compact}
       fullPage={fullPage}

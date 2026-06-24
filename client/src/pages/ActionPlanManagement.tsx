@@ -37,6 +37,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { trpc } from "@/lib/trpc";
 import {
   getUserFacingErrorMessage,
+  toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
 import { getRoleLabel } from "@/lib/userRole";
@@ -393,7 +394,7 @@ export default function ActionPlanManagement() {
   };
 
   const onError = (e: unknown) =>
-    toast.error(getUserFacingErrorMessage(e, USER_FACING_ERRORS.saveFailed));
+    toastUserFacingError(e, USER_FACING_ERRORS.saveFailed);
 
   const createMonthly = trpc.actionPlans.createMonthlyPlan.useMutation({
     onSuccess: async () => {

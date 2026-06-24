@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -503,7 +504,7 @@ export function TodayWorkSection({
       toast.success(message);
       closeTaskSheet();
     } catch (error: any) {
-      toast.error(error?.message || "다시 시도해 주세요.");
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed);
       setBusyTaskKey(null);
       busyTaskKeyRef.current = null;
     }

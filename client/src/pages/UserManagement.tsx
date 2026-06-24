@@ -32,6 +32,7 @@ import { trpc } from "@/lib/trpc";
 import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import {
   getUserFacingErrorMessage,
+  toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
 import { CUSTOMER_BULK_IMPORT_PERMISSION } from "@shared/permissions";
@@ -182,7 +183,7 @@ export default function UserManagement() {
       toast.success("소속 부지점장이 변경되었습니다.");
       utils.users.list.invalidate();
     },
-    onError: err => toast.error(err.message || "변경에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const createUserMutation = trpc.users.create.useMutation({
@@ -191,7 +192,7 @@ export default function UserManagement() {
       utils.users.list.invalidate();
       setShowCreate(false);
     },
-    onError: err => toast.error(err.message || "사용자 추가에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const updatePermissionMutation = trpc.users.updatePermission.useMutation({
@@ -200,7 +201,7 @@ export default function UserManagement() {
       utils.users.list.invalidate();
     },
     onError: err =>
-      toast.error(err.message || "세부 권한 변경에 실패했습니다."),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const toggleBulkImportPermission = (targetUser: any) => {
@@ -221,7 +222,7 @@ export default function UserManagement() {
       setForceLogoutUser(null);
       setForceLogoutReason("");
     },
-    onError: err => toast.error(err.message || "강제 로그아웃에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const forceLogoutAllMutation = trpc.adminSecurity.forceLogoutAll.useMutation({
@@ -232,7 +233,7 @@ export default function UserManagement() {
       setAllLogoutReason("");
       setAllLogoutConfirm("");
     },
-    onError: err => toast.error(err.message || "전체 로그아웃에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const resetOAuthMutation = trpc.adminSecurity.resetOAuthLink.useMutation({
@@ -244,7 +245,7 @@ export default function UserManagement() {
       setOauthResetReason("");
       setOauthResetConfirm("");
     },
-    onError: err => toast.error(err.message || "OAuth 초기화에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const handleBlock = (userId: number) => {

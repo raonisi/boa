@@ -107,7 +107,7 @@ export default function TeamCoachingDashboard() {
   if (user?.role === "member") {
     return (
       <DashboardLayout>
-        <ForbiddenState description="이 화면은 관리자 권한으로만 사용할 수 있습니다." />
+        <ForbiddenState />
       </DashboardLayout>
     );
   }

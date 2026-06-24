@@ -44,6 +44,7 @@ import type {
 import { formatKstLocalDateTime } from "@shared/timePolicy";
 import { ClipboardList, Edit2, FileCheck2, Plus, Trash2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type ClaimGuidanceRow = {
@@ -172,7 +173,7 @@ export function CustomerClaimGuidancePanel({
       resetForm();
       await invalidate();
     },
-    onError: error => toast.error(error.message || "등록에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.claimGuidance.update.useMutation({
@@ -181,7 +182,7 @@ export function CustomerClaimGuidancePanel({
       setEditTarget(null);
       await invalidate();
     },
-    onError: error => toast.error(error.message || "수정에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeStatusMutation = trpc.claimGuidance.changeStatus.useMutation({
@@ -191,7 +192,7 @@ export function CustomerClaimGuidancePanel({
       await invalidate();
     },
     onError: error =>
-      toast.error(error.message || "상태 변경에 실패했습니다."),
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const closeMutation = trpc.claimGuidance.close.useMutation({
@@ -200,7 +201,7 @@ export function CustomerClaimGuidancePanel({
       setCloseTarget(null);
       await invalidate();
     },
-    onError: error => toast.error(error.message || "종료 처리에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.claimGuidance.delete.useMutation({
@@ -209,7 +210,7 @@ export function CustomerClaimGuidancePanel({
       setDeleteTarget(null);
       await invalidate();
     },
-    onError: error => toast.error(error.message || "삭제에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   function resetForm() {

@@ -36,6 +36,11 @@ import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { Search, UserPlus, Users } from "lucide-react";
 import { useMemo, useState } from "react";
+import {
+  getUserFacingErrorMessage,
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type CustomerRow = {
@@ -256,7 +261,7 @@ function AssignToSubBranch() {
         refetch();
         utils.customers.list.invalidate();
       },
-      onError: err => toast.error(err.message || "배분에 실패했습니다."),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const handleAssign = async () => {
@@ -283,7 +288,7 @@ function AssignToSubBranch() {
           customerId,
           customerName: customer?.name ?? `#${customerId}`,
           status: "failed",
-          reason: error?.message ?? "배분 실패",
+          reason: getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed),
         });
       }
     }
@@ -533,7 +538,7 @@ function AssignmentPanel({
       refetchCustomers();
       utils.customers.list.invalidate();
     },
-    onError: err => toast.error(err.message || "배정에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const handleAssign = async () => {
@@ -560,7 +565,7 @@ function AssignmentPanel({
           customerId,
           customerName: customer?.name ?? `#${customerId}`,
           status: "failed",
-          reason: error?.message ?? "배정 실패",
+          reason: getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed),
         });
       }
     }

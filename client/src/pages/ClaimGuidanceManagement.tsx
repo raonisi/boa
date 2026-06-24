@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -190,10 +190,7 @@ export default function ClaimGuidanceManagement() {
   if (!canAccess) {
     return (
       <DashboardLayout>
-        <EmptyState
-          title="접근 권한이 없습니다"
-          description="활성 계정으로 로그인한 후 이용할 수 있습니다."
-        />
+        <ForbiddenInlineState fullPage />
       </DashboardLayout>
     );
   }

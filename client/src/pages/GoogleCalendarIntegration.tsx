@@ -26,6 +26,7 @@ import { adminPage } from "@/lib/adminDesignTokens";
 import { trpc } from "@/lib/trpc";
 import { CalendarDays, Link2, RefreshCw, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 const calendarTypeLabels: Record<string, string> = {
@@ -59,7 +60,7 @@ export default function GoogleCalendarIntegration() {
       toast.success("캘린더 설정이 저장되었습니다.");
       await utils.googleCalendar.getSettings.invalidate();
     },
-    onError: e => toast.error(e.message),
+    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const testMutation = trpc.googleCalendar.testCalendarAccess.useMutation({
     onSuccess: async result => {
@@ -68,7 +69,7 @@ export default function GoogleCalendarIntegration() {
       );
       await utils.googleCalendar.getSettings.invalidate();
     },
-    onError: e => toast.error(e.message),
+    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const retryMutation = trpc.googleCalendar.retryFailedSync.useMutation({
     onSuccess: async result => {
@@ -80,14 +81,14 @@ export default function GoogleCalendarIntegration() {
         utils.googleCalendar.listFailedSyncs.invalidate(),
       ]);
     },
-    onError: e => toast.error(e.message),
+    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const syncPolicyMutation = trpc.googleCalendar.updateSyncPolicy.useMutation({
     onSuccess: async () => {
       toast.success("Google Calendar 동기화 정책이 저장되었습니다.");
       await utils.googleCalendar.getSettings.invalidate();
     },
-    onError: e => toast.error(e.message),
+    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const contactPolicyMutation =
     trpc.googleCalendar.updateContactPolicy.useMutation({
@@ -95,7 +96,7 @@ export default function GoogleCalendarIntegration() {
         toast.success("연락처 표시 정책이 저장되었습니다.");
         await utils.googleCalendar.getSettings.invalidate();
       },
-      onError: e => toast.error(e.message),
+      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
   const personalSettingsMutation =
     trpc.googleCalendar.upsertPersonalSettings.useMutation({
@@ -103,12 +104,12 @@ export default function GoogleCalendarIntegration() {
         toast.success("개인 캘린더 설정이 저장되었습니다.");
         await utils.googleCalendar.getSettings.invalidate();
       },
-      onError: e => toast.error(e.message),
+      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
 
   const resyncDryRunMutation =
     trpc.googleCalendar.resyncMisclassifiedConsultationEventsDryRun.useMutation({
-      onError: e => toast.error(e.message),
+      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
   const resyncExecuteMutation =
     trpc.googleCalendar.resyncMisclassifiedConsultationEventsExecute.useMutation({
@@ -121,11 +122,11 @@ export default function GoogleCalendarIntegration() {
           utils.googleCalendar.getResyncHistory.invalidate(),
         ]);
       },
-      onError: e => toast.error(e.message),
+      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
   const duplicateAuditDryRunMutation =
     trpc.googleCalendar.duplicateAuditDryRun.useMutation({
-      onError: e => toast.error(e.message),
+      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
 
   const [forms, setForms] = useState<Record<string, string>>({});

@@ -21,6 +21,7 @@ import { trpc } from "@/lib/trpc";
 import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { Building2, Edit2, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 export default function TeamManagement() {
@@ -399,7 +400,7 @@ function TeamListView() {
       utils.users.teams.invalidate();
       utils.users.list.invalidate();
     },
-    onError: err => toast.error(err.message || "팀 삭제에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const updateUserTeamMutation = trpc.users.updateTeam.useMutation({

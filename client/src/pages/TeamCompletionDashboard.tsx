@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
+import { ErrorState } from "@/components/ui/empty-state";
+import { USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 
 export default function TeamCompletionDashboard() {
   const [, setLocation] = useLocation();
@@ -84,17 +86,11 @@ export default function TeamCompletionDashboard() {
   if (error || !data) {
     return (
       <DashboardLayout>
-        <div className="flex h-[50vh] items-center justify-center">
-          <div className="flex max-w-md flex-col items-center gap-3 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-            <h2 className="text-lg font-semibold text-slate-900">
-              데이터를 불러오지 못했습니다
-            </h2>
-            <p className="text-sm text-slate-500">
-              {error?.message || "알 수 없는 오류"}
-            </p>
-          </div>
-        </div>
+        <ErrorState
+          title="데이터를 불러오지 못했습니다"
+          description={USER_FACING_ERRORS.loadFailed}
+          fullPage
+        />
       </DashboardLayout>
     );
   }

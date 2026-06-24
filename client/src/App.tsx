@@ -178,9 +178,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 function AdminGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!user || user.role !== "branch_admin") {
-    return (
-      <ForbiddenState description="이 화면은 지점 관리자 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
-    );
+    return <ForbiddenState />;
   }
   return <>{children}</>;
 }
@@ -188,9 +186,7 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
 function BulkImportGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   if (!hasCustomerBulkImportAccess(user)) {
-    return (
-      <ForbiddenState description="고객 일괄 등록은 지점장 또는 별도 권한이 부여된 부지점장·팀장만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
-    );
+    return <ForbiddenState />;
   }
   return <>{children}</>;
 }
@@ -203,9 +199,7 @@ function ManagerGuard({ children }: { children: React.ReactNode }) {
       user.role !== "sub_branch_admin" &&
       user.role !== "team_leader")
   ) {
-    return (
-      <ForbiddenState description="이 화면은 관리자 또는 팀 리더 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
-    );
+    return <ForbiddenState />;
   }
   return <>{children}</>;
 }
@@ -220,9 +214,7 @@ function SubBranchAdminOrAboveGuard({
     !user ||
     (user.role !== "branch_admin" && user.role !== "sub_branch_admin")
   ) {
-    return (
-      <ForbiddenState description="이 화면은 지점 관리자 또는 부지점장 권한으로만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요." />
-    );
+    return <ForbiddenState />;
   }
   return <>{children}</>;
 }

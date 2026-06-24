@@ -20,6 +20,7 @@ import {
   Clock,
   Plus,
 } from "lucide-react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 export function TeamMemberCoachingTimeline({
@@ -41,7 +42,7 @@ export function TeamMemberCoachingTimeline({
       utils.teamCoaching.summary.invalidate();
     },
     onError: (err: any) => {
-      toast.error(err.message || "상태 변경 중 오류가 발생했습니다.");
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "customer");
     },
   });
 

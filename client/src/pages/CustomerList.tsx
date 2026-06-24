@@ -65,6 +65,7 @@ import {
 } from "@/lib/assignmentWorkflowCopy";
 import {
   getUserFacingErrorMessage,
+  toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
 import { formatUserWithRole } from "@/lib/userRole";
@@ -358,7 +359,7 @@ export default function CustomerList() {
       setShowCreate(false);
       refetch();
     },
-    onError: err => toast.error(err.message || "등록에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const createFollowUpMutation = trpc.followUps.create.useMutation({
@@ -378,7 +379,7 @@ export default function CustomerList() {
       if (variables.calendarSchedule) utils.schedules.list.invalidate();
     },
     onError: err =>
-      toast.error(err.message || "후속관리 등록에 실패했습니다."),
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const openDetailedFollowUp = (
@@ -405,7 +406,7 @@ export default function CustomerList() {
       utils.customers.list.invalidate();
       refetch();
     },
-    onError: err => toast.error(err.message || "고객 삭제에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const closeReclaimDialog = () => {
@@ -422,7 +423,7 @@ export default function CustomerList() {
       utils.customers.list.invalidate();
       refetch();
     },
-    onError: err => toast.error(err.message || "DB 회수에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const reclaimBulkMutation = trpc.customers.reclaimBulk.useMutation({
@@ -435,7 +436,7 @@ export default function CustomerList() {
       utils.customers.list.invalidate();
       refetch();
     },
-    onError: err => toast.error(err.message || "선택 DB 회수에 실패했습니다."),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const bulkChangeAgentMutation = trpc.customers.bulkChangeAgent.useMutation({

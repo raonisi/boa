@@ -50,6 +50,7 @@ import { TERMINAL_RETENTION_STATUSES } from "@shared/retentionRisk";
 import { formatKstLocalDateTime } from "@shared/timePolicy";
 import { Edit2, FileCheck2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
+import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type RetentionRiskRow = {
@@ -189,7 +190,7 @@ export function CustomerRetentionRiskPanel({
       resetForm();
       await invalidate();
     },
-    onError: error => toast.error(error.message || "등록에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.retentionRisk.update.useMutation({
@@ -198,18 +199,18 @@ export function CustomerRetentionRiskPanel({
       setEditTarget(null);
       await invalidate();
     },
-    onError: error => toast.error(error.message || "수정에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeLevelMutation = trpc.retentionRisk.changeRiskLevel.useMutation({
     onError: error =>
-      toast.error(error.message || "위험 단계 변경에 실패했습니다."),
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeStatusMutation =
     trpc.retentionRisk.changeRetentionStatus.useMutation({
       onError: error =>
-        toast.error(error.message || "관리 상태 변경에 실패했습니다."),
+        toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
     });
 
   const resolveMutation = trpc.retentionRisk.resolve.useMutation({
@@ -218,7 +219,7 @@ export function CustomerRetentionRiskPanel({
       setResolveTarget(null);
       await invalidate();
     },
-    onError: error => toast.error(error.message || "종료 처리에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.retentionRisk.delete.useMutation({
@@ -227,7 +228,7 @@ export function CustomerRetentionRiskPanel({
       setDeleteTarget(null);
       await invalidate();
     },
-    onError: error => toast.error(error.message || "삭제에 실패했습니다."),
+    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   function resetForm() {

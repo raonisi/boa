@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { FORBIDDEN_UX } from "@/lib/userFacingMessages";
 import {
   Activity,
   ArrowRightLeft,
@@ -84,10 +85,9 @@ export const RESTRICTED_NOTICE = [
   "권한이 있는 관리자만 사용할 수 있는 민감 작업입니다.",
 ] as const;
 
-export const PERMISSION_DENIED_TITLE = "접근 권한이 없습니다";
+export const PERMISSION_DENIED_TITLE = FORBIDDEN_UX.title;
 
-export const PERMISSION_DENIED_DESCRIPTION =
-  "관리자 운영센터는 지점장, 부지점장, 팀장만 사용할 수 있습니다. 필요한 경우 관리자에게 문의해 주세요.";
+export const PERMISSION_DENIED_DESCRIPTION = FORBIDDEN_UX.description;
 
 export const NO_VISIBLE_CARDS_TITLE =
   "현재 권한으로는 이 기능을 사용할 수 없습니다.";
