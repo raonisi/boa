@@ -1,6 +1,8 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
 import { PerformanceGoalSummaryCard } from "@/components/dashboard/PerformanceGoalSummaryCard";
+import { MemberQuickExecutionSection } from "@/components/dashboard/MemberQuickExecutionSection";
+import { RoleOperationalDashboardSection } from "@/components/dashboard/RoleOperationalDashboardSection";
 import { PremiumStatCard } from "@/components/dashboard/PremiumStatCard";
 import { TodayWorkSection } from "@/components/dashboard/TodayWorkSection";
 import { ReferralSummaryStrip } from "@/components/referrals/ReferralSummaryStrip";
@@ -79,11 +81,15 @@ export default function Dashboard() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {user?.role === "member" ? <MemberQuickExecutionSection /> : null}
+
         <TodayWorkSection
           userName={user?.name}
           role={user?.role}
           roleTitle={roleTitle}
         />
+
+        <RoleOperationalDashboardSection role={user?.role} />
 
         <ReferralSummaryStrip user={user} />
 
@@ -144,6 +150,7 @@ export default function Dashboard() {
           </div>
         ) : null}
 
+        {user?.role !== "member" ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           <PremiumStatCard
             title="배정 DB"
@@ -192,6 +199,7 @@ export default function Dashboard() {
             onRetry={() => void refetchStats()}
           />
         </div>
+        ) : null}
 
         <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">
           <PerformanceGoalSummaryCard />
