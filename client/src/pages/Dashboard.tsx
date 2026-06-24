@@ -13,9 +13,11 @@ import { Button } from "@/components/ui/button";
 import { trpc } from "@/lib/trpc";
 import {
   AlertCircle,
+  Database,
   ArrowUp,
   FileText,
   TrendingUp,
+  UserCog,
   Users,
   WalletCards,
 } from "lucide-react";
@@ -140,7 +142,7 @@ export default function Dashboard() {
             <PremiumStatCard
               title="전체 DB"
               value={customers?.length ?? 0}
-              icon={Users}
+              icon={Database}
               tone="navy"
               helper="지점 전체 권한"
               isLoading={isCustomersLoading}
@@ -155,7 +157,7 @@ export default function Dashboard() {
             <PremiumStatCard
               title="배정 DB"
               value={stats?.assigned}
-              icon={Users}
+              icon={UserCog}
               tone="navy"
               helper="권한 범위 기준"
               isLoading={isStatsLoading}

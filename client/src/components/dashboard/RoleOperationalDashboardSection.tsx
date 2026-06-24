@@ -16,6 +16,8 @@ import { trpc } from "@/lib/trpc";
 import {
   AlertCircle,
   Bell,
+  CalendarCheck,
+  CalendarClock,
   CalendarDays,
   Clock3,
   Phone,
@@ -29,10 +31,10 @@ import { useLocation } from "wouter";
 const cardIcons: Record<string, ElementType> = {
   "today-contact": Phone,
   "overdue-followup": Clock3,
-  "today-schedule": CalendarDays,
+  "today-schedule": CalendarCheck,
   notifications: Bell,
   "long-unmanaged": AlertCircle,
-  "incomplete-schedule": CalendarDays,
+  "incomplete-schedule": CalendarClock,
   "priority-contact": Target,
 };
 

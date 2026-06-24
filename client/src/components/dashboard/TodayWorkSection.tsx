@@ -183,7 +183,7 @@ function SectionCard({
       <CardHeader className="flex-row items-center justify-between gap-3 border-b border-border/70 pb-3">
         <CardTitle className="flex items-center gap-2 text-base font-semibold tracking-tight">
           <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-muted/40 text-foreground">
-            <Icon className="h-4 w-4" />
+            <Icon className="h-4 w-4" aria-hidden="true" />
           </span>
           {title}
         </CardTitle>
@@ -214,6 +214,7 @@ export function TodayWorkSection({
     key: string;
     title: string;
     description: string;
+    confirmLabel: string;
     execute: () => Promise<unknown>;
     successMessage: string;
   } | null>(null);
@@ -336,7 +337,7 @@ export function TodayWorkSection({
           },
           {
             label: "DB 배정",
-            hint: "고객 담당자를 지정합니다",
+              hint: "신규·미배정 고객 담당 지정",
             path: "/customers/assign",
           },
           {
@@ -359,7 +360,7 @@ export function TodayWorkSection({
             },
             {
               label: "DB 배정",
-              hint: "담당자 지정과 배분",
+              hint: "신규·미배정 고객 담당 지정",
               path: "/customers/assign",
             },
             {
@@ -542,6 +543,7 @@ export function TodayWorkSection({
     key: string;
     title: string;
     description: string;
+    confirmLabel: string;
     execute: () => Promise<unknown>;
     successMessage: string;
   }) => {
@@ -554,6 +556,7 @@ export function TodayWorkSection({
         key: item.key,
         title: "후속관리를 완료할까요?",
         description: "완료하면 오늘 할 일 목록에서 제외됩니다.",
+        confirmLabel: "완료로 변경",
         execute: () => followUpCompleteMutation.mutateAsync({ id: item.id }),
         successMessage: "후속관리를 완료했습니다.",
       });
@@ -564,6 +567,7 @@ export function TodayWorkSection({
         key: item.key,
         title: "일정을 완료할까요?",
         description: "완료 처리 후 일정 상태가 변경됩니다.",
+        confirmLabel: "완료로 변경",
         execute: () =>
           scheduleUpdateMutation.mutateAsync({
             id: item.id,
@@ -587,6 +591,7 @@ export function TodayWorkSection({
       key: item.key,
       title: "연락완료로 기록할까요?",
       description: "고객 상담 상태가 연락완료로 변경됩니다.",
+      confirmLabel: "연락완료로 기록",
       execute: () =>
         customerUpdateMutation.mutateAsync({
           id: item.id,
@@ -662,7 +667,7 @@ export function TodayWorkSection({
                 onClick={() => setLocation(primaryCommandPath)}
                 className="min-h-12 gap-2 rounded-lg md:min-h-10"
               >
-                <BellDot className="h-4 w-4" />
+                <BellDot className="h-4 w-4" aria-hidden="true" />
                 {hasImmediateWork ? primaryCommandLabel : "일정 등록하기"}
               </Button>
               <Button
@@ -671,7 +676,7 @@ export function TodayWorkSection({
                 onClick={() => setLocation("/sales-pipeline")}
                 className="min-h-12 gap-2 rounded-lg md:min-h-10"
               >
-                <LayoutGrid className="h-4 w-4" />
+                <LayoutGrid className="h-4 w-4" aria-hidden="true" />
                 파이프라인
               </Button>
             </div>
@@ -1223,6 +1228,7 @@ export function TodayWorkSection({
                             title: "알림을 처리완료할까요?",
                             description:
                               "처리완료 후 알림센터 목록에서 제외됩니다.",
+                            confirmLabel: "처리완료로 변경",
                             execute: async () => {
                               await completeMutation.mutateAsync({
                                 id: notification.id,
@@ -1586,6 +1592,7 @@ export function TodayWorkSection({
                               title: "알림을 처리완료할까요?",
                               description:
                                 "처리완료 후 알림센터 목록에서 제외됩니다.",
+                              confirmLabel: "처리완료로 변경",
                               execute: async () => {
                                 await completeMutation.mutateAsync({
                                   id: notification.id,
@@ -1800,6 +1807,7 @@ export function TodayWorkSection({
                         key: `followup-complete-${followUp.id}`,
                         title: "후속관리를 완료할까요?",
                         description: "완료하면 오늘 할 일 목록에서 제외됩니다.",
+                        confirmLabel: "완료로 변경",
                         execute: () =>
                           followUpCompleteMutation.mutateAsync({
                             id: followUp.id,
@@ -1892,7 +1900,9 @@ export function TodayWorkSection({
                 ).finally(() => setPendingDesktopCompletion(null));
               }}
             >
-              {isTaskBusy ? "처리 중..." : "확인"}
+              {isTaskBusy
+                ? "처리 중..."
+                : (pendingDesktopCompletion?.confirmLabel ?? "확정")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

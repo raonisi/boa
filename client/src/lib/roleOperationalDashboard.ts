@@ -219,7 +219,7 @@ export function getManagerQuickLinks(role?: string | null): ManagerQuickLink[] {
     },
     {
       label: "DB 배정",
-      hint: "담당자 배정·배분",
+      hint: "신규·미배정 고객 담당 지정",
       path: "/customers/assign",
     },
     {

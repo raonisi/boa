@@ -120,7 +120,7 @@ export function PremiumStatCard({
           <div
             className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg shadow-none ${toneClass}`}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className="h-5 w-5" aria-hidden="true" />
           </div>
         </div>
       </CardContent>

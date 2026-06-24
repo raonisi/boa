@@ -129,7 +129,7 @@ export default function CustomerDataQualityDashboard() {
   const { data, isLoading, isFetching, isError, refetch } =
     trpc.customerDataQuality.dashboard.useQuery(queryInput);
 
-  const pageTitle = filterOptions?.memberViewLabel ?? "고객 데이터 품질 점검";
+  const pageTitle = filterOptions?.memberViewLabel ?? "고객 데이터 점검";
   const isMember = user?.role === "member";
 
   if (isLoading) {
@@ -138,7 +138,7 @@ export default function CustomerDataQualityDashboard() {
         <div className="flex min-h-[50vh] items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm">고객 데이터 품질을 분석하고 있습니다...</p>
+            <p className="text-sm">고객 데이터를 점검하고 있습니다...</p>
           </div>
         </div>
       </DashboardLayout>
