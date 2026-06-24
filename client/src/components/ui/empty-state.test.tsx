@@ -112,4 +112,16 @@ describe("StatusBadge family", () => {
     expect(html).toContain("높음");
     expect(html).not.toContain("HIGH");
   });
+
+  it("uses inactive variant for resigned account status", () => {
+    const html = renderToStaticMarkup(<StatusBadge status="resigned" />);
+    expect(html).toContain("퇴사자");
+    expect(html).toContain("ring-border/60");
+  });
+
+  it("uses neutral fallback for unknown status values", () => {
+    const html = renderToStaticMarkup(<StatusBadge status="unknown_enum" />);
+    expect(html).toContain("기타 상태");
+    expect(html).toContain("bg-muted");
+  });
 });

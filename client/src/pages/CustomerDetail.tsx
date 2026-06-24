@@ -1,6 +1,9 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, CONSULT_STATUSES, getPriorityLabel, PriorityBadge } from "@/components/StatusBadge";
+import { StatusBadge, CONSULT_STATUSES, getPriorityLabel, PriorityBadge, ExecutionBadge, UrgencyBadge } from "@/components/StatusBadge";
+import { adminPanel } from "@/lib/adminDesignTokens";
+import { getSeveritySurfaceClasses, getStatusVariantClasses, STATUS_BADGE_BASE } from "@/lib/statusPresentation";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -103,12 +106,6 @@ const followUpStatusLabels: Record<string, string> = {
   postponed: "연기",
   completed: "완료",
   cancelled: "취소",
-};
-
-const contactUrgencyLabels: Record<string, string> = {
-  high: "긴급",
-  medium: "주의",
-  low: "보통",
 };
 
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
@@ -895,20 +892,14 @@ export default function CustomerDetail({ id }: { id: number }) {
                       관리점수 {execution.score}
                     </span>
                     {isLongUnmanaged && (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                        장기 미관리
-                      </span>
+                      <ExecutionBadge label="장기 미관리" />
                     )}
                     {(customer.assignmentStatus === "unassigned" ||
                       (!customer.agentId && !customer.subBranchAdminId)) && (
-                      <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                        미배정
-                      </span>
+                      <ExecutionBadge label="미배정" />
                     )}
                     {!customer.isActive && (
-                      <span className="inline-flex rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        비활성
-                      </span>
+                      <ExecutionBadge label="비활성" />
                     )}
                   </div>
                   <p className="mt-2 text-sm text-slate-700">
@@ -1515,12 +1506,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-              <span
-                className={`w-fit rounded-full px-2 py-0.5 text-xs ${contactReasons?.urgency === "high" ? "bg-red-100 text-red-700" : contactReasons?.urgency === "medium" ? "bg-amber-100 text-amber-700" : "bg-muted text-muted-foreground"}`}
-              >
-                {contactUrgencyLabels[contactReasons?.urgency ?? "low"] ??
-                  "보통"}
-              </span>
+              <UrgencyBadge urgency={contactReasons?.urgency} />
               {isMobile && (
                 <CollapsibleTrigger asChild>
                   <Button type="button" variant="outline" size="sm" className="min-h-11">
@@ -1534,12 +1520,11 @@ export default function CustomerDetail({ id }: { id: number }) {
             {(contactReasons?.warnings ?? []).length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {contactReasons?.warnings.slice(0, 3).map(warning => (
-                  <span
+                  <ExecutionBadge
                     key={warning.warningType}
-                    className="rounded-full bg-red-50 px-2 py-0.5 text-xs text-red-700"
-                  >
-                    {warning.message}
-                  </span>
+                    label={warning.message}
+                    variant="warning"
+                  />
                 ))}
               </div>
             )}
@@ -1689,7 +1674,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                       <p className="text-xs text-muted-foreground">{label}</p>
                       {label.includes("동의") ? (
                         <span
-                          className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${String(value).includes("동의") && !String(value).includes("미동의") ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}
+                          className={cn(
+                            STATUS_BADGE_BASE,
+                            "mt-1",
+                            getStatusVariantClasses(
+                              String(value).includes("동의") &&
+                                !String(value).includes("미동의")
+                                ? "success"
+                                : "neutral"
+                            )
+                          )}
                         >
                           {value}
                         </span>
@@ -3135,13 +3129,8 @@ function CustomerTimelinePanel({
   const latestAssignment = visibleItems.find(
     item => item.source === "assignment_history"
   );
-  const severityClass: Record<string, string> = {
-    normal: "bg-gray-100 text-gray-700 border-gray-200",
-    info: "bg-blue-50 text-blue-700 border-blue-200",
-    success: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    warning: "bg-amber-50 text-amber-700 border-amber-200",
-    danger: "bg-red-50 text-red-700 border-red-200",
-  };
+  const severityClass = (severity?: string | null) =>
+    cn("rounded-lg border px-2 py-1 text-xs", getSeveritySurfaceClasses(severity));
 
   return (
     <div className="space-y-4">
@@ -3267,7 +3256,10 @@ function CustomerTimelinePanel({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`text-[11px] px-2 py-0.5 rounded-full border ${severityClass[event.severity] ?? severityClass.normal}`}
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs",
+                            severityClass(event.severity)
+                          )}
                         >
                           {eventLabel}
                         </span>

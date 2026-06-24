@@ -2,6 +2,7 @@ import {
   buildCustomerExecutionScore,
   type CustomerExecutionRecommendation,
 } from "@shared/customerExecution";
+import type { StatusVariant } from "@/lib/statusPresentation";
 
 export function parseCustomerTags(value?: string | null): string[] {
   if (!value) return [];
@@ -18,15 +19,21 @@ export function parseCustomerTags(value?: string | null): string[] {
   }
 }
 
+export type ExecutionBadgeItem = {
+  label: string;
+  variant: StatusVariant;
+  urgency?: string | null;
+};
+
 export function executionBadges(customer: any, recommendation?: any) {
-  const badges: { label: string; className: string }[] = [];
+  const badges: ExecutionBadgeItem[] = [];
   if (
     customer.assignmentStatus === "unassigned" ||
     (!customer.agentId && !customer.subBranchAdminId)
   )
-    badges.push({ label: "미배정", className: "bg-slate-200 text-slate-700" });
+    badges.push({ label: "미배정", variant: "neutral" });
   if (customer.consultStatus === "미상담")
-    badges.push({ label: "미상담", className: "bg-slate-100 text-slate-700" });
+    badges.push({ label: "미상담", variant: "neutral" });
   if (
     customer.consultStatus === "미상담" &&
     customer.agentId &&
@@ -35,8 +42,7 @@ export function executionBadges(customer: any, recommendation?: any) {
   ) {
     badges.push({
       label: "배정 후 연락 필요",
-      className:
-        "bg-destructive/10 text-destructive border-destructive/20 border",
+      variant: "danger",
     });
   }
   if (
@@ -48,21 +54,19 @@ export function executionBadges(customer: any, recommendation?: any) {
   ) {
     badges.push({
       label: "장기 미관리",
-      className: "bg-amber-100 text-amber-800",
+      variant: "warning",
     });
   }
   if (recommendation)
     badges.push({
       label: "우선 연락",
-      className:
-        recommendation.urgency === "high"
-          ? "bg-red-100 text-red-700"
-          : "bg-emerald-50 text-emerald-700",
+      variant: recommendation.urgency === "high" ? "danger" : "success",
+      urgency: recommendation.urgency,
     });
   if (!customer.priority || customer.priority === "unclassified")
     badges.push({
       label: "우선순위 미분류",
-      className: "bg-red-50 text-red-700",
+      variant: "warning",
     });
   return badges;
 }

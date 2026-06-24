@@ -3,6 +3,7 @@ import {
   formatCustomerRecentActivity,
   maskPhone,
   nextExecutionAction,
+  executionBadges,
 } from "@/components/customers/customerListExecutionHelpers";
 
 describe("customerListExecutionHelpers", () => {
@@ -20,6 +21,23 @@ describe("customerListExecutionHelpers", () => {
         null
       )
     ).toBe("재연락");
+  });
+
+  it("returns semantic variants for execution badges", () => {
+    const badges = executionBadges(
+      {
+        consultStatus: "미상담",
+        assignmentStatus: "unassigned",
+        agentId: null,
+        priority: "unclassified",
+      },
+      { urgency: "high", warnings: [{ message: "장기", warningType: "long" }] }
+    );
+    expect(badges.find(b => b.label === "미배정")?.variant).toBe("neutral");
+    expect(badges.find(b => b.label === "우선 연락")?.variant).toBe("danger");
+    expect(badges.find(b => b.label === "우선순위 미분류")?.variant).toBe(
+      "warning"
+    );
   });
 
   it("formats recent activity from recommendation dates", () => {

@@ -63,3 +63,13 @@ export const adminPushStatusClasses: Record<string, string> = {
   pending: "bg-boa-amber/16 text-amber-800",
   skipped_disabled: "bg-muted text-muted-foreground",
 };
+
+/** Shared semantic status badge + chip tokens (CustomerList, CustomerDetail, StatusBadge) */
+export const statusSemantic = {
+  badgeBase:
+    "inline-flex max-w-full items-center rounded-full px-2.5 py-0.5 text-xs font-semibold leading-none",
+  filterChip:
+    "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border border-border bg-muted/50 px-2.5 py-1 text-left text-xs font-semibold text-foreground transition-colors hover:bg-muted/70",
+  filterPanel: "rounded-2xl border border-border bg-muted/30 p-3",
+  filterChipPanel: "rounded-2xl border border-border bg-card p-3",
+} as const;

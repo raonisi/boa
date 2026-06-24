@@ -22,7 +22,9 @@ import {
   maskPhone,
   nextExecutionAction,
 } from "@/components/customers/customerListExecutionHelpers";
-import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel, PriorityBadge } from "@/components/StatusBadge";
+import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel, PriorityBadge, ExecutionBadge } from "@/components/StatusBadge";
+import { adminPanel, statusSemantic } from "@/lib/adminDesignTokens";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1227,15 +1229,15 @@ export default function CustomerList() {
             </div>
 
             {!isMobile && showFilters && (
-              <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+              <div className={statusSemantic.filterPanel}>
                 {advancedFilterFields}
               </div>
             )}
 
             {hasActiveFilters && (
-              <div className="rounded-2xl border border-slate-100 bg-white p-3">
+              <div className={statusSemantic.filterChipPanel}>
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-semibold text-slate-600">
+                  <p className="text-xs font-semibold text-muted-foreground">
                     적용된 필터
                   </p>
                   <Button
@@ -1254,7 +1256,7 @@ export default function CustomerList() {
                       key={chip.key}
                       type="button"
                       onClick={chip.clear}
-                      className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                      className={statusSemantic.filterChip}
                       aria-label={`${chip.label} 필터 해제`}
                     >
                       <span className="min-w-0 whitespace-normal break-words leading-snug">
@@ -1404,12 +1406,10 @@ export default function CustomerList() {
                                 <PriorityBadge priority={(c as any).priority} />
                               )}
                               {relationFlags?.[c.id] ? (
-                                <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
-                                  연결
-                                </span>
+                                <ExecutionBadge label="연결" />
                               ) : null}
                             </div>
-                            <p className="mt-1 text-sm font-medium text-slate-800">
+                            <p className="mt-1 text-sm font-medium text-foreground">
                               다음:{" "}
                               {(c as any).nextAction ||
                                 execution.actionTitle ||
@@ -1426,12 +1426,11 @@ export default function CustomerList() {
                             </p>
                             <div className="mt-1 flex flex-wrap gap-1">
                               {badges.slice(0, 2).map(badge => (
-                                <span
+                                <ExecutionBadge
                                   key={badge.label}
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
-                                >
-                                  {badge.label}
-                                </span>
+                                  label={badge.label}
+                                  urgency={badge.urgency}
+                                />
                               ))}
                             </div>
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -1443,7 +1442,7 @@ export default function CustomerList() {
                               )}
                               {c.region && <span>{c.region}</span>}
                               {c.expectedPremium != null && (
-                                <span className="font-semibold text-slate-800">
+                                <span className="font-semibold text-foreground">
                                   {formatExpectedPremiumManwon(c.expectedPremium)}
                                 </span>
                               )}
@@ -1677,9 +1676,9 @@ export default function CustomerList() {
           if (!open) setDeleteCustomerId(null);
         }}
       >
-        <DialogContent className="flex max-h-[min(85dvh,38rem)] max-w-md flex-col overflow-hidden rounded-2xl border-red-100 p-0">
+        <DialogContent className="flex max-h-[min(85dvh,38rem)] max-w-md flex-col overflow-hidden rounded-2xl border-destructive/20 p-0">
           <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
-            <DialogTitle className="flex items-center gap-2 text-red-700">
+            <DialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="h-5 w-5" /> 고객 삭제 확인
             </DialogTitle>
             <DialogDescription>
@@ -1689,7 +1688,7 @@ export default function CustomerList() {
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-6">
-            <div className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">
+            <div className={cn("rounded-xl border p-3 text-sm", adminPanel.danger)}>
               완전 삭제가 아니며 활성 계약이나 진행 중 일정이 있으면 삭제할 수
               없습니다. 이 작업은 활동 로그에 기록됩니다.
             </div>
@@ -1734,19 +1733,19 @@ export default function CustomerList() {
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
             <div className="grid grid-cols-3 gap-2 text-center text-sm">
-              <div className="rounded-xl border bg-slate-50 p-3">
+              <div className={cn("rounded-xl border p-3", adminPanel.neutral)}>
                 <p className="text-xs text-muted-foreground">선택 고객</p>
                 <p className="mt-1 text-lg font-bold">
                   {selectedCustomerIds.length}
                 </p>
               </div>
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-emerald-800">
+              <div className={cn("rounded-xl border p-3", adminPanel.success)}>
                 <p className="text-xs">변경 가능</p>
                 <p className="mt-1 text-lg font-bold">
                   {selectedAssignableIds.length}
                 </p>
               </div>
-              <div className="rounded-xl border border-amber-100 bg-amber-50 p-3 text-amber-800">
+              <div className={cn("rounded-xl border p-3", adminPanel.warning)}>
                 <p className="text-xs">제외 예상</p>
                 <p className="mt-1 text-lg font-bold">
                   {Math.max(
@@ -1756,7 +1755,12 @@ export default function CustomerList() {
                 </p>
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700">
+            <div
+              className={cn(
+                "rounded-xl border px-3 py-2 text-xs",
+                adminPanel.neutral
+              )}
+            >
               삭제/비활성 고객, 권한 범위 밖 고객, 이미 같은 담당자인 고객은
               변경 대상에서 제외됩니다.
             </div>
@@ -1845,7 +1849,7 @@ export default function CustomerList() {
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
-            <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
+            <div className={cn("space-y-2 rounded-xl border p-3 text-sm", adminPanel.neutral)}>
               <p>
                 고객 수:{" "}
                 <span className="font-semibold">
@@ -1923,7 +1927,7 @@ export default function CustomerList() {
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-6">
-            <div className="rounded-xl border border-amber-100 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <div className={cn("rounded-xl border px-3 py-2 text-xs", adminPanel.warning)}>
               고객, 상담기록, 계약, 후속관리, 일정은 삭제하지 않습니다. 담당자
               배정만 해제되며 회수 기록은 배정이력과 활동 로그에 남습니다.
             </div>

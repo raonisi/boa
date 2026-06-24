@@ -5,6 +5,7 @@ import {
   adminPanel,
   adminPushStatusClasses,
   adminRiskBadgeClasses,
+  statusSemantic,
 } from "./adminDesignTokens";
 
 describe("adminDesignTokens", () => {
@@ -31,5 +32,11 @@ describe("adminDesignTokens", () => {
     expect(adminPanel.success).toContain("boa-green");
     expect(adminPanel.warning).toContain("boa-amber");
     expect(adminPanel.danger).toContain("destructive");
+  });
+
+  it("exposes shared status chip tokens for customer list filters", () => {
+    expect(statusSemantic.filterChip).toContain("border-border");
+    expect(statusSemantic.filterChip).toContain("text-xs");
+    expect(statusSemantic.filterPanel).toContain("bg-muted");
   });
 });

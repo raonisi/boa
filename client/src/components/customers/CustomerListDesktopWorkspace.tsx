@@ -1,4 +1,4 @@
-import { StatusBadge, PriorityBadge } from "@/components/StatusBadge";
+import { StatusBadge, PriorityBadge, ExecutionBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -245,12 +245,11 @@ export function CustomerListDesktopWorkspace({
                     ) : null}
                     <div className="flex flex-wrap gap-1">
                       {badges.slice(0, 3).map(badge => (
-                        <span
+                        <ExecutionBadge
                           key={badge.label}
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${badge.className}`}
-                        >
-                          {badge.label}
-                        </span>
+                          label={badge.label}
+                          urgency={badge.urgency}
+                        />
                       ))}
                     </div>
                   </div>
