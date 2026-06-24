@@ -14,6 +14,7 @@ import {
   quickPresetToUrlPreset,
   type CustomerListUrlPresetId,
 } from "@/components/customers/customerListUrlPresets";
+import { parseCustomerDetailAction } from "@/lib/customerDetailActions";
 import { CustomerListDesktopWorkspace } from "@/components/customers/CustomerListDesktopWorkspace";
 import {
   buildListExecution,
@@ -286,8 +287,14 @@ export default function CustomerList() {
   useEffect(() => {
     const query = location.split("?")[1]?.split("#")[0];
     const params = new URLSearchParams(query ?? "");
-    const action = params.get("action");
-    if (action === "quick-followup") setShowFollowUpQuickModal(true);
+    const action = parseCustomerDetailAction(params.get("action"));
+    if (action === "invalid") {
+      toast.error("지원하지 않는 실행 작업입니다.");
+      return;
+    }
+    if (action === "quick-followup" || action === "followup") {
+      setShowFollowUpQuickModal(true);
+    }
 
     const presetRaw = params.get("preset");
     const parsedPreset = parseCustomerListUrlPreset(presetRaw);

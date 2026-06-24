@@ -9,6 +9,10 @@ import {
 } from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
 import {
+  getUnreadBadgeAriaLabel,
+  getUnreadBadgeLabel,
+} from "@/lib/unreadBadge";
+import {
   filterNavGroups,
   mobileMoreNavGroups,
   mobilePrimaryItems,
@@ -23,12 +27,20 @@ export function MobileNav() {
   const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
-  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
-    undefined,
-    {
-      refetchInterval: 30000,
-    }
-  );
+  const {
+    data: unreadCount,
+    isLoading: isUnreadLoading,
+    isError: isUnreadError,
+  } = trpc.notifications.unreadCount.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const unreadBadgeInput = {
+    count: unreadCount,
+    isLoading: isUnreadLoading,
+    isError: isUnreadError,
+  };
+  const unreadBadgeLabel = getUnreadBadgeLabel(unreadBadgeInput);
+  const unreadBadgeAriaLabel = getUnreadBadgeAriaLabel(unreadBadgeInput);
 
   const quickLinks = mobileQuickLinksForRole(user?.role);
   const moreGroups = filterNavGroups(mobileMoreNavGroups, user);
@@ -93,13 +105,19 @@ export function MobileNav() {
           }`}
         >
           <item.icon className="h-5 w-5" />
-          {isNotif && unreadCount && unreadCount > 0 ? (
-            <span className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
-              {unreadCount > 9 ? "9+" : unreadCount}
+          {isNotif && unreadBadgeLabel ? (
+            <span
+              className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white"
+              aria-hidden="true"
+            >
+              {unreadBadgeLabel}
             </span>
           ) : null}
         </span>
-        <span className="w-full truncate text-center leading-tight">
+        <span
+          className="w-full truncate text-center leading-tight"
+          aria-label={isNotif ? unreadBadgeAriaLabel : undefined}
+        >
           {item.label}
         </span>
       </button>

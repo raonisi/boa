@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { buildCustomerDetailPath } from "@/lib/customerDetailActions";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,7 +17,13 @@ export type DashboardTaskType =
   | "notification"
   | "customer";
 export type PostponeMode = "quick" | "custom";
-export type ConfirmAction = "cancelFollowUp" | null;
+export type ConfirmAction =
+  | "cancelFollowUp"
+  | "completeFollowUp"
+  | "completeSchedule"
+  | "completeNotification"
+  | "completeCustomerContact"
+  | null;
 
 export interface DashboardMobileTask extends Record<string, any> {
   id: number;
@@ -69,6 +76,61 @@ export function MobileTaskSheet({
   onCustomerContactDone,
   onCustomerAbsent,
 }: MobileTaskSheetProps) {
+  const confirmCopy: Record<
+    Exclude<ConfirmAction, null>,
+    { title: string; description: string; confirmLabel: string }
+  > = {
+    cancelFollowUp: {
+      title: "후속관리를 취소할까요?",
+      description: "취소된 후속관리는 오늘 할 일에서 제외됩니다.",
+      confirmLabel: "취소 확정",
+    },
+    completeFollowUp: {
+      title: "후속관리를 완료할까요?",
+      description: "완료하면 오늘 할 일 목록에서 제외됩니다.",
+      confirmLabel: "완료 확정",
+    },
+    completeSchedule: {
+      title: "일정을 완료할까요?",
+      description: "완료 처리 후 일정 상태가 변경됩니다.",
+      confirmLabel: "완료 확정",
+    },
+    completeNotification: {
+      title: "알림을 처리완료할까요?",
+      description: "처리완료 후 알림센터 목록에서 제외됩니다.",
+      confirmLabel: "처리완료 확정",
+    },
+    completeCustomerContact: {
+      title: "연락완료로 기록할까요?",
+      description: "고객 상담 상태가 연락완료로 변경됩니다.",
+      confirmLabel: "기록 확정",
+    },
+  };
+
+  const handleConfirm = () => {
+    if (!selectedTask || !confirmAction) return;
+    switch (confirmAction) {
+      case "cancelFollowUp":
+        onFollowUpCancel(selectedTask);
+        break;
+      case "completeFollowUp":
+        onFollowUpComplete(selectedTask);
+        break;
+      case "completeSchedule":
+        onScheduleComplete(selectedTask);
+        break;
+      case "completeNotification":
+        onNotificationComplete(selectedTask);
+        break;
+      case "completeCustomerContact":
+        onCustomerContactDone(selectedTask);
+        break;
+      default:
+        break;
+    }
+    onConfirmActionChange(null);
+  };
+
   return (
     <Sheet
       open={Boolean(selectedTask)}
@@ -93,11 +155,13 @@ export function MobileTaskSheet({
           <div className="mt-4 space-y-3">
             {selectedTask.taskType === "followUp" && (
               <>
-                {confirmAction === "cancelFollowUp" && (
+                {confirmAction && confirmCopy[confirmAction] ? (
                   <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-100">
-                    <p className="font-semibold">후속관리를 취소할까요?</p>
+                    <p className="font-semibold">
+                      {confirmCopy[confirmAction].title}
+                    </p>
                     <p className="mt-1 text-xs leading-5">
-                      취소된 후속관리는 오늘 할 일에서 제외됩니다.
+                      {confirmCopy[confirmAction].description}
                     </p>
                     <div className="mt-3 grid grid-cols-2 gap-2">
                       <Button
@@ -113,19 +177,19 @@ export function MobileTaskSheet({
                         type="button"
                         className="min-h-12 bg-red-700 font-semibold text-white hover:bg-red-800"
                         disabled={isTaskBusy}
-                        onClick={() => onFollowUpCancel(selectedTask)}
+                        onClick={handleConfirm}
                       >
-                        취소 확정
+                        {confirmCopy[confirmAction].confirmLabel}
                       </Button>
                     </div>
                   </div>
-                )}
+                ) : null}
                 <div className="grid grid-cols-2 gap-2">
                   <Button
                     type="button"
                     className="min-h-12 font-semibold"
                     disabled={isTaskBusy}
-                    onClick={() => onFollowUpComplete(selectedTask)}
+                    onClick={() => onConfirmActionChange("completeFollowUp")}
                   >
                     <CheckCircle2 className="mr-1 h-4 w-4" /> 완료
                   </Button>
@@ -136,7 +200,10 @@ export function MobileTaskSheet({
                     disabled={isTaskBusy}
                     onClick={() =>
                       onNavigate(
-                        `/customers/${selectedTask.customerId}?action=consult`
+                        buildCustomerDetailPath(
+                          selectedTask.customerId,
+                          "consult"
+                        )
                       )
                     }
                   >
@@ -160,7 +227,10 @@ export function MobileTaskSheet({
                     disabled={isTaskBusy}
                     onClick={() =>
                       onNavigate(
-                        `/customers/${selectedTask.customerId}?action=quick-followup`
+                        buildCustomerDetailPath(
+                          selectedTask.customerId,
+                          "quick-followup"
+                        )
                       )
                     }
                   >
@@ -232,12 +302,42 @@ export function MobileTaskSheet({
               </>
             )}
             {selectedTask.taskType === "schedule" && (
+              <div className="space-y-3">
+                {confirmAction === "completeSchedule" ? (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-100">
+                    <p className="font-semibold">
+                      {confirmCopy.completeSchedule.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5">
+                      {confirmCopy.completeSchedule.description}
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12 bg-white"
+                        onClick={() => onConfirmActionChange(null)}
+                        disabled={isTaskBusy}
+                      >
+                        돌아가기
+                      </Button>
+                      <Button
+                        type="button"
+                        className="min-h-12"
+                        disabled={isTaskBusy}
+                        onClick={handleConfirm}
+                      >
+                        {confirmCopy.completeSchedule.confirmLabel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   className="min-h-12"
                   disabled={isTaskBusy}
-                  onClick={() => onScheduleComplete(selectedTask)}
+                  onClick={() => onConfirmActionChange("completeSchedule")}
                 >
                   <CheckCircle2 className="mr-1 h-4 w-4" /> 완료
                 </Button>
@@ -267,7 +367,10 @@ export function MobileTaskSheet({
                       className="min-h-12"
                       onClick={() =>
                         onNavigate(
-                          `/customers/${selectedTask.customerId}?action=quick-followup`
+                          buildCustomerDetailPath(
+                            selectedTask.customerId,
+                            "quick-followup"
+                          )
                         )
                       }
                     >
@@ -293,8 +396,39 @@ export function MobileTaskSheet({
                   닫기
                 </Button>
               </div>
+              </div>
             )}
             {selectedTask.taskType === "notification" && (
+              <div className="space-y-3">
+                {confirmAction === "completeNotification" ? (
+                  <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm leading-6 text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-100">
+                    <p className="font-semibold">
+                      {confirmCopy.completeNotification.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5">
+                      {confirmCopy.completeNotification.description}
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12 bg-white"
+                        onClick={() => onConfirmActionChange(null)}
+                        disabled={isTaskBusy}
+                      >
+                        돌아가기
+                      </Button>
+                      <Button
+                        type="button"
+                        className="min-h-12"
+                        disabled={isTaskBusy}
+                        onClick={handleConfirm}
+                      >
+                        {confirmCopy.completeNotification.confirmLabel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
@@ -309,7 +443,7 @@ export function MobileTaskSheet({
                   variant="outline"
                   className="min-h-12"
                   disabled={isTaskBusy}
-                  onClick={() => onNotificationComplete(selectedTask)}
+                  onClick={() => onConfirmActionChange("completeNotification")}
                 >
                   처리완료
                 </Button>
@@ -322,7 +456,9 @@ export function MobileTaskSheet({
                       selectedTask.relatedType === "customer" &&
                       selectedTask.relatedId
                     ) {
-                      onNavigate(`/customers/${selectedTask.relatedId}`);
+                      onNavigate(
+                        buildCustomerDetailPath(selectedTask.relatedId)
+                      );
                       return;
                     }
                     onNavigate("/notifications");
@@ -342,14 +478,45 @@ export function MobileTaskSheet({
                   닫기
                 </Button>
               </div>
+              </div>
             )}
             {selectedTask.taskType === "customer" && (
+              <div className="space-y-3">
+                {confirmAction === "completeCustomerContact" ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm leading-6 text-emerald-900 dark:border-emerald-900/50 dark:bg-emerald-950/30 dark:text-emerald-100">
+                    <p className="font-semibold">
+                      {confirmCopy.completeCustomerContact.title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5">
+                      {confirmCopy.completeCustomerContact.description}
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12 bg-white"
+                        onClick={() => onConfirmActionChange(null)}
+                        disabled={isTaskBusy}
+                      >
+                        돌아가기
+                      </Button>
+                      <Button
+                        type="button"
+                        className="min-h-12"
+                        disabled={isTaskBusy}
+                        onClick={handleConfirm}
+                      >
+                        {confirmCopy.completeCustomerContact.confirmLabel}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   type="button"
                   className="min-h-12"
                   disabled={isTaskBusy}
-                  onClick={() => onCustomerContactDone(selectedTask)}
+                  onClick={() => onConfirmActionChange("completeCustomerContact")}
                 >
                   연락완료
                 </Button>
@@ -367,7 +534,9 @@ export function MobileTaskSheet({
                   variant="outline"
                   className="min-h-12"
                   onClick={() =>
-                    onNavigate(`/customers/${selectedTask.id}?action=consult`)
+                    onNavigate(
+                      buildCustomerDetailPath(selectedTask.id, "consult")
+                    )
                   }
                 >
                   상담기록
@@ -376,10 +545,11 @@ export function MobileTaskSheet({
                   type="button"
                   variant="outline"
                   className="min-h-12"
-                  onClick={() => onNavigate(`/customers/${selectedTask.id}`)}
+                  onClick={() => onNavigate(buildCustomerDetailPath(selectedTask.id))}
                 >
                   고객상세
                 </Button>
+              </div>
               </div>
             )}
           </div>

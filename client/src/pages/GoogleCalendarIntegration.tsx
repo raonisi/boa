@@ -24,6 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { adminPage } from "@/lib/adminDesignTokens";
 import { trpc } from "@/lib/trpc";
+import { ErrorState, LoadingState } from "@/components/ui/empty-state";
 import { CalendarDays, Link2, RefreshCw, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
@@ -165,6 +166,31 @@ export default function GoogleCalendarIntegration() {
 
   const canManage = settingsQuery.data?.canManage ?? false;
 
+  if (settingsQuery.isLoading && !settingsQuery.data) {
+    return (
+      <DashboardLayout>
+        <LoadingState
+          title="Google Calendar 연동 정보를 불러오고 있습니다."
+          description="잠시만 기다려 주세요."
+          fullPage
+        />
+      </DashboardLayout>
+    );
+  }
+
+  if (settingsQuery.isError) {
+    return (
+      <DashboardLayout>
+        <ErrorState
+          title="Google Calendar 연동 정보를 불러오지 못했습니다."
+          description="잠시 후 다시 시도해 주세요."
+          onRetry={() => void settingsQuery.refetch()}
+          fullPage
+        />
+      </DashboardLayout>
+    );
+  }
+
   const resyncHistoryEnabledQuery = trpc.googleCalendar.getResyncHistory.useQuery(
     undefined,
     { enabled: canManage }
@@ -215,7 +241,9 @@ export default function GoogleCalendarIntegration() {
           <TabsList className="flex h-auto flex-wrap">
             <TabsTrigger value="settings">캘린더 설정</TabsTrigger>
             <TabsTrigger value="status">동기화 상태</TabsTrigger>
-            <TabsTrigger value="retry">실패 재시도</TabsTrigger>
+            {canManage ? (
+              <TabsTrigger value="retry">실패 재시도</TabsTrigger>
+            ) : null}
             <TabsTrigger value="preview">안전 제목 미리보기</TabsTrigger>
             {canManage ? (
               <TabsTrigger value="resync">오분류 재동기화</TabsTrigger>

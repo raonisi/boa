@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { buildCustomerDetailPath } from "@/lib/customerDetailActions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState } from "@/components/ui/empty-state";
 import type { DashboardMobileTask } from "@/components/dashboard/MobileTaskSheet";
@@ -205,7 +206,18 @@ export function TodayWorkExecutionQueue({
                       size="sm"
                       variant="outline"
                       className="min-h-10"
-                      onClick={() => onNavigate(`/customers/${item.customerId}`)}
+                      onClick={() =>
+                        onNavigate(
+                          buildCustomerDetailPath(
+                            item.customerId!,
+                            item.type === "followup"
+                              ? "quick-followup"
+                              : item.type === "customer"
+                                ? "consult"
+                                : undefined
+                          )
+                        )
+                      }
                     >
                       고객 보기
                     </Button>
@@ -233,7 +245,10 @@ export function TodayWorkExecutionQueue({
                       className="min-h-10"
                       onClick={() =>
                         onNavigate(
-                          `/customers/${item.customerId}?action=quick-followup`
+                          buildCustomerDetailPath(
+                            item.customerId!,
+                            "quick-followup"
+                          )
                         )
                       }
                     >

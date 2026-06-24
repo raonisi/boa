@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { ConsultationToolsListState } from "@/components/consultation-tools/ConsultationToolsListState";
 import { trpc } from "@/lib/trpc";
 import {
   getUserFacingErrorMessage,
@@ -228,19 +229,18 @@ export default function ConsultationToolsManagement() {
   );
   const [selectedScriptId, setSelectedScriptId] = useState<number | null>(null);
 
-  const { data: checklists } = trpc.consultationTools.listChecklists.useQuery({
+  const checklistsQuery = trpc.consultationTools.listChecklists.useQuery({
     includeInactive: false,
   });
-  const { data: templates } =
-    trpc.consultationTools.listMessageTemplates.useQuery({
-      includeInactive: false,
-    });
-  const { data: scripts } = trpc.consultationScripts.list.useQuery({
+  const templatesQuery = trpc.consultationTools.listMessageTemplates.useQuery({
     includeInactive: false,
   });
-  const checklistItems = checklists ?? [];
-  const templateItems = templates ?? [];
-  const scriptItems = scripts ?? [];
+  const scriptsQuery = trpc.consultationScripts.list.useQuery({
+    includeInactive: false,
+  });
+  const checklistItems = checklistsQuery.data ?? [];
+  const templateItems = templatesQuery.data ?? [];
+  const scriptItems = scriptsQuery.data ?? [];
   const selectedChecklist =
     checklistItems.find((item: any) => item.id === selectedChecklistId) ??
     checklistItems[0];
@@ -797,21 +797,32 @@ export default function ConsultationToolsManagement() {
                     </CardContent>
                   </Card>
                 ) : null}
+                <ConsultationToolsListState
+                  isLoading={checklistsQuery.isLoading}
+                  isError={checklistsQuery.isError}
+                  hasLoaded={checklistsQuery.data !== undefined}
+                  isEmpty={checklistItems.length === 0}
+                  onRetry={() => void checklistsQuery.refetch()}
+                  emptyTitle="등록된 상담도구가 없습니다."
+                  emptyDescription={
+                    isBranchAdmin
+                      ? "상단 입력 영역에서 기본 체크리스트를 확인하거나 새 항목을 추가하세요."
+                      : "지점장에게 상담 체크리스트 등록을 요청하세요."
+                  }
+                  emptyAction={
+                    isBranchAdmin ? (
+                      <Button
+                        variant="outline"
+                        className="min-h-11"
+                        onClick={() => seedChecklists.mutate()}
+                        disabled={seedChecklists.isPending}
+                      >
+                        기본 체크리스트 확인
+                      </Button>
+                    ) : undefined
+                  }
+                >
                 <div className="grid gap-3">
-                  {checklistItems.length === 0 ? (
-                    <Card className="border-dashed border-slate-200 bg-white/80">
-                      <CardContent className="space-y-2 p-5 text-sm text-muted-foreground">
-                        <p className="font-semibold text-slate-900">
-                          등록된 체크리스트가 없습니다.
-                        </p>
-                        <p>
-                          {isBranchAdmin
-                            ? "상단 입력 영역에서 기본 체크리스트를 확인하거나 새 항목을 추가하세요."
-                            : "지점장에게 상담 체크리스트 등록을 요청하세요."}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ) : null}
                   {checklistItems.map((item: any) => (
                     <Card
                       key={item.id}
@@ -884,6 +895,7 @@ export default function ConsultationToolsManagement() {
                     </Card>
                   ))}
                 </div>
+                </ConsultationToolsListState>
               </div>
               <div className="min-w-0">
                 <ToolPreviewPanel
@@ -1130,21 +1142,32 @@ export default function ConsultationToolsManagement() {
                     </CardContent>
                   </Card>
                 ) : null}
+                <ConsultationToolsListState
+                  isLoading={templatesQuery.isLoading}
+                  isError={templatesQuery.isError}
+                  hasLoaded={templatesQuery.data !== undefined}
+                  isEmpty={templateItems.length === 0}
+                  onRetry={() => void templatesQuery.refetch()}
+                  emptyTitle="등록된 상담도구가 없습니다."
+                  emptyDescription={
+                    isBranchAdmin
+                      ? "상단 입력 영역에서 기본 템플릿을 확인하거나 새 문구를 추가하세요."
+                      : "지점장에게 후속 문구 템플릿 등록을 요청하세요."
+                  }
+                  emptyAction={
+                    isBranchAdmin ? (
+                      <Button
+                        variant="outline"
+                        className="min-h-11"
+                        onClick={() => seedTemplates.mutate()}
+                        disabled={seedTemplates.isPending}
+                      >
+                        기본 템플릿 확인
+                      </Button>
+                    ) : undefined
+                  }
+                >
                 <div className="grid gap-3">
-                  {templateItems.length === 0 ? (
-                    <Card className="border-dashed border-slate-200 bg-white/80">
-                      <CardContent className="space-y-2 p-5 text-sm text-muted-foreground">
-                        <p className="font-semibold text-slate-900">
-                          등록된 문구 템플릿이 없습니다.
-                        </p>
-                        <p>
-                          {isBranchAdmin
-                            ? "상단 입력 영역에서 기본 템플릿을 확인하거나 새 문구를 추가하세요."
-                            : "지점장에게 후속 문구 템플릿 등록을 요청하세요."}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ) : null}
                   {templateItems.map((item: any) => (
                     <Card
                       key={item.id}
@@ -1221,6 +1244,7 @@ export default function ConsultationToolsManagement() {
                     </Card>
                   ))}
                 </div>
+                </ConsultationToolsListState>
               </div>
               <div className="min-w-0">
                 <ToolPreviewPanel
@@ -1436,21 +1460,32 @@ export default function ConsultationToolsManagement() {
                     </CardContent>
                   </Card>
                 ) : null}
+                <ConsultationToolsListState
+                  isLoading={scriptsQuery.isLoading}
+                  isError={scriptsQuery.isError}
+                  hasLoaded={scriptsQuery.data !== undefined}
+                  isEmpty={scriptItems.length === 0}
+                  onRetry={() => void scriptsQuery.refetch()}
+                  emptyTitle="등록된 상담도구가 없습니다."
+                  emptyDescription={
+                    isBranchAdmin
+                      ? "상단 입력 영역에서 기본 스크립트를 확인하거나 새 스크립트를 추가하세요."
+                      : "지점장에게 상담 스크립트 등록을 요청하세요."
+                  }
+                  emptyAction={
+                    isBranchAdmin ? (
+                      <Button
+                        variant="outline"
+                        className="min-h-11"
+                        onClick={() => seedScripts.mutate()}
+                        disabled={seedScripts.isPending}
+                      >
+                        기본 스크립트 확인
+                      </Button>
+                    ) : undefined
+                  }
+                >
                 <div className="grid gap-3">
-                  {scriptItems.length === 0 ? (
-                    <Card className="border-dashed border-slate-200 bg-white/80">
-                      <CardContent className="space-y-2 p-5 text-sm text-muted-foreground">
-                        <p className="font-semibold text-slate-900">
-                          등록된 상담 스크립트가 없습니다.
-                        </p>
-                        <p>
-                          {isBranchAdmin
-                            ? "상단 입력 영역에서 기본 스크립트를 확인하거나 새 스크립트를 추가하세요."
-                            : "지점장에게 상담 스크립트 등록을 요청하세요."}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  ) : null}
                   {scriptItems.map((item: any) => (
                     <Card
                       key={item.id}
@@ -1527,6 +1562,7 @@ export default function ConsultationToolsManagement() {
                     </Card>
                   ))}
                 </div>
+                </ConsultationToolsListState>
               </div>
               <div className="min-w-0">
                 <ToolPreviewPanel

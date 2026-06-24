@@ -1,11 +1,21 @@
 import { getStatusLabel, StatusBadge } from "@/components/StatusBadge";
-import { MobileTaskSheet } from "@/components/dashboard/MobileTaskSheet";
+import { MobileTaskSheet, type ConfirmAction } from "@/components/dashboard/MobileTaskSheet";
 import {
   TodayWorkExecutionQueue,
   toDashboardMobileTask,
 } from "@/components/dashboard/TodayWorkExecutionQueue";
 import { PremiumStatCard } from "@/components/dashboard/PremiumStatCard";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ErrorState, renderMetricValue } from "@/components/ui/empty-state";
@@ -19,6 +29,7 @@ import {
   type TodayWorkQueueFilter,
 } from "@/lib/todayWorkExecution";
 import { buildCustomerListPresetPath } from "@/components/customers/customerListUrlPresets";
+import { buildCustomerDetailPath } from "@/lib/customerDetailActions";
 import { trpc } from "@/lib/trpc";
 import {
   formatKstLocalDateTime,
@@ -96,7 +107,7 @@ function getNotificationTargetPath(notification: {
   if (notification.relatedType === "customer" && notification.relatedId) {
     return {
       label: "고객 보기",
-      path: `/customers/${notification.relatedId}`,
+      path: buildCustomerDetailPath(notification.relatedId),
     };
   }
   if (notification.relatedType === "schedule" || isScheduleNotificationType(notification.type)) {
@@ -186,9 +197,14 @@ export function TodayWorkSection({
   const [postponeMode, setPostponeMode] = useState<"quick" | "custom">("quick");
   const [customPostponeDate, setCustomPostponeDate] = useState("");
   const [busyTaskKey, setBusyTaskKey] = useState<string | null>(null);
-  const [confirmAction, setConfirmAction] = useState<"cancelFollowUp" | null>(
-    null
-  );
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
+  const [pendingDesktopCompletion, setPendingDesktopCompletion] = useState<{
+    key: string;
+    title: string;
+    description: string;
+    execute: () => Promise<unknown>;
+    successMessage: string;
+  } | null>(null);
   const busyTaskKeyRef = useRef<string | null>(null);
   const utils = trpc.useUtils();
   const { data, isLoading, isError, refetch } =
@@ -510,25 +526,39 @@ export function TodayWorkSection({
     }
   };
 
+  const requestDesktopCompletion = (config: {
+    key: string;
+    title: string;
+    description: string;
+    execute: () => Promise<unknown>;
+    successMessage: string;
+  }) => {
+    setPendingDesktopCompletion(config);
+  };
+
   const handleExecutionPrimaryAction = (item: TodayWorkItem) => {
     if (item.type === "followup") {
-      void runTask(
-        item.key,
-        () => followUpCompleteMutation.mutateAsync({ id: item.id }),
-        "후속관리를 완료했습니다."
-      );
+      requestDesktopCompletion({
+        key: item.key,
+        title: "후속관리를 완료할까요?",
+        description: "완료하면 오늘 할 일 목록에서 제외됩니다.",
+        execute: () => followUpCompleteMutation.mutateAsync({ id: item.id }),
+        successMessage: "후속관리를 완료했습니다.",
+      });
       return;
     }
     if (item.type === "schedule") {
-      void runTask(
-        item.key,
-        () =>
+      requestDesktopCompletion({
+        key: item.key,
+        title: "일정을 완료할까요?",
+        description: "완료 처리 후 일정 상태가 변경됩니다.",
+        execute: () =>
           scheduleUpdateMutation.mutateAsync({
             id: item.id,
             status: "완료",
           }),
-        "일정을 완료했습니다."
-      );
+        successMessage: "일정을 완료했습니다.",
+      });
       return;
     }
     if (item.type === "notification") {
@@ -541,15 +571,17 @@ export function TodayWorkSection({
       );
       return;
     }
-    void runTask(
-      item.key,
-      () =>
+    requestDesktopCompletion({
+      key: item.key,
+      title: "연락완료로 기록할까요?",
+      description: "고객 상담 상태가 연락완료로 변경됩니다.",
+      execute: () =>
         customerUpdateMutation.mutateAsync({
           id: item.id,
           consultStatus: "통화완료",
         }),
-      "연락 완료로 기록했습니다."
-    );
+      successMessage: "연락 완료로 기록했습니다.",
+    });
   };
 
   const openExecutionItem = (item: TodayWorkItem) => {
@@ -1159,9 +1191,18 @@ export function TodayWorkSection({
                         className="min-h-11 text-xs sm:h-7 sm:min-h-7"
                         disabled={completeMutation.isPending}
                         onClick={() =>
-                          completeMutation.mutate({
-                            id: notification.id,
-                            processStatus: "처리완료",
+                          requestDesktopCompletion({
+                            key: `notification-complete-${notification.id}`,
+                            title: "알림을 처리완료할까요?",
+                            description:
+                              "처리완료 후 알림센터 목록에서 제외됩니다.",
+                            execute: async () => {
+                              await completeMutation.mutateAsync({
+                                id: notification.id,
+                                processStatus: "처리완료",
+                              });
+                            },
+                            successMessage: "알림을 처리완료했습니다.",
                           })
                         }
                       >
@@ -1506,9 +1547,18 @@ export function TodayWorkSection({
                     className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     disabled={completeMutation.isPending}
                     onClick={() =>
-                      completeMutation.mutate({
-                        id: notification.id,
-                        processStatus: "처리완료",
+                      requestDesktopCompletion({
+                        key: `notification-complete-mobile-${notification.id}`,
+                        title: "알림을 처리완료할까요?",
+                        description:
+                          "처리완료 후 알림센터 목록에서 제외됩니다.",
+                        execute: async () => {
+                          await completeMutation.mutateAsync({
+                            id: notification.id,
+                            processStatus: "처리완료",
+                          });
+                        },
+                        successMessage: "알림을 처리완료했습니다.",
                       })
                     }
                   >
@@ -1694,7 +1744,18 @@ export function TodayWorkSection({
                     size="sm"
                     className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
                     disabled={followUpCompleteMutation.isPending}
-                    onClick={() => followUpCompleteMutation.mutate({ id: followUp.id })}
+                    onClick={() =>
+                      requestDesktopCompletion({
+                        key: `followup-complete-${followUp.id}`,
+                        title: "후속관리를 완료할까요?",
+                        description: "완료하면 오늘 할 일 목록에서 제외됩니다.",
+                        execute: () =>
+                          followUpCompleteMutation.mutateAsync({
+                            id: followUp.id,
+                          }),
+                        successMessage: "후속관리를 완료했습니다.",
+                      })
+                    }
                   >
                     완료
                   </Button>
@@ -1719,7 +1780,14 @@ export function TodayWorkSection({
                     size="sm"
                     variant="outline"
                     className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                    onClick={() => setLocation(`/customers/${followUp.customerId}`)}
+                    onClick={() =>
+                      setLocation(
+                        buildCustomerDetailPath(
+                          followUp.customerId,
+                          "quick-followup"
+                        )
+                      )
+                    }
                   >
                     고객 보기
                   </Button>
@@ -1742,6 +1810,42 @@ export function TodayWorkSection({
           )}
         </SectionCard>
       </div>
+
+      <AlertDialog
+        open={Boolean(pendingDesktopCompletion)}
+        onOpenChange={open => {
+          if (!open) setPendingDesktopCompletion(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDesktopCompletion?.title ?? "업무를 완료할까요?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDesktopCompletion?.description ??
+                "완료 후 목록에서 제외됩니다."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isTaskBusy}>취소</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={isTaskBusy}
+              onClick={event => {
+                event.preventDefault();
+                if (!pendingDesktopCompletion) return;
+                void runTask(
+                  pendingDesktopCompletion.key,
+                  pendingDesktopCompletion.execute,
+                  pendingDesktopCompletion.successMessage
+                ).finally(() => setPendingDesktopCompletion(null));
+              }}
+            >
+              {isTaskBusy ? "처리 중..." : "확인"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

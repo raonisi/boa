@@ -87,6 +87,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
+import {
+  applyCustomerDetailAction,
+  parseCustomerDetailAction,
+} from "@/lib/customerDetailActions";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -311,13 +315,19 @@ export default function CustomerDetail({ id }: { id: number }) {
     const query = location.split("?")[1]?.split("#")[0];
     if (!query) return;
 
-    const action = new URLSearchParams(query).get("action");
-    if (action === "consult") setShowConsultModal(true);
-    if (action === "followup" || action === "quick-followup") {
-      setShowFollowUpQuickModal(true);
-    }
-    if (action === "contract") setShowContractModal(true);
-    if (action === "message") setActiveTab("tools");
+    const action = parseCustomerDetailAction(
+      new URLSearchParams(query).get("action")
+    );
+    if (action === "invalid") return;
+
+    if (!action) return;
+
+    applyCustomerDetailAction(action, {
+      onConsult: () => setShowConsultModal(true),
+      onQuickFollowup: () => setShowFollowUpQuickModal(true),
+      onContract: () => setShowContractModal(true),
+      onMessage: () => setActiveTab("tools"),
+    });
   }, [location]);
 
   const utils = trpc.useUtils();
@@ -2544,7 +2554,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
       {isMobile && (
         <div className="fixed inset-x-0 bottom-[68px] z-40 border-t border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden">
-          <div className="mx-auto grid max-w-lg grid-cols-4 gap-2">
+          <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
             {customer.phone ? (
               <Button
                 variant="default"
@@ -2582,6 +2592,8 @@ export default function CustomerDetail({ id }: { id: number }) {
               <CalendarPlus className="h-4 w-4" />
               후속
             </Button>
+          </div>
+          <div className="mx-auto mt-2 grid max-w-lg grid-cols-2 gap-2">
             <Button
               variant="outline"
               className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
@@ -2593,6 +2605,14 @@ export default function CustomerDetail({ id }: { id: number }) {
             >
               <CalendarPlus className="h-4 w-4" />
               일정
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800"
+              onClick={() => setShowContractModal(true)}
+            >
+              <FilePlus2 className="h-4 w-4" />
+              계약
             </Button>
           </div>
         </div>

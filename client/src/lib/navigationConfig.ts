@@ -595,6 +595,12 @@ export const mobileMoreNavGroups: NavGroup[] = [
         label: "앱 알림 설정",
         path: "/notification-preferences",
       },
+      {
+        icon: CalendarDays,
+        label: "Google Calendar 연동",
+        path: "/google-calendar-integration",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
+      },
     ],
   },
 ];

@@ -25,6 +25,10 @@ import {
 import { getLoginUrlResult } from "@/const";
 import { useFcmDeviceTokenRegistration } from "@/hooks/useFcmDeviceTokenRegistration";
 import { trpc } from "@/lib/trpc";
+import {
+  getUnreadBadgeAriaLabel,
+  getUnreadBadgeLabel,
+} from "@/lib/unreadBadge";
 import { LogOut, Moon, Bell, Sun } from "lucide-react";
 import { BrandedLogin } from "./BrandedLogin";
 import { BrandLogo } from "./BrandLogo";
@@ -116,12 +120,20 @@ function DashboardLayoutContent({
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useTheme();
 
-  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
-    undefined,
-    {
-      refetchInterval: 30000,
-    }
-  );
+  const {
+    data: unreadCount,
+    isLoading: isUnreadLoading,
+    isError: isUnreadError,
+  } = trpc.notifications.unreadCount.useQuery(undefined, {
+    refetchInterval: 30000,
+  });
+  const unreadBadgeInput = {
+    count: unreadCount,
+    isLoading: isUnreadLoading,
+    isError: isUnreadError,
+  };
+  const unreadBadgeLabel = getUnreadBadgeLabel(unreadBadgeInput);
+  const unreadBadgeAriaLabel = getUnreadBadgeAriaLabel(unreadBadgeInput);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -223,9 +235,12 @@ function DashboardLayoutContent({
                         >
                             <item.icon className="h-4 w-4 shrink-0" />
                             <span className="text-sm">{item.label}</span>
-                            {isNotif && unreadCount && unreadCount > 0 ? (
-                              <Badge className="ml-auto h-4 min-w-4 border-0 bg-red-500 px-1 text-[10px] text-white">
-                                {unreadCount > 99 ? "99+" : unreadCount}
+                            {isNotif && unreadBadgeLabel ? (
+                              <Badge
+                                className="ml-auto h-4 min-w-4 border-0 bg-red-500 px-1 text-[10px] text-white"
+                                aria-label={unreadBadgeAriaLabel}
+                              >
+                                {unreadBadgeLabel}
                               </Badge>
                             ) : null}
                           </SidebarMenuButton>
@@ -336,11 +351,12 @@ function DashboardLayoutContent({
           <button
             onClick={() => setLocation("/notifications")}
             className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-foreground shadow-sm transition-colors hover:bg-muted/60"
+            aria-label={unreadBadgeAriaLabel}
           >
             <Bell className="h-4 w-4" />
-            {unreadCount && unreadCount > 0 ? (
-              <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[9px] text-white flex items-center justify-center font-bold">
-                {unreadCount > 9 ? "9+" : unreadCount}
+            {unreadBadgeLabel ? (
+              <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white">
+                {unreadBadgeLabel}
               </span>
             ) : null}
           </button>
