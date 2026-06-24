@@ -211,7 +211,7 @@ export function CustomerClaimGuidancePanel({
 
   const deleteMutation = trpc.claimGuidance.delete.useMutation({
     onSuccess: async () => {
-      toast.success("청구 안내가 비활성화되었습니다.");
+      toast.success("청구 안내를 비활성화했습니다.");
       setDeleteTarget(null);
       await invalidate();
     },

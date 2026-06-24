@@ -50,7 +50,7 @@ const riskClasses: Record<string, string> = {
 
 const actionLabels: Record<string, string> = {
   DATA_DOWNLOAD: "데이터 다운로드",
-  CUSTOMER_DEACTIVATED: "고객 삭제",
+  CUSTOMER_DEACTIVATED: "고객 비활성화",
   CUSTOMER_RESTORED: "고객 복구",
   CONTRACT_DELETED: "계약 삭제",
   CONTRACT_RESTORED: "계약 복구",
@@ -155,7 +155,7 @@ export default function AdminAuditDashboard() {
     },
     {
       key: "recentDeleteRestore",
-      label: "삭제·복구·완전삭제",
+      label: "삭제·복구·영구 삭제",
       helper: "위험 작업 이력과 승인 흐름을 확인하세요.",
       icon: Trash2,
     },

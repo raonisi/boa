@@ -319,7 +319,7 @@ export default function Notifications() {
         utils.notifications.list.invalidate(),
         utils.notifications.unreadCount.invalidate(),
       ]);
-      toast.success(`${ids.length}개 알림을 처리완료했습니다.`);
+      toast.success(`${ids.length}개 알림을 처리완료로 변경했습니다.`);
       setBulkCompleteConfirmation(null);
     } catch (error) {
       toast.error(

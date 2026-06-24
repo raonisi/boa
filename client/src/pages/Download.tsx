@@ -78,7 +78,7 @@ export function getDownloadReadinessItems(input: {
       label: "원본 export 승인",
       done: input.rawExportConfirmed,
       hint: input.rawExportConfirmed
-        ? "원본 export 승인이 완료되었습니다."
+        ? "원본 export 승인을 완료했습니다."
         : "원본 데이터 export 승인에 체크해 주세요.",
     });
   }

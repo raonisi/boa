@@ -12,15 +12,7 @@ interface State {
   error: Error | null;
 }
 
-const isDevelopment = import.meta.env.DEV;
-
-export function ErrorFallback({
-  error,
-  showDetails = isDevelopment,
-}: {
-  error: Error | null;
-  showDetails?: boolean;
-}) {
+export function ErrorFallback({ error: _error }: { error?: Error | null }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
       <div className="flex w-full max-w-lg flex-col items-center rounded-xl border bg-card p-6 text-center shadow-sm sm:p-8">
@@ -61,17 +53,6 @@ export function ErrorFallback({
             홈으로 이동
           </button>
         </div>
-
-        {showDetails && error ? (
-          <details className="mt-6 w-full rounded-lg border bg-muted/30 p-3 text-left">
-            <summary className="cursor-pointer text-xs font-semibold text-muted-foreground">
-              개발자 오류 정보
-            </summary>
-            <pre className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap break-words text-xs leading-relaxed text-muted-foreground">
-              {error.stack ?? error.message}
-            </pre>
-          </details>
-        ) : null}
       </div>
     </div>
   );
@@ -85,6 +66,10 @@ class ErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("[ErrorBoundary]", error, errorInfo);
   }
 
   render() {

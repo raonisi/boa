@@ -89,7 +89,7 @@ export default function ContractList() {
 
   const deactivateMutation = trpc.contracts.deactivate.useMutation({
     onSuccess: () => {
-      toast.success("계약이 삭제(비활성 처리)되었습니다.");
+      toast.success("계약을 삭제했습니다.");
       utils.contracts.list.invalidate();
       utils.performance.stats.invalidate();
     },

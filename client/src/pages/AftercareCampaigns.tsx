@@ -68,7 +68,7 @@ export default function AftercareCampaigns() {
   const createFollowUpMutation =
     trpc.aftercareCampaigns.createFollowUpForTarget.useMutation({
       onSuccess: async () => {
-        toast.success("후속관리 생성이 완료되었습니다.");
+        toast.success("후속관리를 생성했습니다.");
         await Promise.all([summaryQuery.refetch(), detailQuery.refetch()]);
       },
       onError: error =>

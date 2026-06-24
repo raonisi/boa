@@ -111,7 +111,7 @@ export default function OnboardingDashboard() {
   const approveItemMutation =
     trpc.onboardingAssignments.approveItem.useMutation({
       onSuccess: async () => {
-        toast.success("승인 처리가 완료되었습니다.");
+        toast.success("온보딩 항목을 승인했습니다.");
         await Promise.all([
           assignmentsQuery.refetch(),
           summaryQuery.refetch(),

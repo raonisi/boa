@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   formatDbAssignmentSuccessMessage,
+  formatDbDistributionSuccessMessage,
   WORKFLOW_COPY,
 } from "@/lib/assignmentWorkflowCopy";
 import { trpc } from "@/lib/trpc";
@@ -334,7 +335,7 @@ function AssignToSubBranch() {
     setConfirmOpen(false);
     if (nextResult.successCount > 0) {
       toast.success(
-        formatDbAssignmentSuccessMessage({
+        formatDbDistributionSuccessMessage({
           successCount: nextResult.successCount,
           targetLabel: selectedTarget
             ? formatUserWithRole(selectedTarget)
@@ -407,7 +408,7 @@ function AssignToSubBranch() {
           )}
           {subBranchAdmins.some(candidate => !candidate.selectable) ? (
             <p className="basis-full text-xs text-muted-foreground">
-              일부 후보는 계정 상태로 인해 선택할 수 없습니다.
+              일부 후보는 비활성·퇴사 처리된 계정 등으로 선택할 수 없습니다.
             </p>
           ) : null}
         </CardContent>
@@ -737,7 +738,7 @@ function AssignmentPanel({
           )}
           {agents.some(candidate => !candidate.selectable) ? (
             <p className="basis-full text-xs text-muted-foreground">
-              일부 후보는 계정 상태로 인해 선택할 수 없습니다.
+              일부 후보는 비활성·퇴사 처리된 계정 등으로 선택할 수 없습니다.
             </p>
           ) : null}
         </CardContent>

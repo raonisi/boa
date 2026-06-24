@@ -4,13 +4,13 @@ import { describe, expect, it } from "vitest";
 import { ErrorFallback } from "./ErrorBoundary";
 
 describe("ErrorFallback", () => {
-  it("hides stack traces from the production user-facing state", () => {
+  it("never exposes stack traces or raw error messages to users", () => {
     const error = new Error("sensitive failure");
     error.stack =
       "Error: sensitive failure\n    at SecretPath (C:/internal/token.ts:1:1)";
 
     const html = renderToStaticMarkup(
-      <ErrorFallback error={error} showDetails={false} />
+      <ErrorFallback error={error} />
     );
 
     expect(html).toContain("문제가 발생했습니다.");
@@ -18,18 +18,14 @@ describe("ErrorFallback", () => {
     expect(html).toContain("홈으로 이동");
     expect(html).not.toContain("SecretPath");
     expect(html).not.toContain("C:/internal");
+    expect(html).not.toContain("sensitive failure");
     expect(html).not.toContain("개발자 오류 정보");
   });
 
-  it("keeps developer details available when explicitly enabled", () => {
-    const error = new Error("developer-only failure");
-    error.stack = "Error: developer-only failure\n    at Component.tsx:10:1";
+  it("renders the same safe copy when no error object is provided", () => {
+    const html = renderToStaticMarkup(<ErrorFallback />);
 
-    const html = renderToStaticMarkup(
-      <ErrorFallback error={error} showDetails />
-    );
-
-    expect(html).toContain("개발자 오류 정보");
-    expect(html).toContain("developer-only failure");
+    expect(html).toContain("문제가 발생했습니다.");
+    expect(html).not.toContain("<pre");
   });
 });

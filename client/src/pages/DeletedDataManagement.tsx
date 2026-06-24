@@ -133,7 +133,7 @@ export default function DeletedDataManagement() {
   });
   const permanentTeam = trpc.deletedData.permanentDeleteTeam.useMutation({
     onSuccess: () => {
-      toast.success("팀을 완전삭제했습니다.");
+      toast.success("팀을 영구 삭제했습니다.");
       closePermanent();
       invalidateAll();
     },
@@ -143,7 +143,7 @@ export default function DeletedDataManagement() {
   const permanentCustomer =
     trpc.deletedData.permanentDeleteCustomer.useMutation({
       onSuccess: () => {
-        toast.success("고객을 완전삭제했습니다.");
+        toast.success("고객을 영구 삭제했습니다.");
         closePermanent();
         invalidateAll();
       },
@@ -153,7 +153,7 @@ export default function DeletedDataManagement() {
   const permanentContract =
     trpc.deletedData.permanentDeleteContract.useMutation({
       onSuccess: () => {
-        toast.success("계약을 완전삭제했습니다.");
+        toast.success("계약을 영구 삭제했습니다.");
         closePermanent();
         invalidateAll();
       },
@@ -241,7 +241,7 @@ export default function DeletedDataManagement() {
             </h1>
             <p className="mt-1 text-sm text-slate-500">
               비활성 처리된 팀, 고객, 계약을 복구하거나 조건을 만족할 때만
-              완전삭제합니다.
+              영구 삭제합니다.
             </p>
           </CardContent>
         </Card>
@@ -250,7 +250,7 @@ export default function DeletedDataManagement() {
           <CardContent className="flex items-start gap-3 p-4 text-sm text-red-800">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
-              완전삭제는 복구할 수 없는 위험 작업입니다. confirmText 검증과 서버
+              영구 삭제는 복구할 수 없는 위험 작업입니다. 확인 문구 입력과 서버
               권한 검증은 기존 정책을 그대로 사용합니다.
             </p>
           </CardContent>
@@ -514,13 +514,13 @@ export default function DeletedDataManagement() {
       >
         <DialogContent className="flex max-h-[min(85dvh,42rem)] flex-col overflow-hidden rounded-2xl p-0 sm:max-w-lg">
           <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
-            <DialogTitle>완전삭제 최종 확인</DialogTitle>
+            <DialogTitle>영구 삭제 최종 확인</DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
               <p className="font-semibold">이 작업은 되돌릴 수 없습니다.</p>
               <p className="mt-1">
-                완전삭제 후에는 복구할 수 없습니다. 활동 로그는 감사 목적으로
+                영구 삭제 후에는 복구할 수 없습니다. 활동 로그는 감사 목적으로
                 보존됩니다.
               </p>
             </div>
@@ -572,7 +572,7 @@ export default function DeletedDataManagement() {
                     )}
                     {!permanentPreview.canDelete && (
                       <p className="mt-2 text-xs font-semibold text-red-700">
-                        연결 운영 이력이 있어 완전삭제가 차단됩니다. 비활성
+                        연결 운영 이력이 있어 영구 삭제가 차단됩니다. 비활성
                         상태로 보존하세요.
                       </p>
                     )}
@@ -588,12 +588,12 @@ export default function DeletedDataManagement() {
             )}
             {permanentRequiresReason && (
               <div>
-                <Label>완전삭제 사유 *</Label>
+                <Label>영구 삭제 사유 *</Label>
                 <Textarea
                   value={permanentReason}
                   onChange={e => setPermanentReason(e.target.value)}
                   className="mt-1 min-h-24"
-                  placeholder="운영 기준에 따라 완전삭제 사유를 입력하세요."
+                  placeholder="운영 기준에 따라 영구 삭제 사유를 입력하세요."
                   disabled={permanentPending}
                 />
               </div>
@@ -623,7 +623,7 @@ export default function DeletedDataManagement() {
               disabled={!permanentCanSubmit}
               onClick={runPermanentDelete}
             >
-              {permanentPending ? "완전삭제 중..." : "완전삭제"}
+              {permanentPending ? "영구 삭제 중..." : "영구 삭제"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -751,7 +751,7 @@ function DeletedTable({
                     onClick={() => onPermanent(row)}
                   >
                     <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    완전삭제
+                    영구 삭제
                   </Button>
                 </div>
               </div>
@@ -804,7 +804,7 @@ function DeletedTable({
                       onClick={() => onPermanent(row)}
                     >
                       <Trash2 className="h-3.5 w-3.5 mr-1" />
-                      완전삭제
+                      영구 삭제
                     </Button>
                   </TableCell>
                 </TableRow>

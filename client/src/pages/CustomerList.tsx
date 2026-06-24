@@ -421,7 +421,7 @@ export default function CustomerList() {
 
   const deactivateMutation = trpc.customers.deactivate.useMutation({
     onSuccess: () => {
-      toast.success("고객이 삭제(비활성 처리)되었습니다.");
+      toast.success("고객을 삭제했습니다.");
       setDeleteCustomerId(null);
       utils.customers.list.invalidate();
       refetch();

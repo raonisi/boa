@@ -231,7 +231,7 @@ export function CustomerRetentionRiskPanel({
 
   const deleteMutation = trpc.retentionRisk.delete.useMutation({
     onSuccess: async () => {
-      toast.success("해지위험 관리가 비활성화되었습니다.");
+      toast.success("해지위험 관리를 비활성화했습니다.");
       setDeleteTarget(null);
       await invalidate();
     },

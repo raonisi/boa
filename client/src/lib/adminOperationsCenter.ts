@@ -486,7 +486,7 @@ export const ADMIN_OPERATION_CARDS: AdminOperationCard[] = [
   {
     id: "delete-restore-permanent",
     title: "삭제·복구 관리",
-    description: "삭제 요청, 복구, 완전삭제 가능 여부를 확인합니다.",
+    description: "삭제 요청, 복구, 영구 삭제 가능 여부를 확인합니다.",
     section: "operations-security",
     allowedRoles: ["branch_admin"],
     route: "/deleted-data",
