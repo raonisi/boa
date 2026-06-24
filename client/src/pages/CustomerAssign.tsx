@@ -1,8 +1,13 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge } from "@/components/StatusBadge";
+import {
+  CustomerAssignCustomerList,
+  type CustomerAssignRow,
+} from "@/components/customers/CustomerAssignCustomerList";
+import { CustomerAssignMobileActionBar } from "@/components/customers/CustomerAssignMobileActionBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ForbiddenInlineState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -19,23 +23,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useIsMobile } from "@/hooks/useMobile";
 import {
   formatDbAssignmentSuccessMessage,
   WORKFLOW_COPY,
 } from "@/lib/assignmentWorkflowCopy";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
-import { Search, UserPlus, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { UserPlus, Users } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import {
   getUserFacingErrorMessage,
   toastUserFacingError,
@@ -43,16 +40,7 @@ import {
 } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
-type CustomerRow = {
-  id: number;
-  name: string;
-  phone?: string | null;
-  region?: string | null;
-  source?: string | null;
-  consultStatus?: string | null;
-  createdAt: string | Date;
-  assignmentStatus?: string | null;
-};
+type CustomerRow = CustomerAssignRow;
 
 type UserRow = {
   id: number;
@@ -138,14 +126,7 @@ export default function CustomerAssign() {
       {isSubBranchAdmin && <SubBranchAdminAssign />}
       {isTeamLeader && <TeamLeaderAssign />}
       {!isBranchAdmin && !isSubBranchAdmin && !isTeamLeader && (
-        <Card>
-          <CardHeader>
-            <CardTitle>DB 배정 권한 없음</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            DB 배정은 지점장, 부지점장, 팀장만 사용할 수 있습니다.
-          </CardContent>
-        </Card>
+        <ForbiddenInlineState fullPage />
       )}
     </DashboardLayout>
   );
@@ -216,7 +197,28 @@ function AssignToAgent() {
   );
 }
 
+function useResetSelectionOnFilterChange(
+  setSelected: Dispatch<SetStateAction<number[]>>,
+  filters: { search: string; statusFilter: string; sourceFilter: string }
+) {
+  const filterMountRef = useRef(true);
+  useEffect(() => {
+    if (filterMountRef.current) {
+      filterMountRef.current = false;
+      return;
+    }
+    setSelected(prev => {
+      if (prev.length === 0) return prev;
+      toast.message("검색·필터 조건이 바뀌어 선택이 초기화되었습니다.", {
+        duration: 2500,
+      });
+      return [];
+    });
+  }, [filters.search, filters.statusFilter, filters.sourceFilter, setSelected]);
+}
+
 function AssignToSubBranch() {
+  const isMobile = useIsMobile();
   const utils = trpc.useUtils();
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectedSubBranchAdmin, setSelectedSubBranchAdmin] =
@@ -254,6 +256,12 @@ function AssignToSubBranch() {
   const selectedTarget = subBranchAdmins.find(
     candidate => String(candidate.id) === selectedSubBranchAdmin
   );
+
+  useResetSelectionOnFilterChange(setSelectedCustomers, {
+    search,
+    statusFilter,
+    sourceFilter,
+  });
 
   const assignToSubBranchMutation =
     trpc.customers.assignToSubBranch.useMutation({
@@ -346,6 +354,7 @@ function AssignToSubBranch() {
           </Select>
           <Button
             size="sm"
+            className={isMobile ? "hidden" : undefined}
             disabled={
               !selectedSubBranchAdmin ||
               selectedCustomers.length === 0 ||
@@ -369,7 +378,7 @@ function AssignToSubBranch() {
         result={result}
         onRetryFailed={ids => setSelectedCustomers(ids)}
       />
-      <CustomerTable
+      <CustomerAssignCustomerList
         customers={filteredCustomers}
         totalCount={customers.length}
         selected={selectedCustomers}
@@ -394,6 +403,26 @@ function AssignToSubBranch() {
         title={`미배분 고객 목록 (${unassigned?.length ?? 0}명)`}
         emptyTitle="미배분 고객 DB가 없습니다."
         emptyDescription="신규 고객 DB가 생기면 부지점장에게 배분할 수 있습니다."
+        workflowKind="dbDistribution"
+        listBottomPadding={isMobile && selectedCustomers.length > 0}
+      />
+      <CustomerAssignMobileActionBar
+        selectedCount={selectedVisibleCount}
+        canExecute={Boolean(selectedSubBranchAdmin)}
+        workflowKind="dbDistribution"
+        actionLabel={
+          selectedVisibleCount > 0
+            ? `${selectedVisibleCount}명 배분`
+            : "배분하기"
+        }
+        helperText={
+          selectedTarget
+            ? formatUserWithRole(selectedTarget)
+            : "부지점장을 먼저 선택하세요"
+        }
+        pending={assignToSubBranchMutation.isPending}
+        onExecute={() => setConfirmOpen(true)}
+        onClearSelection={() => setSelectedCustomers([])}
       />
       <AssignmentConfirmDialog
         open={confirmOpen}
@@ -508,6 +537,7 @@ function AssignmentPanel({
   emptyCustomerDescription: string;
   helperText: (selectedAgent: UserRow) => string;
 }) {
+  const isMobile = useIsMobile();
   const utils = trpc.useUtils();
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>("");
@@ -532,6 +562,12 @@ function AssignmentPanel({
   const selectedVisibleCount = selectedCustomers.filter(id =>
     visibleCustomerIds.includes(id)
   ).length;
+
+  useResetSelectionOnFilterChange(setSelectedCustomers, {
+    search,
+    statusFilter,
+    sourceFilter,
+  });
 
   const assignMutation = trpc.customers.assign.useMutation({
     onSuccess: () => {
@@ -617,6 +653,7 @@ function AssignmentPanel({
           </Select>
           <Button
             size="sm"
+            className={isMobile ? "hidden" : undefined}
             disabled={
               !selectedAgent ||
               selectedCustomers.length === 0 ||
@@ -640,7 +677,7 @@ function AssignmentPanel({
         result={result}
         onRetryFailed={ids => setSelectedCustomers(ids)}
       />
-      <CustomerTable
+      <CustomerAssignCustomerList
         customers={filteredCustomers}
         totalCount={customers.length}
         selected={selectedCustomers}
@@ -665,6 +702,26 @@ function AssignmentPanel({
         title={title}
         emptyTitle={emptyCustomerTitle}
         emptyDescription={emptyCustomerDescription}
+        workflowKind="dbAssignment"
+        listBottomPadding={isMobile && selectedCustomers.length > 0}
+      />
+      <CustomerAssignMobileActionBar
+        selectedCount={selectedVisibleCount}
+        canExecute={Boolean(selectedAgent)}
+        workflowKind="dbAssignment"
+        actionLabel={
+          selectedVisibleCount > 0
+            ? `${selectedVisibleCount}명 배정`
+            : "배정하기"
+        }
+        helperText={
+          selectedAgentUser
+            ? formatUserWithRole(selectedAgentUser)
+            : "담당자를 먼저 선택하세요"
+        }
+        pending={assignMutation.isPending}
+        onExecute={() => setConfirmOpen(true)}
+        onClearSelection={() => setSelectedCustomers([])}
       />
       <AssignmentConfirmDialog
         open={confirmOpen}
@@ -828,170 +885,5 @@ function AssignmentConfirmDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function CustomerTable({
-  customers,
-  totalCount,
-  selected,
-  onToggle,
-  onToggleAll,
-  search,
-  onSearchChange,
-  statusFilter,
-  onStatusFilterChange,
-  sourceFilter,
-  onSourceFilterChange,
-  statusOptions,
-  sourceOptions,
-  title,
-  emptyTitle,
-  emptyDescription,
-}: {
-  customers: CustomerRow[];
-  totalCount: number;
-  selected: number[];
-  onToggle: (id: number) => void;
-  onToggleAll: () => void;
-  search: string;
-  onSearchChange: (value: string) => void;
-  statusFilter: string;
-  onStatusFilterChange: (value: string) => void;
-  sourceFilter: string;
-  onSourceFilterChange: (value: string) => void;
-  statusOptions: string[];
-  sourceOptions: string[];
-  title: string;
-  emptyTitle: string;
-  emptyDescription: string;
-}) {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 p-4">
-        <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_180px_180px]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={event => onSearchChange(event.target.value)}
-              className="h-9 pl-9"
-              placeholder="고객명, 연락처, 지역, 유입경로 검색"
-            />
-          </div>
-          <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="상담상태" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">상담상태 전체</SelectItem>
-              {statusOptions.map(status => (
-                <SelectItem key={status} value={status}>
-                  {status}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sourceFilter} onValueChange={onSourceFilterChange}>
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="유입경로" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">유입경로 전체</SelectItem>
-              {sourceOptions.map(source => (
-                <SelectItem key={source} value={source}>
-                  {source}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-xs text-slate-700">
-          <span>전체 {totalCount}건</span>
-          <span>필터 결과 {customers.length}건</span>
-          <span>선택 {selected.length}건</span>
-          {selected.length > 0 && (
-            <span className="font-medium text-emerald-700">
-              총 {selected.length}건이 배정 대상입니다.
-            </span>
-          )}
-        </div>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-10">
-                  <input
-                    type="checkbox"
-                    onChange={onToggleAll}
-                    checked={
-                      customers.length > 0 &&
-                      customers.every(customer =>
-                        selected.includes(customer.id)
-                      )
-                    }
-                  />
-                </TableHead>
-                <TableHead>이름</TableHead>
-                <TableHead>연락처</TableHead>
-                <TableHead>지역</TableHead>
-                <TableHead>유입경로</TableHead>
-                <TableHead>상담상태</TableHead>
-                <TableHead>등록일</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {customers.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className="py-8 text-center text-muted-foreground"
-                  >
-                    <div className="space-y-1">
-                      <p className="font-medium text-foreground">
-                        {emptyTitle}
-                      </p>
-                      <p className="text-xs">{emptyDescription}</p>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                customers.map(customer => (
-                  <TableRow
-                    key={customer.id}
-                    className={
-                      selected.includes(customer.id) ? "bg-primary/5" : ""
-                    }
-                  >
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        checked={selected.includes(customer.id)}
-                        onChange={() => onToggle(customer.id)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {customer.name}
-                    </TableCell>
-                    <TableCell>{customer.phone ?? "-"}</TableCell>
-                    <TableCell>{customer.region ?? "-"}</TableCell>
-                    <TableCell>{customer.source ?? "-"}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={customer.consultStatus ?? "-"} />
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
-                      {new Date(customer.createdAt).toLocaleDateString("ko-KR")}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
   );
 }
