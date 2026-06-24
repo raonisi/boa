@@ -1,5 +1,14 @@
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, inArray, isNull, notInArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
 import {
   customers,
   retentionRiskCases,
@@ -130,7 +139,10 @@ export async function findActiveRetentionRiskCase(
       and(
         isNull(retentionRiskCases.deletedAt),
         eq(retentionRiskCases.customerId, customerId),
-        notInArray(retentionRiskCases.retentionStatus, TERMINAL_RETENTION_STATUSES)
+        notInArray(
+          retentionRiskCases.retentionStatus,
+          TERMINAL_RETENTION_STATUSES
+        )
       )
     );
   return rows.find(row => row.id !== excludeId) ?? null;
@@ -219,11 +231,17 @@ export async function updateRetentionRiskCase(
 ) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-  await db.update(retentionRiskCases).set(data).where(eq(retentionRiskCases.id, id));
+  await db
+    .update(retentionRiskCases)
+    .set(data)
+    .where(eq(retentionRiskCases.id, id));
   return getRetentionRiskCaseById(id);
 }
 
-export async function softDeleteRetentionRiskCase(id: number, updatedBy: number) {
+export async function softDeleteRetentionRiskCase(
+  id: number,
+  updatedBy: number
+) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   await db

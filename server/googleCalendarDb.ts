@@ -284,7 +284,8 @@ export async function upsertGoogleCalendarPersonalSettings(
     await db
       .update(googleCalendarPersonalSettings)
       .set({
-        personalCalendarId: input.personalCalendarId ?? existing.personalCalendarId,
+        personalCalendarId:
+          input.personalCalendarId ?? existing.personalCalendarId,
         contactDisplayConsent:
           input.contactDisplayConsent ?? existing.contactDisplayConsent,
         isActive: input.isActive ?? existing.isActive,
@@ -293,7 +294,9 @@ export async function upsertGoogleCalendarPersonalSettings(
       .where(eq(googleCalendarPersonalSettings.id, existing.id));
     return existing.id;
   }
-  const inserted = await db.insert(googleCalendarPersonalSettings).values(input);
+  const inserted = await db
+    .insert(googleCalendarPersonalSettings)
+    .values(input);
   return inserted[0].insertId;
 }
 
@@ -360,7 +363,8 @@ export async function upsertGoogleCalendarEventSync(
         calendarType: input.calendarType,
         syncStatus: input.syncStatus ?? existing.syncStatus,
         includeContactInDescription:
-          input.includeContactInDescription ?? existing.includeContactInDescription,
+          input.includeContactInDescription ??
+          existing.includeContactInDescription,
         contactIncluded: input.contactIncluded ?? existing.contactIncluded,
         lastSyncedAt: input.lastSyncedAt ?? existing.lastSyncedAt,
         lastErrorCode: input.lastErrorCode ?? null,

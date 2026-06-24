@@ -28,8 +28,7 @@ export function safeFcmRegistrationErrorSummary(
   const name = typeof error.name === "string" ? error.name : undefined;
   const code = typeof error.code === "string" ? error.code : undefined;
   const status = extractStatus(error);
-  const message =
-    typeof error.message === "string" ? error.message : undefined;
+  const message = typeof error.message === "string" ? error.message : undefined;
 
   const reason = classifyReason({
     name,

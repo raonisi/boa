@@ -36,7 +36,10 @@ export async function triggerGoogleCalendarSyncForScheduleId(
 
 export function triggerGoogleCalendarDeleteForSchedule(
   actorId: number,
-  schedule: Pick<Schedule, "id" | "type" | "customerId" | "userId" | "calendarCategory">,
+  schedule: Pick<
+    Schedule,
+    "id" | "type" | "customerId" | "userId" | "calendarCategory"
+  >,
   ownerRole?: string | null
 ) {
   const calendarType = resolveScheduleGoogleCalendarType({

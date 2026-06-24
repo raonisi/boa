@@ -30,9 +30,7 @@ import {
   resolveCalendarCategoryForSave,
 } from "./scheduleCalendarCategory";
 import { COOKIE_NAME } from "@shared/const";
-import {
-  SCHEDULE_CALENDAR_CATEGORIES,
-} from "@shared/scheduleCalendarCategory";
+import { SCHEDULE_CALENDAR_CATEGORIES } from "@shared/scheduleCalendarCategory";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
@@ -7557,7 +7555,10 @@ export const appRouter = router({
           if (input.scope === "mine")
             return getCustomers({ ...baseFilter, agentId: user.id });
           if (input.agentIdFilter !== undefined) {
-            const target = await verifyTargetUserAccess(user, input.agentIdFilter);
+            const target = await verifyTargetUserAccess(
+              user,
+              input.agentIdFilter
+            );
             if (
               user.role === "sub_branch_admin" &&
               target.role !== "team_leader" &&

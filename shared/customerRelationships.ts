@@ -140,5 +140,7 @@ export function normalizeCustomerPair(
   customerA: number,
   customerB: number
 ): [number, number] {
-  return customerA < customerB ? [customerA, customerB] : [customerB, customerA];
+  return customerA < customerB
+    ? [customerA, customerB]
+    : [customerB, customerA];
 }

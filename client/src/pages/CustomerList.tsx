@@ -23,7 +23,14 @@ import {
   maskPhone,
   nextExecutionAction,
 } from "@/components/customers/customerListExecutionHelpers";
-import { StatusBadge, CONSULT_STATUSES, CUSTOMER_PRIORITIES, getPriorityLabel, PriorityBadge, ExecutionBadge } from "@/components/StatusBadge";
+import {
+  StatusBadge,
+  CONSULT_STATUSES,
+  CUSTOMER_PRIORITIES,
+  getPriorityLabel,
+  PriorityBadge,
+  ExecutionBadge,
+} from "@/components/StatusBadge";
 import { adminPanel, statusSemantic } from "@/lib/adminDesignTokens";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,7 +60,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyState, ErrorState, renderMetricValue } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  renderMetricValue,
+} from "@/components/ui/empty-state";
 import {
   Sheet,
   SheetContent,
@@ -388,8 +399,7 @@ export default function CustomerList() {
       utils.followUps.listOverdue.invalidate();
       if (variables.calendarSchedule) utils.schedules.list.invalidate();
     },
-    onError: err =>
-      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const openDetailedFollowUp = (
@@ -471,10 +481,7 @@ export default function CustomerList() {
     },
     onError: err =>
       toast.error(
-        getUserFacingErrorMessage(
-          err,
-          USER_FACING_ERRORS.saveFailed
-        )
+        getUserFacingErrorMessage(err, USER_FACING_ERRORS.saveFailed)
       ),
   });
 
@@ -1447,7 +1454,9 @@ export default function CustomerList() {
                               {c.region && <span>{c.region}</span>}
                               {c.expectedPremium != null && (
                                 <span className="font-semibold text-foreground">
-                                  {formatExpectedPremiumManwon(c.expectedPremium)}
+                                  {formatExpectedPremiumManwon(
+                                    c.expectedPremium
+                                  )}
                                 </span>
                               )}
                             </div>
@@ -1462,7 +1471,10 @@ export default function CustomerList() {
                                 onClick={e => e.stopPropagation()}
                                 aria-label="고객 작업 메뉴"
                               >
-                                <MoreHorizontal className="h-5 w-5" aria-hidden="true" />
+                                <MoreHorizontal
+                                  className="h-5 w-5"
+                                  aria-hidden="true"
+                                />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
@@ -1585,84 +1597,83 @@ export default function CustomerList() {
         )}
       </div>
 
-      {hasBulkSelection &&
-        (canBulkChangeAssignee || canReclaimCustomer) && (
-          <div className="fixed inset-x-0 bottom-[68px] md:bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-            <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-foreground">
-                  선택한 고객 {selectedCustomerIds.length}명
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {canBulkChangeAssignee && selectedAssignableIds.length > 0
-                    ? `담당자 재지정 가능 ${selectedAssignableIds.length}명`
-                    : ""}
-                  {canReclaimCustomer && selectedReclaimableIds.length > 0
-                    ? `${canBulkChangeAssignee && selectedAssignableIds.length > 0 ? " · " : ""}DB 회수 가능 ${selectedReclaimableIds.length}명`
-                    : ""}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(canReclaimCustomer || canBulkChangeAssignee) && (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="min-h-11"
-                      onClick={() => handleToggleAllVisibleSelectable(true)}
-                      disabled={
-                        selectableFilteredIds.length === 0 ||
-                        allVisibleSelectableSelected
-                      }
-                    >
-                      전체 선택
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="min-h-11"
-                      onClick={() => setSelectedCustomerIds([])}
-                    >
-                      선택 해제
-                    </Button>
-                  </>
-                )}
-                {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
+      {hasBulkSelection && (canBulkChangeAssignee || canReclaimCustomer) && (
+        <div className="fixed inset-x-0 bottom-[68px] md:bottom-0 z-40 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <div className="mx-auto flex max-w-7xl flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">
+                선택한 고객 {selectedCustomerIds.length}명
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {canBulkChangeAssignee && selectedAssignableIds.length > 0
+                  ? `담당자 재지정 가능 ${selectedAssignableIds.length}명`
+                  : ""}
+                {canReclaimCustomer && selectedReclaimableIds.length > 0
+                  ? `${canBulkChangeAssignee && selectedAssignableIds.length > 0 ? " · " : ""}DB 회수 가능 ${selectedReclaimableIds.length}명`
+                  : ""}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(canReclaimCustomer || canBulkChangeAssignee) && (
+                <>
                   <Button
+                    type="button"
                     variant="outline"
                     size="sm"
-                    className="min-h-11 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                    onClick={() => {
-                      setBulkAssigneeOpen(true);
-                      setBulkAssigneeId("");
-                      setBulkAssigneeReason("");
-                    }}
+                    className="min-h-11"
+                    onClick={() => handleToggleAllVisibleSelectable(true)}
+                    disabled={
+                      selectableFilteredIds.length === 0 ||
+                      allVisibleSelectableSelected
+                    }
                   >
-                    <UserCog className="mr-1 h-4 w-4" />
-                    담당자 재지정 {selectedAssignableIds.length}
+                    전체 선택
                   </Button>
-                )}
-                {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
                   <Button
-                    variant="outline"
+                    type="button"
+                    variant="ghost"
                     size="sm"
-                    className="min-h-11 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
-                    onClick={() => {
-                      setReclaimCustomerId(null);
-                      setBulkReclaimOpen(true);
-                      setReclaimReason("");
-                    }}
+                    className="min-h-11"
+                    onClick={() => setSelectedCustomerIds([])}
                   >
-                    <Undo2 className="mr-1 h-4 w-4" />
-                    DB 회수 {selectedReclaimableIds.length}
+                    선택 해제
                   </Button>
-                )}
-              </div>
+                </>
+              )}
+              {canBulkChangeAssignee && selectedAssignableIds.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                  onClick={() => {
+                    setBulkAssigneeOpen(true);
+                    setBulkAssigneeId("");
+                    setBulkAssigneeReason("");
+                  }}
+                >
+                  <UserCog className="mr-1 h-4 w-4" />
+                  담당자 재지정 {selectedAssignableIds.length}
+                </Button>
+              )}
+              {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                  onClick={() => {
+                    setReclaimCustomerId(null);
+                    setBulkReclaimOpen(true);
+                    setReclaimReason("");
+                  }}
+                >
+                  <Undo2 className="mr-1 h-4 w-4" />
+                  DB 회수 {selectedReclaimableIds.length}
+                </Button>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
       {/* 고객 등록 모달 */}
       <CreateCustomerModal
@@ -1692,7 +1703,9 @@ export default function CustomerList() {
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 sm:px-6">
-            <div className={cn("rounded-xl border p-3 text-sm", adminPanel.danger)}>
+            <div
+              className={cn("rounded-xl border p-3 text-sm", adminPanel.danger)}
+            >
               완전 삭제가 아니며 활성 계약이나 진행 중 일정이 있으면 삭제할 수
               없습니다. 이 작업은 활동 로그에 기록됩니다.
             </div>
@@ -1846,14 +1859,20 @@ export default function CustomerList() {
         <DialogContent className="flex max-h-[min(85dvh,42rem)] max-w-lg flex-col overflow-hidden rounded-2xl border-emerald-100 p-0">
           <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle className="flex items-center gap-2 text-emerald-800">
-              <UserCog className="h-5 w-5" /> {WORKFLOW_COPY.reassignment.confirmTitle}
+              <UserCog className="h-5 w-5" />{" "}
+              {WORKFLOW_COPY.reassignment.confirmTitle}
             </DialogTitle>
             <DialogDescription>
               {WORKFLOW_COPY.reassignment.confirmDescription}
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
-            <div className={cn("space-y-2 rounded-xl border p-3 text-sm", adminPanel.neutral)}>
+            <div
+              className={cn(
+                "space-y-2 rounded-xl border p-3 text-sm",
+                adminPanel.neutral
+              )}
+            >
               <p>
                 고객 수:{" "}
                 <span className="font-semibold">
@@ -1931,7 +1950,12 @@ export default function CustomerList() {
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-3 sm:px-6">
-            <div className={cn("rounded-xl border px-3 py-2 text-xs", adminPanel.warning)}>
+            <div
+              className={cn(
+                "rounded-xl border px-3 py-2 text-xs",
+                adminPanel.warning
+              )}
+            >
               고객, 상담기록, 계약, 후속관리, 일정은 삭제하지 않습니다. 담당자
               배정만 해제되며 회수 기록은 배정이력과 활동 로그에 남습니다.
             </div>

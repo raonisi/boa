@@ -6,11 +6,7 @@ import {
   getUserFacingErrorMessage,
   type UserFacingErrorContext,
 } from "@/lib/userFacingMessages";
-import {
-  ERROR_UX,
-  LOADING_UX,
-  SENSITIVE_ACCESS_UX,
-} from "@/lib/stateUxCopy";
+import { ERROR_UX, LOADING_UX, SENSITIVE_ACCESS_UX } from "@/lib/stateUxCopy";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -115,7 +111,11 @@ export function EmptyState({
   const StateIcon = Icon ?? config.icon;
   const defaultAction =
     actionLabel && onAction ? (
-      <Button type="button" onClick={onAction} size={compact ? "sm" : "default"}>
+      <Button
+        type="button"
+        onClick={onAction}
+        size={compact ? "sm" : "default"}
+      >
         {actionLabel}
       </Button>
     ) : null;
@@ -171,7 +171,10 @@ export function EmptyState({
           </p>
         )}
       </div>
-      {(action || defaultAction || secondaryAction || defaultSecondaryAction) && (
+      {(action ||
+        defaultAction ||
+        secondaryAction ||
+        defaultSecondaryAction) && (
         <div className="mt-1 flex min-h-11 flex-wrap items-center justify-center gap-2">
           {action ?? defaultAction}
           {secondaryAction ?? defaultSecondaryAction}

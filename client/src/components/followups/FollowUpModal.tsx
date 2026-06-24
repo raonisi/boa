@@ -71,9 +71,8 @@ export default function FollowUpModal({
 }) {
   const [nextContactDate, setNextContactDate] = useState("");
   const [reason, setReason] = useState("");
-  const [nextAction, setNextAction] = useState<FollowUpSubmitData["nextAction"]>(
-    "전화"
-  );
+  const [nextAction, setNextAction] =
+    useState<FollowUpSubmitData["nextAction"]>("전화");
   const [memo, setMemo] = useState("");
   const [createCalendarSchedule, setCreateCalendarSchedule] = useState(
     mode === "create"

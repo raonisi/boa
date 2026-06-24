@@ -1,5 +1,8 @@
 import * as XLSX from "xlsx";
-import { ACTION_PLAN_STATUS_LABELS, type ActionPlanStatus } from "@shared/actionPlans";
+import {
+  ACTION_PLAN_STATUS_LABELS,
+  type ActionPlanStatus,
+} from "@shared/actionPlans";
 import { assertNoSensitiveActionPlanReportData } from "./actionPlanSensitiveGuard";
 import type {
   BranchActionPlan,
@@ -85,9 +88,18 @@ function buildSummarySheet(data: ExecutiveReportData) {
     ["보고자", input.generatedByName],
     ["작성일", input.generatedAt.toLocaleDateString("ko-KR")],
     [],
-    ["지점 총 월간 신규 계약 목표", sumMonthly(monthlyPlans, "monthlyContractTarget")],
-    ["지점 총 월납보험료 목표", sumMonthly(monthlyPlans, "monthlyPremiumTarget")],
-    ["지점 총 상담 목표", sumMonthly(monthlyPlans, "monthlyConsultationTarget")],
+    [
+      "지점 총 월간 신규 계약 목표",
+      sumMonthly(monthlyPlans, "monthlyContractTarget"),
+    ],
+    [
+      "지점 총 월납보험료 목표",
+      sumMonthly(monthlyPlans, "monthlyPremiumTarget"),
+    ],
+    [
+      "지점 총 상담 목표",
+      sumMonthly(monthlyPlans, "monthlyConsultationTarget"),
+    ],
     [],
     ["지점장 본인 계획", branchAdminPlan?.monthlyStrategy ?? ""],
     ["지점 핵심 전략", input.branchStrategy ?? ""],
@@ -126,7 +138,9 @@ function buildMonthlySheet(data: ExecutiveReportData) {
       roleLabel(user.role),
       plan?.monthlyRevenueTarget ?? plan?.monthlyPremiumTarget ?? 0,
       plan?.monthlyContractTarget ?? 0,
-      plan?.monthlyNewConsultationTarget ?? plan?.monthlyConsultationTarget ?? 0,
+      plan?.monthlyNewConsultationTarget ??
+        plan?.monthlyConsultationTarget ??
+        0,
       plan?.monthlyContactTarget ?? plan?.monthlyCallTarget ?? 0,
       plan?.monthlyAnalysisTarget ?? 0,
       plan?.monthlyProposalTarget ?? 0,
@@ -138,7 +152,10 @@ function buildMonthlySheet(data: ExecutiveReportData) {
     ]);
   }
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  setColWidths(ws, [12, 10, 14, 16, 12, 10, 10, 12, 18, 24, 18, 18, 18, 12, 14]);
+  setColWidths(
+    ws,
+    [12, 10, 14, 16, 12, 10, 10, 12, 18, 24, 18, 18, 18, 12, 14]
+  );
   return ws;
 }
 
@@ -180,7 +197,10 @@ function buildWeeklySheet(data: ExecutiveReportData) {
     ]);
   }
   const ws = XLSX.utils.aoa_to_sheet(rows);
-  setColWidths(ws, [12, 10, 10, 14, 16, 12, 10, 10, 10, 10, 12, 24, 18, 18, 18]);
+  setColWidths(
+    ws,
+    [12, 10, 10, 14, 16, 12, 10, 10, 10, 10, 12, 24, 18, 18, 18]
+  );
   return ws;
 }
 
@@ -231,7 +251,10 @@ function buildExecutiveSheet(data: ExecutiveReportData) {
   const rows: (string | number)[][] = [
     ["지점장 종합 보고"],
     [],
-    ["이번 달 지점 운영 방향", input.monthlyDirection ?? input.branchSummary ?? ""],
+    [
+      "이번 달 지점 운영 방향",
+      input.monthlyDirection ?? input.branchSummary ?? "",
+    ],
     ["이번 주 집중 과제", input.weeklyFocus ?? ""],
     ["성장 가능 인원", input.growthMembers ?? ""],
     ["집중 코칭 필요 인원", input.coachingMembers ?? ""],
@@ -257,7 +280,9 @@ function buildSubmissionSheet(data: ExecutiveReportData) {
     "조치 필요 여부",
   ];
   const rows: (string | number)[][] = [header];
-  const weekPlans = weeklyPlans.filter(p => p.weekLabel === input.reportWeekLabel);
+  const weekPlans = weeklyPlans.filter(
+    p => p.weekLabel === input.reportWeekLabel
+  );
 
   for (const user of users) {
     const monthly = monthlyPlans.find(p => p.userId === user.id);
@@ -297,9 +322,7 @@ function buildSubmissionSheet(data: ExecutiveReportData) {
       monthlySubmitted ? "제출" : "미제출",
       weeklySubmitted ? "제출" : "미제출",
       dailySubmitted ? "제출" : "미제출",
-      lastSubmitted
-        ? new Date(lastSubmitted).toLocaleDateString("ko-KR")
-        : "-",
+      lastSubmitted ? new Date(lastSubmitted).toLocaleDateString("ko-KR") : "-",
       monthly ? statusLabel(monthly.status) : "미작성",
       needsAction ? "필요" : "없음",
     ]);
@@ -312,15 +335,19 @@ function buildSubmissionSheet(data: ExecutiveReportData) {
 export function buildExecutiveActionPlanWorkbook(data: ExecutiveReportData) {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, buildSummarySheet(data), "대표 보고 요약");
-  XLSX.utils.book_append_sheet(wb, buildMonthlySheet(data), "지점원별 월간 목표");
-  XLSX.utils.book_append_sheet(wb, buildWeeklySheet(data), "주간 계획");
-  XLSX.utils.book_append_sheet(wb, buildDailySheet(data), "일일 계획·결과");
-  XLSX.utils.book_append_sheet(wb, buildExecutiveSheet(data), "지점장 종합 보고");
   XLSX.utils.book_append_sheet(
     wb,
-    buildSubmissionSheet(data),
-    "코칭·주의신호"
+    buildMonthlySheet(data),
+    "지점원별 월간 목표"
   );
+  XLSX.utils.book_append_sheet(wb, buildWeeklySheet(data), "주간 계획");
+  XLSX.utils.book_append_sheet(wb, buildDailySheet(data), "일일 계획·결과");
+  XLSX.utils.book_append_sheet(
+    wb,
+    buildExecutiveSheet(data),
+    "지점장 종합 보고"
+  );
+  XLSX.utils.book_append_sheet(wb, buildSubmissionSheet(data), "코칭·주의신호");
   return wb;
 }
 

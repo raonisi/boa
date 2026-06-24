@@ -11,10 +11,16 @@ type ClaimGuidanceSummaryStripProps = {
   } | null;
 };
 
-export function ClaimGuidanceSummaryStrip({ user }: ClaimGuidanceSummaryStripProps) {
+export function ClaimGuidanceSummaryStrip({
+  user,
+}: ClaimGuidanceSummaryStripProps) {
   const enabled = canAccessClaimGuidanceManagement(user);
-  const { data: summary, isLoading, isError, refetch } =
-    trpc.claimGuidance.summary.useQuery(undefined, { enabled });
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.claimGuidance.summary.useQuery(undefined, { enabled });
 
   if (!enabled) return null;
 

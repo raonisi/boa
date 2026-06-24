@@ -72,8 +72,7 @@ export default function FollowupQuickCreateDialog({
   onOpenDetailed,
   loading,
 }: FollowupQuickCreateDialogProps) {
-  const [presetId, setPresetId] =
-    useState<FollowupQuickPresetId>("callback");
+  const [presetId, setPresetId] = useState<FollowupQuickPresetId>("callback");
   const [dateChip, setDateChip] = useState<FollowupQuickDateChip>("tomorrow");
   const [priorityChip, setPriorityChip] =
     useState<FollowupQuickPriorityChip>("normal");
@@ -87,10 +86,7 @@ export default function FollowupQuickCreateDialog({
   const [memo, setMemo] = useState("");
   const [showMemo, setShowMemo] = useState(false);
 
-  const preset = useMemo(
-    () => getFollowupPresetById(presetId),
-    [presetId]
-  );
+  const preset = useMemo(() => getFollowupPresetById(presetId), [presetId]);
 
   useEffect(() => {
     if (!open) return;
@@ -117,14 +113,16 @@ export default function FollowupQuickCreateDialog({
 
   const handleSubmit = () => {
     if (!customerId || !reason.trim()) return;
-    const { presetLabel: _presetLabel, ...payload } = buildQuickFollowUpPayload({
-      presetId,
-      dateChip,
-      reason,
-      memo,
-      customerId,
-      customDateKey,
-    });
+    const { presetLabel: _presetLabel, ...payload } = buildQuickFollowUpPayload(
+      {
+        presetId,
+        dateChip,
+        reason,
+        memo,
+        customerId,
+        customDateKey,
+      }
+    );
     onSubmit(payload);
   };
 

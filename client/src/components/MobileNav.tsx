@@ -58,10 +58,7 @@ export function MobileNav() {
     setMoreOpen(false);
   };
 
-  const renderMenuButton = (
-    item: NavItem,
-    options?: { compact?: boolean }
-  ) => {
+  const renderMenuButton = (item: NavItem, options?: { compact?: boolean }) => {
     const isActive = activeNav?.item.path === item.path;
     const isNotif = item.path === "/notifications";
 
@@ -187,7 +184,9 @@ export function MobileNav() {
                   오늘 바로가기
                 </h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {quickLinks.map(item => renderMenuButton(item, { compact: true }))}
+                  {quickLinks.map(item =>
+                    renderMenuButton(item, { compact: true })
+                  )}
                 </div>
               </section>
             ) : null}
@@ -205,7 +204,9 @@ export function MobileNav() {
                   {group.label}
                 </h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {group.items.map(item => renderMenuButton(item, { compact: true }))}
+                  {group.items.map(item =>
+                    renderMenuButton(item, { compact: true })
+                  )}
                 </div>
               </section>
             ))}

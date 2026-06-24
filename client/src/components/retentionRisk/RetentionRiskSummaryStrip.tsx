@@ -15,8 +15,12 @@ export function RetentionRiskSummaryStrip({
   user,
 }: RetentionRiskSummaryStripProps) {
   const enabled = canAccessRetentionRiskManagement(user);
-  const { data: summary, isLoading, isError, refetch } =
-    trpc.retentionRisk.summary.useQuery(undefined, { enabled });
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.retentionRisk.summary.useQuery(undefined, { enabled });
 
   if (!enabled) return null;
 

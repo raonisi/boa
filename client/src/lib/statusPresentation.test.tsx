@@ -42,7 +42,9 @@ describe("statusPresentation", () => {
 
   it("maps execution badges without guessing success for unknown labels", () => {
     expect(getExecutionBadgePresentation("미배정").variant).toBe("neutral");
-    expect(getExecutionBadgePresentation("장기 미관리").variant).toBe("warning");
+    expect(getExecutionBadgePresentation("장기 미관리").variant).toBe(
+      "warning"
+    );
     expect(getExecutionBadgePresentation("배정 후 연락 필요").variant).toBe(
       "danger"
     );

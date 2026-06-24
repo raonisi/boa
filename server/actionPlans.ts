@@ -16,11 +16,7 @@ import {
   teamLeaderOrAboveProcedure,
 } from "./_core/procedures";
 import { router } from "./_core/trpc";
-import {
-  createActivityLog,
-  getAllUsers,
-  getUserById,
-} from "./db";
+import { createActivityLog, getAllUsers, getUserById } from "./db";
 import { getHierarchyScopeUserIds } from "./routers";
 import * as actionPlansDb from "./actionPlansDb";
 import {
@@ -192,9 +188,12 @@ async function getScopedUserIds(actor: AppUser): Promise<number[]> {
       .filter(
         (u: any) =>
           u.accountStatus === "active" &&
-          ["branch_admin", "sub_branch_admin", "team_leader", "member"].includes(
-            u.role
-          )
+          [
+            "branch_admin",
+            "sub_branch_admin",
+            "team_leader",
+            "member",
+          ].includes(u.role)
       )
       .map((u: any) => u.id);
   }
@@ -228,7 +227,10 @@ async function assertCanReview(actor: AppUser, targetUserId: number) {
     });
 }
 
-function assertCanEditPlan(actor: AppUser, plan: { userId: number; status: string }) {
+function assertCanEditPlan(
+  actor: AppUser,
+  plan: { userId: number; status: string }
+) {
   if (plan.userId !== actor.id)
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -407,10 +409,16 @@ export const actionPlansRouter = router({
         ...input,
         status: "draft",
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_CREATED", "branch_action_plan", created?.id, {
-        planType: "monthly",
-        targetMonth: input.targetMonth,
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_CREATED",
+        "branch_action_plan",
+        created?.id,
+        {
+          planType: "monthly",
+          targetMonth: input.targetMonth,
+        }
+      );
       return created;
     }),
 
@@ -435,15 +443,24 @@ export const actionPlansRouter = router({
       if (plan.userId !== ctx.user.id)
         throw new TRPCError({ code: "FORBIDDEN" });
       if (!isActionPlanEditable(plan.status as any))
-        throw new TRPCError({ code: "BAD_REQUEST", message: "이미 제출되었습니다." });
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "이미 제출되었습니다.",
+        });
       assertPrivacyOnSubmit(plan.privacyMinimizedConfirmed);
       const updated = await actionPlansDb.updateBranchActionPlan(input.id, {
         status: "submitted",
         submittedAt: new Date(),
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_SUBMITTED", "branch_action_plan", input.id, {
-        planType: "monthly",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_SUBMITTED",
+        "branch_action_plan",
+        input.id,
+        {
+          planType: "monthly",
+        }
+      );
       return updated;
     }),
 
@@ -463,9 +480,15 @@ export const actionPlansRouter = router({
         reviewedBy: ctx.user.id,
         reviewedAt: new Date(),
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_REVIEWED", "branch_action_plan", input.id, {
-        planType: "monthly",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_REVIEWED",
+        "branch_action_plan",
+        input.id,
+        {
+          planType: "monthly",
+        }
+      );
       return updated;
     }),
 
@@ -569,10 +592,16 @@ export const actionPlansRouter = router({
         ...payload,
         status: "draft",
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_CREATED", "weekly_action_plan", created?.id, {
-        planType: "weekly",
-        targetMonth: resolved.targetMonth,
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_CREATED",
+        "weekly_action_plan",
+        created?.id,
+        {
+          planType: "weekly",
+          targetMonth: resolved.targetMonth,
+        }
+      );
       return created;
     }),
 
@@ -585,7 +614,9 @@ export const actionPlansRouter = router({
       assertCanEditPlan(ctx.user, plan);
       assertNoSensitiveWeeklyPlanInput(input);
       const { id, monthlyPlanId: _m, ...data } = input;
-      const monthly = await actionPlansDb.getBranchActionPlanById(plan.monthlyPlanId);
+      const monthly = await actionPlansDb.getBranchActionPlanById(
+        plan.monthlyPlanId
+      );
       const resolved = monthly
         ? resolveWeeklyDates(monthly.targetMonth, {
             weekNumber: data.weekNumber ?? plan.weekNumber ?? undefined,
@@ -630,9 +661,15 @@ export const actionPlansRouter = router({
         status: "submitted",
         submittedAt: new Date(),
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_SUBMITTED", "weekly_action_plan", input.id, {
-        planType: "weekly",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_SUBMITTED",
+        "weekly_action_plan",
+        input.id,
+        {
+          planType: "weekly",
+        }
+      );
       return updated;
     }),
 
@@ -652,9 +689,15 @@ export const actionPlansRouter = router({
         reviewedBy: ctx.user.id,
         reviewedAt: new Date(),
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_REVIEWED", "weekly_action_plan", input.id, {
-        planType: "weekly",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_REVIEWED",
+        "weekly_action_plan",
+        input.id,
+        {
+          planType: "weekly",
+        }
+      );
       return updated;
     }),
 
@@ -739,7 +782,8 @@ export const actionPlansRouter = router({
         ...input,
         userId: ctx.user.id,
         planDate: new Date(input.planDate),
-        targetMonth: input.targetMonth ?? weekly.targetMonth ?? monthly?.targetMonth,
+        targetMonth:
+          input.targetMonth ?? weekly.targetMonth ?? monthly?.targetMonth,
         weekNumber: input.weekNumber ?? weekly.weekNumber ?? undefined,
       };
       if (existing) {
@@ -751,9 +795,15 @@ export const actionPlansRouter = router({
         ...payload,
         status: "draft",
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_CREATED", "daily_action_plan", created?.id, {
-        planType: "daily",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_CREATED",
+        "daily_action_plan",
+        created?.id,
+        {
+          planType: "daily",
+        }
+      );
       return created;
     }),
 
@@ -787,9 +837,15 @@ export const actionPlansRouter = router({
         status: "submitted",
         submittedAt: new Date(),
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_SUBMITTED", "daily_action_plan", input.id, {
-        planType: "daily",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_SUBMITTED",
+        "daily_action_plan",
+        input.id,
+        {
+          planType: "daily",
+        }
+      );
       return updated;
     }),
 
@@ -809,9 +865,15 @@ export const actionPlansRouter = router({
         reviewedBy: ctx.user.id,
         reviewedAt: new Date(),
       });
-      await logAction(ctx.user.id, "ACTION_PLAN_REVIEWED", "daily_action_plan", input.id, {
-        planType: "daily",
-      });
+      await logAction(
+        ctx.user.id,
+        "ACTION_PLAN_REVIEWED",
+        "daily_action_plan",
+        input.id,
+        {
+          planType: "daily",
+        }
+      );
       return updated;
     }),
 
@@ -865,21 +927,23 @@ export const actionPlansRouter = router({
         ? weeklyAll.filter(p => p.weekLabel === input.weekLabel)
         : weeklyAll;
 
-      return users.map(user => {
-        const monthly = monthlyPlans.find(p => p.userId === user.id);
-        const weekly = weeklyPlans.filter(p => p.userId === user.id);
-        const monthlyStatus = monthly?.status ?? "draft";
-        const matchesStatus =
-          !input.status ||
-          monthlyStatus === input.status ||
-          weekly.some(w => w.status === input.status);
-        if (!matchesStatus && input.status) return null;
-        return {
-          user,
-          monthly: monthly ?? null,
-          weekly,
-        };
-      }).filter(Boolean);
+      return users
+        .map(user => {
+          const monthly = monthlyPlans.find(p => p.userId === user.id);
+          const weekly = weeklyPlans.filter(p => p.userId === user.id);
+          const monthlyStatus = monthly?.status ?? "draft";
+          const matchesStatus =
+            !input.status ||
+            monthlyStatus === input.status ||
+            weekly.some(w => w.status === input.status);
+          if (!matchesStatus && input.status) return null;
+          return {
+            user,
+            monthly: monthly ?? null,
+            weekly,
+          };
+        })
+        .filter(Boolean);
     }),
 
   getSubmissionStatus: teamLeaderOrAboveProcedure
@@ -1027,15 +1091,21 @@ export const actionPlansRouter = router({
       );
       const dailyPlans = dailyRows.map(r => r.plan);
       const today = input.todayDate ?? new Date().toISOString().slice(0, 10);
-      return buildManagerDashboard(users, monthlyPlans, weeklyPlans, dailyPlans, {
-        targetMonth: input.targetMonth,
-        weekNumber: input.weekNumber,
-        weekLabel: input.weekLabel,
-        todayDate: today,
-        teamId: input.teamId,
-        role: input.role,
-        status: input.status,
-      });
+      return buildManagerDashboard(
+        users,
+        monthlyPlans,
+        weeklyPlans,
+        dailyPlans,
+        {
+          targetMonth: input.targetMonth,
+          weekNumber: input.weekNumber,
+          weekLabel: input.weekLabel,
+          todayDate: today,
+          teamId: input.teamId,
+          role: input.role,
+          status: input.status,
+        }
+      );
     }),
 
   getExecutiveReportPreview: branchAdminProcedure

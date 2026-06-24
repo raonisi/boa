@@ -18,8 +18,7 @@ export const EMPTY_UX = {
   title: (subject: string) => `표시할 ${subject}이 없습니다`,
   description: (subject: string) =>
     `현재 조건에서 확인할 ${subject}이 없습니다.`,
-  filteredTitle: (subject: string) =>
-    `현재 필터에 맞는 ${subject}이 없습니다.`,
+  filteredTitle: (subject: string) => `현재 필터에 맞는 ${subject}이 없습니다.`,
   filteredDescription: "필터를 초기화해 다시 확인해 보세요.",
   filterResetLabel: "필터 초기화",
   viewAllLabel: "전체 보기",
@@ -28,10 +27,8 @@ export const EMPTY_UX = {
 export const ERROR_UX = {
   loadTitle: "정보를 불러오지 못했습니다.",
   loadDescription: "잠시 후 다시 시도해 주세요.",
-  scopedLoadTitle: (subject: string) =>
-    `${subject}을(를) 불러오지 못했습니다.`,
-  scopedLoadDescription:
-    "조회에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+  scopedLoadTitle: (subject: string) => `${subject}을(를) 불러오지 못했습니다.`,
+  scopedLoadDescription: "조회에 실패했습니다. 잠시 후 다시 시도해 주세요.",
   mutationTitle: "변경사항을 저장하지 못했습니다.",
   mutationDescription: "입력 내용을 확인한 뒤 다시 시도해 주세요.",
   retryLabel: "다시 시도",

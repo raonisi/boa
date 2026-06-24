@@ -32,9 +32,20 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
-import { getEmptyCopy, getLoadErrorCopy, getLoadingCopy } from "@/lib/stateUxCopy";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
+import {
+  getEmptyCopy,
+  getLoadErrorCopy,
+  getLoadingCopy,
+} from "@/lib/stateUxCopy";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { adminPage, adminPanel } from "@/lib/adminDesignTokens";
 import {
   getAccountStatusBadgeClasses,
@@ -125,7 +136,10 @@ function OrgSection({
         <div>
           <div className="flex items-center gap-2">
             <p className="font-bold text-foreground">{title}</p>
-            <Badge variant="outline" className="border-border bg-card text-muted-foreground">
+            <Badge
+              variant="outline"
+              className="border-border bg-card text-muted-foreground"
+            >
               {count.toLocaleString()}명
             </Badge>
           </div>
@@ -269,7 +283,9 @@ export default function OrganizationManagement() {
                     {getUserStatusLabel(node.accountStatus)}
                   </Badge>
                   {relation ? (
-                    <Badge className={getOrgRelationBadgeClasses(relation.variant)}>
+                    <Badge
+                      className={getOrgRelationBadgeClasses(relation.variant)}
+                    >
                       {relation.label}
                     </Badge>
                   ) : null}
@@ -299,11 +315,15 @@ export default function OrganizationManagement() {
                 </div>
                 <div className={`rounded-xl p-2 ${adminPage.surface}`}>
                   <p className="text-xs text-muted-foreground">산하</p>
-                  <p className="text-base font-bold text-foreground">{node.descendantCount}</p>
+                  <p className="text-base font-bold text-foreground">
+                    {node.descendantCount}
+                  </p>
                 </div>
                 <div className={`rounded-xl p-2 ${adminPage.surface}`}>
                   <p className="text-xs text-muted-foreground">고객</p>
-                  <p className="text-base font-bold text-foreground">{node.customerCount}</p>
+                  <p className="text-base font-bold text-foreground">
+                    {node.customerCount}
+                  </p>
                 </div>
               </div>
             </div>

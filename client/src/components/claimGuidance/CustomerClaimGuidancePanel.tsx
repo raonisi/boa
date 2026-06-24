@@ -44,7 +44,10 @@ import type {
 import { formatKstLocalDateTime } from "@shared/timePolicy";
 import { ClipboardList, Edit2, FileCheck2, Plus, Trash2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type ClaimGuidanceRow = {
@@ -98,8 +101,9 @@ export function CustomerClaimGuidancePanel({
   const utils = trpc.useUtils();
   const canManage = canManageClaimGuidance(user, pageCustomer);
 
-  const { data: cases, isLoading } =
-    trpc.claimGuidance.listByCustomer.useQuery({ customerId });
+  const { data: cases, isLoading } = trpc.claimGuidance.listByCustomer.useQuery(
+    { customerId }
+  );
   const { data: contracts } = trpc.contracts.listByCustomer.useQuery({
     customerId,
   });
@@ -139,9 +143,7 @@ export function CustomerClaimGuidancePanel({
   const [statusTarget, setStatusTarget] = useState<ClaimGuidanceRow | null>(
     null
   );
-  const [closeTarget, setCloseTarget] = useState<ClaimGuidanceRow | null>(
-    null
-  );
+  const [closeTarget, setCloseTarget] = useState<ClaimGuidanceRow | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<ClaimGuidanceRow | null>(
     null
   );
@@ -173,7 +175,8 @@ export function CustomerClaimGuidancePanel({
       resetForm();
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.claimGuidance.update.useMutation({
@@ -182,7 +185,8 @@ export function CustomerClaimGuidancePanel({
       setEditTarget(null);
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeStatusMutation = trpc.claimGuidance.changeStatus.useMutation({
@@ -201,7 +205,8 @@ export function CustomerClaimGuidancePanel({
       setCloseTarget(null);
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.claimGuidance.delete.useMutation({
@@ -210,7 +215,8 @@ export function CustomerClaimGuidancePanel({
       setDeleteTarget(null);
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   function resetForm() {
@@ -295,9 +301,7 @@ export function CustomerClaimGuidancePanel({
           <Label>안내 유형</Label>
           <Select
             value={guidanceType}
-            onValueChange={value =>
-              setGuidanceType(value as ClaimGuidanceType)
-            }
+            onValueChange={value => setGuidanceType(value as ClaimGuidanceType)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -435,8 +439,7 @@ export function CustomerClaimGuidancePanel({
   }
 
   const renderCard = (row: ClaimGuidanceRow) => {
-    const isClosed =
-      row.guidanceStatus === "closed" || Boolean(row.closedAt);
+    const isClosed = row.guidanceStatus === "closed" || Boolean(row.closedAt);
     const showCloseButton =
       canManage && !isClosed && row.guidanceStatus !== "completed";
 
@@ -477,11 +480,8 @@ export function CustomerClaimGuidancePanel({
                 ) : null}
                 {row.followUpId ? (
                   <p>
-                    <span className="text-muted-foreground">
-                      연결 후속관리
-                    </span>{" "}
-                    {followUpLabel.get(row.followUpId) ??
-                      `#${row.followUpId}`}
+                    <span className="text-muted-foreground">연결 후속관리</span>{" "}
+                    {followUpLabel.get(row.followUpId) ?? `#${row.followUpId}`}
                   </p>
                 ) : null}
                 {row.nextFollowUpAt ? (
@@ -503,7 +503,9 @@ export function CustomerClaimGuidancePanel({
                 최근 업데이트 {formatKstLocalDateTime(String(row.updatedAt))}
               </p>
               {row.memo ? (
-                <p className="line-clamp-2 text-sm text-slate-700">{row.memo}</p>
+                <p className="line-clamp-2 text-sm text-slate-700">
+                  {row.memo}
+                </p>
               ) : null}
             </div>
             {canManage ? (
@@ -630,14 +632,21 @@ export function CustomerClaimGuidancePanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(editTarget)} onOpenChange={() => setEditTarget(null)}>
+      <Dialog
+        open={Boolean(editTarget)}
+        onOpenChange={() => setEditTarget(null)}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>청구 안내 수정</DialogTitle>
           </DialogHeader>
           {renderFormFields()}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -651,7 +660,10 @@ export function CustomerClaimGuidancePanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(statusTarget)} onOpenChange={() => setStatusTarget(null)}>
+      <Dialog
+        open={Boolean(statusTarget)}
+        onOpenChange={() => setStatusTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>청구 안내 상태 변경</DialogTitle>
@@ -719,7 +731,11 @@ export function CustomerClaimGuidancePanel({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setStatusTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStatusTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -733,7 +749,10 @@ export function CustomerClaimGuidancePanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(closeTarget)} onOpenChange={() => setCloseTarget(null)}>
+      <Dialog
+        open={Boolean(closeTarget)}
+        onOpenChange={() => setCloseTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>청구 안내 종료</DialogTitle>
@@ -762,7 +781,11 @@ export function CustomerClaimGuidancePanel({
             </Select>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setCloseTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCloseTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -782,7 +805,10 @@ export function CustomerClaimGuidancePanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={() => setDeleteTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>청구 안내 비활성화</DialogTitle>
@@ -791,7 +817,11 @@ export function CustomerClaimGuidancePanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+            >
               취소
             </Button>
             <Button

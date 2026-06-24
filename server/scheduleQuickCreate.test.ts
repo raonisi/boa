@@ -20,15 +20,15 @@ describe("scheduleQuickCreate KST helpers", () => {
   });
 
   it("resolves this week to upcoming Friday in KST", () => {
-    expect(
-      resolveQuickDateChip("this_week", undefined, KST_MONDAY_10AM)
-    ).toBe("2026-06-19");
+    expect(resolveQuickDateChip("this_week", undefined, KST_MONDAY_10AM)).toBe(
+      "2026-06-19"
+    );
   });
 
   it("resolves next week to next Monday in KST", () => {
-    expect(
-      resolveQuickDateChip("next_week", undefined, KST_MONDAY_10AM)
-    ).toBe("2026-06-22");
+    expect(resolveQuickDateChip("next_week", undefined, KST_MONDAY_10AM)).toBe(
+      "2026-06-22"
+    );
   });
 
   it("maps quick time chips to default hours", () => {

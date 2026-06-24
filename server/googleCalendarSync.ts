@@ -79,9 +79,12 @@ function sanitizeActivityMetadata(metadata: Record<string, unknown>) {
 async function getAccessTokenOrThrow(): Promise<string> {
   const credential = await getGoogleCalendarOauthCredential();
   if (!credential?.refreshTokenEnc) {
-    throw Object.assign(new Error("Google Calendar OAuth가 연결되지 않았습니다."), {
-      code: "OAUTH_NOT_CONNECTED",
-    });
+    throw Object.assign(
+      new Error("Google Calendar OAuth가 연결되지 않았습니다."),
+      {
+        code: "OAUTH_NOT_CONNECTED",
+      }
+    );
   }
   const refreshToken = decryptRefreshToken(credential.refreshTokenEnc);
   const token = await exchangeGoogleRefreshToken(refreshToken);
@@ -107,9 +110,7 @@ async function logGoogleCalendarActivity(
 function integrationReady(
   integration?: Awaited<ReturnType<typeof getGoogleCalendarIntegrationByType>>
 ) {
-  return Boolean(
-    integration?.isActive && integration.googleCalendarId?.trim()
-  );
+  return Boolean(integration?.isActive && integration.googleCalendarId?.trim());
 }
 
 type BuiltPayload = {
@@ -164,18 +165,14 @@ function buildEventPayload(
     },
     policy
   );
-  assertGoogleCalendarPayloadPolicy(
-    { title, description },
-    policy,
-    {
-      targetType,
-      includeCustomerContact: includeLegacyContact,
-      customerContact: ctx.customerContact,
-      viewerUserId: actorUserId,
-      createdBy: ctx.createdBy,
-      ownerUserId: ctx.ownerUserId,
-    }
-  );
+  assertGoogleCalendarPayloadPolicy({ title, description }, policy, {
+    targetType,
+    includeCustomerContact: includeLegacyContact,
+    customerContact: ctx.customerContact,
+    viewerUserId: actorUserId,
+    createdBy: ctx.createdBy,
+    ownerUserId: ctx.ownerUserId,
+  });
   return { title, description };
 }
 
@@ -221,7 +218,10 @@ function buildPersonalPayload(
 async function upsertGoogleEvent(
   accessToken: string,
   calendarId: string,
-  existingSync: { googleEventId: string | null; googleCalendarId: string } | null | undefined,
+  existingSync:
+    | { googleEventId: string | null; googleCalendarId: string }
+    | null
+    | undefined,
   payload: BuiltPayload,
   startTime: Date,
   endTime?: Date | null
@@ -254,13 +254,18 @@ async function upsertGoogleEvent(
 
   if (googleEventId) {
     try {
-      const updated = await client.updateEvent(accessToken, calendarId, googleEventId, {
+      const updated = await client.updateEvent(
+        accessToken,
         calendarId,
-        title: payload.title,
-        description: payload.description,
-        startTime,
-        endTime,
-      });
+        googleEventId,
+        {
+          calendarId,
+          title: payload.title,
+          description: payload.description,
+          startTime,
+          endTime,
+        }
+      );
       return updated.eventId;
     } catch (error: any) {
       if (error?.code === "HTTP_404") {
@@ -293,7 +298,9 @@ async function syncSharedEvent(input: {
   createdBy?: number | null;
   policy: ReturnType<typeof orgSettingsToPayloadPolicy>;
 }) {
-  const integration = await getGoogleCalendarIntegrationByType(input.calendarType);
+  const integration = await getGoogleCalendarIntegrationByType(
+    input.calendarType
+  );
   if (!integrationReady(integration)) {
     await upsertGoogleCalendarEventSync({
       boaEventType: input.boaEventType,
@@ -306,7 +313,8 @@ async function syncSharedEvent(input: {
       includeContactInDescription: false,
       contactIncluded: false,
       lastErrorCode: "SKIPPED_MISSING_CALENDAR",
-      lastErrorMessageSafe: "해당 Google Calendar 연동이 비활성화되었거나 calendarId가 없습니다.",
+      lastErrorMessageSafe:
+        "해당 Google Calendar 연동이 비활성화되었거나 calendarId가 없습니다.",
       ownerUserId: input.ownerUserId,
       createdBy: input.actor.id,
       updatedBy: input.actor.id,
@@ -347,18 +355,22 @@ async function syncSharedEvent(input: {
     updatedBy: input.actor.id,
   });
 
-  await logGoogleCalendarActivity(input.actor.id, "GOOGLE_CALENDAR_EVENT_SYNCED", {
-    calendarType: input.calendarType,
-    calendarCategory: input.calendarType,
-    syncTargetType: "shared_calendar",
-    boaEventType: input.boaEventType,
-    boaEventId: input.boaEventId,
-    syncStatus: "synced",
-    contactIncluded: input.policy.allowCustomerContactInGoogleCalendar,
-    actorId: input.actor.id,
-    syncId,
-    ...syncMetadataFlagsFromPolicy(input.policy),
-  });
+  await logGoogleCalendarActivity(
+    input.actor.id,
+    "GOOGLE_CALENDAR_EVENT_SYNCED",
+    {
+      calendarType: input.calendarType,
+      calendarCategory: input.calendarType,
+      syncTargetType: "shared_calendar",
+      boaEventType: input.boaEventType,
+      boaEventId: input.boaEventId,
+      syncStatus: "synced",
+      contactIncluded: input.policy.allowCustomerContactInGoogleCalendar,
+      actorId: input.actor.id,
+      syncId,
+      ...syncMetadataFlagsFromPolicy(input.policy),
+    }
+  );
 }
 
 async function syncPersonalActorEvents(input: {
@@ -396,10 +408,9 @@ async function syncPersonalActorEvents(input: {
         googleCalendarId: "unassigned",
         calendarType: input.calendarType,
         syncStatus: "skipped",
-        includeContactInDescription:
-          useUnifiedRawPolicy
-            ? input.policy.allowCustomerContactInGoogleCalendar
-            : legacyContactPolicyEnabled,
+        includeContactInDescription: useUnifiedRawPolicy
+          ? input.policy.allowCustomerContactInGoogleCalendar
+          : legacyContactPolicyEnabled,
         contactIncluded: false,
         lastErrorCode: SKIPPED_NO_PERSONAL_CALENDAR_CODE,
         lastErrorMessageSafe: "개인 Google Calendar가 연동되지 않았습니다.",
@@ -663,7 +674,9 @@ export async function syncFollowUpToGoogleCalendar(
   const calendarType = mapFollowUpToGoogleCalendarType();
   const orgSettings = await getGoogleCalendarOrgSettings();
   const policy = orgSettingsToPayloadPolicy(orgSettings);
-  const followUpTitle = [ctx.reason, ctx.nextAction].filter(Boolean).join(" · ");
+  const followUpTitle = [ctx.reason, ctx.nextAction]
+    .filter(Boolean)
+    .join(" · ");
   const sharedPayload = buildEventPayload(
     {
       title: followUpTitle,
@@ -867,9 +880,11 @@ export function fireAndForgetGoogleCalendarScheduleDelete(
   boaEventType: BoaGoogleEventType,
   boaEventId: number
 ) {
-  void deleteGoogleCalendarEventForBoaEvent(actor, boaEventType, boaEventId).catch(
-    () => undefined
-  );
+  void deleteGoogleCalendarEventForBoaEvent(
+    actor,
+    boaEventType,
+    boaEventId
+  ).catch(() => undefined);
 }
 
 export async function testGoogleCalendarAccessForIntegration(
@@ -893,12 +908,13 @@ export async function storeGoogleCalendarRefreshToken(
 }
 
 export async function getGoogleCalendarSettingsSummary(userId: number) {
-  const [integrations, oauth, orgSettings, personalSettings] = await Promise.all([
-    listGoogleCalendarIntegrations(),
-    getGoogleCalendarOauthCredential(),
-    getGoogleCalendarOrgSettings(),
-    getGoogleCalendarPersonalSettings(userId),
-  ]);
+  const [integrations, oauth, orgSettings, personalSettings] =
+    await Promise.all([
+      listGoogleCalendarIntegrations(),
+      getGoogleCalendarOauthCredential(),
+      getGoogleCalendarOrgSettings(),
+      getGoogleCalendarPersonalSettings(userId),
+    ]);
   return {
     oauthConnected: Boolean(oauth?.isActive),
     oauthLastTestedAt: oauth?.lastTestedAt ?? null,

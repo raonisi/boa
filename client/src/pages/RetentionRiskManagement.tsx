@@ -86,17 +86,13 @@ export default function RetentionRiskManagement() {
   } = trpc.retentionRisk.list.useQuery(
     {
       riskLevel:
-        levelFilter === "all"
-          ? undefined
-          : (levelFilter as RetentionRiskLevel),
+        levelFilter === "all" ? undefined : (levelFilter as RetentionRiskLevel),
       riskReason:
         reasonFilter === "all"
           ? undefined
           : (reasonFilter as RetentionRiskReason),
       retentionStatus:
-        statusFilter === "all"
-          ? undefined
-          : (statusFilter as RetentionStatus),
+        statusFilter === "all" ? undefined : (statusFilter as RetentionStatus),
       limit: 200,
     },
     { enabled: canAccess }
@@ -126,7 +122,8 @@ export default function RetentionRiskManagement() {
       const agentId = customer?.agentId ?? null;
       const teamId = agentId ? agentById.get(agentId)?.teamId : null;
 
-      if (agentFilter !== "all" && String(agentId) !== agentFilter) return false;
+      if (agentFilter !== "all" && String(agentId) !== agentFilter)
+        return false;
       if (teamFilter !== "all" && String(teamId ?? "") !== teamFilter) {
         return false;
       }
@@ -188,7 +185,9 @@ export default function RetentionRiskManagement() {
       const current = stats.get(agentId) ?? {
         total: 0,
         open: 0,
-        name: formatUserWithRole(agentById.get(agentId) ?? { name: `#${agentId}` }),
+        name: formatUserWithRole(
+          agentById.get(agentId) ?? { name: `#${agentId}` }
+        ),
       };
       current.total += 1;
       if (!row.resolvedAt) current.open += 1;
@@ -207,8 +206,7 @@ export default function RetentionRiskManagement() {
     return stats;
   }, [summary]);
 
-  const adjustmentReview =
-    summary?.byRetentionStatus?.adjustment_review ?? 0;
+  const adjustmentReview = summary?.byRetentionStatus?.adjustment_review ?? 0;
   const retainedCount = summary?.byRetentionStatus?.retained ?? 0;
   const surrenderedCount = summary?.byRetentionStatus?.surrendered ?? 0;
 
@@ -254,10 +252,7 @@ export default function RetentionRiskManagement() {
             <KpiCard title="조정 검토" value={adjustmentReview} />
             <KpiCard title="유지 처리" value={retainedCount} />
             <KpiCard title="해지 처리" value={surrenderedCount} />
-            <KpiCard
-              title="다음 확인 예정"
-              value={summary.followUpScheduled}
-            />
+            <KpiCard title="다음 확인 예정" value={summary.followUpScheduled} />
           </div>
         ) : null}
 

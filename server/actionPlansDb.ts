@@ -100,7 +100,9 @@ export async function getWeeklyActionPlanById(id: number) {
   return rows[0];
 }
 
-export async function getWeeklyActionPlansByMonthlyPlanId(monthlyPlanId: number) {
+export async function getWeeklyActionPlansByMonthlyPlanId(
+  monthlyPlanId: number
+) {
   const db = await getDb();
   if (!db) return [];
   return db
@@ -278,7 +280,10 @@ export async function getWeeklyPlansForMonthByUserIds(
   userIds: number[],
   targetMonth: string
 ) {
-  const monthlyPlans = await getBranchActionPlansByUserIds(userIds, targetMonth);
+  const monthlyPlans = await getBranchActionPlansByUserIds(
+    userIds,
+    targetMonth
+  );
   if (monthlyPlans.length === 0) return [];
   const monthlyIds = monthlyPlans.map(p => p.id);
   const db = await getDb();

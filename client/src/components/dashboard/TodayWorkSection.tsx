@@ -1,5 +1,8 @@
 import { getStatusLabel, StatusBadge } from "@/components/StatusBadge";
-import { MobileTaskSheet, type ConfirmAction } from "@/components/dashboard/MobileTaskSheet";
+import {
+  MobileTaskSheet,
+  type ConfirmAction,
+} from "@/components/dashboard/MobileTaskSheet";
 import {
   TodayWorkExecutionQueue,
   toDashboardMobileTask,
@@ -50,7 +53,10 @@ import {
 } from "lucide-react";
 import type { ElementType, ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -110,13 +116,19 @@ function getNotificationTargetPath(notification: {
       path: buildCustomerDetailPath(notification.relatedId),
     };
   }
-  if (notification.relatedType === "schedule" || isScheduleNotificationType(notification.type)) {
+  if (
+    notification.relatedType === "schedule" ||
+    isScheduleNotificationType(notification.type)
+  ) {
     return {
       label: "일정 보기",
       path: "/calendar",
     };
   }
-  if (notification.relatedType === "follow_up" || notification.type === "today_follow_up") {
+  if (
+    notification.relatedType === "follow_up" ||
+    notification.type === "today_follow_up"
+  ) {
     return {
       label: "후속관리 보기",
       path: "/customers?action=quick-followup",
@@ -699,7 +711,9 @@ export function TodayWorkSection({
               onClick={() => setLocation(item.path)}
               className="crm-dashboard-action min-h-14 rounded-lg border border-border/80 bg-card p-4 text-left shadow-sm"
             >
-              <p className="text-sm font-semibold text-foreground">{item.label}</p>
+              <p className="text-sm font-semibold text-foreground">
+                {item.label}
+              </p>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
                 {item.hint}
               </p>
@@ -716,7 +730,8 @@ export function TodayWorkSection({
                 내 오늘 업무와 지점 운영 확인을 분리해 보여드립니다.
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                직접 처리가 필요한 개인 업무와 운영 점검 항목을 구분해 확인하세요.
+                직접 처리가 필요한 개인 업무와 운영 점검 항목을 구분해
+                확인하세요.
               </p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -725,7 +740,10 @@ export function TodayWorkSection({
                   내 오늘 업무
                 </p>
                 <p className="mt-1 text-xl font-bold text-emerald-900 dark:text-emerald-100">
-                  {renderMetricValue(personalExecutionCount, { isLoading, isError })}
+                  {renderMetricValue(personalExecutionCount, {
+                    isLoading,
+                    isError,
+                  })}
                 </p>
               </div>
               <div className="rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2 text-center dark:border-violet-900/40 dark:bg-violet-950/30">
@@ -733,7 +751,10 @@ export function TodayWorkSection({
                   지점 운영 확인
                 </p>
                 <p className="mt-1 text-xl font-bold text-violet-900 dark:text-violet-100">
-                  {renderMetricValue(branchOperationsCount, { isLoading, isError })}
+                  {renderMetricValue(branchOperationsCount, {
+                    isLoading,
+                    isError,
+                  })}
                 </p>
               </div>
             </div>
@@ -1025,9 +1046,14 @@ export function TodayWorkSection({
                     key={item.key}
                     className={`crm-dashboard-action rounded-lg border p-3 shadow-sm ${item.tone}`}
                   >
-                    <p className="text-xs text-muted-foreground">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.title}
+                    </p>
                     <div className="mt-2">
-                      {renderMetricValue(0, { isLoading: true, isError: false })}
+                      {renderMetricValue(0, {
+                        isLoading: true,
+                        isError: false,
+                      })}
                     </div>
                   </div>
                 ))}
@@ -1147,7 +1173,8 @@ export function TodayWorkSection({
           ) : (
             sortedPendingNotifications.slice(0, 3).map(notification => {
               const priority = classifyNotificationPriority(notification);
-              const notificationTarget = getNotificationTargetPath(notification);
+              const notificationTarget =
+                getNotificationTargetPath(notification);
               return (
                 <div
                   key={notification.id}
@@ -1288,7 +1315,9 @@ export function TodayWorkSection({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setLocation(customerPresetPaths.priorityContact)}
+                  onClick={() =>
+                    setLocation(customerPresetPaths.priorityContact)
+                  }
                 >
                   고객 DB에서 확인하기
                 </Button>
@@ -1436,7 +1465,9 @@ export function TodayWorkSection({
                       size="sm"
                       variant="outline"
                       className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                      onClick={() => setLocation(`/customers/${schedule.customerId}`)}
+                      onClick={() =>
+                        setLocation(`/customers/${schedule.customerId}`)
+                      }
                     >
                       고객 보기
                     </Button>
@@ -1513,121 +1544,137 @@ export function TodayWorkSection({
                 className="crm-dashboard-action w-full rounded-lg border border-border bg-card p-3 text-left shadow-sm"
               >
                 {(() => {
-                  const notificationTarget = getNotificationTargetPath(notification);
+                  const notificationTarget =
+                    getNotificationTargetPath(notification);
                   return (
                     <>
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-semibold text-foreground">
-                    {notification.title}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {getStatusLabel(notification.processStatus)}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {notification.customerName
-                    ? `${notification.customerName} · `
-                    : ""}
-                  {getDashboardNotificationTypeLabel(notification.type)}
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                    disabled={markReadMutation.isPending}
-                    onClick={() => markReadMutation.mutate({ id: notification.id })}
-                  >
-                    읽음
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                    disabled={completeMutation.isPending}
-                    onClick={() =>
-                      requestDesktopCompletion({
-                        key: `notification-complete-mobile-${notification.id}`,
-                        title: "알림을 처리완료할까요?",
-                        description:
-                          "처리완료 후 알림센터 목록에서 제외됩니다.",
-                        execute: async () => {
-                          await completeMutation.mutateAsync({
-                            id: notification.id,
-                            processStatus: "처리완료",
-                          });
-                        },
-                        successMessage: "알림을 처리완료했습니다.",
-                      })
-                    }
-                  >
-                    처리완료
-                  </Button>
-                  {notification.relatedType === "customer" && notification.relatedId ? (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                        onClick={() => setLocation(`/customers/${notification.relatedId}`)}
-                      >
-                        고객 보기
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                        onClick={() =>
-                          setLocation(
-                            `/customers/${notification.relatedId}?action=quick-followup`
-                          )
-                        }
-                      >
-                        후속관리 등록
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                        onClick={() =>
-                          setLocation(
-                            `/calendar?customerId=${notification.relatedId}&action=quick-create`
-                          )
-                        }
-                      >
-                        일정 등록
-                      </Button>
-                    </>
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                        onClick={() => setLocation(notificationTarget.path)}
-                      >
-                        {notificationTarget.label}
-                      </Button>
-                      {(notification.relatedType === "schedule" ||
-                        isScheduleNotificationType(notification.type)) && (
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="truncate text-sm font-semibold text-foreground">
+                          {notification.title}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {getStatusLabel(notification.processStatus)}
+                        </span>
+                      </div>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {notification.customerName
+                          ? `${notification.customerName} · `
+                          : ""}
+                        {getDashboardNotificationTypeLabel(notification.type)}
+                      </p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
-                          onClick={() => setLocation("/customers?action=quick-followup")}
+                          disabled={markReadMutation.isPending}
+                          onClick={() =>
+                            markReadMutation.mutate({ id: notification.id })
+                          }
                         >
-                          후속관리 등록
+                          읽음
                         </Button>
-                      )}
-                    </>
-                  )}
-                </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
+                          disabled={completeMutation.isPending}
+                          onClick={() =>
+                            requestDesktopCompletion({
+                              key: `notification-complete-mobile-${notification.id}`,
+                              title: "알림을 처리완료할까요?",
+                              description:
+                                "처리완료 후 알림센터 목록에서 제외됩니다.",
+                              execute: async () => {
+                                await completeMutation.mutateAsync({
+                                  id: notification.id,
+                                  processStatus: "처리완료",
+                                });
+                              },
+                              successMessage: "알림을 처리완료했습니다.",
+                            })
+                          }
+                        >
+                          처리완료
+                        </Button>
+                        {notification.relatedType === "customer" &&
+                        notification.relatedId ? (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
+                              onClick={() =>
+                                setLocation(
+                                  `/customers/${notification.relatedId}`
+                                )
+                              }
+                            >
+                              고객 보기
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
+                              onClick={() =>
+                                setLocation(
+                                  `/customers/${notification.relatedId}?action=quick-followup`
+                                )
+                              }
+                            >
+                              후속관리 등록
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
+                              onClick={() =>
+                                setLocation(
+                                  `/calendar?customerId=${notification.relatedId}&action=quick-create`
+                                )
+                              }
+                            >
+                              일정 등록
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
+                              onClick={() =>
+                                setLocation(notificationTarget.path)
+                              }
+                            >
+                              {notificationTarget.label}
+                            </Button>
+                            {(notification.relatedType === "schedule" ||
+                              isScheduleNotificationType(
+                                notification.type
+                              )) && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="min-h-11 px-2 text-xs sm:h-7 sm:min-h-7"
+                                onClick={() =>
+                                  setLocation(
+                                    "/customers?action=quick-followup"
+                                  )
+                                }
+                              >
+                                후속관리 등록
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </>
                   );
                 })()}
@@ -1704,7 +1751,9 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setLocation("/customers?action=quick-followup")}
+                    onClick={() =>
+                      setLocation("/customers?action=quick-followup")
+                    }
                   >
                     빠른 후속관리 등록
                   </Button>
@@ -1712,7 +1761,9 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setLocation(customerPresetPaths.todayFollowUp)}
+                    onClick={() =>
+                      setLocation(customerPresetPaths.todayFollowUp)
+                    }
                   >
                     고객 목록에서 후속관리 확인
                   </Button>

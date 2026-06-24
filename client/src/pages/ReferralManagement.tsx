@@ -133,7 +133,8 @@ export default function ReferralManagement() {
       const agentId = referred?.agentId ?? referrer?.agentId ?? null;
       const teamId = agentId ? agentById.get(agentId)?.teamId : null;
 
-      if (agentFilter !== "all" && String(agentId) !== agentFilter) return false;
+      if (agentFilter !== "all" && String(agentId) !== agentFilter)
+        return false;
       if (teamFilter !== "all" && String(teamId ?? "") !== teamFilter) {
         return false;
       }
@@ -231,11 +232,13 @@ export default function ReferralManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체</SelectItem>
-                  {Object.entries(REFERRAL_STAGE_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
+                  {Object.entries(REFERRAL_STAGE_LABELS).map(
+                    ([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    )
+                  )}
                 </SelectContent>
               </Select>
             </div>
@@ -313,11 +316,19 @@ export default function ReferralManagement() {
             ) : null}
             <div className="space-y-1">
               <Label className="text-xs">업데이트 시작일</Label>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">업데이트 종료일</Label>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+              />
             </div>
           </CardContent>
         </Card>
@@ -378,12 +389,21 @@ export default function ReferralManagement() {
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_STAGE_BADGE_CLASSES[row.referralStage as ReferralStage]}`}
                         >
-                          {REFERRAL_STAGE_LABELS[row.referralStage as ReferralStage]}
+                          {
+                            REFERRAL_STAGE_LABELS[
+                              row.referralStage as ReferralStage
+                            ]
+                          }
                         </span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_THANK_YOU_BADGE_CLASSES[row.thankYouStatus as ThankYouStatus]}`}
                         >
-                          감사 {THANK_YOU_STATUS_LABELS[row.thankYouStatus as ThankYouStatus]}
+                          감사{" "}
+                          {
+                            THANK_YOU_STATUS_LABELS[
+                              row.thankYouStatus as ThankYouStatus
+                            ]
+                          }
                         </span>
                       </div>
                       <p className="text-sm">
@@ -436,7 +456,11 @@ export default function ReferralManagement() {
                             <span
                               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_STAGE_BADGE_CLASSES[row.referralStage as ReferralStage]}`}
                             >
-                              {REFERRAL_STAGE_LABELS[row.referralStage as ReferralStage]}
+                              {
+                                REFERRAL_STAGE_LABELS[
+                                  row.referralStage as ReferralStage
+                                ]
+                              }
                             </span>
                           </TableCell>
                           <TableCell>
@@ -463,7 +487,11 @@ export default function ReferralManagement() {
                             )}
                           </TableCell>
                           <TableCell>
-                            {THANK_YOU_STATUS_LABELS[row.thankYouStatus as ThankYouStatus]}
+                            {
+                              THANK_YOU_STATUS_LABELS[
+                                row.thankYouStatus as ThankYouStatus
+                              ]
+                            }
                           </TableCell>
                           <TableCell>
                             {

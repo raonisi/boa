@@ -293,21 +293,21 @@ PC 테이블은 운영 밀도 측면에서 적절하다. 모바일에서는 별�
 
 ## 8. 화면별 요약 평가
 
-| 영역 | 평가 | 점수 |
-| --- | --- | --- |
-| Login / Auth | 브랜드형 로그인과 guard 구조가 있음. 문구/오류 상태 polish 필요 | 80 |
-| Dashboard | 오늘 업무 방향은 좋음. KPI 로딩/오류와 조치 CTA 보강 필요 | 82 |
-| Customer List | 모바일 카드, 필터, 상태, 액션이 좋음 | 88 |
-| Customer Detail | 핵심 업무 집약도가 높음. 모바일 정보량 조절 필요 | 86 |
-| Contract List | 상태/금액/상품 정보가 명확함. 상태별 CTA 보강 필요 | 81 |
-| Calendar | 모바일 일정 범위와 dialog viewport 대응이 보임. 일정 우선순위 표현 강화 필요 | 82 |
-| Notifications | 알림 센터와 unread badge 흐름이 있음. 우선순위/묶음 polish 필요 | 80 |
-| Activity Log | 마스킹과 모바일 카드가 있음. 위험 작업 우선 큐 강화 필요 | 84 |
-| Operation Risk | 안전 관점이 강함. 초보 관리자용 액션 가이드 보강 필요 | 84 |
-| Download | 안전 확인 UX가 좋음. 비활성 조건 안내 개선 필요 | 86 |
-| PC Navigation | RBAC 필터링은 좋음. 업무 우선순위 재구성 필요 | 78 |
-| Mobile Navigation | 하단 탭은 좋음. 더보기 메뉴 과밀 | 76 |
-| Flutter Mobile | shell 구조가 명확함. Drawer 정보 구조 개선 필요 | 80 |
+| 영역              | 평가                                                                         | 점수 |
+| ----------------- | ---------------------------------------------------------------------------- | ---- |
+| Login / Auth      | 브랜드형 로그인과 guard 구조가 있음. 문구/오류 상태 polish 필요              | 80   |
+| Dashboard         | 오늘 업무 방향은 좋음. KPI 로딩/오류와 조치 CTA 보강 필요                    | 82   |
+| Customer List     | 모바일 카드, 필터, 상태, 액션이 좋음                                         | 88   |
+| Customer Detail   | 핵심 업무 집약도가 높음. 모바일 정보량 조절 필요                             | 86   |
+| Contract List     | 상태/금액/상품 정보가 명확함. 상태별 CTA 보강 필요                           | 81   |
+| Calendar          | 모바일 일정 범위와 dialog viewport 대응이 보임. 일정 우선순위 표현 강화 필요 | 82   |
+| Notifications     | 알림 센터와 unread badge 흐름이 있음. 우선순위/묶음 polish 필요              | 80   |
+| Activity Log      | 마스킹과 모바일 카드가 있음. 위험 작업 우선 큐 강화 필요                     | 84   |
+| Operation Risk    | 안전 관점이 강함. 초보 관리자용 액션 가이드 보강 필요                        | 84   |
+| Download          | 안전 확인 UX가 좋음. 비활성 조건 안내 개선 필요                              | 86   |
+| PC Navigation     | RBAC 필터링은 좋음. 업무 우선순위 재구성 필요                                | 78   |
+| Mobile Navigation | 하단 탭은 좋음. 더보기 메뉴 과밀                                             | 76   |
+| Flutter Mobile    | shell 구조가 명확함. Drawer 정보 구조 개선 필요                              | 80   |
 
 ## 9. 우선 개선안
 

@@ -84,7 +84,9 @@ function PushLogCard({ log }: { log: PushLogListItem }) {
             : "-"}
           {log.sourceId ? ` #${log.sourceId}` : ""}
         </p>
-        <p className="text-xs text-muted-foreground">오류: {log.errorCode ?? "-"}</p>
+        <p className="text-xs text-muted-foreground">
+          오류: {log.errorCode ?? "-"}
+        </p>
       </CardContent>
     </Card>
   );
@@ -182,8 +184,8 @@ export default function PushNotificationOperations() {
                 <h1 className={cn("mt-1", adminPage.title)}>푸시 알림 운영</h1>
                 <p className={cn("mt-1", adminPage.subtitle)}>
                   지점장 전용 화면입니다. 기기 식별 정보 원문과 고객 민감정보는
-                  표시하지 않으며, 알림 제목·본문에도 민감정보가 포함되지
-                  않아야 합니다.
+                  표시하지 않으며, 알림 제목·본문에도 민감정보가 포함되지 않아야
+                  합니다.
                 </p>
               </div>
               <Button
@@ -391,7 +393,9 @@ export default function PushNotificationOperations() {
                           title="정보를 다시 불러오지 못했습니다."
                           description="잠시 후 다시 시도해 주세요."
                           retryLabel="다시 시도"
-                          onRetry={() => utils.pushNotifications.logs.invalidate()}
+                          onRetry={() =>
+                            utils.pushNotifications.logs.invalidate()
+                          }
                           className="mx-auto max-w-md border-0 bg-transparent py-0"
                         />
                       </TableCell>

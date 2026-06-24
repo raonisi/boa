@@ -7,8 +7,7 @@ export const adminPage = {
   heroCard:
     "border-border/80 bg-gradient-to-br from-accent/40 via-card to-boa-gray/30 shadow-sm",
   elevatedCard: "crm-elevated-card",
-  eyebrow:
-    "text-xs font-semibold uppercase tracking-[0.18em] text-boa-amber",
+  eyebrow: "text-xs font-semibold uppercase tracking-[0.18em] text-boa-amber",
   title: "text-2xl font-bold text-foreground",
   subtitle: "text-sm leading-relaxed text-muted-foreground",
   sectionTitle: "text-sm font-semibold text-foreground",

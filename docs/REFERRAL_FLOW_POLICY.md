@@ -8,11 +8,11 @@ PR21-1은 **API·데이터 모델·RBAC·테스트**만 제공합니다. UI는 *
 
 ## PR20 고객 관계도와의 관계
 
-| 구분 | PR20 `customer_relationships` | PR21 `customer_referrals` |
-|------|------------------------------|---------------------------|
-| 역할 | 고객 간 관계 원본 (링크) | 소개 단계·결과·감사 상태 |
-| 필수 연결 | — | `relationshipId` → PR20 관계 ID |
-| 독립 생성 | 가능 | **불가** (relationshipId 필수) |
+| 구분      | PR20 `customer_relationships` | PR21 `customer_referrals`       |
+| --------- | ----------------------------- | ------------------------------- |
+| 역할      | 고객 간 관계 원본 (링크)      | 소개 단계·결과·감사 상태        |
+| 필수 연결 | —                             | `relationshipId` → PR20 관계 ID |
+| 독립 생성 | 가능                          | **불가** (relationshipId 필수)  |
 
 허용 관계 유형: `referral`, `friend`, `coworker`, `family_sibling`, `corporate_representative`, `corporate_employee`
 
@@ -30,13 +30,13 @@ PR21-1은 **API·데이터 모델·RBAC·테스트**만 제공합니다. UI는 *
 
 ## 권한 (서버 RBAC)
 
-| 역할 | 조회 | 생성/수정/삭제 |
-|------|------|----------------|
-| `branch_admin` | 전체 | 전체 (양쪽 고객 범위 내) |
-| `sub_branch_admin` | 산하 | 산하 |
-| `team_leader` | 팀 | 팀 |
-| `member` | 본인 담당 고객이 소개자/피소개자인 흐름 | **anchorCustomerId**가 본인 담당 고객 |
-| `inactive` / `resigned` | 차단 | 차단 |
+| 역할                    | 조회                                    | 생성/수정/삭제                        |
+| ----------------------- | --------------------------------------- | ------------------------------------- |
+| `branch_admin`          | 전체                                    | 전체 (양쪽 고객 범위 내)              |
+| `sub_branch_admin`      | 산하                                    | 산하                                  |
+| `team_leader`           | 팀                                      | 팀                                    |
+| `member`                | 본인 담당 고객이 소개자/피소개자인 흐름 | **anchorCustomerId**가 본인 담당 고객 |
+| `inactive` / `resigned` | 차단                                    | 차단                                  |
 
 ## 개인정보 / 민감정보
 
@@ -46,13 +46,13 @@ PR21-1은 **API·데이터 모델·RBAC·테스트**만 제공합니다. UI는 *
 
 ## activity log
 
-| action | 설명 |
-|--------|------|
-| `REFERRAL_CREATED` | 소개 흐름 생성 |
-| `REFERRAL_UPDATED` | 수정 |
-| `REFERRAL_STAGE_CHANGED` | 단계 변경 |
+| action                         | 설명           |
+| ------------------------------ | -------------- |
+| `REFERRAL_CREATED`             | 소개 흐름 생성 |
+| `REFERRAL_UPDATED`             | 수정           |
+| `REFERRAL_STAGE_CHANGED`       | 단계 변경      |
 | `REFERRAL_THANK_YOU_COMPLETED` | 감사 연락 완료 |
-| `REFERRAL_DELETED` | soft delete |
+| `REFERRAL_DELETED`             | soft delete    |
 
 metadata: `referralId`, `relationshipId`, `referralStage`, `referralSourceType`, `thankYouStatus`, `resultStatus` (+ 단계 변경 시 `previousStage`/`nextStage`) — **memo·고객명·전화번호 미포함**
 

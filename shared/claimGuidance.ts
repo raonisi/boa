@@ -105,5 +105,7 @@ export function assertClaimGuidanceMemoSafe(memo?: string | null) {
 }
 
 export function isClaimGuidanceOpenStatus(status: ClaimGuidanceStatus) {
-  return status !== "completed" && status !== "not_applicable" && status !== "closed";
+  return (
+    status !== "completed" && status !== "not_applicable" && status !== "closed"
+  );
 }

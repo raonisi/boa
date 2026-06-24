@@ -149,8 +149,10 @@ export async function assertReferralFlowMutable(
     referredCustomerId
   );
 
-  if (anchorCustomerId !== referrerCustomerId &&
-    anchorCustomerId !== referredCustomerId) {
+  if (
+    anchorCustomerId !== referrerCustomerId &&
+    anchorCustomerId !== referredCustomerId
+  ) {
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: "소개자 또는 피소개자 고객 기준으로만 관리할 수 있습니다.",

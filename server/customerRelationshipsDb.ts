@@ -51,10 +51,7 @@ export async function findActiveRelationshipDuplicate(
 ) {
   const db = await getDb();
   if (!db) return null;
-  const [lo, hi] = normalizeCustomerPair(
-    primaryCustomerId,
-    relatedCustomerId
-  );
+  const [lo, hi] = normalizeCustomerPair(primaryCustomerId, relatedCustomerId);
   const rows = await db
     .select()
     .from(customerRelationships)
@@ -318,7 +315,10 @@ export async function searchCustomersForRelationship(
   } else if (user.role === "team_leader") {
     const { getHierarchyScopeUserIds } = await import("./routers");
     const agentIds = await getHierarchyScopeUserIds(user);
-    rows = await getCustomers({ ...baseFilter, agentIds: agentIds ?? [user.id] });
+    rows = await getCustomers({
+      ...baseFilter,
+      agentIds: agentIds ?? [user.id],
+    });
   } else {
     rows = await getCustomers({ ...baseFilter, agentId: user.id });
   }

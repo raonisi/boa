@@ -271,7 +271,8 @@ export async function listCalendarSchedules(
         canEdit,
         canDelete,
         calendarCategory: effectiveCategory,
-        calendarCategoryLabel: SCHEDULE_CALENDAR_CATEGORY_LABELS[effectiveCategory],
+        calendarCategoryLabel:
+          SCHEDULE_CALENDAR_CATEGORY_LABELS[effectiveCategory],
       };
 
       if ((isOwnSchedule || canEdit) && schedule.memo) {

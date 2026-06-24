@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { toSafeValidationMessage, VALIDATION_FALLBACK } from "./validationMessage";
+import {
+  toSafeValidationMessage,
+  VALIDATION_FALLBACK,
+} from "./validationMessage";
 
 describe("validationMessage", () => {
   it("keeps safe korean validation messages", () => {
@@ -10,7 +13,9 @@ describe("validationMessage", () => {
   });
 
   it("maps required-like technical messages", () => {
-    expect(toSafeValidationMessage("Required")).toBe(VALIDATION_FALLBACK.required);
+    expect(toSafeValidationMessage("Required")).toBe(
+      VALIDATION_FALLBACK.required
+    );
   });
 
   it("maps format-like technical messages", () => {
@@ -31,4 +36,3 @@ describe("validationMessage", () => {
     );
   });
 });
-

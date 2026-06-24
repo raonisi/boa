@@ -13,4 +13,3 @@ describe("customerListPresetContext", () => {
     expect(context.description).toContain("추가 필터");
   });
 });
-

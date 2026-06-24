@@ -20,16 +20,16 @@ PR24는 **기존 API 응답을 프론트에서 조합**하는 UI입니다.
 
 ## 사용 데이터 출처
 
-| 영역 | 출처 |
-|------|------|
-| 고객 상태 | `customers.get` |
-| 상담기록 | `consultations.list` |
-| 후속관리 | `followUps.listByCustomer` |
-| 추천/경고 | `recommendations.customerContactReasons` |
-| 태그·우선순위·다음 액션 | 고객 관리 메타 |
-| 인수인계 | `customerHandoffNotes.listByCustomer` |
-| 해지위험/청구 안내 | `retentionRisk.listByCustomer`, `claimGuidance.listByCustomer` |
-| 연결 고객/소개 | `customerRelationships.list`, `customerReferrals.listByCustomer` |
+| 영역                    | 출처                                                             |
+| ----------------------- | ---------------------------------------------------------------- |
+| 고객 상태               | `customers.get`                                                  |
+| 상담기록                | `consultations.list`                                             |
+| 후속관리                | `followUps.listByCustomer`                                       |
+| 추천/경고               | `recommendations.customerContactReasons`                         |
+| 태그·우선순위·다음 액션 | 고객 관리 메타                                                   |
+| 인수인계                | `customerHandoffNotes.listByCustomer`                            |
+| 해지위험/청구 안내      | `retentionRisk.listByCustomer`, `claimGuidance.listByCustomer`   |
+| 연결 고객/소개          | `customerRelationships.list`, `customerReferrals.listByCustomer` |
 
 ## 정보 부족 표시 기준
 

@@ -61,7 +61,9 @@ describe("roleOperationalDashboard", () => {
   it("maps schedule and notification cards to dedicated routes", () => {
     const managerCards = getOperationalCardsForRole("team_leader");
     const schedule = managerCards.find(card => card.id === "today-schedule");
-    const notifications = managerCards.find(card => card.id === "notifications");
+    const notifications = managerCards.find(
+      card => card.id === "notifications"
+    );
     expect(resolveOperationalCardPath(schedule!.link)).toBe("/calendar");
     expect(resolveOperationalCardPath(notifications!.link)).toBe(
       "/notifications"

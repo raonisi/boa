@@ -45,8 +45,7 @@ export function RoleOperationalDashboardSection({
 }: RoleOperationalDashboardSectionProps) {
   const [, setLocation] = useLocation();
   const cards = getOperationalCardsForRole(role);
-  const isManager =
-    role === "sub_branch_admin" || role === "team_leader";
+  const isManager = role === "sub_branch_admin" || role === "team_leader";
   const showSection = role === "member" || isManager;
 
   const {
@@ -57,9 +56,13 @@ export function RoleOperationalDashboardSection({
   } = trpc.dashboard.todayWork.useQuery({}, { enabled: showSection });
 
   const { data: recommendationSummary } =
-    trpc.recommendations.dashboardSummary.useQuery({}, {
-      enabled: showSection && cards.some(card => card.id === "priority-contact"),
-    });
+    trpc.recommendations.dashboardSummary.useQuery(
+      {},
+      {
+        enabled:
+          showSection && cards.some(card => card.id === "priority-contact"),
+      }
+    );
 
   const {
     data: teamInsights,
@@ -114,8 +117,8 @@ export function RoleOperationalDashboardSection({
             title={card.title}
             value={
               card.id === "priority-contact"
-                ? recommendationSummary?.priorityContactCount ?? 0
-                : metrics[card.metricKey] ?? 0
+                ? (recommendationSummary?.priorityContactCount ?? 0)
+                : (metrics[card.metricKey] ?? 0)
             }
             icon={cardIcons[card.id] ?? Users}
             tone={card.tone}
@@ -175,8 +178,8 @@ export function RoleOperationalDashboardSection({
                       {getRoleLabel(assignee.roleLabel)}
                     </p>
                     <p className="mt-2 text-xs leading-relaxed text-foreground">
-                      미처리 후속 {assignee.overdueFollowUpCount}건 · 오늘
-                      연락 {assignee.todayFollowUpCount}건
+                      미처리 후속 {assignee.overdueFollowUpCount}건 · 오늘 연락{" "}
+                      {assignee.todayFollowUpCount}건
                     </p>
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       확인 필요 업무 {assignee.openWorkCount}건

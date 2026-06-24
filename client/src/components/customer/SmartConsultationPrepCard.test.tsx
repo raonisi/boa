@@ -50,7 +50,9 @@ describe("SmartConsultationPrepCard", () => {
   };
 
   it("renders prep card sections and customer status", () => {
-    const html = renderToStaticMarkup(<SmartConsultationPrepCard {...baseProps} />);
+    const html = renderToStaticMarkup(
+      <SmartConsultationPrepCard {...baseProps} />
+    );
     expect(html).toContain("스마트 상담 준비 카드");
     expect(html).toContain("상담 전 꼭 확인할 기준만");
     expect(html).toContain("보장불안형");
@@ -60,7 +62,9 @@ describe("SmartConsultationPrepCard", () => {
   });
 
   it("shows forbidden phrases and no pressure marketing copy", () => {
-    const html = renderToStaticMarkup(<SmartConsultationPrepCard {...baseProps} />);
+    const html = renderToStaticMarkup(
+      <SmartConsultationPrepCard {...baseProps} />
+    );
     expect(html).toContain("무조건 유지하세요");
     expect(html).not.toContain("반드시 유지");
     expect(html).not.toContain("유지율");

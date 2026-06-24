@@ -332,70 +332,70 @@ export function MobileTaskSheet({
                     </div>
                   </div>
                 ) : null}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  className="min-h-12"
-                  disabled={isTaskBusy}
-                  onClick={() => onConfirmActionChange("completeSchedule")}
-                >
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> 완료
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={() => onNavigate("/calendar")}
-                >
-                  일정 보기
-                </Button>
-                {selectedTask.customerId ? (
-                  <>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-12"
-                      onClick={() =>
-                        onNavigate(`/customers/${selectedTask.customerId}`)
-                      }
-                    >
-                      고객 보기
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="min-h-12"
-                      onClick={() =>
-                        onNavigate(
-                          buildCustomerDetailPath(
-                            selectedTask.customerId,
-                            "quick-followup"
-                          )
-                        )
-                      }
-                    >
-                      후속 등록
-                    </Button>
-                  </>
-                ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => onConfirmActionChange("completeSchedule")}
+                  >
+                    <CheckCircle2 className="mr-1 h-4 w-4" /> 완료
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
                     className="min-h-12"
-                    onClick={() => onNavigate("/customers")}
+                    onClick={() => onNavigate("/calendar")}
                   >
-                    상담기록
+                    일정 보기
                   </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={onClose}
-                >
-                  닫기
-                </Button>
-              </div>
+                  {selectedTask.customerId ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12"
+                        onClick={() =>
+                          onNavigate(`/customers/${selectedTask.customerId}`)
+                        }
+                      >
+                        고객 보기
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="min-h-12"
+                        onClick={() =>
+                          onNavigate(
+                            buildCustomerDetailPath(
+                              selectedTask.customerId,
+                              "quick-followup"
+                            )
+                          )
+                        }
+                      >
+                        후속 등록
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="min-h-12"
+                      onClick={() => onNavigate("/customers")}
+                    >
+                      상담기록
+                    </Button>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={onClose}
+                  >
+                    닫기
+                  </Button>
+                </div>
               </div>
             )}
             {selectedTask.taskType === "notification" && (
@@ -429,55 +429,57 @@ export function MobileTaskSheet({
                     </div>
                   </div>
                 ) : null}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  className="min-h-12"
-                  disabled={isTaskBusy}
-                  onClick={() => onNotificationConfirm(selectedTask)}
-                >
-                  확인
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  disabled={isTaskBusy}
-                  onClick={() => onConfirmActionChange("completeNotification")}
-                >
-                  처리완료
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={() => {
-                    if (
-                      selectedTask.relatedType === "customer" &&
-                      selectedTask.relatedId
-                    ) {
-                      onNavigate(
-                        buildCustomerDetailPath(selectedTask.relatedId)
-                      );
-                      return;
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => onNotificationConfirm(selectedTask)}
+                  >
+                    확인
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() =>
+                      onConfirmActionChange("completeNotification")
                     }
-                    onNavigate("/notifications");
-                  }}
-                >
-                  {selectedTask.relatedType === "customer" &&
-                  selectedTask.relatedId
-                    ? "고객 보기"
-                    : "알림센터"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={onClose}
-                >
-                  닫기
-                </Button>
-              </div>
+                  >
+                    처리완료
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={() => {
+                      if (
+                        selectedTask.relatedType === "customer" &&
+                        selectedTask.relatedId
+                      ) {
+                        onNavigate(
+                          buildCustomerDetailPath(selectedTask.relatedId)
+                        );
+                        return;
+                      }
+                      onNavigate("/notifications");
+                    }}
+                  >
+                    {selectedTask.relatedType === "customer" &&
+                    selectedTask.relatedId
+                      ? "고객 보기"
+                      : "알림센터"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={onClose}
+                  >
+                    닫기
+                  </Button>
+                </div>
               </div>
             )}
             {selectedTask.taskType === "customer" && (
@@ -511,45 +513,49 @@ export function MobileTaskSheet({
                     </div>
                   </div>
                 ) : null}
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  type="button"
-                  className="min-h-12"
-                  disabled={isTaskBusy}
-                  onClick={() => onConfirmActionChange("completeCustomerContact")}
-                >
-                  연락완료
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  disabled={isTaskBusy}
-                  onClick={() => onCustomerAbsent(selectedTask)}
-                >
-                  부재
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={() =>
-                    onNavigate(
-                      buildCustomerDetailPath(selectedTask.id, "consult")
-                    )
-                  }
-                >
-                  상담기록
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="min-h-12"
-                  onClick={() => onNavigate(buildCustomerDetailPath(selectedTask.id))}
-                >
-                  고객상세
-                </Button>
-              </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() =>
+                      onConfirmActionChange("completeCustomerContact")
+                    }
+                  >
+                    연락완료
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    disabled={isTaskBusy}
+                    onClick={() => onCustomerAbsent(selectedTask)}
+                  >
+                    부재
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={() =>
+                      onNavigate(
+                        buildCustomerDetailPath(selectedTask.id, "consult")
+                      )
+                    }
+                  >
+                    상담기록
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={() =>
+                      onNavigate(buildCustomerDetailPath(selectedTask.id))
+                    }
+                  >
+                    고객상세
+                  </Button>
+                </div>
               </div>
             )}
           </div>

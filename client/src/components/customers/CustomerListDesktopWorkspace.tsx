@@ -1,4 +1,8 @@
-import { StatusBadge, PriorityBadge, ExecutionBadge } from "@/components/StatusBadge";
+import {
+  StatusBadge,
+  PriorityBadge,
+  ExecutionBadge,
+} from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -183,7 +187,9 @@ export function CustomerListDesktopWorkspace({
         ) : (
           <div className="divide-y divide-border/70">
             {customers.map(customer => {
-              const recommendation = recommendationByCustomerId.get(customer.id);
+              const recommendation = recommendationByCustomerId.get(
+                customer.id
+              );
               const badges = executionBadges(customer, recommendation);
               const execution = buildListExecution(customer, recommendation);
               const actionTitle =
@@ -281,7 +287,8 @@ export function CustomerListDesktopWorkspace({
                     </p>
                     {customer.expectedPremium != null ? (
                       <p className="text-xs font-semibold tabular-nums text-muted-foreground">
-                        예상 {formatExpectedPremiumManwon(customer.expectedPremium)}
+                        예상{" "}
+                        {formatExpectedPremiumManwon(customer.expectedPremium)}
                       </p>
                     ) : null}
                   </div>
@@ -346,7 +353,9 @@ export function CustomerListDesktopWorkspace({
                       aria-label="후속 등록"
                       onClick={e => {
                         e.stopPropagation();
-                        onNavigate(`/customers/${customer.id}?action=quick-followup`);
+                        onNavigate(
+                          `/customers/${customer.id}?action=quick-followup`
+                        );
                       }}
                     >
                       <CalendarPlus className="h-4 w-4" aria-hidden="true" />
@@ -363,7 +372,8 @@ export function CustomerListDesktopWorkspace({
                     >
                       <Eye className="h-4 w-4" aria-hidden="true" />
                     </Button>
-                    {canDeactivateCustomer || isCustomerReclaimable(customer) ? (
+                    {canDeactivateCustomer ||
+                    isCustomerReclaimable(customer) ? (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
@@ -372,7 +382,10 @@ export function CustomerListDesktopWorkspace({
                             className="h-9 w-9 shrink-0"
                             aria-label="고객 작업 메뉴"
                           >
-                            <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                            <MoreHorizontal
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                            />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
@@ -384,7 +397,9 @@ export function CustomerListDesktopWorkspace({
                           </DropdownMenuItem>
                           {isCustomerReclaimable(customer) ? (
                             <DropdownMenuItem
-                              onClick={e => onOpenReclaimCustomer(customer.id, e)}
+                              onClick={e =>
+                                onOpenReclaimCustomer(customer.id, e)
+                              }
                             >
                               <Undo2 className="mr-2 h-4 w-4" /> DB 회수
                             </DropdownMenuItem>

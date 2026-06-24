@@ -3,7 +3,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -206,7 +210,9 @@ export default function PerformanceGoals() {
                   실적을 확인합니다.
                 </p>
               </div>
-              <div className={`rounded-full px-3 py-1 text-xs font-medium ${adminPage.surface}`}>
+              <div
+                className={`rounded-full px-3 py-1 text-xs font-medium ${adminPage.surface}`}
+              >
                 신규 계약 + 월납보험료 중심
               </div>
             </div>
@@ -281,7 +287,12 @@ export default function PerformanceGoals() {
           <Card className={`shadow-sm ${adminPanel.warningSoft}`}>
             <CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
               <div>
-                <Badge className={getGoalAchievementBadgeClasses({ label: "목표 없음", variant: "neutral" })}>
+                <Badge
+                  className={getGoalAchievementBadgeClasses({
+                    label: "목표 없음",
+                    variant: "neutral",
+                  })}
+                >
                   목표 없음
                 </Badge>
                 <h2 className="mt-2 text-lg font-bold text-foreground">
@@ -326,7 +337,9 @@ export default function PerformanceGoals() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <TrendingUp className="h-4 w-4 text-primary" /> 이번 달 핵심
                 목표
-                <Badge className={getGoalAchievementBadgeClasses(firstGoalStatus)}>
+                <Badge
+                  className={getGoalAchievementBadgeClasses(firstGoalStatus)}
+                >
                   {firstGoalStatus.label}
                 </Badge>
               </CardTitle>
@@ -498,7 +511,9 @@ export default function PerformanceGoals() {
                     setPersonalTargetRoleFilter("all");
                   }}
                 >
-                  <SelectTrigger className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}>
+                  <SelectTrigger
+                    className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -536,7 +551,9 @@ export default function PerformanceGoals() {
                           )
                         }
                       >
-                        <SelectTrigger className={`min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}>
+                        <SelectTrigger
+                          className={`min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
+                        >
                           <SelectValue placeholder="직책 필터" />
                         </SelectTrigger>
                         <SelectContent>
@@ -553,7 +570,9 @@ export default function PerformanceGoals() {
                     </>
                   ) : null}
                   <Select value={targetId} onValueChange={setTargetId}>
-                    <SelectTrigger className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}>
+                    <SelectTrigger
+                      className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
+                    >
                       <SelectValue placeholder="대상 선택" />
                     </SelectTrigger>
                     <SelectContent>
@@ -660,7 +679,9 @@ export default function PerformanceGoals() {
                             item.goal.targetType}
                         </p>
                       </div>
-                      <Badge className={`${getGoalAchievementBadgeClasses(status)} shrink-0`}>
+                      <Badge
+                        className={`${getGoalAchievementBadgeClasses(status)} shrink-0`}
+                      >
                         {status.label}
                       </Badge>
                     </div>
@@ -686,7 +707,9 @@ export default function PerformanceGoals() {
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className={`rounded-xl border p-3 ${adminPage.surface}`}>
+                        <div
+                          className={`rounded-xl border p-3 ${adminPage.surface}`}
+                        >
                           <p className="text-muted-foreground">
                             부족 신규 계약
                           </p>
@@ -694,14 +717,18 @@ export default function PerformanceGoals() {
                             {item.remaining.contractCount}건
                           </p>
                         </div>
-                        <div className={`rounded-xl border p-3 ${adminPage.surface}`}>
+                        <div
+                          className={`rounded-xl border p-3 ${adminPage.surface}`}
+                        >
                           <p className="text-muted-foreground">남은 기간</p>
                           <p className="mt-1 font-semibold text-foreground">
                             {item.remainingDays}일
                           </p>
                         </div>
                       </div>
-                      <div className={`rounded-xl border p-3 text-xs ${adminPage.surface}`}>
+                      <div
+                        className={`rounded-xl border p-3 text-xs ${adminPage.surface}`}
+                      >
                         <p className="text-muted-foreground">부족 월납보험료</p>
                         <p className="mt-1 font-semibold text-foreground">
                           {formatWon(item.remaining.monthlyPremium)}
@@ -757,7 +784,11 @@ export default function PerformanceGoals() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-1">
                           <span>{item.targetLabel}</span>
-                          <Badge className={getGoalAchievementBadgeClasses(getGoalAchievementStatus(item))}>
+                          <Badge
+                            className={getGoalAchievementBadgeClasses(
+                              getGoalAchievementStatus(item)
+                            )}
+                          >
                             {getGoalAchievementStatus(item).label}
                           </Badge>
                         </div>

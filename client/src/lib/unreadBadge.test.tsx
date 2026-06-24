@@ -29,7 +29,9 @@ describe("unreadBadge", () => {
     expect(getUnreadBadgeAriaLabel({ count: 0 })).toContain("없음");
     expect(getUnreadBadgeAriaLabel({ count: 3 })).toBe("읽지 않은 알림 3건");
     expect(getUnreadBadgeAriaLabel({ count: 120 })).toContain("99건 이상");
-    expect(getUnreadBadgeAriaLabel({ isLoading: true })).toContain("불러오는 중");
+    expect(getUnreadBadgeAriaLabel({ isLoading: true })).toContain(
+      "불러오는 중"
+    );
     expect(getUnreadBadgeAriaLabel({ isError: true })).toContain(
       "불러오지 못했습니다"
     );

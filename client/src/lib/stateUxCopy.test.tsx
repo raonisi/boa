@@ -29,7 +29,9 @@ describe("stateUxCopy", () => {
 
   it("provides scoped load error titles", () => {
     expect(getLoadErrorCopy().title).toBe(ERROR_UX.loadTitle);
-    expect(getLoadErrorCopy("알림").title).toBe("알림을(를) 불러오지 못했습니다.");
+    expect(getLoadErrorCopy("알림").title).toBe(
+      "알림을(를) 불러오지 못했습니다."
+    );
   });
 
   it("keeps sensitive access copy separate from forbidden copy", () => {

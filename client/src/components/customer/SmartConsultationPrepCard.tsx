@@ -32,7 +32,9 @@ export type SmartConsultationPrepCardProps = SmartConsultationPrepInput & {
   onOpenReferrals?: () => void;
 };
 
-export function SmartConsultationPrepCard(props: SmartConsultationPrepCardProps) {
+export function SmartConsultationPrepCard(
+  props: SmartConsultationPrepCardProps
+) {
   const {
     isMobile,
     onConsultRecord,
@@ -100,7 +102,9 @@ export function SmartConsultationPrepCard(props: SmartConsultationPrepCardProps)
         {(!isMobile || expanded) && (
           <div className="space-y-4">
             <section className="space-y-2">
-              <p className="text-xs font-semibold text-slate-500">1. 고객 현재 상태</p>
+              <p className="text-xs font-semibold text-slate-500">
+                1. 고객 현재 상태
+              </p>
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {[
                   { label: "상담상태", value: view.consultStatus },

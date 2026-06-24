@@ -351,7 +351,9 @@ export const retentionRiskRouter = router({
       await assertRetentionRiskCaseAccessible(ctx.user, existing);
       await assertRetentionRiskMutable(ctx.user, existing.customerId);
 
-      const mappedStatus = mapResolutionToRetentionStatus(input.resolutionResult);
+      const mappedStatus = mapResolutionToRetentionStatus(
+        input.resolutionResult
+      );
       const updated = await updateRetentionRiskCase(input.id, {
         resolutionResult: input.resolutionResult,
         resolvedAt: new Date(),

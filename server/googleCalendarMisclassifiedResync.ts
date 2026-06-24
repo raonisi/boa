@@ -121,23 +121,14 @@ export type DuplicateAuditDryRunSummary = {
 function integrationReady(
   integration?: Awaited<ReturnType<typeof getGoogleCalendarIntegrationByType>>
 ) {
-  return Boolean(
-    integration?.isActive && integration.googleCalendarId?.trim()
-  );
+  return Boolean(integration?.isActive && integration.googleCalendarId?.trim());
 }
 
 function getScheduleTypesForFilter(
   filters?: EventTypeFilterKey[]
 ): Array<Schedule["type"]> {
   if (!filters?.length) {
-    return [
-      "고객상담",
-      "재통화",
-      "계약예정",
-      "보장분석",
-      "해지방어",
-      "외근",
-    ];
+    return ["고객상담", "재통화", "계약예정", "보장분석", "해지방어", "외근"];
   }
   const types = new Set<Schedule["type"]>();
   for (const filter of filters) {
@@ -194,9 +185,12 @@ async function logResyncActivity(
 async function getAccessTokenOrThrow(): Promise<string> {
   const credential = await getGoogleCalendarOauthCredential();
   if (!credential?.refreshTokenEnc) {
-    throw Object.assign(new Error("Google Calendar OAuth가 연결되지 않았습니다."), {
-      code: "OAUTH_NOT_CONNECTED",
-    });
+    throw Object.assign(
+      new Error("Google Calendar OAuth가 연결되지 않았습니다."),
+      {
+        code: "OAUTH_NOT_CONNECTED",
+      }
+    );
   }
   const refreshToken = decryptRefreshToken(credential.refreshTokenEnc);
   const token = await exchangeGoogleRefreshToken(refreshToken);
@@ -219,13 +213,12 @@ async function loadCandidateRows(
   });
 
   return rows.filter(row => {
-    if (!isConsultationScheduleCandidate(row.schedule, params.eventTypeFilter)) {
+    if (
+      !isConsultationScheduleCandidate(row.schedule, params.eventTypeFilter)
+    ) {
       return false;
     }
-    return isMisclassifiedAsBranchCommon(
-      row.schedule,
-      row.sync?.calendarType
-    );
+    return isMisclassifiedAsBranchCommon(row.schedule, row.sync?.calendarType);
   });
 }
 
@@ -281,17 +274,23 @@ function summarizeDryRunCandidates(
   "executeToken" | "expiresAt" | "candidates"
 > {
   const withGoogleEventId = previews.filter(
-    c => c.plannedAction === "move" || c.plannedAction === "recreate" || c.plannedAction === "needs_manual_review"
+    c =>
+      c.plannedAction === "move" ||
+      c.plannedAction === "recreate" ||
+      c.plannedAction === "needs_manual_review"
   ).length;
   const withoutGoogleEventId = previews.filter(
     c => c.plannedAction === "insert"
   ).length;
-  const movableCandidates = previews.filter(c => c.plannedAction === "move").length;
+  const movableCandidates = previews.filter(
+    c => c.plannedAction === "move"
+  ).length;
   const recreateRequiredCandidates = previews.filter(
     c => c.plannedAction === "recreate"
   ).length;
   const missingConsultationCalendarCount = targetReady
-    ? previews.filter(c => c.plannedAction === "skipped_missing_calendar").length
+    ? previews.filter(c => c.plannedAction === "skipped_missing_calendar")
+        .length
     : previews.length;
   const needsManualReviewCount = previews.filter(
     c => c.plannedAction === "needs_manual_review" || c.duplicateRisk
@@ -373,7 +372,7 @@ export async function runDuplicateAuditDryRun(
   params: MisclassifiedResyncParams
 ): Promise<DuplicateAuditDryRunSummary> {
   const rows = await loadCandidateRows(params);
-  
+
   let totalChecked = rows.length;
   let activeInBranchCommon = 0;
   let activeInConsultationFollowup = 0;
@@ -387,15 +386,21 @@ export async function runDuplicateAuditDryRun(
       missingConsultationEvent++;
       continue;
     }
-    
+
     if (sync.calendarType === "branch_common" && sync.syncStatus === "synced") {
       activeInBranchCommon++;
       if (row.schedule.calendarCategory === "consultation_followup") {
         staleBranchCommonEvent++;
       }
-    } else if (sync.calendarType === "consultation_followup" && sync.syncStatus === "synced") {
+    } else if (
+      sync.calendarType === "consultation_followup" &&
+      sync.syncStatus === "synced"
+    ) {
       activeInConsultationFollowup++;
-    } else if (sync.syncStatus === "failed" || sync.lastErrorCode === "needs_manual_review") {
+    } else if (
+      sync.syncStatus === "failed" ||
+      sync.lastErrorCode === "needs_manual_review"
+    ) {
       needsManualReview++;
     }
   }
@@ -483,7 +488,8 @@ async function resyncOneSchedule(
         boaEventId,
         previousCalendarCategory: schedule.calendarCategory,
         nextCalendarCategory: params.toCalendarType,
-        previousGoogleCalendarType: sync?.calendarType ?? params.fromCalendarType,
+        previousGoogleCalendarType:
+          sync?.calendarType ?? params.fromCalendarType,
         nextGoogleCalendarType: params.toCalendarType,
         result: "needs_manual_review",
         duplicateRisk: true,
@@ -587,13 +593,17 @@ async function resyncOneSchedule(
           ownerUserId: updatedSchedule.userId,
           updatedBy: actorId,
         });
-        await logResyncActivity(actorId, "GOOGLE_CALENDAR_EVENT_RESYNC_FAILED", {
-          boaEventId,
-          result: "resync_failed",
-          syncStatus: "failed",
-          safeErrorCode: code,
+        await logResyncActivity(
           actorId,
-        });
+          "GOOGLE_CALENDAR_EVENT_RESYNC_FAILED",
+          {
+            boaEventId,
+            result: "resync_failed",
+            syncStatus: "failed",
+            safeErrorCode: code,
+            actorId,
+          }
+        );
         return {
           boaEventId,
           result: "resync_failed",
@@ -640,7 +650,11 @@ async function resyncOneSchedule(
       return { boaEventId, result: "resync_moved", syncStatus: "synced" };
     } catch {
       try {
-        await client.deleteEvent(accessToken, sourceCalendarId, existingEventId);
+        await client.deleteEvent(
+          accessToken,
+          sourceCalendarId,
+          existingEventId
+        );
       } catch {
         await logResyncActivity(
           actorId,
@@ -709,13 +723,17 @@ async function resyncOneSchedule(
           ownerUserId: updatedSchedule.userId,
           updatedBy: actorId,
         });
-        await logResyncActivity(actorId, "GOOGLE_CALENDAR_EVENT_RESYNC_FAILED", {
-          boaEventId,
-          result: "resync_failed",
-          syncStatus: "failed",
-          safeErrorCode: code,
+        await logResyncActivity(
           actorId,
-        });
+          "GOOGLE_CALENDAR_EVENT_RESYNC_FAILED",
+          {
+            boaEventId,
+            result: "resync_failed",
+            syncStatus: "failed",
+            safeErrorCode: code,
+            actorId,
+          }
+        );
         return {
           boaEventId,
           result: "resync_failed",
@@ -837,9 +855,12 @@ export async function runMisclassifiedResyncExecute(
     );
   }
   if (run.actorId !== actorId) {
-    throw Object.assign(new Error("dry-run을 실행한 사용자만 재동기화할 수 있습니다."), {
-      code: "FORBIDDEN",
-    });
+    throw Object.assign(
+      new Error("dry-run을 실행한 사용자만 재동기화할 수 있습니다."),
+      {
+        code: "FORBIDDEN",
+      }
+    );
   }
   if (run.expiresAt.getTime() < Date.now()) {
     await updateMisclassifiedResyncRun(run.id, { status: "expired" });
@@ -867,7 +888,9 @@ export async function runMisclassifiedResyncExecute(
   }
 
   const movedCount = results.filter(r => r.result === "resync_moved").length;
-  const recreatedCount = results.filter(r => r.result === "resync_recreated").length;
+  const recreatedCount = results.filter(
+    r => r.result === "resync_recreated"
+  ).length;
   const failedCount = results.filter(r => r.result === "resync_failed").length;
   const manualReviewCount = results.filter(
     r => r.result === "needs_manual_review"

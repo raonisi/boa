@@ -28,7 +28,11 @@ import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
 import {
   Bell,
   BellOff,
@@ -310,10 +314,7 @@ export default function Notifications() {
       setBulkCompleteConfirmation(null);
     } catch (error) {
       toast.error(
-        getUserFacingErrorMessage(
-          error,
-          "선택 알림 처리완료에 실패했습니다."
-        )
+        getUserFacingErrorMessage(error, "선택 알림 처리완료에 실패했습니다.")
       );
     } finally {
       setBulkAction(null);
@@ -853,11 +854,14 @@ export default function Notifications() {
                 processStatusColors["미확인"];
               const priority = classifyNotificationPriority(n);
               const primaryAction = getNotificationPrimaryRoute(n);
-              const canOpenCustomer = n.relatedType === "customer" && n.relatedId;
+              const canOpenCustomer =
+                n.relatedType === "customer" && n.relatedId;
               const showScheduleQuickAction = hasScheduleContext(n);
               const shouldShowPrimaryAction =
                 primaryAction.path !== "/notifications" &&
-                !(showScheduleQuickAction && primaryAction.path === "/calendar");
+                !(
+                  showScheduleQuickAction && primaryAction.path === "/calendar"
+                );
               const isSelected = selectedNotificationIds.includes(n.id);
               return (
                 <Card
@@ -997,7 +1001,9 @@ export default function Notifications() {
                             size="sm"
                             variant="outline"
                             className="min-h-10 px-2 text-xs"
-                            onClick={() => setLocation(`/customers/${n.relatedId}`)}
+                            onClick={() =>
+                              setLocation(`/customers/${n.relatedId}`)
+                            }
                           >
                             고객 보기
                           </Button>
@@ -1108,8 +1114,8 @@ export default function Notifications() {
             </DialogDescription>
           </DialogHeader>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
-            읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 알림 노출
-            정책은 변경하지 않습니다.
+            읽음 처리는 확인 상태만 변경하며, 처리완료 상태나 알림 노출 정책은
+            변경하지 않습니다.
           </div>
           <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
             <Button

@@ -105,16 +105,12 @@ const severityKeys: Record<string, StatusVariant> = {
   danger: "danger",
 };
 
-export function getSeverityVariant(
-  severity?: string | null
-): StatusVariant {
+export function getSeverityVariant(severity?: string | null): StatusVariant {
   if (!severity) return "neutral";
   return severityKeys[severity.toLowerCase()] ?? "neutral";
 }
 
-export function getSeveritySurfaceClasses(
-  severity?: string | null
-): string {
+export function getSeveritySurfaceClasses(severity?: string | null): string {
   return getStatusSurfaceClasses(getSeverityVariant(severity));
 }
 
@@ -220,11 +216,12 @@ export function getStatusLabel(status: string | null | undefined): string {
   return isRawEnglishEnum(status) ? "기타 상태" : status;
 }
 
-export function getStatusVariant(status: string | null | undefined): StatusVariant {
+export function getStatusVariant(
+  status: string | null | undefined
+): StatusVariant {
   if (!status) return "neutral";
   const variant =
-    statusVariantByKey[status] ??
-    statusVariantByKey[getStatusLabel(status)];
+    statusVariantByKey[status] ?? statusVariantByKey[getStatusLabel(status)];
   return variant ?? "neutral";
 }
 
@@ -244,7 +241,8 @@ export function getPriorityLabel(priority?: string | null): string {
 }
 
 export function getPriorityVariant(priority?: string | null): StatusVariant {
-  const key = priority && priority !== "unclassified" ? priority : "unclassified";
+  const key =
+    priority && priority !== "unclassified" ? priority : "unclassified";
   return priorityVariantByKey[key] ?? "neutral";
 }
 
@@ -262,7 +260,9 @@ export function getCoachingPriorityPresentation(
 ): StatusPresentation {
   if (!priority) return { label: "보통", variant: "info" };
   const normalized = priority.toLowerCase();
-  const label = statusLabels[normalized] ?? (isRawEnglishEnum(priority) ? "보통" : priority);
+  const label =
+    statusLabels[normalized] ??
+    (isRawEnglishEnum(priority) ? "보통" : priority);
   const variant = statusVariantByKey[normalized] ?? "info";
   return { label, variant };
 }

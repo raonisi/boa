@@ -62,8 +62,11 @@ function sanitizeGoogleError(error: unknown): {
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
     const reason =
-      (error.response?.data as { error?: { status?: string; message?: string } })
-        ?.error?.status ??
+      (
+        error.response?.data as {
+          error?: { status?: string; message?: string };
+        }
+      )?.error?.status ??
       (error.response?.data as { error?: string })?.error ??
       "google_api_error";
     return {
@@ -105,7 +108,8 @@ class AxiosGoogleCalendarApiClient implements GoogleCalendarApiClient {
     accessToken: string,
     input: GoogleCalendarEventInput
   ): Promise<GoogleCalendarEventResult> {
-    const end = input.endTime ?? new Date(input.startTime.getTime() + 60 * 60 * 1000);
+    const end =
+      input.endTime ?? new Date(input.startTime.getTime() + 60 * 60 * 1000);
     try {
       const { data } = await axios.post<{ id?: string }>(
         `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(input.calendarId)}/events`,
@@ -142,7 +146,8 @@ class AxiosGoogleCalendarApiClient implements GoogleCalendarApiClient {
     eventId: string,
     input: GoogleCalendarEventInput
   ): Promise<GoogleCalendarEventResult> {
-    const end = input.endTime ?? new Date(input.startTime.getTime() + 60 * 60 * 1000);
+    const end =
+      input.endTime ?? new Date(input.startTime.getTime() + 60 * 60 * 1000);
     try {
       const { data } = await axios.patch<{ id?: string }>(
         `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,

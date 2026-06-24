@@ -49,7 +49,9 @@ export default function ScheduleCustomerLinkPicker({
     if (!value) return null;
     const fromSelected = pickerQuery.data?.selectedCustomer;
     if (fromSelected?.id === value) return fromSelected;
-    return pickerQuery.data?.items.find(item => item.id === value) ?? fromSelected;
+    return (
+      pickerQuery.data?.items.find(item => item.id === value) ?? fromSelected
+    );
   }, [pickerQuery.data, value]);
 
   const resultItems = useMemo(() => {
@@ -74,7 +76,9 @@ export default function ScheduleCustomerLinkPicker({
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-sm font-medium">{selectedCustomer.name}</p>
+              <p className="truncate text-sm font-medium">
+                {selectedCustomer.name}
+              </p>
               <Badge variant="secondary" className="text-[10px]">
                 {selectedCustomer.statusLabel}
               </Badge>
@@ -168,7 +172,9 @@ export default function ScheduleCustomerLinkPicker({
                 </div>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {item.maskedPhone ?? "연락처 없음"}
-                  {item.assignedUserName ? ` · 담당 ${item.assignedUserName}` : ""}
+                  {item.assignedUserName
+                    ? ` · 담당 ${item.assignedUserName}`
+                    : ""}
                 </p>
               </button>
             ))

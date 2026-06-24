@@ -274,7 +274,9 @@ export function TodayWorkExecutionQueue({
   );
 }
 
-export function toDashboardMobileTask(item: TodayWorkItem): DashboardMobileTask {
+export function toDashboardMobileTask(
+  item: TodayWorkItem
+): DashboardMobileTask {
   return {
     ...item.source,
     id: item.id,

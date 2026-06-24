@@ -12,7 +12,10 @@ export type CustomerLookupEntry = {
 export function useCustomerLookup(customerIds: number[]) {
   const utils = trpc.useUtils();
   const stableKey = useMemo(
-    () => Array.from(new Set(customerIds)).sort((a, b) => a - b).join(","),
+    () =>
+      Array.from(new Set(customerIds))
+        .sort((a, b) => a - b)
+        .join(","),
     [customerIds]
   );
   const [lookup, setLookup] = useState<Record<number, CustomerLookupEntry>>({});

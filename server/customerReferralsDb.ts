@@ -105,7 +105,9 @@ function buildListConditions(
     conditions.push(eq(customerReferrals.resultStatus, filter.resultStatus));
   }
   if (filter.thankYouStatus) {
-    conditions.push(eq(customerReferrals.thankYouStatus, filter.thankYouStatus));
+    conditions.push(
+      eq(customerReferrals.thankYouStatus, filter.thankYouStatus)
+    );
   }
   return conditions;
 }
@@ -133,7 +135,9 @@ export async function findActiveReferralDuplicate(
         )
       )
     );
-  return rows.find(row => row.id !== excludeId && isActiveReferral(row)) ?? null;
+  return (
+    rows.find(row => row.id !== excludeId && isActiveReferral(row)) ?? null
+  );
 }
 
 export async function getCustomerReferralById(id: number) {
@@ -222,11 +226,17 @@ export async function updateCustomerReferral(
 ) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-  await db.update(customerReferrals).set(data).where(eq(customerReferrals.id, id));
+  await db
+    .update(customerReferrals)
+    .set(data)
+    .where(eq(customerReferrals.id, id));
   return getCustomerReferralById(id);
 }
 
-export async function softDeleteCustomerReferral(id: number, updatedBy: number) {
+export async function softDeleteCustomerReferral(
+  id: number,
+  updatedBy: number
+) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   await db
@@ -297,10 +307,5 @@ export async function searchCustomersForReferral(
   const { searchCustomersForRelationship } = await import(
     "./customerRelationshipsDb"
   );
-  return searchCustomersForRelationship(
-    user,
-    search,
-    limit,
-    excludeCustomerId
-  );
+  return searchCustomersForRelationship(user, search, limit, excludeCustomerId);
 }

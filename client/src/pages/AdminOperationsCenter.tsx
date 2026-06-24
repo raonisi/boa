@@ -15,10 +15,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import {
-  EmptyState,
-  ErrorState,
-} from "@/components/ui/empty-state";
+import { EmptyState, ErrorState } from "@/components/ui/empty-state";
 import {
   adminPage,
   adminPanel,
@@ -360,7 +357,12 @@ export default function AdminOperationsCenter() {
                   <span className={adminPage.iconWrapSolid}>
                     <LayoutDashboard className="h-5 w-5" />
                   </span>
-                  <h1 className={cn(adminPage.title, "tracking-tight text-boa-navy")}>
+                  <h1
+                    className={cn(
+                      adminPage.title,
+                      "tracking-tight text-boa-navy"
+                    )}
+                  >
                     {PAGE_TITLE}
                   </h1>
                 </div>
@@ -403,9 +405,7 @@ export default function AdminOperationsCenter() {
         <section className="space-y-3">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-boa-navy" />
-            <h2 className={adminPage.sectionTitle}>
-              오늘 확인 필요
-            </h2>
+            <h2 className={adminPage.sectionTitle}>오늘 확인 필요</h2>
           </div>
 
           {summaryError ? (

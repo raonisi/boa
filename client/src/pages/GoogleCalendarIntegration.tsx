@@ -28,7 +28,10 @@ import { trpc } from "@/lib/trpc";
 import { getSafeBlockedMessage } from "@/lib/stateUxCopy";
 import { CalendarDays, Link2, RefreshCw, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 const calendarTypeLabels: Record<string, string> = {
@@ -57,21 +60,26 @@ export default function GoogleCalendarIntegration() {
     { enabled: false }
   );
 
-  const upsertMutation = trpc.googleCalendar.upsertCalendarIntegration.useMutation({
-    onSuccess: async () => {
-      toast.success("캘린더 설정이 저장되었습니다.");
-      await utils.googleCalendar.getSettings.invalidate();
-    },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
-  });
+  const upsertMutation =
+    trpc.googleCalendar.upsertCalendarIntegration.useMutation({
+      onSuccess: async () => {
+        toast.success("캘린더 설정이 저장되었습니다.");
+        await utils.googleCalendar.getSettings.invalidate();
+      },
+      onError: e =>
+        toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    });
   const testMutation = trpc.googleCalendar.testCalendarAccess.useMutation({
     onSuccess: async result => {
       toast[result.ok ? "success" : "error"](
-        result.ok ? "캘린더 연결 테스트에 성공했습니다." : result.errorMessageSafe
+        result.ok
+          ? "캘린더 연결 테스트에 성공했습니다."
+          : result.errorMessageSafe
       );
       await utils.googleCalendar.getSettings.invalidate();
     },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: e =>
+      toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const retryMutation = trpc.googleCalendar.retryFailedSync.useMutation({
     onSuccess: async result => {
@@ -83,14 +91,16 @@ export default function GoogleCalendarIntegration() {
         utils.googleCalendar.listFailedSyncs.invalidate(),
       ]);
     },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: e =>
+      toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const syncPolicyMutation = trpc.googleCalendar.updateSyncPolicy.useMutation({
     onSuccess: async () => {
       toast.success("Google Calendar 동기화 정책이 저장되었습니다.");
       await utils.googleCalendar.getSettings.invalidate();
     },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: e =>
+      toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const contactPolicyMutation =
     trpc.googleCalendar.updateContactPolicy.useMutation({
@@ -98,7 +108,8 @@ export default function GoogleCalendarIntegration() {
         toast.success("연락처 표시 정책이 저장되었습니다.");
         await utils.googleCalendar.getSettings.invalidate();
       },
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      onError: e =>
+        toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
   const personalSettingsMutation =
     trpc.googleCalendar.upsertPersonalSettings.useMutation({
@@ -106,29 +117,37 @@ export default function GoogleCalendarIntegration() {
         toast.success("개인 캘린더 설정이 저장되었습니다.");
         await utils.googleCalendar.getSettings.invalidate();
       },
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      onError: e =>
+        toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
 
   const resyncDryRunMutation =
-    trpc.googleCalendar.resyncMisclassifiedConsultationEventsDryRun.useMutation({
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
-    });
+    trpc.googleCalendar.resyncMisclassifiedConsultationEventsDryRun.useMutation(
+      {
+        onError: e =>
+          toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      }
+    );
   const resyncExecuteMutation =
-    trpc.googleCalendar.resyncMisclassifiedConsultationEventsExecute.useMutation({
-      onSuccess: async result => {
-        toast.success(
-          `재동기화 완료: 이동 ${result.movedCount}건, 재생성 ${result.recreatedCount}건`
-        );
-        await Promise.all([
-          utils.googleCalendar.listSyncStatus.invalidate(),
-          utils.googleCalendar.getResyncHistory.invalidate(),
-        ]);
-      },
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
-    });
+    trpc.googleCalendar.resyncMisclassifiedConsultationEventsExecute.useMutation(
+      {
+        onSuccess: async result => {
+          toast.success(
+            `재동기화 완료: 이동 ${result.movedCount}건, 재생성 ${result.recreatedCount}건`
+          );
+          await Promise.all([
+            utils.googleCalendar.listSyncStatus.invalidate(),
+            utils.googleCalendar.getResyncHistory.invalidate(),
+          ]);
+        },
+        onError: e =>
+          toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      }
+    );
   const duplicateAuditDryRunMutation =
     trpc.googleCalendar.duplicateAuditDryRun.useMutation({
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      onError: e =>
+        toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
 
   const [forms, setForms] = useState<Record<string, string>>({});
@@ -141,12 +160,10 @@ export default function GoogleCalendarIntegration() {
   const [contactDisplayConsent, setContactDisplayConsent] = useState(false);
   const [resyncConfirmation, setResyncConfirmation] = useState("");
   const [dryRunResult, setDryRunResult] = useState<
-    | (typeof resyncDryRunMutation)["data"]
-    | null
+    (typeof resyncDryRunMutation)["data"] | null
   >(null);
   const [auditResult, setAuditResult] = useState<
-    | (typeof duplicateAuditDryRunMutation)["data"]
-    | null
+    (typeof duplicateAuditDryRunMutation)["data"] | null
   >(null);
 
   const previewQuery = trpc.googleCalendar.previewSafeEventPayload.useQuery(
@@ -192,10 +209,10 @@ export default function GoogleCalendarIntegration() {
     );
   }
 
-  const resyncHistoryEnabledQuery = trpc.googleCalendar.getResyncHistory.useQuery(
-    undefined,
-    { enabled: canManage }
-  );
+  const resyncHistoryEnabledQuery =
+    trpc.googleCalendar.getResyncHistory.useQuery(undefined, {
+      enabled: canManage,
+    });
 
   const integrationMap = useMemo(() => {
     const integrations = settingsQuery.data?.integrations ?? [];
@@ -263,7 +280,13 @@ export default function GoogleCalendarIntegration() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex items-center gap-2">
                   <span>OAuth 연결</span>
-                  <Badge variant={settingsQuery.data?.oauthConnected ? "default" : "secondary"}>
+                  <Badge
+                    variant={
+                      settingsQuery.data?.oauthConnected
+                        ? "default"
+                        : "secondary"
+                    }
+                  >
                     {settingsQuery.data?.oauthConnected ? "연결됨" : "미연결"}
                   </Badge>
                 </div>
@@ -317,7 +340,10 @@ export default function GoogleCalendarIntegration() {
                       },
                     ] as const
                   ).map(item => (
-                    <div key={item.key} className="space-y-2 border-b pb-4 last:border-0">
+                    <div
+                      key={item.key}
+                      className="space-y-2 border-b pb-4 last:border-0"
+                    >
                       <div className="flex items-center gap-3">
                         <Switch
                           checked={settingsQuery.data?.[item.key] ?? false}
@@ -328,7 +354,9 @@ export default function GoogleCalendarIntegration() {
                         />
                         <span className="font-medium">{item.label}</span>
                       </div>
-                      <p className="text-muted-foreground pl-11">{item.description}</p>
+                      <p className="text-muted-foreground pl-11">
+                        {item.description}
+                      </p>
                     </div>
                   ))}
                 </CardContent>
@@ -344,16 +372,16 @@ export default function GoogleCalendarIntegration() {
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
                   <p className="text-muted-foreground">
-                    원문 동기화 정책이 꺼져 있을 때, 상담·후속관리 일정의 등록자 또는
-                    담당자 개인 Google Calendar 설명란에만 고객 연락처를 조건부로
-                    표시합니다. 원문 동기화 정책을 사용하는 경우 이 설정은 적용되지
-                    않습니다.
+                    원문 동기화 정책이 꺼져 있을 때, 상담·후속관리 일정의 등록자
+                    또는 담당자 개인 Google Calendar 설명란에만 고객 연락처를
+                    조건부로 표시합니다. 원문 동기화 정책을 사용하는 경우 이
+                    설정은 적용되지 않습니다.
                   </p>
                   <div className="flex items-center gap-3">
                     <Switch
                       checked={
-                        settingsQuery.data?.includeCustomerContactForActorCalendar ??
-                        false
+                        settingsQuery.data
+                          ?.includeCustomerContactForActorCalendar ?? false
                       }
                       onCheckedChange={checked =>
                         contactPolicyMutation.mutate({
@@ -370,7 +398,9 @@ export default function GoogleCalendarIntegration() {
 
             <Card className={adminPage.card}>
               <CardHeader>
-                <CardTitle className="text-lg">내 개인 Google Calendar 설정</CardTitle>
+                <CardTitle className="text-lg">
+                  내 개인 Google Calendar 설정
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -379,8 +409,8 @@ export default function GoogleCalendarIntegration() {
                     id="personal-calendar-id"
                     placeholder="primary 또는 example@gmail.com"
                     defaultValue={
-                      settingsQuery.data?.personalSettings.personalCalendarIdMasked ??
-                      ""
+                      settingsQuery.data?.personalSettings
+                        .personalCalendarIdMasked ?? ""
                     }
                     onChange={e => setPersonalCalendarId(e.target.value)}
                   />
@@ -393,7 +423,9 @@ export default function GoogleCalendarIntegration() {
                     }
                     onCheckedChange={setContactDisplayConsent}
                   />
-                  <span className="text-sm">개인 캘린더 설명란 연락처 표시 동의</span>
+                  <span className="text-sm">
+                    개인 캘린더 설명란 연락처 표시 동의
+                  </span>
                 </div>
                 <Button
                   variant="outline"
@@ -430,7 +462,10 @@ export default function GoogleCalendarIntegration() {
                           placeholder="example@group.calendar.google.com"
                           defaultValue={row?.googleCalendarIdMasked ?? ""}
                           onChange={e =>
-                            setForms(prev => ({ ...prev, [type]: e.target.value }))
+                            setForms(prev => ({
+                              ...prev,
+                              [type]: e.target.value,
+                            }))
                           }
                         />
                       </div>
@@ -519,9 +554,15 @@ export default function GoogleCalendarIntegration() {
                         </TableCell>
                         <TableCell>{row.boaEventType}</TableCell>
                         <TableCell>{row.boaEventId}</TableCell>
-                        <TableCell>{calendarTypeLabels[row.calendarType]}</TableCell>
-                        <TableCell>{syncStatusLabels[row.syncStatus] ?? row.syncStatus}</TableCell>
-                        <TableCell>{row.contactIncluded ? "포함" : "미포함"}</TableCell>
+                        <TableCell>
+                          {calendarTypeLabels[row.calendarType]}
+                        </TableCell>
+                        <TableCell>
+                          {syncStatusLabels[row.syncStatus] ?? row.syncStatus}
+                        </TableCell>
+                        <TableCell>
+                          {row.contactIncluded ? "포함" : "미포함"}
+                        </TableCell>
                         <TableCell>
                           {row.lastSyncedAt
                             ? new Date(row.lastSyncedAt).toLocaleString("ko-KR")
@@ -565,7 +606,9 @@ export default function GoogleCalendarIntegration() {
                           <TableCell>
                             {row.boaEventType} #{row.boaEventId}
                           </TableCell>
-                          <TableCell>{row.lastErrorMessageSafe ?? "-"}</TableCell>
+                          <TableCell>
+                            {row.lastErrorMessageSafe ?? "-"}
+                          </TableCell>
                           <TableCell>{row.retryCount}</TableCell>
                           <TableCell>
                             <Button
@@ -619,7 +662,9 @@ export default function GoogleCalendarIntegration() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="shared_calendar">공유 캘린더</SelectItem>
+                      <SelectItem value="shared_calendar">
+                        공유 캘린더
+                      </SelectItem>
                       <SelectItem value="actor_personal_calendar">
                         등록자·담당자 개인 캘린더
                       </SelectItem>
@@ -666,7 +711,9 @@ export default function GoogleCalendarIntegration() {
             <TabsContent value="resync" className="space-y-4">
               <Card className={adminPage.card}>
                 <CardHeader>
-                  <CardTitle className="text-lg">오분류 일정 재동기화</CardTitle>
+                  <CardTitle className="text-lg">
+                    오분류 일정 재동기화
+                  </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4 text-sm">
                   <p className="text-muted-foreground">
@@ -684,8 +731,9 @@ export default function GoogleCalendarIntegration() {
                       variant="outline"
                       disabled={resyncDryRunMutation.isPending}
                       onClick={async () => {
-                        const result =
-                          await resyncDryRunMutation.mutateAsync({});
+                        const result = await resyncDryRunMutation.mutateAsync(
+                          {}
+                        );
                         setDryRunResult(result);
                         toast.success("대상 확인이 완료되었습니다.");
                       }}
@@ -697,17 +745,27 @@ export default function GoogleCalendarIntegration() {
                   {dryRunResult ? (
                     <div className="grid gap-2 rounded-md border p-4 md:grid-cols-2">
                       <p>대상 일정 수: {dryRunResult.totalCandidates}</p>
-                      <p>Google eventId 있음: {dryRunResult.withGoogleEventId}</p>
-                      <p>Google eventId 없음: {dryRunResult.withoutGoogleEventId}</p>
+                      <p>
+                        Google eventId 있음: {dryRunResult.withGoogleEventId}
+                      </p>
+                      <p>
+                        Google eventId 없음: {dryRunResult.withoutGoogleEventId}
+                      </p>
                       <p>이동 가능 예상: {dryRunResult.movableCandidates}</p>
-                      <p>재생성 필요 예상: {dryRunResult.recreateRequiredCandidates}</p>
+                      <p>
+                        재생성 필요 예상:{" "}
+                        {dryRunResult.recreateRequiredCandidates}
+                      </p>
                       <p>
                         상담 캘린더 미등록:{" "}
                         {dryRunResult.missingConsultationCalendarCount}
                       </p>
-                      <p>수동 확인 필요: {dryRunResult.needsManualReviewCount}</p>
+                      <p>
+                        수동 확인 필요: {dryRunResult.needsManualReviewCount}
+                      </p>
                       <p className="text-xs text-muted-foreground md:col-span-2">
-                        토큰 만료: {new Date(dryRunResult.expiresAt).toLocaleString()}
+                        토큰 만료:{" "}
+                        {new Date(dryRunResult.expiresAt).toLocaleString()}
                       </p>
                     </div>
                   ) : null}
@@ -756,11 +814,21 @@ export default function GoogleCalendarIntegration() {
                   {auditResult ? (
                     <div className="grid gap-2 rounded-md border border-indigo-200 bg-indigo-50 p-4 text-indigo-900 md:grid-cols-2 dark:border-indigo-900 dark:bg-indigo-950/40 dark:text-indigo-100">
                       <p>총 검사 대상: {auditResult.totalChecked}</p>
-                      <p>잠재적 중복 위험 건수: {auditResult.duplicateCandidates}</p>
-                      <p>공통일정 잔존 건수: {auditResult.activeInBranchCommon}</p>
-                      <p>상담일정 이동 완료 건수: {auditResult.activeInConsultationFollowup}</p>
+                      <p>
+                        잠재적 중복 위험 건수: {auditResult.duplicateCandidates}
+                      </p>
+                      <p>
+                        공통일정 잔존 건수: {auditResult.activeInBranchCommon}
+                      </p>
+                      <p>
+                        상담일정 이동 완료 건수:{" "}
+                        {auditResult.activeInConsultationFollowup}
+                      </p>
                       <p>동시 활성 건수: {auditResult.activeInBothCalendars}</p>
-                      <p>공통일정 잔류 상담(미동기화): {auditResult.staleBranchCommonEvent}</p>
+                      <p>
+                        공통일정 잔류 상담(미동기화):{" "}
+                        {auditResult.staleBranchCommonEvent}
+                      </p>
                       <p>수동 확인 필요: {auditResult.needsManualReview}</p>
                     </div>
                   ) : null}
@@ -779,20 +847,26 @@ export default function GoogleCalendarIntegration() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {resyncHistoryEnabledQuery.data.slice(0, 5).map(run => (
-                            <TableRow key={run.id}>
-                              <TableCell>{run.status}</TableCell>
-                              <TableCell>{run.candidateCount}</TableCell>
-                              <TableCell>{run.result?.movedCount ?? "-"}</TableCell>
-                              <TableCell>
-                                {run.result?.recreatedCount ?? "-"}
-                              </TableCell>
-                              <TableCell>{run.result?.failedCount ?? "-"}</TableCell>
-                              <TableCell>
-                                {run.result?.manualReviewCount ?? "-"}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          {resyncHistoryEnabledQuery.data
+                            .slice(0, 5)
+                            .map(run => (
+                              <TableRow key={run.id}>
+                                <TableCell>{run.status}</TableCell>
+                                <TableCell>{run.candidateCount}</TableCell>
+                                <TableCell>
+                                  {run.result?.movedCount ?? "-"}
+                                </TableCell>
+                                <TableCell>
+                                  {run.result?.recreatedCount ?? "-"}
+                                </TableCell>
+                                <TableCell>
+                                  {run.result?.failedCount ?? "-"}
+                                </TableCell>
+                                <TableCell>
+                                  {run.result?.manualReviewCount ?? "-"}
+                                </TableCell>
+                              </TableRow>
+                            ))}
                         </TableBody>
                       </Table>
                     </div>
@@ -809,16 +883,18 @@ export default function GoogleCalendarIntegration() {
                   1. Google Calendar에서 공유 캘린더 3개를 수동으로 생성합니다.
                 </p>
                 <p>
-                  2. 지점장이 BOA CRM 설정 화면에서 각 calendarId를 등록하고 연결
-                  테스트를 수행합니다.
+                  2. 지점장이 BOA CRM 설정 화면에서 각 calendarId를 등록하고
+                  연결 테스트를 수행합니다.
                 </p>
                 <p>
-                  3. 지점원은 Google Calendar 공유 초대를 수락한 뒤, TimeTree에서는
-                  외부 캘린더(Google) 구독으로 표시할 수 있습니다.
+                  3. 지점원은 Google Calendar 공유 초대를 수락한 뒤,
+                  TimeTree에서는 외부 캘린더(Google) 구독으로 표시할 수
+                  있습니다.
                 </p>
                 <p>
-                  4. 공유 캘린더에는 고객 연락처가 표시되지 않습니다. 연락처는 일정
-                  등록자 또는 담당자의 개인 캘린더 설명란에만 조건부 표시됩니다.
+                  4. 공유 캘린더에는 고객 연락처가 표시되지 않습니다. 연락처는
+                  일정 등록자 또는 담당자의 개인 캘린더 설명란에만 조건부
+                  표시됩니다.
                 </p>
                 <p>
                   5. 고객 실명·연락처·질병명·증권번호·보험상품명·보험료는 외부

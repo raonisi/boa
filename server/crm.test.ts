@@ -5847,16 +5847,14 @@ describe("PR6 operation risk center", () => {
     vi.spyOn(db, "getAllTeams").mockResolvedValue([
       { id: 10, managerId: 3, subBranchAdminId: 2 },
     ] as any);
-    const getLogsSpy = vi
-      .spyOn(db, "getActivityLogs")
-      .mockResolvedValue([
-        {
-          id: 1,
-          action: "DATA_DOWNLOAD",
-          details: JSON.stringify({ phone: "010-0000-0000" }),
-          createdAt: now,
-        },
-      ] as any);
+    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([
+      {
+        id: 1,
+        action: "DATA_DOWNLOAD",
+        details: JSON.stringify({ phone: "010-0000-0000" }),
+        createdAt: now,
+      },
+    ] as any);
 
     const subBranchResult = await appRouter
       .createCaller(createCtx("sub_branch_admin", { userId: 2 }))
@@ -6718,14 +6716,12 @@ describe("PR10-2 customer merge workflow", () => {
 
   it("executes customer merge with confirm text and records transactional helper call", async () => {
     vi.spyOn(db, "getCustomerMergePreview").mockResolvedValue(mergePreview);
-    const mergeSpy = vi
-      .spyOn(db, "mergeCustomers")
-      .mockResolvedValue({
-        success: true,
-        targetCustomerId: 100,
-        sourceCustomerId: 101,
-        affectedCounts: mergePreview.transferCounts,
-      });
+    const mergeSpy = vi.spyOn(db, "mergeCustomers").mockResolvedValue({
+      success: true,
+      targetCustomerId: 100,
+      sourceCustomerId: 101,
+      affectedCounts: mergePreview.transferCounts,
+    });
 
     await expect(
       appRouter.createCaller(createCtx("branch_admin")).customerMerge.execute({
@@ -11204,12 +11200,10 @@ describe("delete request and deleted data lifecycle", () => {
       .mockResolvedValue(undefined);
 
     await expect(
-      appRouter
-        .createCaller(createCtx("branch_admin"))
-        .imports.cancelBatch({
-          importBatchId: "batch_test",
-          confirmText: "BATCH취소",
-        })
+      appRouter.createCaller(createCtx("branch_admin")).imports.cancelBatch({
+        importBatchId: "batch_test",
+        confirmText: "BATCH취소",
+      })
     ).resolves.toEqual({ success: true, affectedCustomerCount: 1 });
 
     expect(softDeleteSpy).toHaveBeenCalledWith("batch_test", tx);
@@ -11258,12 +11252,10 @@ describe("delete request and deleted data lifecycle", () => {
       .mockResolvedValue(undefined);
 
     await expect(
-      appRouter
-        .createCaller(createCtx("branch_admin"))
-        .imports.cancelBatch({
-          importBatchId: "batch_test",
-          confirmText: "BATCH취소",
-        })
+      appRouter.createCaller(createCtx("branch_admin")).imports.cancelBatch({
+        importBatchId: "batch_test",
+        confirmText: "BATCH취소",
+      })
     ).rejects.toThrow();
 
     expect(softDeleteSpy).not.toHaveBeenCalled();
@@ -11572,12 +11564,10 @@ describe("managementReports", () => {
   it("blocks inactive and resigned users", async () => {
     mockManagementReportData();
     await expect(
-      appRouter
-        .createCaller(createInactiveCtx())
-        .managementReports.generate({
-          reportType: "weekly",
-          periodType: "week",
-        })
+      appRouter.createCaller(createInactiveCtx()).managementReports.generate({
+        reportType: "weekly",
+        periodType: "week",
+      })
     ).rejects.toThrow();
     await expect(
       appRouter

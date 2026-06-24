@@ -14,11 +14,11 @@ PR23-1은 **API·데이터 모델·RBAC·테스트**를 제공하고, PR23-2에�
 
 ## 기존 consultStatus(`해지관리`)와의 관계
 
-| 구분 | `customers.consultStatus = 해지관리` | `retention_risk_cases` |
-|------|--------------------------------------|-------------------------|
-| 역할 | 파이프라인/목록용 상담 상태 | 해지 사유·대응·결과 상세 추적 |
-| 자동 연동 | — | **자동 변경 없음** (PR23-1) |
-| 중복 | — | 별도 case 테이블, consultStatus 덮어쓰지 않음 |
+| 구분      | `customers.consultStatus = 해지관리` | `retention_risk_cases`                        |
+| --------- | ------------------------------------ | --------------------------------------------- |
+| 역할      | 파이프라인/목록용 상담 상태          | 해지 사유·대응·결과 상세 추적                 |
+| 자동 연동 | —                                    | **자동 변경 없음** (PR23-1)                   |
+| 중복      | —                                    | 별도 case 테이블, consultStatus 덮어쓰지 않음 |
 
 ## 기존 추천/후속관리와의 관계
 
@@ -28,21 +28,21 @@ PR23-1은 **API·데이터 모델·RBAC·테스트**를 제공하고, PR23-2에�
 
 ## 데이터 모델 (`retention_risk_cases`)
 
-| 필드 | 설명 |
-|------|------|
-| `customerId` | 대상 고객 (필수) |
-| `contractId` | 연관 계약 (nullable) |
-| `riskReason` | 해지위험 사유 |
-| `riskLevel` | low / medium / high / critical |
-| `retentionStatus` | 대응 진행 상태 |
-| `responseStrategy` | 대응 방향 |
-| `customerSentiment` | 고객 정서(업무 분류) |
-| `financialPressureLevel` | nullable |
-| `competitorMentioned` | 타사 언급 여부 |
-| `followUpId` / `nextFollowUpAt` | 후속 연결 |
-| `resolvedAt` / `resolutionResult` | 종료 처리 |
-| `memo` | 짧은 업무 메모 (500자) |
-| `deletedAt` | soft delete |
+| 필드                              | 설명                           |
+| --------------------------------- | ------------------------------ |
+| `customerId`                      | 대상 고객 (필수)               |
+| `contractId`                      | 연관 계약 (nullable)           |
+| `riskReason`                      | 해지위험 사유                  |
+| `riskLevel`                       | low / medium / high / critical |
+| `retentionStatus`                 | 대응 진행 상태                 |
+| `responseStrategy`                | 대응 방향                      |
+| `customerSentiment`               | 고객 정서(업무 분류)           |
+| `financialPressureLevel`          | nullable                       |
+| `competitorMentioned`             | 타사 언급 여부                 |
+| `followUpId` / `nextFollowUpAt`   | 후속 연결                      |
+| `resolvedAt` / `resolutionResult` | 종료 처리                      |
+| `memo`                            | 짧은 업무 메모 (500자)         |
+| `deletedAt`                       | soft delete                    |
 
 민감정보·계약번호 원문·보험료 원문·질병명·고객 불만 전문 필드 **없음**.
 
@@ -54,26 +54,26 @@ Terminal 상태: `retained`, `adjusted`, `surrendered`, `closed`
 
 ## activity log
 
-| action | 설명 |
-|--------|------|
-| `RETENTION_RISK_CREATED` | 생성 |
-| `RETENTION_RISK_LEVEL_CHANGED` | 위험 단계 변경 |
+| action                          | 설명           |
+| ------------------------------- | -------------- |
+| `RETENTION_RISK_CREATED`        | 생성           |
+| `RETENTION_RISK_LEVEL_CHANGED`  | 위험 단계 변경 |
 | `RETENTION_RISK_STATUS_CHANGED` | 대응 상태 변경 |
-| `RETENTION_RISK_UPDATED` | 수정 |
-| `RETENTION_RISK_RESOLVED` | 종료/결과 기록 |
-| `RETENTION_RISK_DELETED` | soft delete |
+| `RETENTION_RISK_UPDATED`        | 수정           |
+| `RETENTION_RISK_RESOLVED`       | 종료/결과 기록 |
+| `RETENTION_RISK_DELETED`        | soft delete    |
 
 metadata: case ID·enum 상태만 — **memo·고객명·전화번호·민감정보 미포함**
 
 ## 권한 (서버 RBAC)
 
-| 역할 | 조회 | 생성/수정/종료/삭제 |
-|------|------|---------------------|
-| `branch_admin` | 전체 | 전체 |
-| `sub_branch_admin` | 산하 | 산하 |
-| `team_leader` | 팀 | 팀 |
-| `member` | 본인 담당 고객 | 본인 담당 고객 |
-| `inactive` / `resigned` | 차단 | 차단 |
+| 역할                    | 조회           | 생성/수정/종료/삭제 |
+| ----------------------- | -------------- | ------------------- |
+| `branch_admin`          | 전체           | 전체                |
+| `sub_branch_admin`      | 산하           | 산하                |
+| `team_leader`           | 팀             | 팀                  |
+| `member`                | 본인 담당 고객 | 본인 담당 고객      |
+| `inactive` / `resigned` | 차단           | 차단                |
 
 ## API (`retentionRisk.*`)
 

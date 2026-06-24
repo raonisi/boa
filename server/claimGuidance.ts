@@ -107,7 +107,9 @@ function memoError(error: unknown) {
   return new TRPCError({
     code: "BAD_REQUEST",
     message:
-      error instanceof Error ? error.message : "청구 안내 메모를 확인해 주세요.",
+      error instanceof Error
+        ? error.message
+        : "청구 안내 메모를 확인해 주세요.",
   });
 }
 

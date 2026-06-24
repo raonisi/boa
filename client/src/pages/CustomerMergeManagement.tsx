@@ -1,7 +1,11 @@
 import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -38,11 +42,15 @@ export default function CustomerMergeManagement() {
   const [confirmText, setConfirmText] = useState("");
   const [reason, setReason] = useState("");
 
-  const { data: groups, isLoading, isError, refetch } =
-    trpc.customerMerge.findDuplicates.useQuery({
-      search: search || undefined,
-      onlyActive: true,
-    });
+  const {
+    data: groups,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.customerMerge.findDuplicates.useQuery({
+    search: search || undefined,
+    onlyActive: true,
+  });
   const { data: preview } = trpc.customerMerge.preview.useQuery(
     {
       targetCustomerId: targetCustomerId ?? 0,

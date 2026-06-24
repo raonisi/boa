@@ -32,7 +32,10 @@ import {
 import { formatKstLocalDateTime } from "@shared/timePolicy";
 import { Edit2, Link2, Plus, Trash2, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -111,7 +114,8 @@ export function CustomerRelationshipsPanel({
         utils.customers.timeline.invalidate({ customerId }),
       ]);
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.customerRelationships.update.useMutation({
@@ -124,7 +128,8 @@ export function CustomerRelationshipsPanel({
         utils.customers.timeline.invalidate({ customerId }),
       ]);
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.customerRelationships.delete.useMutation({
@@ -136,7 +141,8 @@ export function CustomerRelationshipsPanel({
         utils.customers.timeline.invalidate({ customerId }),
       ]);
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const previewLabel = useMemo(() => {
@@ -245,7 +251,9 @@ export function CustomerRelationshipsPanel({
               size="sm"
               variant="outline"
               className="min-h-10"
-              onClick={() => setLocation(`/customers/${item.relatedCustomer.id}`)}
+              onClick={() =>
+                setLocation(`/customers/${item.relatedCustomer.id}`)
+              }
             >
               <UserRound className="mr-1 h-4 w-4" />
               상세
@@ -293,7 +301,12 @@ export function CustomerRelationshipsPanel({
           </p>
         </div>
         {canManage ? (
-          <Button type="button" size="sm" className="min-h-10" onClick={openCreate}>
+          <Button
+            type="button"
+            size="sm"
+            className="min-h-10"
+            onClick={openCreate}
+          >
             <Plus className="mr-1 h-4 w-4" />
             관계 추가
           </Button>
@@ -307,7 +320,9 @@ export function CustomerRelationshipsPanel({
           </CardContent>
         </Card>
       ) : relationships && relationships.length > 0 ? (
-        <div className="grid gap-3">{relationships.map(renderRelationshipCard)}</div>
+        <div className="grid gap-3">
+          {relationships.map(renderRelationshipCard)}
+        </div>
       ) : (
         <EmptyState
           title="연결된 고객이 없습니다"
@@ -530,7 +545,11 @@ export function CustomerRelationshipsPanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+            >
               취소
             </Button>
             <Button

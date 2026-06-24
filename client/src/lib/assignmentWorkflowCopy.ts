@@ -29,8 +29,7 @@ export const WORKFLOW_COPY = {
     confirmButton: "재지정 확정",
     cancelButton: "취소",
     historyNote: "변경 이력은 유지됩니다.",
-    accessNote:
-      "전 담당자의 접근 범위는 권한 정책에 따라 다시 적용됩니다.",
+    accessNote: "전 담당자의 접근 범위는 권한 정책에 따라 다시 적용됩니다.",
     historyPathNote:
       "변경 이력은 고객 상세의 배정 이력에서 확인할 수 있습니다.",
   },

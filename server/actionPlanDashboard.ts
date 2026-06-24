@@ -43,7 +43,9 @@ export type ManagerDashboardResult = {
   goalNotRegistered: DashboardUser[];
   todayPlanMissing: DashboardUser[];
   todayResultMissing: DashboardUser[];
-  coachingRequestUsers: Array<DashboardUser & { coachingRequest?: string | null }>;
+  coachingRequestUsers: Array<
+    DashboardUser & { coachingRequest?: string | null }
+  >;
   warningSignals: Array<{
     user: DashboardUser;
     signals: string[];
@@ -125,18 +127,9 @@ export function buildManagerDashboard(
       (s, p) => s + (p.actualConsultationCount ?? 0),
       0
     ),
-    analysis: todayDaily.reduce(
-      (s, p) => s + (p.actualAnalysisCount ?? 0),
-      0
-    ),
-    proposal: todayDaily.reduce(
-      (s, p) => s + (p.actualProposalCount ?? 0),
-      0
-    ),
-    contract: todayDaily.reduce(
-      (s, p) => s + (p.actualContractCount ?? 0),
-      0
-    ),
+    analysis: todayDaily.reduce((s, p) => s + (p.actualAnalysisCount ?? 0), 0),
+    proposal: todayDaily.reduce((s, p) => s + (p.actualProposalCount ?? 0), 0),
+    contract: todayDaily.reduce((s, p) => s + (p.actualContractCount ?? 0), 0),
     introductionRequest: todayDaily.reduce(
       (s, p) => s + (p.actualIntroductionRequestCount ?? 0),
       0

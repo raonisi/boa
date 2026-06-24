@@ -204,4 +204,10 @@ export const SCHEDULE_STATUSES = [
   "보류",
 ] as const;
 
-export const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
+export const CUSTOMER_PRIORITIES = [
+  "A",
+  "B",
+  "C",
+  "D",
+  "unclassified",
+] as const;

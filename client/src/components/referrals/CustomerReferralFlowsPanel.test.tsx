@@ -171,12 +171,12 @@ describe("CustomerReferralFlowsPanel", () => {
 
   it("renders empty state when no referrals", async () => {
     const { trpc } = await import("@/lib/trpc");
-    vi.mocked(trpc.customerReferrals.listByCustomer.useQuery).mockReturnValueOnce(
-      {
-        data: [],
-        isLoading: false,
-      } as never
-    );
+    vi.mocked(
+      trpc.customerReferrals.listByCustomer.useQuery
+    ).mockReturnValueOnce({
+      data: [],
+      isLoading: false,
+    } as never);
     const html = renderToStaticMarkup(
       <CustomerReferralFlowsPanel
         customerId={1}

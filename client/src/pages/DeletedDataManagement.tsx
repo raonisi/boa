@@ -25,7 +25,10 @@ import { AlertTriangle, Check, RotateCcw, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { ErrorState } from "@/components/ui/empty-state";
 import { getLoadErrorCopy } from "@/lib/stateUxCopy";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type PermanentTarget = {
@@ -134,7 +137,8 @@ export default function DeletedDataManagement() {
       closePermanent();
       invalidateAll();
     },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: e =>
+      toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const permanentCustomer =
     trpc.deletedData.permanentDeleteCustomer.useMutation({
@@ -143,7 +147,8 @@ export default function DeletedDataManagement() {
         closePermanent();
         invalidateAll();
       },
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      onError: e =>
+        toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
   const permanentContract =
     trpc.deletedData.permanentDeleteContract.useMutation({
@@ -152,7 +157,8 @@ export default function DeletedDataManagement() {
         closePermanent();
         invalidateAll();
       },
-      onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+      onError: e =>
+        toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
     });
   const approveRequest = trpc.deleteRequests.approve.useMutation({
     onSuccess: () => {
@@ -160,7 +166,8 @@ export default function DeletedDataManagement() {
       closeReview();
       invalidateAll();
     },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: e =>
+      toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
   const rejectRequest = trpc.deleteRequests.reject.useMutation({
     onSuccess: () => {
@@ -168,7 +175,8 @@ export default function DeletedDataManagement() {
       closeReview();
       invalidateAll();
     },
-    onError: e => toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: e =>
+      toastUserFacingError(e, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const closePermanent = () => {

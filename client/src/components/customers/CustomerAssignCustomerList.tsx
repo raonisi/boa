@@ -89,9 +89,7 @@ export function CustomerAssignCustomerList({
   const [showFilters, setShowFilters] = useState(false);
 
   const hasActiveFilters =
-    Boolean(search.trim()) ||
-    statusFilter !== "all" ||
-    sourceFilter !== "all";
+    Boolean(search.trim()) || statusFilter !== "all" || sourceFilter !== "all";
 
   const allVisibleSelected =
     customers.length > 0 &&
@@ -151,9 +149,7 @@ export function CustomerAssignCustomerList({
   );
 
   return (
-    <Card
-      className={cn(listBottomPadding && "mb-24 md:mb-0")}
-    >
+    <Card className={cn(listBottomPadding && "mb-24 md:mb-0")}>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm">{title}</CardTitle>
       </CardHeader>
@@ -161,7 +157,9 @@ export function CustomerAssignCustomerList({
         <div
           className={cn(
             "grid gap-2",
-            isMobile ? "grid-cols-1" : "lg:grid-cols-[minmax(0,1fr)_180px_180px]"
+            isMobile
+              ? "grid-cols-1"
+              : "lg:grid-cols-[minmax(0,1fr)_180px_180px]"
           )}
         >
           <div className="relative">
@@ -305,7 +303,9 @@ export function CustomerAssignCustomerList({
                               {workflowBadge}
                             </p>
                             {customer.region ? (
-                              <p className="truncate">지역: {customer.region}</p>
+                              <p className="truncate">
+                                지역: {customer.region}
+                              </p>
                             ) : null}
                             {customer.source ? (
                               <p className="truncate">

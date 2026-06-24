@@ -11,7 +11,11 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { EmptyState, ErrorState, LoadingMetric } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingMetric,
+} from "@/components/ui/empty-state";
 import { adminPanel } from "@/lib/adminDesignTokens";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
@@ -257,17 +261,15 @@ export default function Download() {
             <div className="flex items-start gap-3">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-800" />
               <div className="text-sm text-amber-950">
-                <p className="mb-1 font-semibold">다운로드 전 확인이 필요합니다</p>
+                <p className="mb-1 font-semibold">
+                  다운로드 전 확인이 필요합니다
+                </p>
                 <ul className="space-y-1 text-xs text-amber-900/90">
-                  <li>
-                    고객정보 보호를 위해 기본값은 마스킹 다운로드입니다.
-                  </li>
+                  <li>고객정보 보호를 위해 기본값은 마스킹 다운로드입니다.</li>
                   <li>
                     다운로드 사유, 건수, 마스킹 여부는 감사 기록으로 남습니다.
                   </li>
-                  <li>
-                    대상 범위와 마스킹 여부를 확인한 뒤 실행해 주세요.
-                  </li>
+                  <li>대상 범위와 마스킹 여부를 확인한 뒤 실행해 주세요.</li>
                 </ul>
               </div>
             </div>

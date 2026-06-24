@@ -177,15 +177,18 @@ export function applyGoogleCalendarPiiPolicyToText(
   field: "title" | "description"
 ): string {
   let result = text.trim();
-  if (!policy.allowCustomerContactInGoogleCalendar && containsPhoneNumber(result)) {
-    result = result.replace(PHONE_PATTERN, "").replace(/\s{2,}/g, " ").trim();
+  if (
+    !policy.allowCustomerContactInGoogleCalendar &&
+    containsPhoneNumber(result)
+  ) {
+    result = result
+      .replace(PHONE_PATTERN, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
   }
   if (!policy.allowCustomerNameInGoogleCalendar) {
     const nameReason = findSensitiveCalendarPattern(result, { field });
-    if (
-      nameReason === "customer_name" ||
-      nameReason === "name_with_contact"
-    ) {
+    if (nameReason === "customer_name" || nameReason === "name_with_contact") {
       throw new Error(`customer_name_not_allowed (${nameReason})`);
     }
   }
@@ -202,7 +205,11 @@ export function buildGoogleCalendarTitle(
   const rawTitle = input.title?.trim() || input.rawTitle?.trim() || "";
   if (policy.syncRawTitleToGoogleCalendar && rawTitle) {
     try {
-      const title = applyGoogleCalendarPiiPolicyToText(rawTitle, policy, "title");
+      const title = applyGoogleCalendarPiiPolicyToText(
+        rawTitle,
+        policy,
+        "title"
+      );
       assertGoogleCalendarPayloadPolicy({ title, description: "" }, policy);
       return title;
     } catch {
@@ -487,7 +494,9 @@ export function buildSafeGoogleCalendarLocation(
   if (!location?.trim()) return undefined;
   const reason = findSensitiveCalendarPattern(location, { field: "location" });
   if (reason) {
-    throw new Error(`Google Calendar location contains sensitive data (${reason})`);
+    throw new Error(
+      `Google Calendar location contains sensitive data (${reason})`
+    );
   }
   return location.trim();
 }
@@ -611,7 +620,9 @@ export function mapFollowUpToGoogleCalendarType(): GoogleCalendarType {
   return "consultation_followup";
 }
 
-export function getCalendarDisplayName(calendarType: GoogleCalendarType): string {
+export function getCalendarDisplayName(
+  calendarType: GoogleCalendarType
+): string {
   return GOOGLE_CALENDAR_TYPE_LABELS[calendarType];
 }
 

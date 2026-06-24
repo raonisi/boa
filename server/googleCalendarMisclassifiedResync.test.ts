@@ -108,14 +108,21 @@ beforeEach(() => {
     moveEvent: vi.fn(async () => ({ eventId: "evt-moved-1" })),
   };
   googleCalendarClient.setGoogleCalendarApiClientForTests(mockClient);
-  vi.spyOn(googleCalendarCredentialCrypto, "decryptRefreshToken").mockReturnValue(
-    "refresh-token"
-  );
-  vi.spyOn(googleCalendarClient, "exchangeGoogleRefreshToken").mockResolvedValue({
+  vi.spyOn(
+    googleCalendarCredentialCrypto,
+    "decryptRefreshToken"
+  ).mockReturnValue("refresh-token");
+  vi.spyOn(
+    googleCalendarClient,
+    "exchangeGoogleRefreshToken"
+  ).mockResolvedValue({
     accessToken: "access-token",
     expiresIn: 3600,
   });
-  vi.spyOn(googleCalendarDb, "getGoogleCalendarOauthCredential").mockResolvedValue({
+  vi.spyOn(
+    googleCalendarDb,
+    "getGoogleCalendarOauthCredential"
+  ).mockResolvedValue({
     refreshTokenEnc: "enc",
   } as any);
   vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
@@ -129,25 +136,26 @@ beforeEach(() => {
   vi.spyOn(googleCalendarSync, "loadCustomerContactForSync").mockResolvedValue(
     "010-1234-5678"
   );
-  vi.spyOn(googleCalendarDb, "getGoogleCalendarIntegrationByType").mockImplementation(
-    async (type: string) => {
-      if (type === "branch_common") {
-        return {
-          calendarType: "branch_common",
-          googleCalendarId: "branch-common-cal",
-          isActive: true,
-        } as any;
-      }
-      if (type === "consultation_followup") {
-        return {
-          calendarType: "consultation_followup",
-          googleCalendarId: "consult-cal",
-          isActive: true,
-        } as any;
-      }
-      return undefined;
+  vi.spyOn(
+    googleCalendarDb,
+    "getGoogleCalendarIntegrationByType"
+  ).mockImplementation(async (type: string) => {
+    if (type === "branch_common") {
+      return {
+        calendarType: "branch_common",
+        googleCalendarId: "branch-common-cal",
+        isActive: true,
+      } as any;
     }
-  );
+    if (type === "consultation_followup") {
+      return {
+        calendarType: "consultation_followup",
+        googleCalendarId: "consult-cal",
+        isActive: true,
+      } as any;
+    }
+    return undefined;
+  });
   vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined as any);
 });
 
@@ -162,11 +170,16 @@ describe("google calendar misclassified resync RBAC", () => {
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
     ).mockResolvedValue([]);
-    vi.spyOn(googleCalendarDb, "insertMisclassifiedResyncRun").mockResolvedValue(1);
+    vi.spyOn(
+      googleCalendarDb,
+      "insertMisclassifiedResyncRun"
+    ).mockResolvedValue(1);
 
     const caller = appRouter.createCaller(createCtx("branch_admin"));
     const result =
-      await caller.googleCalendar.resyncMisclassifiedConsultationEventsDryRun({});
+      await caller.googleCalendar.resyncMisclassifiedConsultationEventsDryRun(
+        {}
+      );
     expect(result.totalCandidates).toBe(0);
     expect(result.executeToken).toBeTruthy();
   });
@@ -196,8 +209,13 @@ describe("google calendar misclassified resync RBAC", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-1",
       status: "dry_run",
@@ -212,9 +230,18 @@ describe("google calendar misclassified resync RBAC", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
-    vi.spyOn(googleCalendarDb, "updateScheduleCalendarCategory").mockResolvedValue(true);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(9);
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateScheduleCalendarCategory"
+    ).mockResolvedValue(true);
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(9);
 
     const caller = appRouter.createCaller(createCtx("branch_admin"));
     const result =
@@ -231,8 +258,13 @@ describe("google calendar misclassified resync behavior", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "insertMisclassifiedResyncRun").mockResolvedValue(1);
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "insertMisclassifiedResyncRun"
+    ).mockResolvedValue(1);
 
     const result = await runMisclassifiedResyncDryRun(1, {
       fromCalendarType: "branch_common",
@@ -254,8 +286,13 @@ describe("google calendar misclassified resync behavior", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "insertMisclassifiedResyncRun").mockResolvedValue(1);
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "insertMisclassifiedResyncRun"
+    ).mockResolvedValue(1);
 
     await runMisclassifiedResyncDryRun(1, {
       fromCalendarType: "branch_common",
@@ -270,8 +307,13 @@ describe("google calendar misclassified resync behavior", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-2",
       status: "dry_run",
@@ -286,11 +328,17 @@ describe("google calendar misclassified resync behavior", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
     const updateSchedule = vi
       .spyOn(googleCalendarDb, "updateScheduleCalendarCategory")
       .mockResolvedValue(true);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(9);
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(9);
 
     await runMisclassifiedResyncExecute(1, {
       fromCalendarType: "branch_common",
@@ -305,8 +353,13 @@ describe("google calendar misclassified resync behavior", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-3",
       status: "dry_run",
@@ -321,9 +374,18 @@ describe("google calendar misclassified resync behavior", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
-    vi.spyOn(googleCalendarDb, "updateScheduleCalendarCategory").mockResolvedValue(true);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(9);
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateScheduleCalendarCategory"
+    ).mockResolvedValue(true);
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(9);
 
     const result = await runMisclassifiedResyncExecute(1, {
       fromCalendarType: "branch_common",
@@ -342,8 +404,13 @@ describe("google calendar misclassified resync behavior", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-4",
       status: "dry_run",
@@ -358,9 +425,18 @@ describe("google calendar misclassified resync behavior", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
-    vi.spyOn(googleCalendarDb, "updateScheduleCalendarCategory").mockResolvedValue(true);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(9);
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateScheduleCalendarCategory"
+    ).mockResolvedValue(true);
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(9);
 
     const result = await runMisclassifiedResyncExecute(1, {
       fromCalendarType: "branch_common",
@@ -381,7 +457,10 @@ describe("google calendar misclassified resync behavior", () => {
     ).mockResolvedValue([
       { schedule: baseSchedule as any, sync: syncWithoutEvent as any },
     ]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-5",
       status: "dry_run",
@@ -396,9 +475,18 @@ describe("google calendar misclassified resync behavior", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
-    vi.spyOn(googleCalendarDb, "updateScheduleCalendarCategory").mockResolvedValue(true);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(9);
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateScheduleCalendarCategory"
+    ).mockResolvedValue(true);
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(9);
 
     const result = await runMisclassifiedResyncExecute(1, {
       fromCalendarType: "branch_common",
@@ -412,23 +500,29 @@ describe("google calendar misclassified resync behavior", () => {
   });
 
   it("skips when consultation_followup calendarId is missing", async () => {
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarIntegrationByType").mockImplementation(
-      async (type: string) => {
-        if (type === "branch_common") {
-          return {
-            calendarType: "branch_common",
-            googleCalendarId: "branch-common-cal",
-            isActive: true,
-          } as any;
-        }
-        return { calendarType: "consultation_followup", isActive: false } as any;
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarIntegrationByType"
+    ).mockImplementation(async (type: string) => {
+      if (type === "branch_common") {
+        return {
+          calendarType: "branch_common",
+          googleCalendarId: "branch-common-cal",
+          isActive: true,
+        } as any;
       }
-    );
+      return { calendarType: "consultation_followup", isActive: false } as any;
+    });
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-6",
       status: "dry_run",
@@ -443,8 +537,14 @@ describe("google calendar misclassified resync behavior", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
-    vi.spyOn(googleCalendarDb, "updateScheduleCalendarCategory").mockResolvedValue(true);
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateScheduleCalendarCategory"
+    ).mockResolvedValue(true);
 
     const result = await runMisclassifiedResyncExecute(1, {
       fromCalendarType: "branch_common",
@@ -463,8 +563,13 @@ describe("google calendar misclassified resync behavior", () => {
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "getMisclassifiedResyncRunByToken").mockResolvedValue({
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "getMisclassifiedResyncRunByToken"
+    ).mockResolvedValue({
       id: 1,
       executeToken: "token-7",
       status: "dry_run",
@@ -479,8 +584,14 @@ describe("google calendar misclassified resync behavior", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
     } as any);
-    vi.spyOn(googleCalendarDb, "updateMisclassifiedResyncRun").mockResolvedValue();
-    vi.spyOn(googleCalendarDb, "updateScheduleCalendarCategory").mockResolvedValue(true);
+    vi.spyOn(
+      googleCalendarDb,
+      "updateMisclassifiedResyncRun"
+    ).mockResolvedValue();
+    vi.spyOn(
+      googleCalendarDb,
+      "updateScheduleCalendarCategory"
+    ).mockResolvedValue(true);
 
     await runMisclassifiedResyncExecute(1, {
       fromCalendarType: "branch_common",
@@ -497,12 +608,19 @@ describe("google calendar misclassified resync behavior", () => {
   });
 
   it("does not store customer PII in activity log metadata", async () => {
-    const createLog = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined as any);
+    const createLog = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined as any);
     vi.spyOn(
       googleCalendarDb,
       "listMisclassifiedConsultationScheduleCandidates"
-    ).mockResolvedValue([{ schedule: baseSchedule as any, sync: baseSync as any }]);
-    vi.spyOn(googleCalendarDb, "insertMisclassifiedResyncRun").mockResolvedValue(1);
+    ).mockResolvedValue([
+      { schedule: baseSchedule as any, sync: baseSync as any },
+    ]);
+    vi.spyOn(
+      googleCalendarDb,
+      "insertMisclassifiedResyncRun"
+    ).mockResolvedValue(1);
 
     await runMisclassifiedResyncDryRun(1, {
       fromCalendarType: "branch_common",

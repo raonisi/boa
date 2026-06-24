@@ -21,12 +21,12 @@ describe("actionPlanSensitiveGuard", () => {
   });
 
   it("throws generic error without echoing sensitive text", () => {
-    expect(() =>
-      assertNoSensitiveActionPlanText("010-9999-8888")
-    ).toThrow(ACTION_PLAN_SENSITIVE_ERROR);
-    expect(() =>
-      assertNoSensitiveActionPlanText("고객명 홍길동")
-    ).toThrow(ACTION_PLAN_SENSITIVE_ERROR);
+    expect(() => assertNoSensitiveActionPlanText("010-9999-8888")).toThrow(
+      ACTION_PLAN_SENSITIVE_ERROR
+    );
+    expect(() => assertNoSensitiveActionPlanText("고객명 홍길동")).toThrow(
+      ACTION_PLAN_SENSITIVE_ERROR
+    );
   });
 
   it("blocks executive keyRisks with phone", () => {

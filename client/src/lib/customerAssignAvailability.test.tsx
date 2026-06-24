@@ -18,4 +18,3 @@ describe("customerAssignAvailability", () => {
     expect(inactive.disabledReason).toBe("선택할 수 없는 계정 상태입니다");
   });
 });
-

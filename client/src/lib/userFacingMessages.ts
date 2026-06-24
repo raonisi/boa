@@ -64,7 +64,9 @@ function isTechnicalMessage(message: string): boolean {
 }
 
 function isSafeKoreanUserMessage(message: string): boolean {
-  return Boolean(message) && HANGUL.test(message) && !isTechnicalMessage(message);
+  return (
+    Boolean(message) && HANGUL.test(message) && !isTechnicalMessage(message)
+  );
 }
 
 function defaultFallbackForContext(context: UserFacingErrorContext): string {

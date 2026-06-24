@@ -24,8 +24,8 @@ describe("customerRelationships shared helpers", () => {
   });
 
   it("rejects sensitive note patterns", () => {
-    expect(() =>
-      assertRelationshipNoteSafe("123456-1234567")
-    ).toThrow(/민감정보/);
+    expect(() => assertRelationshipNoteSafe("123456-1234567")).toThrow(
+      /민감정보/
+    );
   });
 });

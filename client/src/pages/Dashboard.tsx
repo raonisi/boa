@@ -151,54 +151,54 @@ export default function Dashboard() {
         ) : null}
 
         {user?.role !== "member" ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <PremiumStatCard
-            title="배정 DB"
-            value={stats?.assigned}
-            icon={Users}
-            tone="navy"
-            helper="권한 범위 기준"
-            isLoading={isStatsLoading}
-            isError={isStatsError}
-            onRetry={() => void refetchStats()}
-          />
-          <PremiumStatCard
-            title="미상담"
-            value={stats?.uncontacted}
-            icon={AlertCircle}
-            tone="orange"
-            helper="초기 접촉 필요"
-            isLoading={isStatsLoading}
-            isError={isStatsError}
-            onRetry={() => void refetchStats()}
-          />
-          <PremiumStatCard
-            title="신규 계약"
-            value={
-              stats?.newContractCount ??
-              stats?.contractCount ??
-              stats?.contracted
-            }
-            icon={FileText}
-            tone="green"
-            helper="신규 영업 성과"
-            isLoading={isStatsLoading}
-            isError={isStatsError}
-            onRetry={() => void refetchStats()}
-          />
-          <PremiumStatCard
-            title="월납보험료 실적"
-            value={formatWon(
-              stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum
-            )}
-            icon={TrendingUp}
-            tone="blue"
-            helper="입력 계약 기준"
-            isLoading={isStatsLoading}
-            isError={isStatsError}
-            onRetry={() => void refetchStats()}
-          />
-        </div>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <PremiumStatCard
+              title="배정 DB"
+              value={stats?.assigned}
+              icon={Users}
+              tone="navy"
+              helper="권한 범위 기준"
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+              onRetry={() => void refetchStats()}
+            />
+            <PremiumStatCard
+              title="미상담"
+              value={stats?.uncontacted}
+              icon={AlertCircle}
+              tone="orange"
+              helper="초기 접촉 필요"
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+              onRetry={() => void refetchStats()}
+            />
+            <PremiumStatCard
+              title="신규 계약"
+              value={
+                stats?.newContractCount ??
+                stats?.contractCount ??
+                stats?.contracted
+              }
+              icon={FileText}
+              tone="green"
+              helper="신규 영업 성과"
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+              onRetry={() => void refetchStats()}
+            />
+            <PremiumStatCard
+              title="월납보험료 실적"
+              value={formatWon(
+                stats?.monthlyPremiumTotal ?? stats?.monthlyPremiumSum
+              )}
+              icon={TrendingUp}
+              tone="blue"
+              helper="입력 계약 기준"
+              isLoading={isStatsLoading}
+              isError={isStatsError}
+              onRetry={() => void refetchStats()}
+            />
+          </div>
         ) : null}
 
         <div className="grid gap-4 xl:grid-cols-[1.25fr_0.75fr]">

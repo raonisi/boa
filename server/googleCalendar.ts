@@ -85,14 +85,19 @@ async function logGoogleCalendarRouterAction(
   });
 }
 
-async function getSyncScopeUserIds(user: AppUser): Promise<number[] | undefined> {
+async function getSyncScopeUserIds(
+  user: AppUser
+): Promise<number[] | undefined> {
   if (user.role === "branch_admin") return undefined;
   if (user.role === "member") return [user.id];
   const { getHierarchyScopeUserIds } = await import("./routers");
   return (await getHierarchyScopeUserIds(user)) ?? [user.id];
 }
 
-async function assertCanAccessSyncRow(user: AppUser, ownerUserId?: number | null) {
+async function assertCanAccessSyncRow(
+  user: AppUser,
+  ownerUserId?: number | null
+) {
   if (user.role === "branch_admin") return;
   const scope = await getSyncScopeUserIds(user);
   if (!ownerUserId || !scope?.includes(ownerUserId)) {
@@ -164,12 +169,15 @@ export const googleCalendarRouter = router({
         syncRawTitleToGoogleCalendar: input.syncRawTitleToGoogleCalendar,
         syncRawDescriptionToGoogleCalendar:
           input.syncRawDescriptionToGoogleCalendar,
-        allowCustomerNameInGoogleCalendar: input.allowCustomerNameInGoogleCalendar,
+        allowCustomerNameInGoogleCalendar:
+          input.allowCustomerNameInGoogleCalendar,
         allowCustomerContactInGoogleCalendar:
           input.allowCustomerContactInGoogleCalendar,
         updatedBy: ctx.user.id,
       });
-      const { getGoogleCalendarOrgSettings } = await import("./googleCalendarDb");
+      const { getGoogleCalendarOrgSettings } = await import(
+        "./googleCalendarDb"
+      );
       const orgSettings = await getGoogleCalendarOrgSettings();
       const policyFlags = {
         rawTitleSynced: orgSettings?.syncRawTitleToGoogleCalendar ?? false,
@@ -357,7 +365,10 @@ export const googleCalendarRouter = router({
         input.boaEventType,
         input.boaEventId
       );
-      return { success: sync?.syncStatus === "synced", syncStatus: sync?.syncStatus };
+      return {
+        success: sync?.syncStatus === "synced",
+        syncStatus: sync?.syncStatus,
+      };
     }),
 
   retryFailedSync: branchAdminProcedure
@@ -515,12 +526,7 @@ export const googleCalendarRouter = router({
         segmentLabel: z.string().max(100).optional(),
         actionLabel: z.string().max(100).optional(),
         ownerRole: z
-          .enum([
-            "branch_admin",
-            "sub_branch_admin",
-            "team_leader",
-            "member",
-          ])
+          .enum(["branch_admin", "sub_branch_admin", "team_leader", "member"])
           .optional(),
         customerId: z.number().nullable().optional(),
         previewTargetType: z
@@ -581,18 +587,14 @@ export const googleCalendarRouter = router({
           },
           policy
         );
-        assertGoogleCalendarPayloadPolicy(
-          { title, description },
-          policy,
-          {
-            targetType: input.previewTargetType,
-            includeCustomerContact: input.includeCustomerContact,
-            customerContact: input.customerContactPreview,
-            viewerUserId,
-            createdBy: input.createdBy ?? viewerUserId,
-            ownerUserId: input.ownerUserId ?? viewerUserId,
-          }
-        );
+        assertGoogleCalendarPayloadPolicy({ title, description }, policy, {
+          targetType: input.previewTargetType,
+          includeCustomerContact: input.includeCustomerContact,
+          customerContact: input.customerContactPreview,
+          viewerUserId,
+          createdBy: input.createdBy ?? viewerUserId,
+          ownerUserId: input.ownerUserId ?? viewerUserId,
+        });
         return {
           blocked: false as const,
           calendarType,

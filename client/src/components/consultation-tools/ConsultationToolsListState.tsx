@@ -3,10 +3,7 @@ import {
   ErrorState,
   LoadingState,
 } from "@/components/ui/empty-state";
-import {
-  getLoadErrorCopy,
-  getLoadingCopy,
-} from "@/lib/stateUxCopy";
+import { getLoadErrorCopy, getLoadingCopy } from "@/lib/stateUxCopy";
 import type { ReactNode } from "react";
 
 type ConsultationToolsListStateProps = {

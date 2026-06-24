@@ -894,13 +894,17 @@ function SummaryTab({
                   <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
                     <div className="grid grid-cols-2 gap-2">
                       <div>
-                        <p className="font-semibold text-muted-foreground">담당</p>
+                        <p className="font-semibold text-muted-foreground">
+                          담당
+                        </p>
                         <p className="mt-0.5 font-bold text-foreground">
                           {actionMeta.owner}
                         </p>
                       </div>
                       <div>
-                        <p className="font-semibold text-muted-foreground">기한</p>
+                        <p className="font-semibold text-muted-foreground">
+                          기한
+                        </p>
                         <p className="mt-0.5 font-bold text-foreground">
                           {actionMeta.deadline}
                         </p>
@@ -1141,7 +1145,9 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">작업 코드</Label>
+            <Label className="text-[11px] text-muted-foreground">
+              작업 코드
+            </Label>
             <Input
               value={props.auditAction}
               onChange={event => props.onActionChange(event.target.value)}
@@ -1360,7 +1366,9 @@ function StatusTab({
                     {health.label}
                   </span>
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{health.helper}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {health.helper}
+                </p>
               </div>
               <Badge className={health.className}>{health.label}</Badge>
             </div>
@@ -1405,7 +1413,9 @@ function StatusTab({
                       </Badge>
                     )}
                   </div>
-                  <p className="mt-3 text-xs text-muted-foreground">{card.label}</p>
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    {card.label}
+                  </p>
                   <p className="mt-1 text-2xl font-bold text-foreground">
                     {value}
                   </p>

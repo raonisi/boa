@@ -50,7 +50,11 @@ export type SmartConsultationPrepInput = {
   } | null;
   contactReasons?: {
     warnings?: Array<{ warningType?: string; message?: string }>;
-    reasons?: Array<{ reasonType?: string; title?: string; description?: string }>;
+    reasons?: Array<{
+      reasonType?: string;
+      title?: string;
+      description?: string;
+    }>;
   } | null;
   handoffNotes?: Array<{
     noteType?: string;
@@ -217,13 +221,16 @@ export function buildSmartConsultationPrepViewModel(
     approachDirections: deriveApproachDirections(input),
     forbiddenPhrases: CONSULTATION_PREP_FORBIDDEN_PHRASES,
     hasRecentConsult: Boolean(
-      input.latestConsult?.summary?.trim() || input.latestConsult?.content?.trim()
+      input.latestConsult?.summary?.trim() ||
+        input.latestConsult?.content?.trim()
     ),
     hasFollowUp: Boolean(input.nextFollowUp),
   };
 }
 
-export function buildMobilePrepSummaryLines(view: SmartConsultationPrepViewModel) {
+export function buildMobilePrepSummaryLines(
+  view: SmartConsultationPrepViewModel
+) {
   return [
     `상담 목표 · ${view.consultationGoal}`,
     `최근 이슈 · ${

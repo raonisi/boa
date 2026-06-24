@@ -429,9 +429,10 @@ describe("actionPlans RBAC", () => {
     vi.spyOn(actionPlansDb, "getBranchActionPlansByUserIds").mockResolvedValue([
       sampleMonthly,
     ] as any);
-    vi.spyOn(actionPlansDb, "getWeeklyPlansForMonthByUserIds").mockResolvedValue(
-      []
-    );
+    vi.spyOn(
+      actionPlansDb,
+      "getWeeklyPlansForMonthByUserIds"
+    ).mockResolvedValue([]);
     vi.spyOn(actionPlansDb, "getDailyPlansForWeeklyIds").mockResolvedValue([]);
 
     const result = await appRouter
@@ -450,14 +451,18 @@ describe("actionPlans RBAC", () => {
     vi.spyOn(actionPlansDb, "getBranchActionPlansByUserIds").mockResolvedValue(
       []
     );
-    vi.spyOn(actionPlansDb, "getWeeklyPlansForMonthByUserIds").mockResolvedValue(
-      []
-    );
+    vi.spyOn(
+      actionPlansDb,
+      "getWeeklyPlansForMonthByUserIds"
+    ).mockResolvedValue([]);
     vi.spyOn(actionPlansDb, "getDailyPlansForWeeklyIds").mockResolvedValue([]);
-    vi.spyOn(actionPlansDb, "createExecutiveActionPlanReport").mockResolvedValue(
-      { id: 501 } as any
-    );
-    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(
+      actionPlansDb,
+      "createExecutiveActionPlanReport"
+    ).mockResolvedValue({ id: 501 } as any);
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
 
     await appRouter
       .createCaller(createCtx("branch_admin"))
@@ -487,9 +492,10 @@ describe("actionPlans RBAC", () => {
     vi.spyOn(actionPlansDb, "getBranchActionPlansByUserIds").mockResolvedValue(
       []
     );
-    vi.spyOn(actionPlansDb, "getWeeklyPlansForMonthByUserIds").mockResolvedValue(
-      []
-    );
+    vi.spyOn(
+      actionPlansDb,
+      "getWeeklyPlansForMonthByUserIds"
+    ).mockResolvedValue([]);
     vi.spyOn(actionPlansDb, "getDailyPlansForWeeklyIds").mockResolvedValue([]);
 
     const result = await appRouter
@@ -675,9 +681,10 @@ describe("executive report sensitive data guard", () => {
     vi.spyOn(actionPlansDb, "getBranchActionPlansByUserIds").mockResolvedValue(
       []
     );
-    vi.spyOn(actionPlansDb, "getWeeklyPlansForMonthByUserIds").mockResolvedValue(
-      []
-    );
+    vi.spyOn(
+      actionPlansDb,
+      "getWeeklyPlansForMonthByUserIds"
+    ).mockResolvedValue([]);
     vi.spyOn(actionPlansDb, "getDailyPlansForWeeklyIds").mockResolvedValue([]);
   }
 
@@ -832,7 +839,9 @@ describe("executive report sensitive data guard", () => {
 
   it("does not store sensitive text in activity log on label block", async () => {
     mockReportData();
-    const logSpy = vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
     await expect(
       appRouter
         .createCaller(createCtx("branch_admin"))
@@ -856,9 +865,10 @@ describe("executive report sensitive data guard", () => {
         monthlyStrategy: "연락 010-1234-5678",
       },
     ] as any);
-    vi.spyOn(actionPlansDb, "getWeeklyPlansForMonthByUserIds").mockResolvedValue(
-      []
-    );
+    vi.spyOn(
+      actionPlansDb,
+      "getWeeklyPlansForMonthByUserIds"
+    ).mockResolvedValue([]);
     vi.spyOn(actionPlansDb, "getDailyPlansForWeeklyIds").mockResolvedValue([]);
     const saveSpy = vi.spyOn(actionPlansDb, "createExecutiveActionPlanReport");
 

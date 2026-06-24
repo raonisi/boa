@@ -131,8 +131,8 @@ afterEach(() => {
 });
 
 function mockCustomers(map: Record<number, any | undefined>) {
-  vi.spyOn(db, "getCustomerById").mockImplementation(async (id: number) =>
-    map[id]
+  vi.spyOn(db, "getCustomerById").mockImplementation(
+    async (id: number) => map[id]
   );
 }
 
@@ -299,10 +299,12 @@ describe("claimGuidance validation", () => {
       closedReason: "customer_completed",
     });
 
-    await appRouter.createCaller(createCtx("branch_admin")).claimGuidance.close({
-      id: 900,
-      closedReason: "customer_completed",
-    });
+    await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .claimGuidance.close({
+        id: 900,
+        closedReason: "customer_completed",
+      });
   });
 
   it("excludes soft-deleted cases from list", async () => {
@@ -320,10 +322,12 @@ describe("claimGuidance validation", () => {
     });
     const logSpy = vi.spyOn(db, "createActivityLog");
 
-    await appRouter.createCaller(createCtx("branch_admin")).claimGuidance.create({
-      ...createInput,
-      memo: "[TEST] 업무 메모",
-    });
+    await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .claimGuidance.create({
+        ...createInput,
+        memo: "[TEST] 업무 메모",
+      });
 
     const payload = logSpy.mock.calls[0]?.[0];
     const sanitized = String(
@@ -379,7 +383,9 @@ describe("claimGuidance summary", () => {
         byGuidanceType: { required_documents: 1 },
       });
 
-    await appRouter.createCaller(createCtx("member", { id: 4 })).claimGuidance.summary();
+    await appRouter
+      .createCaller(createCtx("member", { id: 4 }))
+      .claimGuidance.summary();
     expect(summarySpy).toHaveBeenCalled();
   });
 });

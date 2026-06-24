@@ -298,9 +298,9 @@ export default function ConsultationToolsManagement() {
         utils.consultationTools.listChecklists.invalidate();
       },
       onError: error =>
-      toast.error(
-        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
-      ),
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
   const seedTemplates =
     trpc.consultationTools.seedDefaultMessageTemplates.useMutation({
@@ -309,9 +309,9 @@ export default function ConsultationToolsManagement() {
         utils.consultationTools.listMessageTemplates.invalidate();
       },
       onError: error =>
-      toast.error(
-        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
-      ),
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
   const createTemplate =
     trpc.consultationTools.createMessageTemplate.useMutation({
@@ -323,9 +323,9 @@ export default function ConsultationToolsManagement() {
         utils.consultationTools.listMessageTemplates.invalidate();
       },
       onError: error =>
-      toast.error(
-        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
-      ),
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
   const updateTemplate =
     trpc.consultationTools.updateMessageTemplate.useMutation({
@@ -340,9 +340,9 @@ export default function ConsultationToolsManagement() {
         utils.consultationTools.listMessageTemplates.invalidate();
       },
       onError: error =>
-      toast.error(
-        getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
-      ),
+        toast.error(
+          getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
+        ),
     });
   const seedScripts = trpc.consultationScripts.seedDefaults.useMutation({
     onSuccess: result => {
@@ -822,79 +822,79 @@ export default function ConsultationToolsManagement() {
                     ) : undefined
                   }
                 >
-                <div className="grid gap-3">
-                  {checklistItems.map((item: any) => (
-                    <Card
-                      key={item.id}
-                      className={cn(
-                        "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
-                        selectedChecklist?.id === item.id &&
-                          "border-primary/40 ring-1 ring-primary/20"
-                      )}
-                      onClick={() => setSelectedChecklistId(item.id)}
-                    >
-                      <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
-                                {item.title}
-                              </p>
-                              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-                                  {item.phase}
-                                </span>
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-                                  {item.category}
-                                </span>
-                                {item.isRequired ? (
-                                  <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
-                                    필수
+                  <div className="grid gap-3">
+                    {checklistItems.map((item: any) => (
+                      <Card
+                        key={item.id}
+                        className={cn(
+                          "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
+                          selectedChecklist?.id === item.id &&
+                            "border-primary/40 ring-1 ring-primary/20"
+                        )}
+                        onClick={() => setSelectedChecklistId(item.id)}
+                      >
+                        <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
+                                  {item.title}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                                    {item.phase}
                                   </span>
-                                ) : null}
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                                  {getActiveLabel(item.isActive)}
-                                </span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                                    {item.category}
+                                  </span>
+                                  {item.isRequired ? (
+                                    <span className="rounded-full bg-primary/10 px-2 py-1 text-primary">
+                                      필수
+                                    </span>
+                                  ) : null}
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                                    {getActiveLabel(item.isActive)}
+                                  </span>
+                                </div>
                               </div>
+                              {selectedChecklist?.id === item.id ? (
+                                <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
+                              ) : null}
                             </div>
-                            {selectedChecklist?.id === item.id ? (
-                              <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
+                            {item.description ? (
+                              <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground md:line-clamp-3">
+                                {item.description}
+                              </p>
                             ) : null}
                           </div>
-                          {item.description ? (
-                            <p className="mt-3 line-clamp-2 text-sm leading-6 text-muted-foreground md:line-clamp-3">
-                              {item.description}
-                            </p>
+                          {isBranchAdmin ? (
+                            <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="min-h-12 md:min-h-8"
+                                onClick={() => openChecklistEdit(item)}
+                                disabled={updateChecklist.isPending}
+                              >
+                                <Edit3 className="mr-1 h-4 w-4" />
+                                수정
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="min-h-12 md:min-h-8"
+                                onClick={() => setDeleteChecklist(item)}
+                                disabled={updateChecklist.isPending}
+                              >
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                삭제
+                              </Button>
+                            </div>
                           ) : null}
-                        </div>
-                        {isBranchAdmin ? (
-                          <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="min-h-12 md:min-h-8"
-                              onClick={() => openChecklistEdit(item)}
-                              disabled={updateChecklist.isPending}
-                            >
-                              <Edit3 className="mr-1 h-4 w-4" />
-                              수정
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="min-h-12 md:min-h-8"
-                              onClick={() => setDeleteChecklist(item)}
-                              disabled={updateChecklist.isPending}
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" />
-                              삭제
-                            </Button>
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </ConsultationToolsListState>
               </div>
               <div className="min-w-0">
@@ -1167,83 +1167,83 @@ export default function ConsultationToolsManagement() {
                     ) : undefined
                   }
                 >
-                <div className="grid gap-3">
-                  {templateItems.map((item: any) => (
-                    <Card
-                      key={item.id}
-                      className={cn(
-                        "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
-                        selectedTemplate?.id === item.id &&
-                          "border-primary/40 ring-1 ring-primary/20"
-                      )}
-                      onClick={() => setSelectedTemplateId(item.id)}
-                    >
-                      <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
-                                {item.title}
-                              </p>
-                              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-                                  {item.situation}
-                                </span>
-                                <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
-                                  {item.channel}
-                                </span>
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                                  {getActiveLabel(item.isActive)}
-                                </span>
+                  <div className="grid gap-3">
+                    {templateItems.map((item: any) => (
+                      <Card
+                        key={item.id}
+                        className={cn(
+                          "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
+                          selectedTemplate?.id === item.id &&
+                            "border-primary/40 ring-1 ring-primary/20"
+                        )}
+                        onClick={() => setSelectedTemplateId(item.id)}
+                      >
+                        <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
+                                  {item.title}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                                    {item.situation}
+                                  </span>
+                                  <span className="rounded-full bg-blue-50 px-2 py-1 text-blue-700">
+                                    {item.channel}
+                                  </span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                                    {getActiveLabel(item.isActive)}
+                                  </span>
+                                </div>
                               </div>
+                              {selectedTemplate?.id === item.id ? (
+                                <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
+                              ) : null}
                             </div>
-                            {selectedTemplate?.id === item.id ? (
-                              <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
-                            ) : null}
-                          </div>
-                          <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
-                            {item.body}
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="mt-3 min-h-11 w-full md:hidden"
-                            onClick={event => {
-                              event.stopPropagation();
-                              copyPreviewText(item.body, "문구");
-                            }}
-                          >
-                            <Copy className="mr-1 h-4 w-4" /> 문구 복사
-                          </Button>
-                        </div>
-                        {isBranchAdmin ? (
-                          <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                            <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
+                              {item.body}
+                            </p>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="min-h-12 md:min-h-8"
-                              onClick={() => openTemplateEdit(item)}
-                              disabled={updateTemplate.isPending}
+                              variant="secondary"
+                              className="mt-3 min-h-11 w-full md:hidden"
+                              onClick={event => {
+                                event.stopPropagation();
+                                copyPreviewText(item.body, "문구");
+                              }}
                             >
-                              <Edit3 className="mr-1 h-4 w-4" />
-                              수정
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="min-h-12 md:min-h-8"
-                              onClick={() => setDeleteTemplate(item)}
-                              disabled={updateTemplate.isPending}
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" />
-                              삭제
+                              <Copy className="mr-1 h-4 w-4" /> 문구 복사
                             </Button>
                           </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          {isBranchAdmin ? (
+                            <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="min-h-12 md:min-h-8"
+                                onClick={() => openTemplateEdit(item)}
+                                disabled={updateTemplate.isPending}
+                              >
+                                <Edit3 className="mr-1 h-4 w-4" />
+                                수정
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="min-h-12 md:min-h-8"
+                                onClick={() => setDeleteTemplate(item)}
+                                disabled={updateTemplate.isPending}
+                              >
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                삭제
+                              </Button>
+                            </div>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </ConsultationToolsListState>
               </div>
               <div className="min-w-0">
@@ -1485,83 +1485,83 @@ export default function ConsultationToolsManagement() {
                     ) : undefined
                   }
                 >
-                <div className="grid gap-3">
-                  {scriptItems.map((item: any) => (
-                    <Card
-                      key={item.id}
-                      className={cn(
-                        "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
-                        selectedScript?.id === item.id &&
-                          "border-primary/40 ring-1 ring-primary/20"
-                      )}
-                      onClick={() => setSelectedScriptId(item.id)}
-                    >
-                      <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
-                                {item.title}
-                              </p>
-                              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
-                                  {item.category}
-                                </span>
-                                <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
-                                  {item.tags ?? "태그 없음"}
-                                </span>
-                                <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
-                                  {getActiveLabel(item.isActive)}
-                                </span>
+                  <div className="grid gap-3">
+                    {scriptItems.map((item: any) => (
+                      <Card
+                        key={item.id}
+                        className={cn(
+                          "cursor-pointer border-slate-200/80 bg-white/95 shadow-sm transition hover:border-primary/30",
+                          selectedScript?.id === item.id &&
+                            "border-primary/40 ring-1 ring-primary/20"
+                        )}
+                        onClick={() => setSelectedScriptId(item.id)}
+                      >
+                        <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-start md:justify-between">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
+                                  {item.title}
+                                </p>
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
+                                    {item.category}
+                                  </span>
+                                  <span className="rounded-full bg-emerald-50 px-2 py-1 text-emerald-700">
+                                    {item.tags ?? "태그 없음"}
+                                  </span>
+                                  <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-600">
+                                    {getActiveLabel(item.isActive)}
+                                  </span>
+                                </div>
                               </div>
+                              {selectedScript?.id === item.id ? (
+                                <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
+                              ) : null}
                             </div>
-                            {selectedScript?.id === item.id ? (
-                              <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-primary" />
-                            ) : null}
-                          </div>
-                          <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
-                            {item.scriptBody}
-                          </p>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="mt-3 min-h-11 w-full md:hidden"
-                            onClick={event => {
-                              event.stopPropagation();
-                              copyPreviewText(item.scriptBody, "스크립트");
-                            }}
-                          >
-                            <Copy className="mr-1 h-4 w-4" /> 스크립트 복사
-                          </Button>
-                        </div>
-                        {isBranchAdmin ? (
-                          <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                            <p className="mt-3 line-clamp-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-sm leading-6 text-muted-foreground">
+                              {item.scriptBody}
+                            </p>
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="min-h-12 md:min-h-8"
-                              onClick={() => openScriptEdit(item)}
-                              disabled={updateScript.isPending}
+                              variant="secondary"
+                              className="mt-3 min-h-11 w-full md:hidden"
+                              onClick={event => {
+                                event.stopPropagation();
+                                copyPreviewText(item.scriptBody, "스크립트");
+                              }}
                             >
-                              <Edit3 className="mr-1 h-4 w-4" />
-                              수정
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              className="min-h-12 md:min-h-8"
-                              onClick={() => setDeleteScript(item)}
-                              disabled={updateScript.isPending}
-                            >
-                              <Trash2 className="mr-1 h-4 w-4" />
-                              삭제
+                              <Copy className="mr-1 h-4 w-4" /> 스크립트 복사
                             </Button>
                           </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          {isBranchAdmin ? (
+                            <div className="grid shrink-0 grid-cols-2 gap-2 sm:flex md:flex-col lg:flex-row">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="min-h-12 md:min-h-8"
+                                onClick={() => openScriptEdit(item)}
+                                disabled={updateScript.isPending}
+                              >
+                                <Edit3 className="mr-1 h-4 w-4" />
+                                수정
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="min-h-12 md:min-h-8"
+                                onClick={() => setDeleteScript(item)}
+                                disabled={updateScript.isPending}
+                              >
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                삭제
+                              </Button>
+                            </div>
+                          ) : null}
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
                 </ConsultationToolsListState>
               </div>
               <div className="min-w-0">

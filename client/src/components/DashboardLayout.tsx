@@ -208,53 +208,55 @@ function DashboardLayoutContent({
             {navGroups.map((group, gi) => {
               const groupActive = isNavGroupActive(group, location, navGroups);
               return (
-              <div key={group.label}>
-                {gi > 0 && (
-                  <div className="mx-3 my-1.5 border-t border-sidebar-border/40" />
-                )}
-                {!isCollapsed && (
-                  <div className="px-4 pt-0.5">
-                    <p
-                      className={cn(
-                        "mb-0.5 select-none text-xs font-semibold tracking-wide",
-                        groupActive
-                          ? "text-sidebar-primary"
-                          : "text-sidebar-foreground/50"
-                      )}
-                    >
-                      {group.label}
-                    </p>
-                    {group.description ? (
-                      <p className="mb-1 text-xs leading-snug text-sidebar-foreground/40">
-                        {group.description}
+                <div key={group.label}>
+                  {gi > 0 && (
+                    <div className="mx-3 my-1.5 border-t border-sidebar-border/40" />
+                  )}
+                  {!isCollapsed && (
+                    <div className="px-4 pt-0.5">
+                      <p
+                        className={cn(
+                          "mb-0.5 select-none text-xs font-semibold tracking-wide",
+                          groupActive
+                            ? "text-sidebar-primary"
+                            : "text-sidebar-foreground/50"
+                        )}
+                      >
+                        {group.label}
                       </p>
-                    ) : null}
-                  </div>
-                )}
-                <SidebarMenu className="gap-0.5 px-2">
-                  {group.items.map(item => {
-                    const isActive = activeNav?.item.path === item.path;
-                    const isNotif = item.path === "/notifications";
-                    return (
-                      <SidebarMenuItem key={`${group.label}-${item.label}-${item.path}`}>
-                        <SidebarMenuButton
-                          isActive={isActive}
-                          onClick={() => setLocation(item.path)}
-                          tooltip={
-                            item.description
-                              ? `${item.label} — ${item.description}`
-                              : item.label
-                          }
-                          aria-current={isActive ? "page" : undefined}
-                          className={cn(
-                            "relative min-h-11 rounded-lg text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground sm:min-h-10",
-                            isActive &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r before:bg-sidebar-primary",
-                            item.emphasis === "risk" &&
-                              !isActive &&
-                              "border border-amber-500/20 bg-amber-500/[0.04]"
-                          )}
+                      {group.description ? (
+                        <p className="mb-1 text-xs leading-snug text-sidebar-foreground/40">
+                          {group.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  )}
+                  <SidebarMenu className="gap-0.5 px-2">
+                    {group.items.map(item => {
+                      const isActive = activeNav?.item.path === item.path;
+                      const isNotif = item.path === "/notifications";
+                      return (
+                        <SidebarMenuItem
+                          key={`${group.label}-${item.label}-${item.path}`}
                         >
+                          <SidebarMenuButton
+                            isActive={isActive}
+                            onClick={() => setLocation(item.path)}
+                            tooltip={
+                              item.description
+                                ? `${item.label} — ${item.description}`
+                                : item.label
+                            }
+                            aria-current={isActive ? "page" : undefined}
+                            className={cn(
+                              "relative min-h-11 rounded-lg text-sidebar-foreground/85 transition-colors hover:bg-sidebar-accent/80 hover:text-sidebar-accent-foreground sm:min-h-10",
+                              isActive &&
+                                "bg-sidebar-accent text-sidebar-accent-foreground before:absolute before:left-0 before:top-2 before:h-6 before:w-1 before:rounded-r before:bg-sidebar-primary",
+                              item.emphasis === "risk" &&
+                                !isActive &&
+                                "border border-amber-500/20 bg-amber-500/[0.04]"
+                            )}
+                          >
                             <item.icon className="h-4 w-4 shrink-0" />
                             <span className="text-sm">{item.label}</span>
                             {isNotif && unreadBadgeLabel ? (
@@ -269,9 +271,9 @@ function DashboardLayoutContent({
                         </SidebarMenuItem>
                       );
                     })}
-                </SidebarMenu>
-              </div>
-            );
+                  </SidebarMenu>
+                </div>
+              );
             })}
           </SidebarContent>
 

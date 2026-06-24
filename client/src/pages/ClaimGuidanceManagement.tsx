@@ -121,7 +121,8 @@ export default function ClaimGuidanceManagement() {
       const agentId = customer?.agentId ?? null;
       const teamId = agentId ? agentById.get(agentId)?.teamId : null;
 
-      if (agentFilter !== "all" && String(agentId) !== agentFilter) return false;
+      if (agentFilter !== "all" && String(agentId) !== agentFilter)
+        return false;
       if (teamFilter !== "all" && String(teamId ?? "") !== teamFilter) {
         return false;
       }
@@ -172,7 +173,9 @@ export default function ClaimGuidanceManagement() {
       const current = stats.get(agentId) ?? {
         total: 0,
         open: 0,
-        name: formatUserWithRole(agentById.get(agentId) ?? { name: `#${agentId}` }),
+        name: formatUserWithRole(
+          agentById.get(agentId) ?? { name: `#${agentId}` }
+        ),
       };
       current.total += 1;
       if (
@@ -199,8 +202,8 @@ export default function ClaimGuidanceManagement() {
               청구 안내 관리
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              기록된 청구 안내 상태 기준으로 진행 현황을 확인합니다. 청구
-              대행 기능이 아닙니다.
+              기록된 청구 안내 상태 기준으로 진행 현황을 확인합니다. 청구 대행
+              기능이 아닙니다.
             </p>
           </div>
           <Button
@@ -233,10 +236,7 @@ export default function ClaimGuidanceManagement() {
             />
             <KpiCard title="완료" value={summary.completed} />
             <KpiCard title="종료" value={summary.closed} />
-            <KpiCard
-              title="다음 확인 예정"
-              value={summary.followUpScheduled}
-            />
+            <KpiCard title="다음 확인 예정" value={summary.followUpScheduled} />
           </div>
         ) : null}
 
@@ -337,19 +337,35 @@ export default function ClaimGuidanceManagement() {
             ) : null}
             <div className="space-y-1">
               <Label className="text-xs">수정 기간 시작</Label>
-              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">수정 기간 종료</Label>
-              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">다음 확인일 시작</Label>
-              <Input type="date" value={nextFrom} onChange={e => setNextFrom(e.target.value)} />
+              <Input
+                type="date"
+                value={nextFrom}
+                onChange={e => setNextFrom(e.target.value)}
+              />
             </div>
             <div className="space-y-1">
               <Label className="text-xs">다음 확인일 종료</Label>
-              <Input type="date" value={nextTo} onChange={e => setNextTo(e.target.value)} />
+              <Input
+                type="date"
+                value={nextTo}
+                onChange={e => setNextTo(e.target.value)}
+              />
             </div>
           </CardContent>
         </Card>
@@ -357,7 +373,9 @@ export default function ClaimGuidanceManagement() {
         {user?.role !== "member" && agentStats.length > 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">담당자별 청구 안내 현황</CardTitle>
+              <CardTitle className="text-base">
+                담당자별 청구 안내 현황
+              </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
               {agentStats.map(entry => (

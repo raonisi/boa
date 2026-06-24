@@ -62,6 +62,8 @@ describe("assignmentWorkflowCopy", () => {
   });
 
   it("formats handoff success copy", () => {
-    expect(formatHandoffSuccessMessage()).toContain("인수인계가 완료되었습니다.");
+    expect(formatHandoffSuccessMessage()).toContain(
+      "인수인계가 완료되었습니다."
+    );
   });
 });

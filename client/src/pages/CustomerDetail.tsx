@@ -1,8 +1,19 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
-import { StatusBadge, CONSULT_STATUSES, getPriorityLabel, PriorityBadge, ExecutionBadge, UrgencyBadge } from "@/components/StatusBadge";
+import {
+  StatusBadge,
+  CONSULT_STATUSES,
+  getPriorityLabel,
+  PriorityBadge,
+  ExecutionBadge,
+  UrgencyBadge,
+} from "@/components/StatusBadge";
 import { adminPanel } from "@/lib/adminDesignTokens";
-import { getSeveritySurfaceClasses, getStatusVariantClasses, STATUS_BADGE_BASE } from "@/lib/statusPresentation";
+import {
+  getSeveritySurfaceClasses,
+  getStatusVariantClasses,
+  STATUS_BADGE_BASE,
+} from "@/lib/statusPresentation";
 import { getLoadingCopy } from "@/lib/stateUxCopy";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,7 +49,11 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { EmptyState, LoadingState, SensitiveDataUnavailableState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  LoadingState,
+  SensitiveDataUnavailableState,
+} from "@/components/ui/empty-state";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import {
@@ -348,9 +363,8 @@ export default function CustomerDetail({ id }: { id: number }) {
     isError: isCustomerError,
     isFetching: isCustomerFetching,
   };
-  const canLoadDependencies = canLoadCustomerDetailDependencies(
-    customerAccessState
-  );
+  const canLoadDependencies =
+    canLoadCustomerDetailDependencies(customerAccessState);
   const { data: consultations, refetch: refetchConsult } =
     trpc.consultations.list.useQuery(
       { customerId: id },
@@ -472,8 +486,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       refetchCustomer();
       utils.customers.list.invalidate();
     },
-    onError: err =>
-      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const createConsultMutation = trpc.consultations.create.useMutation({
@@ -603,8 +616,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       utils.followUps.listOverdue.invalidate();
       if (variables.calendarSchedule) utils.schedules.list.invalidate();
     },
-    onError: err =>
-      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const openDetailedFollowUp = (
@@ -622,8 +634,7 @@ export default function CustomerDetail({ id }: { id: number }) {
       refetchFollowUps();
       utils.dashboard.todayWork.invalidate();
     },
-    onError: err =>
-      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const postponeFollowUpMutation = trpc.followUps.postpone.useMutation({
@@ -653,15 +664,13 @@ export default function CustomerDetail({ id }: { id: number }) {
         });
         toast.success("체크리스트가 저장되었습니다.");
       },
-      onError: err =>
-        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const logMessageCopyMutation =
     trpc.consultationTools.logMessageCopy.useMutation({
       onSuccess: () => toast.success("문구 복사 이력을 기록했습니다."),
-      onError: err =>
-        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const createHandoffNoteMutation =
@@ -675,8 +684,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           customerId: id,
         });
       },
-      onError: err =>
-        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const updateHandoffNoteMutation =
@@ -687,14 +695,12 @@ export default function CustomerDetail({ id }: { id: number }) {
           customerId: id,
         });
       },
-      onError: err =>
-        toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+      onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
     });
 
   const logScriptCopyMutation = trpc.consultationScripts.logCopy.useMutation({
     onSuccess: () => toast.success("상담 스크립트 복사 이력을 기록했습니다."),
-    onError: err =>
-      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
 
   const checklistTemplates = consultationTools?.templates ?? [];
@@ -739,9 +745,7 @@ export default function CustomerDetail({ id }: { id: number }) {
     return (
       <DashboardLayout>
         <SensitiveDataUnavailableState
-          showRetry={
-            isCustomerError && isValidCustomerDetailId(id)
-          }
+          showRetry={isCustomerError && isValidCustomerDetailId(id)}
           onRetry={() => void refetchCustomer()}
           className="min-h-64"
           fullPage
@@ -869,7 +873,8 @@ export default function CustomerDetail({ id }: { id: number }) {
     return due >= todayStart.getTime() && due <= todayEnd.getTime();
   }).length;
   const overdueFollowUpCount = openFollowUps.filter(
-    (item: any) => new Date(item.nextContactDate).getTime() < todayStart.getTime()
+    (item: any) =>
+      new Date(item.nextContactDate).getTime() < todayStart.getTime()
   ).length;
   const latestConsultDate =
     latestConsult?.consultationDate ??
@@ -931,16 +936,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                     >
                       관리점수 {execution.score}
                     </span>
-                    {isLongUnmanaged && (
-                      <ExecutionBadge label="장기 미관리" />
-                    )}
+                    {isLongUnmanaged && <ExecutionBadge label="장기 미관리" />}
                     {(customer.assignmentStatus === "unassigned" ||
                       (!customer.agentId && !customer.subBranchAdminId)) && (
                       <ExecutionBadge label="미배정" />
                     )}
-                    {!customer.isActive && (
-                      <ExecutionBadge label="비활성" />
-                    )}
+                    {!customer.isActive && <ExecutionBadge label="비활성" />}
                   </div>
                   <p className="mt-2 text-sm text-slate-700">
                     <span className="font-medium">지금 할 일 · </span>
@@ -1068,7 +1069,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                         label: "예상보험료",
                         value:
                           customer.expectedPremium != null
-                            ? formatExpectedPremiumManwon(customer.expectedPremium)
+                            ? formatExpectedPremiumManwon(
+                                customer.expectedPremium
+                              )
                             : "-",
                       },
                       {
@@ -1199,7 +1202,9 @@ export default function CustomerDetail({ id }: { id: number }) {
           <CardContent className="space-y-3 p-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm font-semibold text-slate-950">상담 실행 요약</p>
+                <p className="text-sm font-semibold text-slate-950">
+                  상담 실행 요약
+                </p>
                 <p className="text-xs text-muted-foreground">
                   오늘 확인할 일과 다음 행동을 먼저 보고 바로 실행하세요.
                 </p>
@@ -1212,13 +1217,17 @@ export default function CustomerDetail({ id }: { id: number }) {
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-[11px] text-slate-500">최근 상담</p>
                 <p className="mt-0.5 text-sm font-semibold text-slate-900">
-                  {latestConsultDate ? formatDate(latestConsultDate) : "상담 없음"}
+                  {latestConsultDate
+                    ? formatDate(latestConsultDate)
+                    : "상담 없음"}
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
                 <p className="text-[11px] text-slate-500">다음 연락일</p>
                 <p className="mt-0.5 text-sm font-semibold text-slate-900">
-                  {nextFollowUp ? formatDate(nextFollowUp.nextContactDate) : "설정 필요"}
+                  {nextFollowUp
+                    ? formatDate(nextFollowUp.nextContactDate)
+                    : "설정 필요"}
                 </p>
               </div>
               <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
@@ -1249,12 +1258,18 @@ export default function CustomerDetail({ id }: { id: number }) {
                 size="sm"
                 variant="outline"
                 onClick={() =>
-                  setLocation(`/calendar?customerId=${customer.id}&action=quick-create`)
+                  setLocation(
+                    `/calendar?customerId=${customer.id}&action=quick-create`
+                  )
                 }
               >
                 <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 일정 등록
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => setShowEditModal(true)}>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setShowEditModal(true)}
+              >
                 <Edit2 className="mr-1 h-4 w-4" /> 고객 정보 수정
               </Button>
             </div>
@@ -1308,9 +1323,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <p className="text-sm font-semibold text-slate-950">
                   바로 실행
                 </p>
-                <p className="text-[11px] font-medium text-primary/70">
-                  행동
-                </p>
+                <p className="text-[11px] font-medium text-primary/70">행동</p>
                 <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                   {recommendedAction.next}
                 </p>
@@ -1439,175 +1452,183 @@ export default function CustomerDetail({ id }: { id: number }) {
                   </span>
                 </div>
                 <div className="grid gap-3 md:grid-cols-3">
-              <div>
-                <Label className="text-xs">우선순위</Label>
-                <Select
-                  value={(customer as any).priority ?? "unclassified"}
-                  onValueChange={priority =>
-                    updateMetaMutation.mutate({
-                      customerId: id,
-                      priority: priority as any,
-                    })
-                  }
-                >
-                  <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CUSTOMER_PRIORITIES.map(priority => (
-                      <SelectItem key={priority} value={priority}>
-                        {getPriorityLabel(priority)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">다음 액션</Label>
-                <Select
-                  value={(customer as any).nextAction ?? "none"}
-                  onValueChange={nextAction =>
-                    updateMetaMutation.mutate({
-                      customerId: id,
-                      nextAction:
-                        nextAction === "none"
-                          ? (null as any)
-                          : (nextAction as any),
-                    })
-                  }
-                >
-                  <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
-                    <SelectValue placeholder="선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">선택 안 함 · 설정 필요</SelectItem>
-                    {CUSTOMER_NEXT_ACTIONS.map(action => (
-                      <SelectItem key={action} value={action}>
-                        {action}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-xs">최근 상담 요약</Label>
-                <p className="text-sm mt-2 line-clamp-2">
-                  {latestConsult?.summary ??
-                    latestConsult?.content ??
-                    "최근 상담 없음"}
-                </p>
-              </div>
-            </div>
-            <div>
-              <Label className="text-xs">상담 성향</Label>
-              <p className="mb-2 text-[11px] text-muted-foreground">
-                주요 태그만 빠르게 선택합니다. 전체 목록은 아래에서 확인하세요.
-              </p>
-              <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1 md:max-h-none">
-                {CUSTOMER_TAGS.map(tag => {
-                  const selected = customerTags.includes(tag);
-                  const nextTags = selected
-                    ? customerTags.filter(item => item !== tag)
-                    : [...customerTags, tag];
-                  return (
-                    <Button
-                      key={tag}
-                      type="button"
-                      variant={selected ? "default" : "outline"}
-                      size="sm"
-                      className="min-h-12 text-xs md:h-7 md:min-h-7"
-                      disabled={updateMetaMutation.isPending}
-                      onClick={() =>
+                  <div>
+                    <Label className="text-xs">우선순위</Label>
+                    <Select
+                      value={(customer as any).priority ?? "unclassified"}
+                      onValueChange={priority =>
                         updateMetaMutation.mutate({
                           customerId: id,
-                          customerTags: nextTags as any,
+                          priority: priority as any,
                         })
                       }
                     >
-                      {tag}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
+                      <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CUSTOMER_PRIORITIES.map(priority => (
+                          <SelectItem key={priority} value={priority}>
+                            {getPriorityLabel(priority)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">다음 액션</Label>
+                    <Select
+                      value={(customer as any).nextAction ?? "none"}
+                      onValueChange={nextAction =>
+                        updateMetaMutation.mutate({
+                          customerId: id,
+                          nextAction:
+                            nextAction === "none"
+                              ? (null as any)
+                              : (nextAction as any),
+                        })
+                      }
+                    >
+                      <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                        <SelectValue placeholder="선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          선택 안 함 · 설정 필요
+                        </SelectItem>
+                        {CUSTOMER_NEXT_ACTIONS.map(action => (
+                          <SelectItem key={action} value={action}>
+                            {action}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">최근 상담 요약</Label>
+                    <p className="text-sm mt-2 line-clamp-2">
+                      {latestConsult?.summary ??
+                        latestConsult?.content ??
+                        "최근 상담 없음"}
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs">상담 성향</Label>
+                  <p className="mb-2 text-[11px] text-muted-foreground">
+                    주요 태그만 빠르게 선택합니다. 전체 목록은 아래에서
+                    확인하세요.
+                  </p>
+                  <div className="mt-2 flex max-h-24 flex-wrap gap-1.5 overflow-y-auto pr-1 md:max-h-none">
+                    {CUSTOMER_TAGS.map(tag => {
+                      const selected = customerTags.includes(tag);
+                      const nextTags = selected
+                        ? customerTags.filter(item => item !== tag)
+                        : [...customerTags, tag];
+                      return (
+                        <Button
+                          key={tag}
+                          type="button"
+                          variant={selected ? "default" : "outline"}
+                          size="sm"
+                          className="min-h-12 text-xs md:h-7 md:min-h-7"
+                          disabled={updateMetaMutation.isPending}
+                          onClick={() =>
+                            updateMetaMutation.mutate({
+                              customerId: id,
+                              customerTags: nextTags as any,
+                            })
+                          }
+                        >
+                          {tag}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                </div>
               </CollapsibleContent>
             </CardContent>
           </Card>
         </Collapsible>
 
         <Collapsible defaultOpen={!isMobile}>
-        <Card className="border-emerald-100 bg-white/95 shadow-sm">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <h3 className="font-semibold">상담 명분 추천</h3>
-                <p className="text-xs text-muted-foreground">
-                  추천 사유를 확인하고 상담 기록·후속 등록으로 이어갑니다.
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-              <UrgencyBadge urgency={contactReasons?.urgency} />
-              {isMobile && (
-                <CollapsibleTrigger asChild>
-                  <Button type="button" variant="outline" size="sm" className="min-h-11">
-                    더보기
-                  </Button>
-                </CollapsibleTrigger>
-              )}
-              </div>
-            </div>
-            <CollapsibleContent className="space-y-3">
-            {(contactReasons?.warnings ?? []).length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {contactReasons?.warnings.slice(0, 3).map(warning => (
-                  <ExecutionBadge
-                    key={warning.warningType}
-                    label={warning.message}
-                    variant="warning"
-                  />
-                ))}
-              </div>
-            )}
-            <div className="grid gap-2 md:grid-cols-2">
-              {(contactReasons?.reasons ?? []).slice(0, 4).map(reason => (
-                <div
-                  key={reason.reasonType}
-                  className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
-                >
-                  <div className="text-sm font-medium">{reason.title}</div>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {reason.description}
+          <Card className="border-emerald-100 bg-white/95 shadow-sm">
+            <CardContent className="p-4 space-y-3">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="font-semibold">상담 명분 추천</h3>
+                  <p className="text-xs text-muted-foreground">
+                    추천 사유를 확인하고 상담 기록·후속 등록으로 이어갑니다.
                   </p>
-                  {reason.situation && (
-                    <p className="mt-2 text-[11px] text-primary">
-                      추천 문구 상황: {reason.situation}
-                    </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <UrgencyBadge urgency={contactReasons?.urgency} />
+                  {isMobile && (
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-11"
+                      >
+                        더보기
+                      </Button>
+                    </CollapsibleTrigger>
                   )}
                 </div>
-              ))}
-            </div>
-            <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setActiveTab("tools")}
-              >
-                <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
-              </Button>
-              <Button size="sm" onClick={() => setShowConsultModal(true)}>
-                <MessageSquare className="h-4 w-4 mr-1" /> 상담 기록 추가
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFollowUpQuickModal(true)}
-              >
-                <CalendarPlus className="h-4 w-4 mr-1" /> 후속 등록
-              </Button>
-            </div>
-            </CollapsibleContent>
-          </CardContent>
-        </Card>
+              </div>
+              <CollapsibleContent className="space-y-3">
+                {(contactReasons?.warnings ?? []).length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {contactReasons?.warnings.slice(0, 3).map(warning => (
+                      <ExecutionBadge
+                        key={warning.warningType}
+                        label={warning.message}
+                        variant="warning"
+                      />
+                    ))}
+                  </div>
+                )}
+                <div className="grid gap-2 md:grid-cols-2">
+                  {(contactReasons?.reasons ?? []).slice(0, 4).map(reason => (
+                    <div
+                      key={reason.reasonType}
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
+                    >
+                      <div className="text-sm font-medium">{reason.title}</div>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {reason.description}
+                      </p>
+                      {reason.situation && (
+                        <p className="mt-2 text-[11px] text-primary">
+                          추천 문구 상황: {reason.situation}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex flex-wrap gap-2 border-t border-slate-100 pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setActiveTab("tools")}
+                  >
+                    <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
+                  </Button>
+                  <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                    <MessageSquare className="h-4 w-4 mr-1" /> 상담 기록 추가
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowFollowUpQuickModal(true)}
+                  >
+                    <CalendarPlus className="h-4 w-4 mr-1" /> 후속 등록
+                  </Button>
+                </div>
+              </CollapsibleContent>
+            </CardContent>
+          </Card>
         </Collapsible>
 
         <Tabs
@@ -3161,16 +3182,23 @@ function CustomerTimelinePanel({
     item => !shouldHideTimelineEvent(item.eventType)
   );
   const hiddenViewedCount = items.length - visibleItems.length;
-  const latestConsult = visibleItems.find(item => item.source === "consultations");
+  const latestConsult = visibleItems.find(
+    item => item.source === "consultations"
+  );
   const latestContract = visibleItems.find(
     item => item.source === "contracts" || item.source === "contract_history"
   );
-  const latestFollowUp = visibleItems.find(item => item.source === "follow_ups");
+  const latestFollowUp = visibleItems.find(
+    item => item.source === "follow_ups"
+  );
   const latestAssignment = visibleItems.find(
     item => item.source === "assignment_history"
   );
   const severityClass = (severity?: string | null) =>
-    cn("rounded-lg border px-2 py-1 text-xs", getSeveritySurfaceClasses(severity));
+    cn(
+      "rounded-lg border px-2 py-1 text-xs",
+      getSeveritySurfaceClasses(severity)
+    );
 
   return (
     <div className="space-y-4">

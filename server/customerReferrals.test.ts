@@ -128,11 +128,9 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mockCustomers(
-  map: Record<number, any | undefined>
-) {
-  vi.spyOn(db, "getCustomerById").mockImplementation(async (id: number) =>
-    map[id]
+function mockCustomers(map: Record<number, any | undefined>) {
+  vi.spyOn(db, "getCustomerById").mockImplementation(
+    async (id: number) => map[id]
   );
 }
 
@@ -142,8 +140,12 @@ describe("customerReferrals RBAC", () => {
       100: referrerCustomer,
       101: referredCustomer,
     });
-    vi.spyOn(referralsDb, "findActiveReferralDuplicate").mockResolvedValue(null);
-    vi.spyOn(referralsDb, "createCustomerReferral").mockResolvedValue(referralRow);
+    vi.spyOn(referralsDb, "findActiveReferralDuplicate").mockResolvedValue(
+      null
+    );
+    vi.spyOn(referralsDb, "createCustomerReferral").mockResolvedValue(
+      referralRow
+    );
 
     const result = await appRouter
       .createCaller(createCtx("branch_admin"))
@@ -201,8 +203,12 @@ describe("customerReferrals RBAC", () => {
       100: referrerCustomer,
       101: referredCustomer,
     });
-    vi.spyOn(referralsDb, "findActiveReferralDuplicate").mockResolvedValue(null);
-    vi.spyOn(referralsDb, "createCustomerReferral").mockResolvedValue(referralRow);
+    vi.spyOn(referralsDb, "findActiveReferralDuplicate").mockResolvedValue(
+      null
+    );
+    vi.spyOn(referralsDb, "createCustomerReferral").mockResolvedValue(
+      referralRow
+    );
 
     await appRouter
       .createCaller(createCtx("member", { id: 4 }))
@@ -304,11 +310,13 @@ describe("customerReferrals validation", () => {
 
   it("blocks self referral", async () => {
     await expect(
-      appRouter.createCaller(createCtx("branch_admin")).customerReferrals.create({
-        ...createInput,
-        referrerCustomerId: 100,
-        referredCustomerId: 100,
-      })
+      appRouter
+        .createCaller(createCtx("branch_admin"))
+        .customerReferrals.create({
+          ...createInput,
+          referrerCustomerId: 100,
+          referredCustomerId: 100,
+        })
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
@@ -337,16 +345,20 @@ describe("customerReferrals validation", () => {
 
   it("blocks mismatched referrer/referred for outbound referral relationship", async () => {
     await expect(
-      appRouter.createCaller(createCtx("branch_admin")).customerReferrals.create({
-        ...createInput,
-        referrerCustomerId: 101,
-        referredCustomerId: 100,
-      })
+      appRouter
+        .createCaller(createCtx("branch_admin"))
+        .customerReferrals.create({
+          ...createInput,
+          referrerCustomerId: 101,
+          referredCustomerId: 100,
+        })
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   it("changes referral stage", async () => {
-    vi.spyOn(referralsDb, "getCustomerReferralById").mockResolvedValue(referralRow);
+    vi.spyOn(referralsDb, "getCustomerReferralById").mockResolvedValue(
+      referralRow
+    );
     vi.spyOn(referralsDb, "updateCustomerReferral").mockResolvedValue({
       ...referralRow,
       referralStage: "contacted",
@@ -364,7 +376,9 @@ describe("customerReferrals validation", () => {
   });
 
   it("completes thank-you contact", async () => {
-    vi.spyOn(referralsDb, "getCustomerReferralById").mockResolvedValue(referralRow);
+    vi.spyOn(referralsDb, "getCustomerReferralById").mockResolvedValue(
+      referralRow
+    );
     vi.spyOn(referralsDb, "updateCustomerReferral").mockResolvedValue({
       ...referralRow,
       thankYouStatus: "completed",
@@ -388,17 +402,21 @@ describe("customerReferrals validation", () => {
   });
 
   it("does not store memo text in activity logs", async () => {
-    vi.spyOn(referralsDb, "findActiveReferralDuplicate").mockResolvedValue(null);
+    vi.spyOn(referralsDb, "findActiveReferralDuplicate").mockResolvedValue(
+      null
+    );
     vi.spyOn(referralsDb, "createCustomerReferral").mockResolvedValue({
       ...referralRow,
       memo: "secret memo",
     });
     const logSpy = vi.spyOn(db, "createActivityLog");
 
-    await appRouter.createCaller(createCtx("branch_admin")).customerReferrals.create({
-      ...createInput,
-      memo: "업무 메모",
-    });
+    await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .customerReferrals.create({
+        ...createInput,
+        memo: "업무 메모",
+      });
 
     const payload = logSpy.mock.calls[0]?.[0];
     const sanitized = String(
@@ -411,10 +429,12 @@ describe("customerReferrals validation", () => {
 
   it("rejects sensitive memo on create", async () => {
     await expect(
-      appRouter.createCaller(createCtx("branch_admin")).customerReferrals.create({
-        ...createInput,
-        memo: "010-1234-5678",
-      })
+      appRouter
+        .createCaller(createCtx("branch_admin"))
+        .customerReferrals.create({
+          ...createInput,
+          memo: "010-1234-5678",
+        })
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 });

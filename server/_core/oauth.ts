@@ -312,7 +312,9 @@ export function registerOAuthRoutes(app: Express) {
         res.redirect(302, "/google-calendar-integration?connected=1");
       } catch (error) {
         console.error("[OAuth] Google Calendar callback failed", error);
-        res.status(500).json({ error: "Google Calendar OAuth callback failed" });
+        res
+          .status(500)
+          .json({ error: "Google Calendar OAuth callback failed" });
       }
     }
   );

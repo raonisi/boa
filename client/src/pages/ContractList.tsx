@@ -33,7 +33,10 @@ import { trpc } from "@/lib/trpc";
 import { useIsMobile } from "@/hooks/useMobile";
 import { FileText, Plus, Search, WalletCards, XCircle } from "lucide-react";
 import { useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -359,12 +362,17 @@ export default function ContractList() {
                     </div>
                   </div>
                   {(canDeactivate || canRequestDelete) && (
-                    <div className="flex flex-wrap justify-end gap-2" onClick={e => e.stopPropagation()}>
+                    <div
+                      className="flex flex-wrap justify-end gap-2"
+                      onClick={e => e.stopPropagation()}
+                    >
                       <Button
                         variant="outline"
                         size="sm"
                         className="min-h-11"
-                        onClick={() => setLocation(`/customers/${c.customerId}`)}
+                        onClick={() =>
+                          setLocation(`/customers/${c.customerId}`)
+                        }
                       >
                         상세 보기
                       </Button>
@@ -458,7 +466,10 @@ export default function ContractList() {
                                 onClick={e => handleDeactivate(c.id, e)}
                                 aria-label="계약 삭제"
                               >
-                                <XCircle className="h-4 w-4" aria-hidden="true" />
+                                <XCircle
+                                  className="h-4 w-4"
+                                  aria-hidden="true"
+                                />
                               </Button>
                             ) : (
                               <Button

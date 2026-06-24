@@ -122,9 +122,9 @@ describe("todayWorkExecution", () => {
     );
 
     expect(items.filter(item => item.type === "schedule")).toHaveLength(2);
-    expect(
-      items.find(item => item.id === 7)?.priorityLabel
-    ).toBe("미완료 일정");
+    expect(items.find(item => item.id === 7)?.priorityLabel).toBe(
+      "미완료 일정"
+    );
   });
 
   it("routes follow-up items to quick follow-up create", () => {

@@ -180,12 +180,7 @@ export const sidebarNavGroups: NavGroup[] = [
         icon: ListChecks,
         label: "실행계획 관리",
         path: "/action-plans",
-        roles: [
-          "branch_admin",
-          "sub_branch_admin",
-          "team_leader",
-          "member",
-        ],
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
       {
         icon: Activity,
@@ -324,9 +319,7 @@ export const mobilePrimaryItems: NavItem[] = [
 ];
 
 /** 역할별 더보기 상단 바로가기 — 기존 route만 사용 */
-export function mobileQuickLinksForRole(
-  role?: string | null
-): NavItem[] {
+export function mobileQuickLinksForRole(role?: string | null): NavItem[] {
   const adminLinks: NavItem[] = [
     {
       icon: ShieldCheck,
@@ -472,12 +465,7 @@ export const mobileMoreNavGroups: NavGroup[] = [
         icon: ListChecks,
         label: "실행계획 관리",
         path: "/action-plans",
-        roles: [
-          "branch_admin",
-          "sub_branch_admin",
-          "team_leader",
-          "member",
-        ],
+        roles: ["branch_admin", "sub_branch_admin", "team_leader", "member"],
       },
       {
         icon: Network,
@@ -633,7 +621,10 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/admin/operations-center", title: "관리자 운영센터" },
   { prefix: "/management-reports", title: "관리자 보고서" },
   { prefix: "/action-plans", title: "실행계획 관리" },
-  { prefix: "/google-calendar-integration", title: "Google Calendar 연동 관리" },
+  {
+    prefix: "/google-calendar-integration",
+    title: "Google Calendar 연동 관리",
+  },
   { prefix: "/team-insights", title: "팀원 관리" },
   { prefix: "/admin/sla", title: "첫 연락 SLA" },
   { prefix: "/teams", title: "팀 관리" },
@@ -647,5 +638,7 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
 
 export function getPageTitle(path: string) {
   if (path === "/") return "오늘 업무";
-  return pageTitles.find(item => path.startsWith(item.prefix))?.title ?? "BOA CRM";
+  return (
+    pageTitles.find(item => path.startsWith(item.prefix))?.title ?? "BOA CRM"
+  );
 }

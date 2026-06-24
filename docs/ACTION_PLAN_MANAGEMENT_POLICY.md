@@ -6,12 +6,12 @@ BOA 지점관리 CRM의 지점원 실행계획 관리는 월간·주간·일일 
 
 ## 2. 월간·주간·일일 계획 작성 구조
 
-| 계층 | 테이블 | 설명 |
-|------|--------|------|
-| 월간 | `branch_action_plans` | 월 단위 목표·전략·리스크·도움 요청 |
-| 주간 | `weekly_action_plans` | 월간 계획(`monthlyPlanId`)에 연결된 주차별 실행계획 |
-| 일일 | `daily_action_plans` | 주간 계획(`weeklyPlanId`)에 연결된 일일 목표·마감 회고 |
-| 보고 이력 | `executive_action_plan_reports` | 대표 보고 XLSX 생성·다운로드 이력 |
+| 계층      | 테이블                          | 설명                                                   |
+| --------- | ------------------------------- | ------------------------------------------------------ |
+| 월간      | `branch_action_plans`           | 월 단위 목표·전략·리스크·도움 요청                     |
+| 주간      | `weekly_action_plans`           | 월간 계획(`monthlyPlanId`)에 연결된 주차별 실행계획    |
+| 일일      | `daily_action_plans`            | 주간 계획(`weeklyPlanId`)에 연결된 일일 목표·마감 회고 |
+| 보고 이력 | `executive_action_plan_reports` | 대표 보고 XLSX 생성·다운로드 이력                      |
 
 프론트 `/action-plans` 화면에서 월간·주간·일일 계획을 각각 작성·임시저장·제출합니다.
 
@@ -29,13 +29,13 @@ draft → submitted → reviewed
 
 ## 4. 역할별 권한
 
-| 역할 | 조회 | 작성 | 리뷰/피드백 | 대표 XLSX |
-|------|------|------|-------------|-----------|
-| `branch_admin` | 전체 지점 | 본인 포함 | 전체 | 가능 |
-| `sub_branch_admin` | 산하 조직 | 본인 | 산하 | 불가 |
-| `team_leader` | 산하 팀원 | 본인 | 산하 팀원 | 불가 |
-| `member` | 본인만 | 본인 | 불가 | 불가 |
-| `inactive` / `resigned` | 차단 | 차단 | 차단 | 차단 |
+| 역할                    | 조회      | 작성      | 리뷰/피드백 | 대표 XLSX |
+| ----------------------- | --------- | --------- | ----------- | --------- |
+| `branch_admin`          | 전체 지점 | 본인 포함 | 전체        | 가능      |
+| `sub_branch_admin`      | 산하 조직 | 본인      | 산하        | 불가      |
+| `team_leader`           | 산하 팀원 | 본인      | 산하 팀원   | 불가      |
+| `member`                | 본인만    | 본인      | 불가        | 불가      |
+| `inactive` / `resigned` | 차단      | 차단      | 차단        | 차단      |
 
 권한 검증은 **서버 tRPC 라우터**에서 수행합니다.
 
@@ -52,12 +52,12 @@ draft → submitted → reviewed
 
 ## 7. activity_logs 기록 정책
 
-| 이벤트 | action |
-|--------|--------|
-| 계획 생성 | `ACTION_PLAN_CREATED` |
-| 제출 | `ACTION_PLAN_SUBMITTED` |
-| 리뷰 | `ACTION_PLAN_REVIEWED` |
-| 수정요청 | `ACTION_PLAN_REVISION_REQUESTED` |
+| 이벤트             | action                                    |
+| ------------------ | ----------------------------------------- |
+| 계획 생성          | `ACTION_PLAN_CREATED`                     |
+| 제출               | `ACTION_PLAN_SUBMITTED`                   |
+| 리뷰               | `ACTION_PLAN_REVIEWED`                    |
+| 수정요청           | `ACTION_PLAN_REVISION_REQUESTED`          |
 | 대표 보고 다운로드 | `EXECUTIVE_ACTION_PLAN_REPORT_DOWNLOADED` |
 
 로그 metadata에는 `reportMonth`, `reportWeekLabel`, `generatedBy`, `status`, `userCount`, `planType` 등만 저장합니다. **다운로드 사유 원문·고객정보는 저장하지 않습니다.**

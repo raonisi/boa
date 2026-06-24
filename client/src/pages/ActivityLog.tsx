@@ -56,37 +56,69 @@ const QUICK_FILTERS: Array<{
   {
     id: "high_risk",
     label: "고위험 작업",
-    apply: () => ({ riskFilter: "risk", categoryFilter: "all", periodFilter: "30" }),
+    apply: () => ({
+      riskFilter: "risk",
+      categoryFilter: "all",
+      periodFilter: "30",
+    }),
   },
   {
     id: "download",
     label: "다운로드",
-    apply: () => ({ categoryFilter: "download", riskFilter: "all", periodFilter: "30" }),
+    apply: () => ({
+      categoryFilter: "download",
+      riskFilter: "all",
+      periodFilter: "30",
+    }),
   },
   {
     id: "delete_restore",
     label: "삭제/복원",
-    apply: () => ({ categoryFilter: "delete", riskFilter: "all", periodFilter: "30" }),
+    apply: () => ({
+      categoryFilter: "delete",
+      riskFilter: "all",
+      periodFilter: "30",
+    }),
   },
   {
     id: "role_change",
     label: "권한 변경",
-    apply: () => ({ search: "권한", categoryFilter: "user", riskFilter: "all", periodFilter: "30" }),
+    apply: () => ({
+      search: "권한",
+      categoryFilter: "user",
+      riskFilter: "all",
+      periodFilter: "30",
+    }),
   },
   {
     id: "user_mgmt",
     label: "사용자 관리",
-    apply: () => ({ categoryFilter: "user", riskFilter: "all", periodFilter: "30", search: "" }),
+    apply: () => ({
+      categoryFilter: "user",
+      riskFilter: "all",
+      periodFilter: "30",
+      search: "",
+    }),
   },
   {
     id: "today",
     label: "오늘",
-    apply: () => ({ periodFilter: "1", categoryFilter: "all", riskFilter: "all", search: "" }),
+    apply: () => ({
+      periodFilter: "1",
+      categoryFilter: "all",
+      riskFilter: "all",
+      search: "",
+    }),
   },
   {
     id: "last_7d",
     label: "최근 7일",
-    apply: () => ({ periodFilter: "7", categoryFilter: "all", riskFilter: "all", search: "" }),
+    apply: () => ({
+      periodFilter: "7",
+      categoryFilter: "all",
+      riskFilter: "all",
+      search: "",
+    }),
   },
 ];
 
@@ -185,9 +217,8 @@ export default function ActivityLog() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [periodFilter, setPeriodFilter] = useState("30");
-  const [activeQuickFilter, setActiveQuickFilter] = useState<QuickFilterId | null>(
-    null
-  );
+  const [activeQuickFilter, setActiveQuickFilter] =
+    useState<QuickFilterId | null>(null);
   const [selectedLog, setSelectedLog] = useState<any>(null);
   const {
     data: logs,
@@ -250,8 +281,14 @@ export default function ActivityLog() {
       );
     }
     if (search) chips.push(`검색: ${search}`);
-    if (userFilter !== "all") chips.push(`사용자: ${getUserName(Number(userFilter))}`);
-    if (categoryFilter !== "all" && activeQuickFilter !== "download" && activeQuickFilter !== "delete_restore" && activeQuickFilter !== "user_mgmt") {
+    if (userFilter !== "all")
+      chips.push(`사용자: ${getUserName(Number(userFilter))}`);
+    if (
+      categoryFilter !== "all" &&
+      activeQuickFilter !== "download" &&
+      activeQuickFilter !== "delete_restore" &&
+      activeQuickFilter !== "user_mgmt"
+    ) {
       const categoryLabels: Record<string, string> = {
         customer: "고객",
         contract: "계약",
@@ -287,7 +324,8 @@ export default function ActivityLog() {
     if (!preset) return;
     const next = preset.apply();
     setActiveQuickFilter(filterId);
-    if (next.categoryFilter !== undefined) setCategoryFilter(next.categoryFilter);
+    if (next.categoryFilter !== undefined)
+      setCategoryFilter(next.categoryFilter);
     if (next.riskFilter !== undefined) setRiskFilter(next.riskFilter);
     if (next.periodFilter !== undefined) setPeriodFilter(next.periodFilter);
     if (next.search !== undefined) setSearch(next.search);
@@ -319,14 +357,18 @@ export default function ActivityLog() {
         <Card className="border-border/80 bg-card shadow-sm">
           <CardContent className="space-y-3 p-4">
             <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">빠른 필터</p>
+              <p className="text-xs font-semibold text-muted-foreground">
+                빠른 필터
+              </p>
               <div className="flex flex-wrap gap-2">
                 {QUICK_FILTERS.map(filter => (
                   <Button
                     key={filter.id}
                     type="button"
                     size="sm"
-                    variant={activeQuickFilter === filter.id ? "default" : "outline"}
+                    variant={
+                      activeQuickFilter === filter.id ? "default" : "outline"
+                    }
                     className={cn(
                       "min-h-9 rounded-full",
                       activeQuickFilter === filter.id &&
@@ -614,7 +656,11 @@ export default function ActivityLog() {
                       return (
                         <TableRow
                           key={log.id}
-                          className={risky ? "border-l-4 border-l-boa-amber bg-boa-amber/8" : ""}
+                          className={
+                            risky
+                              ? "border-l-4 border-l-boa-amber bg-boa-amber/8"
+                              : ""
+                          }
                         >
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
                             {new Date(log.createdAt).toLocaleString("ko-KR")}

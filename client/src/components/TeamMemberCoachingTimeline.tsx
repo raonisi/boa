@@ -13,14 +13,11 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { CoachingNoteDialog } from "./CoachingNoteDialog";
+import { Calendar, Target, CheckCircle2, Clock, Plus } from "lucide-react";
 import {
-  Calendar,
-  Target,
-  CheckCircle2,
-  Clock,
-  Plus,
-} from "lucide-react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 export function TeamMemberCoachingTimeline({

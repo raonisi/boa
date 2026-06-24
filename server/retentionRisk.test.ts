@@ -127,8 +127,8 @@ afterEach(() => {
 });
 
 function mockCustomers(map: Record<number, any | undefined>) {
-  vi.spyOn(db, "getCustomerById").mockImplementation(async (id: number) =>
-    map[id]
+  vi.spyOn(db, "getCustomerById").mockImplementation(
+    async (id: number) => map[id]
   );
 }
 

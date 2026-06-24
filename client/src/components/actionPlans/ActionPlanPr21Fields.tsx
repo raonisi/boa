@@ -112,7 +112,11 @@ export function SelectField({
   return (
     <div className="space-y-1">
       <Label>{label}</Label>
-      <Select value={value || undefined} onValueChange={onChange} disabled={disabled}>
+      <Select
+        value={value || undefined}
+        onValueChange={onChange}
+        disabled={disabled}
+      >
         <SelectTrigger className="min-h-11">
           <SelectValue placeholder="선택" />
         </SelectTrigger>

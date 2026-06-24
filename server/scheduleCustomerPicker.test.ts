@@ -71,9 +71,9 @@ afterEach(() => {
 
 describe("schedule customer picker RBAC", () => {
   it("allows branch_admin scoped search", async () => {
-    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([
-      sampleCustomer,
-    ]);
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([sampleCustomer]);
     const caller = appRouter.createCaller(createCtx("branch_admin"));
     const result = await caller.customers.searchForSchedulePicker({
       search: "Alpha",
@@ -85,9 +85,9 @@ describe("schedule customer picker RBAC", () => {
   });
 
   it("scopes member search to own customers", async () => {
-    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([
-      sampleCustomer,
-    ]);
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([sampleCustomer]);
     await searchCustomersForSchedulePicker(
       createCtx("member", { id: 99, teamId: 10, subBranchAdminId: 2 }).user,
       { search: "Alpha" }

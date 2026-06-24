@@ -15,4 +15,3 @@ export function buildCustomerListPresetContext(
       : meta.description,
   };
 }
-

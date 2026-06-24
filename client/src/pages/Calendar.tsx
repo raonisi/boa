@@ -8,7 +8,11 @@ import {
 } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -113,14 +117,16 @@ function CalendarCategoryFilterBar({
   value: ScheduleCalendarCategory | "all";
   onChange: (value: ScheduleCalendarCategory | "all") => void;
 }) {
-  const items: Array<{ value: ScheduleCalendarCategory | "all"; label: string }> =
-    [
-      { value: "all", label: "전체" },
-      ...SCHEDULE_CALENDAR_CATEGORIES.map(category => ({
-        value: category,
-        label: SCHEDULE_CALENDAR_CATEGORY_LABELS[category],
-      })),
-    ];
+  const items: Array<{
+    value: ScheduleCalendarCategory | "all";
+    label: string;
+  }> = [
+    { value: "all", label: "전체" },
+    ...SCHEDULE_CALENDAR_CATEGORIES.map(category => ({
+      value: category,
+      label: SCHEDULE_CALENDAR_CATEGORY_LABELS[category],
+    })),
+  ];
   return (
     <div className="flex flex-wrap gap-2">
       {items.map(item => (
@@ -209,7 +215,8 @@ function CalendarCategoryCardPicker({
                 selected
                   ? "border-primary bg-primary/5 shadow-sm"
                   : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50",
-                disabled && "cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-white"
+                disabled &&
+                  "cursor-not-allowed opacity-50 hover:border-slate-200 hover:bg-white"
               )}
             >
               <div className="flex items-start justify-between gap-2">
@@ -673,7 +680,10 @@ export default function Calendar() {
     },
     onError: error =>
       toast.error(
-        getUserFacingErrorMessage(error, "일정 수정에 실패했습니다. 다시 시도해 주세요.")
+        getUserFacingErrorMessage(
+          error,
+          "일정 수정에 실패했습니다. 다시 시도해 주세요."
+        )
       ),
   });
 
@@ -808,265 +818,269 @@ export default function Calendar() {
         {scheduleStatePanel ? (
           scheduleStatePanel
         ) : (
-        <div className="space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardContent className="flex items-center justify-between gap-3 p-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                  Schedule
-                </p>
-                <h1 className="mt-1 text-2xl font-bold text-slate-950">
-                  일정관리
-                </h1>
-                <p className="mt-1 text-xs text-slate-500">
-                  오늘과 이번주 업무 흐름을 먼저 확인합니다.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                className="min-h-12 shrink-0"
-                onClick={() => openQuickCreate()}
-              >
-                <Plus className="h-4 w-4 mr-1" /> 일정 추가
-              </Button>
-            </CardContent>
-          </Card>
-
-          <ScheduleOwnerFilter
-            ownerViewMode={ownerViewMode}
-            selectedOwnerUserId={selectedOwnerUserId}
-            selectedTeamId={selectedTeamId}
-            ownerSearch={ownerSearch}
-            scheduleViewUsers={scheduleViewUsers}
-            scheduleViewTeams={scheduleViewTeams}
-            organizationViewWarning={organizationViewWarning}
-            onOwnerViewModeChange={handleOwnerViewModeChange}
-            onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
-            onSelectedTeamIdChange={setSelectedTeamId}
-            onOwnerSearchChange={setOwnerSearch}
-          />
-
-          <CalendarCategoryFilterBar
-            value={calendarCategoryFilter}
-            onChange={setCalendarCategoryFilter}
-          />
-
-          <div className="grid grid-cols-2 gap-2">
-            {summaryCards.map(item => (
-              <Card
-                key={item.label}
-                className="border-slate-200/80 bg-white/95 shadow-sm"
-              >
-                <CardContent className="p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs text-slate-500">{item.label}</p>
-                    <item.icon className={`h-4 w-4 ${item.tone}`} />
-                  </div>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
-                    {item.value}
+          <div className="space-y-4 pb-[max(5rem,env(safe-area-inset-bottom))]">
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+              <CardContent className="flex items-center justify-between gap-3 p-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+                    Schedule
                   </p>
-                  <p className="mt-0.5 text-[11px] text-slate-500">
-                    {item.helper}
+                  <h1 className="mt-1 text-2xl font-bold text-slate-950">
+                    일정관리
+                  </h1>
+                  <p className="mt-1 text-xs text-slate-500">
+                    오늘과 이번주 업무 흐름을 먼저 확인합니다.
                   </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                </div>
+                <Button
+                  size="sm"
+                  className="min-h-12 shrink-0"
+                  onClick={() => openQuickCreate()}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> 일정 추가
+                </Button>
+              </CardContent>
+            </Card>
 
-          {/* 오늘 일정 */}
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <CalendarDays className="h-4 w-4 text-[#b99b5f]" /> 오늘 일정 (
-                {todaySchedules.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {todaySchedules.length === 0 ? (
-                <ScheduleEmptyState
-                  title="오늘 일정이 없습니다."
-                  description="상담 예약이나 후속관리 일정을 등록해보세요."
-                  onCreate={() => openQuickCreate()}
-                />
-              ) : (
-                todaySchedules.map(s => (
-                  <div
-                    key={s.id}
-                    className={`flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl p-3.5 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
-                    onClick={() => setSelectedSchedule(s)}
-                  >
-                    <div className="text-xs font-bold w-10 shrink-0">
-                      {formatScheduleTime(s.startTime)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="line-clamp-2 text-sm font-semibold leading-5">
-                        {s.title}
-                      </p>
-                      <p className="text-xs font-medium opacity-90">
-                        {showOwnerName && s.ownerName
-                          ? `${s.ownerName} · `
-                          : ""}
-                        {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 opacity-80">
-                        {s.type} · {getStatusLabel(s.status)} · 알림{" "}
-                        {scheduleReminderText(s)}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+            <ScheduleOwnerFilter
+              ownerViewMode={ownerViewMode}
+              selectedOwnerUserId={selectedOwnerUserId}
+              selectedTeamId={selectedTeamId}
+              ownerSearch={ownerSearch}
+              scheduleViewUsers={scheduleViewUsers}
+              scheduleViewTeams={scheduleViewTeams}
+              organizationViewWarning={organizationViewWarning}
+              onOwnerViewModeChange={handleOwnerViewModeChange}
+              onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
+              onSelectedTeamIdChange={setSelectedTeamId}
+              onOwnerSearchChange={setOwnerSearch}
+            />
 
-          {/* 미완료 일정 */}
-          {incompleteSchedules.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50/70 shadow-sm">
+            <CalendarCategoryFilterBar
+              value={calendarCategoryFilter}
+              onChange={setCalendarCategoryFilter}
+            />
+
+            <div className="grid grid-cols-2 gap-2">
+              {summaryCards.map(item => (
+                <Card
+                  key={item.label}
+                  className="border-slate-200/80 bg-white/95 shadow-sm"
+                >
+                  <CardContent className="p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-slate-500">{item.label}</p>
+                      <item.icon className={`h-4 w-4 ${item.tone}`} />
+                    </div>
+                    <p className="mt-1 text-2xl font-bold text-slate-950">
+                      {item.value}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-slate-500">
+                      {item.helper}
+                    </p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* 오늘 일정 */}
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-orange-700">
-                  ⚠️ 미완료 일정 ({incompleteSchedules.length})
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <CalendarDays className="h-4 w-4 text-[#b99b5f]" /> 오늘 일정
+                  ({todaySchedules.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {incompleteSchedules.map(s => (
-                  <div
-                    key={s.id}
-                    className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-orange-200 bg-white p-3.5 hover:bg-orange-50"
-                    onClick={() => setSelectedSchedule(s)}
-                  >
+                {todaySchedules.length === 0 ? (
+                  <ScheduleEmptyState
+                    title="오늘 일정이 없습니다."
+                    description="상담 예약이나 후속관리 일정을 등록해보세요."
+                    onCreate={() => openQuickCreate()}
+                  />
+                ) : (
+                  todaySchedules.map(s => (
                     <div
-                      className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="line-clamp-2 text-sm font-medium leading-5">
-                        {s.title}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {showOwnerName && s.ownerName
-                          ? `${s.ownerName} · `
-                          : ""}
-                        {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
-                      </p>
-                      <p className="text-xs text-orange-600">
-                        종료:{" "}
-                        {s.endTime
-                          ? format(scheduleDate(s.endTime), "M/d HH:mm", {
-                              locale: ko,
-                            })
-                          : "-"}
-                      </p>
+                      key={s.id}
+                      className={`flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl p-3.5 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
+                      onClick={() => setSelectedSchedule(s)}
+                    >
+                      <div className="text-xs font-bold w-10 shrink-0">
+                        {formatScheduleTime(s.startTime)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="line-clamp-2 text-sm font-semibold leading-5">
+                          {s.title}
+                        </p>
+                        <p className="text-xs font-medium opacity-90">
+                          {showOwnerName && s.ownerName
+                            ? `${s.ownerName} · `
+                            : ""}
+                          {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
+                        </p>
+                        <p className="mt-1 text-xs leading-5 opacity-80">
+                          {s.type} · {getStatusLabel(s.status)} · 알림{" "}
+                          {scheduleReminderText(s)}
+                        </p>
+                      </div>
                     </div>
-                    <span className="shrink-0 text-xs font-medium text-orange-600">
-                      {getStatusLabel(s.status)}
-                    </span>
-                  </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
-          )}
 
-          {/* 이번 주 일정 */}
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardContent className="grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap">
-              {["today", "week", "month", "all", "custom"].map(r => (
-                <Button
-                  key={r}
-                  className="min-h-12"
-                  variant={mobileRange === r ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setMobileRange(r as MobileRange)}
-                >
-                  {r === "today"
-                    ? "오늘"
-                    : r === "week"
-                      ? "이번주"
-                      : r === "month"
-                        ? "이번달"
-                        : r === "all"
-                          ? "전체"
-                          : "직접선택"}
-                </Button>
-              ))}
-              {mobileRange === "custom" && (
-                <div className="col-span-2 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
-                  <label className="space-y-1">
-                    <span className="text-xs font-medium text-slate-600">
-                      시작일
-                    </span>
-                    <Input
-                      type="date"
-                      value={customStartDate}
-                      onChange={e => setCustomStartDate(e.target.value)}
-                      className="min-h-12 w-full"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs font-medium text-slate-600">
-                      종료일
-                    </span>
-                    <Input
-                      type="date"
-                      value={customEndDate}
-                      onChange={e => setCustomEndDate(e.target.value)}
-                      className="min-h-12 w-full"
-                    />
-                  </label>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Clock3 className="h-4 w-4 text-[#b99b5f]" /> 조회 일정 (
-                {mobileList.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {mobileList.length === 0 ? (
-                <ScheduleEmptyState
-                  title="선택한 조건에 해당하는 일정이 없습니다."
-                  description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
-                  onCreate={() => openQuickCreate()}
-                />
-              ) : (
-                mobileList.map(s => (
-                  <div
-                    key={s.id}
-                    className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-3.5 hover:bg-slate-50"
-                    onClick={() => setSelectedSchedule(s)}
-                  >
+            {/* 미완료 일정 */}
+            {incompleteSchedules.length > 0 && (
+              <Card className="border-orange-200 bg-orange-50/70 shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-orange-700">
+                    ⚠️ 미완료 일정 ({incompleteSchedules.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {incompleteSchedules.map(s => (
                     <div
-                      className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="line-clamp-2 text-sm font-medium leading-5">
-                        {s.title}
-                      </p>
-                      {showOwnerName && s.ownerName ? (
-                        <p className="text-xs font-medium text-violet-700">
-                          {s.ownerName}
+                      key={s.id}
+                      className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-orange-200 bg-white p-3.5 hover:bg-orange-50"
+                      onClick={() => setSelectedSchedule(s)}
+                    >
+                      <div
+                        className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="line-clamp-2 text-sm font-medium leading-5">
+                          {s.title}
                         </p>
-                      ) : null}
-                      <p className="text-xs text-emerald-700">
-                        {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(scheduleDate(s.startTime), "M/d (EEE) HH:mm", {
-                          locale: ko,
-                        })}
-                      </p>
+                        <p className="text-xs text-slate-500">
+                          {showOwnerName && s.ownerName
+                            ? `${s.ownerName} · `
+                            : ""}
+                          {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
+                        </p>
+                        <p className="text-xs text-orange-600">
+                          종료:{" "}
+                          {s.endTime
+                            ? format(scheduleDate(s.endTime), "M/d HH:mm", {
+                                locale: ko,
+                              })
+                            : "-"}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-xs font-medium text-orange-600">
+                        {getStatusLabel(s.status)}
+                      </span>
                     </div>
-                    <div className="shrink-0">
-                      <StatusBadge status={s.status} />
-                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 이번 주 일정 */}
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+              <CardContent className="grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap">
+                {["today", "week", "month", "all", "custom"].map(r => (
+                  <Button
+                    key={r}
+                    className="min-h-12"
+                    variant={mobileRange === r ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setMobileRange(r as MobileRange)}
+                  >
+                    {r === "today"
+                      ? "오늘"
+                      : r === "week"
+                        ? "이번주"
+                        : r === "month"
+                          ? "이번달"
+                          : r === "all"
+                            ? "전체"
+                            : "직접선택"}
+                  </Button>
+                ))}
+                {mobileRange === "custom" && (
+                  <div className="col-span-2 grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-slate-600">
+                        시작일
+                      </span>
+                      <Input
+                        type="date"
+                        value={customStartDate}
+                        onChange={e => setCustomStartDate(e.target.value)}
+                        className="min-h-12 w-full"
+                      />
+                    </label>
+                    <label className="space-y-1">
+                      <span className="text-xs font-medium text-slate-600">
+                        종료일
+                      </span>
+                      <Input
+                        type="date"
+                        value={customEndDate}
+                        onChange={e => setCustomEndDate(e.target.value)}
+                        className="min-h-12 w-full"
+                      />
+                    </label>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
+                  <Clock3 className="h-4 w-4 text-[#b99b5f]" /> 조회 일정 (
+                  {mobileList.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {mobileList.length === 0 ? (
+                  <ScheduleEmptyState
+                    title="선택한 조건에 해당하는 일정이 없습니다."
+                    description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
+                    onCreate={() => openQuickCreate()}
+                  />
+                ) : (
+                  mobileList.map(s => (
+                    <div
+                      key={s.id}
+                      className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-3.5 hover:bg-slate-50"
+                      onClick={() => setSelectedSchedule(s)}
+                    >
+                      <div
+                        className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="line-clamp-2 text-sm font-medium leading-5">
+                          {s.title}
+                        </p>
+                        {showOwnerName && s.ownerName ? (
+                          <p className="text-xs font-medium text-violet-700">
+                            {s.ownerName}
+                          </p>
+                        ) : null}
+                        <p className="text-xs text-emerald-700">
+                          {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(
+                            scheduleDate(s.startTime),
+                            "M/d (EEE) HH:mm",
+                            {
+                              locale: ko,
+                            }
+                          )}
+                        </p>
+                      </div>
+                      <div className="shrink-0">
+                        <StatusBadge status={s.status} />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {/* 모달들 */}
@@ -1123,257 +1137,321 @@ export default function Calendar() {
       {scheduleStatePanel ? (
         scheduleStatePanel
       ) : (
-      <div className="space-y-5">
-        <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-                Schedule
-              </p>
-              <h1 className="mt-1 text-2xl font-bold text-slate-950">
-                일정관리
-              </h1>
-              <p className="mt-1 text-sm text-slate-500">
-                상담·계약·후속관리 일정을 업무 흐름으로 확인합니다.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex rounded-lg border overflow-hidden">
-                {(["month", "week", "day"] as ViewMode[]).map(v => (
-                  <button
-                    key={v}
-                    onClick={() => setViewMode(v)}
-                    className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
-                  >
-                    {v === "month" ? "월" : v === "week" ? "주" : "일"}
-                  </button>
-                ))}
-              </div>
-              <Button
-                size="sm"
-                onClick={() => openQuickCreate()}
-              >
-                <Plus className="h-4 w-4 mr-1" /> 상담·계약·후속관리 일정 등록
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <ScheduleOwnerFilter
-          ownerViewMode={ownerViewMode}
-          selectedOwnerUserId={selectedOwnerUserId}
-          selectedTeamId={selectedTeamId}
-          ownerSearch={ownerSearch}
-          scheduleViewUsers={scheduleViewUsers}
-          scheduleViewTeams={scheduleViewTeams}
-          organizationViewWarning={organizationViewWarning}
-          onOwnerViewModeChange={handleOwnerViewModeChange}
-          onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
-          onSelectedTeamIdChange={setSelectedTeamId}
-          onOwnerSearchChange={setOwnerSearch}
-        />
-
-        <CalendarCategoryFilterBar
-          value={calendarCategoryFilter}
-          onChange={setCalendarCategoryFilter}
-        />
-
-        <div className="grid gap-3 md:grid-cols-4">
-          {summaryCards.map(item => (
-            <Card
-              key={item.label}
-              className="border-slate-200/80 bg-white/95 shadow-sm"
-            >
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-slate-500">
-                    {item.label}
-                  </p>
-                  <item.icon className={`h-4 w-4 ${item.tone}`} />
-                </div>
-                <p className="mt-1 text-2xl font-bold text-slate-950">
-                  {item.value}
-                </p>
-                <p className="mt-1 text-xs text-slate-500">{item.helper}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-5">
           <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between mb-4">
-                <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
-                  <ChevronLeft className="h-4 w-4" />
-                </Button>
-                <h2 className="text-base font-semibold">{headerTitle}</h2>
-                <Button variant="ghost" size="sm" onClick={() => navigate(1)}>
-                  <ChevronRight className="h-4 w-4" />
+            <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
+                  Schedule
+                </p>
+                <h1 className="mt-1 text-2xl font-bold text-slate-950">
+                  일정관리
+                </h1>
+                <p className="mt-1 text-sm text-slate-500">
+                  상담·계약·후속관리 일정을 업무 흐름으로 확인합니다.
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-lg border overflow-hidden">
+                  {(["month", "week", "day"] as ViewMode[]).map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setViewMode(v)}
+                      className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
+                    >
+                      {v === "month" ? "월" : v === "week" ? "주" : "일"}
+                    </button>
+                  ))}
+                </div>
+                <Button size="sm" onClick={() => openQuickCreate()}>
+                  <Plus className="h-4 w-4 mr-1" /> 상담·계약·후속관리 일정 등록
                 </Button>
               </div>
+            </CardContent>
+          </Card>
 
-              {viewMode === "month" && (
-                <div>
-                  <div className="grid grid-cols-7 mb-1">
-                    {["일", "월", "화", "수", "목", "금", "토"].map(d => (
-                      <div
-                        key={d}
-                        className="text-center text-xs font-medium text-muted-foreground py-1"
-                      >
-                        {d}
-                      </div>
-                    ))}
+          <ScheduleOwnerFilter
+            ownerViewMode={ownerViewMode}
+            selectedOwnerUserId={selectedOwnerUserId}
+            selectedTeamId={selectedTeamId}
+            ownerSearch={ownerSearch}
+            scheduleViewUsers={scheduleViewUsers}
+            scheduleViewTeams={scheduleViewTeams}
+            organizationViewWarning={organizationViewWarning}
+            onOwnerViewModeChange={handleOwnerViewModeChange}
+            onSelectedOwnerUserIdChange={setSelectedOwnerUserId}
+            onSelectedTeamIdChange={setSelectedTeamId}
+            onOwnerSearchChange={setOwnerSearch}
+          />
+
+          <CalendarCategoryFilterBar
+            value={calendarCategoryFilter}
+            onChange={setCalendarCategoryFilter}
+          />
+
+          <div className="grid gap-3 md:grid-cols-4">
+            {summaryCards.map(item => (
+              <Card
+                key={item.label}
+                className="border-slate-200/80 bg-white/95 shadow-sm"
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-slate-500">
+                      {item.label}
+                    </p>
+                    <item.icon className={`h-4 w-4 ${item.tone}`} />
                   </div>
+                  <p className="mt-1 text-2xl font-bold text-slate-950">
+                    {item.value}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-500">{item.helper}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-4">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(-1)}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <h2 className="text-base font-semibold">{headerTitle}</h2>
+                  <Button variant="ghost" size="sm" onClick={() => navigate(1)}>
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {viewMode === "month" && (
+                  <div>
+                    <div className="grid grid-cols-7 mb-1">
+                      {["일", "월", "화", "수", "목", "금", "토"].map(d => (
+                        <div
+                          key={d}
+                          className="text-center text-xs font-medium text-muted-foreground py-1"
+                        >
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+                      {calDays.map(day => {
+                        const daySchedules = getSchedulesForDay(day);
+                        const isToday = isSameDay(day, new Date());
+                        const isCurrentMonth = isSameMonth(day, currentDate);
+                        const isSelectedDay = isSameDay(day, selectedDay);
+                        return (
+                          <div
+                            key={day.toISOString()}
+                            className={`group bg-background min-h-[92px] p-1.5 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday ? "ring-2 ring-primary ring-inset" : ""} ${isSelectedDay ? "bg-primary/5" : ""}`}
+                            onClick={() => {
+                              setSelectedDate(day);
+                              setCurrentDate(day);
+                            }}
+                          >
+                            <div className="mb-1 flex items-center justify-between gap-1">
+                              <div
+                                className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isSelectedDay ? "bg-slate-900 text-white" : ""}`}
+                              >
+                                {format(day, "d")}
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
+                                aria-label="일정 추가"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  openQuickCreate(day);
+                                }}
+                              >
+                                <Plus
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden="true"
+                                />
+                              </Button>
+                            </div>
+                            <div className="space-y-0.5">
+                              {daySchedules.slice(0, 3).map(s => (
+                                <div
+                                  key={s.id}
+                                  className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`}
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setSelectedSchedule(s);
+                                  }}
+                                >
+                                  {formatScheduleTime(s.startTime)}{" "}
+                                  {showOwnerName && s.ownerName
+                                    ? `[${s.ownerName}] `
+                                    : ""}
+                                  {s.title}
+                                </div>
+                              ))}
+                              {daySchedules.length > 3 && (
+                                <div className="text-[10px] text-muted-foreground pl-1">
+                                  +{daySchedules.length - 3}개
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {viewMode === "week" && (
                   <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-                    {calDays.map(day => {
+                    {weekDays.map(day => {
                       const daySchedules = getSchedulesForDay(day);
                       const isToday = isSameDay(day, new Date());
-                      const isCurrentMonth = isSameMonth(day, currentDate);
                       const isSelectedDay = isSameDay(day, selectedDay);
                       return (
                         <div
                           key={day.toISOString()}
-                          className={`group bg-background min-h-[92px] p-1.5 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday ? "ring-2 ring-primary ring-inset" : ""} ${isSelectedDay ? "bg-primary/5" : ""}`}
-                          onClick={() => {
-                            setSelectedDate(day);
-                            setCurrentDate(day);
-                          }}
+                          className={`group bg-background ${isSelectedDay ? "ring-2 ring-primary/30 ring-inset" : ""}`}
                         >
-                          <div className="mb-1 flex items-center justify-between gap-1">
-                            <div
-                              className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isSelectedDay ? "bg-slate-900 text-white" : ""}`}
-                            >
-                              {format(day, "d")}
+                          <div
+                            className={`py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
+                          >
+                            <div className="flex items-start justify-between px-2">
+                              <span className="text-left">
+                                <span className="block">
+                                  {format(day, "EEE", { locale: ko })}
+                                </span>
+                                <span
+                                  className={`block text-base font-bold ${isToday ? "text-primary" : ""}`}
+                                >
+                                  {format(day, "d")}
+                                </span>
+                              </span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
+                                aria-label="일정 추가"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  openQuickCreate(day);
+                                }}
+                              >
+                                <Plus
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden="true"
+                                />
+                              </Button>
                             </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
-                              aria-label="일정 추가"
-                              onClick={e => {
-                                e.stopPropagation();
-                                openQuickCreate(day);
-                              }}
-                            >
-                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                            </Button>
                           </div>
-                          <div className="space-y-0.5">
-                            {daySchedules.slice(0, 3).map(s => (
+                          <div
+                            className="p-1 min-h-[200px] space-y-1 cursor-pointer"
+                            onClick={() => {
+                              setSelectedDate(day);
+                              setCurrentDate(day);
+                            }}
+                          >
+                            {daySchedules.map(s => (
                               <div
                                 key={s.id}
-                                className={`text-[10px] text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`}
+                                className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`}
                                 onClick={e => {
                                   e.stopPropagation();
                                   setSelectedSchedule(s);
                                 }}
                               >
-                                {formatScheduleTime(s.startTime)}{" "}
-                                {showOwnerName && s.ownerName
-                                  ? `[${s.ownerName}] `
-                                  : ""}
-                                {s.title}
+                                <div className="font-medium truncate">
+                                  {showOwnerName && s.ownerName
+                                    ? `[${s.ownerName}] `
+                                    : ""}
+                                  {s.title}
+                                </div>
+                                <div className="opacity-80">
+                                  {formatScheduleTime(s.startTime)}
+                                </div>
                               </div>
                             ))}
-                            {daySchedules.length > 3 && (
-                              <div className="text-[10px] text-muted-foreground pl-1">
-                                +{daySchedules.length - 3}개
-                              </div>
-                            )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
-                </div>
-              )}
+                )}
 
-              {viewMode === "week" && (
-                <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
-                  {weekDays.map(day => {
-                    const daySchedules = getSchedulesForDay(day);
-                    const isToday = isSameDay(day, new Date());
-                    const isSelectedDay = isSameDay(day, selectedDay);
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className={`group bg-background ${isSelectedDay ? "ring-2 ring-primary/30 ring-inset" : ""}`}
-                      >
-                        <div
-                          className={`py-2 text-xs font-medium ${isToday ? "bg-primary/10 text-primary" : "text-muted-foreground"}`}
-                        >
-                          <div className="flex items-start justify-between px-2">
-                            <span className="text-left">
-                              <span className="block">
-                                {format(day, "EEE", { locale: ko })}
-                              </span>
-                              <span
-                                className={`block text-base font-bold ${isToday ? "text-primary" : ""}`}
-                              >
-                                {format(day, "d")}
-                              </span>
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className={`h-7 w-7 transition group-hover:opacity-100 focus-visible:opacity-100 ${isSelectedDay ? "opacity-100" : "opacity-0"}`}
-                              aria-label="일정 추가"
-                              onClick={e => {
-                                e.stopPropagation();
-                                openQuickCreate(day);
-                              }}
-                            >
-                              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-                            </Button>
-                          </div>
-                        </div>
-                        <div
-                          className="p-1 min-h-[200px] space-y-1 cursor-pointer"
-                          onClick={() => {
-                            setSelectedDate(day);
-                            setCurrentDate(day);
-                          }}
-                        >
-                          {daySchedules.map(s => (
-                            <div
-                              key={s.id}
-                              className={`text-[11px] text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`}
-                              onClick={e => {
-                                e.stopPropagation();
-                                setSelectedSchedule(s);
-                              }}
-                            >
-                              <div className="font-medium truncate">
-                                {showOwnerName && s.ownerName
-                                  ? `[${s.ownerName}] `
-                                  : ""}
-                                {s.title}
-                              </div>
-                              <div className="opacity-80">
-                                {formatScheduleTime(s.startTime)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })}
+                {viewMode === "day" && (
+                  <div className="space-y-2">
+                    {getSchedulesForDay(currentDate).length === 0 ? (
+                      <ScheduleEmptyState
+                        title="이 날 일정이 없습니다."
+                        description="상담 예약이나 후속관리 일정을 등록해보세요."
+                        onCreate={() => openQuickCreate(currentDate)}
+                      />
+                    ) : (
+                      getSchedulesForDay(currentDate).map(s => (
+                        <ScheduleWorkItem
+                          key={s.id}
+                          schedule={s}
+                          customerName={
+                            getScheduleCustomerLabel(s) ?? undefined
+                          }
+                          ownerName={s.ownerName}
+                          showOwnerName={showOwnerName}
+                          readOnly={!(s.canEdit ?? true)}
+                          onCustomerClick={
+                            canOpenCustomerDetail(s)
+                              ? () => openCustomerDetail(s)
+                              : undefined
+                          }
+                          onClick={() => setSelectedSchedule(s)}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                    선택 날짜 업무
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8"
+                    onClick={() => openQuickCreate(selectedDay)}
+                  >
+                    <Plus className="mr-1 h-3.5 w-3.5" /> 추가
+                  </Button>
                 </div>
-              )}
-
-              {viewMode === "day" && (
-                <div className="space-y-2">
-                  {getSchedulesForDay(currentDate).length === 0 ? (
-                    <ScheduleEmptyState
-                      title="이 날 일정이 없습니다."
-                      description="상담 예약이나 후속관리 일정을 등록해보세요."
-                      onCreate={() => openQuickCreate(currentDate)}
-                    />
-                  ) : (
-                    getSchedulesForDay(currentDate).map(s => (
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="rounded-lg bg-slate-50 px-3 py-2">
+                  <p className="text-xs text-slate-500">선택 날짜</p>
+                  <p className="text-sm font-semibold text-slate-950">
+                    {format(selectedDay, "yyyy년 M월 d일 (EEE)", {
+                      locale: ko,
+                    })}
+                  </p>
+                </div>
+                {selectedDaySchedules.length === 0 ? (
+                  <ScheduleEmptyState
+                    title="선택한 날짜에 일정이 없습니다."
+                    description="상담·계약·후속관리 일정을 등록하세요."
+                    onCreate={() => openQuickCreate(selectedDay)}
+                  />
+                ) : (
+                  <div className="space-y-2">
+                    {selectedDaySchedules.map(s => (
                       <ScheduleWorkItem
                         key={s.id}
                         schedule={s}
@@ -1388,66 +1466,13 @@ export default function Calendar() {
                         }
                         onClick={() => setSelectedSchedule(s)}
                       />
-                    ))
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between gap-2">
-                <CardTitle className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-700" />
-                  선택 날짜 업무
-                </CardTitle>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-8"
-                  onClick={() => openQuickCreate(selectedDay)}
-                >
-                  <Plus className="mr-1 h-3.5 w-3.5" /> 추가
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="rounded-lg bg-slate-50 px-3 py-2">
-                <p className="text-xs text-slate-500">선택 날짜</p>
-                <p className="text-sm font-semibold text-slate-950">
-                  {format(selectedDay, "yyyy년 M월 d일 (EEE)", { locale: ko })}
-                </p>
-              </div>
-              {selectedDaySchedules.length === 0 ? (
-                <ScheduleEmptyState
-                  title="선택한 날짜에 일정이 없습니다."
-                  description="상담·계약·후속관리 일정을 등록하세요."
-                  onCreate={() => openQuickCreate(selectedDay)}
-                />
-              ) : (
-                <div className="space-y-2">
-                  {selectedDaySchedules.map(s => (
-                    <ScheduleWorkItem
-                      key={s.id}
-                      schedule={s}
-                      customerName={getScheduleCustomerLabel(s) ?? undefined}
-                      ownerName={s.ownerName}
-                      showOwnerName={showOwnerName}
-                      readOnly={!(s.canEdit ?? true)}
-                      onCustomerClick={
-                        canOpenCustomerDetail(s)
-                          ? () => openCustomerDetail(s)
-                          : undefined
-                      }
-                      onClick={() => setSelectedSchedule(s)}
-                    />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
       )}
 
       <ScheduleQuickCreateDialog
@@ -1546,8 +1571,7 @@ function ScheduleModal({
     if (!open) return;
     setCategoryTouched(Boolean(seed?.calendarCategory));
     const initialType = seed?.type ?? "기타";
-    const initialCustomerId =
-      seed?.customerId ?? defaultCustomerId ?? null;
+    const initialCustomerId = seed?.customerId ?? defaultCustomerId ?? null;
     setCalendarCategory(
       seed?.calendarCategory ??
         recommendScheduleCalendarCategory({
@@ -1573,8 +1597,7 @@ function ScheduleModal({
     setCalendarCategory(
       recommendScheduleCalendarCategory({
         scheduleType: form.type,
-        customerId:
-          form.customerId !== "none" ? Number(form.customerId) : null,
+        customerId: form.customerId !== "none" ? Number(form.customerId) : null,
       })
     );
   }, [form.type, form.customerId, categoryTouched, open]);
@@ -1858,8 +1881,7 @@ function ScheduleDetailModal({
     setCalendarCategory(
       recommendScheduleCalendarCategory({
         scheduleType: form.type,
-        customerId:
-          form.customerId !== "none" ? Number(form.customerId) : null,
+        customerId: form.customerId !== "none" ? Number(form.customerId) : null,
       })
     );
   }, [form.type, form.customerId, categoryTouched, editing]);
@@ -1944,7 +1966,9 @@ function ScheduleDetailModal({
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3">
-            <p className="text-xs text-muted-foreground">Google Calendar 동기화</p>
+            <p className="text-xs text-muted-foreground">
+              Google Calendar 동기화
+            </p>
             {syncSummaryQuery.isLoading ? (
               <p className="mt-1 text-sm text-slate-500">확인 중...</p>
             ) : syncSummaryQuery.data?.googleCalendarLabel ? (
@@ -2097,11 +2121,14 @@ function ScheduleDetailModal({
                 </p>
               </div>
               <ScheduleCustomerLinkPicker
-                value={form.customerId === "none" ? null : Number(form.customerId)}
+                value={
+                  form.customerId === "none" ? null : Number(form.customerId)
+                }
                 onChange={customerId =>
                   setForm({
                     ...form,
-                    customerId: customerId == null ? "none" : String(customerId),
+                    customerId:
+                      customerId == null ? "none" : String(customerId),
                   })
                 }
                 disabled={loading}

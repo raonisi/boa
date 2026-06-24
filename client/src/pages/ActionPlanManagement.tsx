@@ -74,8 +74,9 @@ function todayDate() {
 function statusBadge(status?: string | null) {
   if (!status) return <Badge variant="outline">미작성</Badge>;
   const label =
-    ACTION_PLAN_STATUS_LABELS[status as keyof typeof ACTION_PLAN_STATUS_LABELS] ??
-    status;
+    ACTION_PLAN_STATUS_LABELS[
+      status as keyof typeof ACTION_PLAN_STATUS_LABELS
+    ] ?? status;
   const className =
     status === "submitted"
       ? "bg-blue-100 text-blue-700"
@@ -213,15 +214,12 @@ export default function ActionPlanManagement() {
     { monthlyPlanId: monthlyQuery.data?.id },
     { enabled: !!monthlyQuery.data?.id }
   );
-  const weeklyPlan = useMemo(
-    () => {
-      const n = weekLabelToNumber(weekLabel);
-      return weeklyQuery.data?.find(
-        p => p.weekLabel === weekLabel || p.weekNumber === n
-      );
-    },
-    [weeklyQuery.data, weekLabel]
-  );
+  const weeklyPlan = useMemo(() => {
+    const n = weekLabelToNumber(weekLabel);
+    return weeklyQuery.data?.find(
+      p => p.weekLabel === weekLabel || p.weekNumber === n
+    );
+  }, [weeklyQuery.data, weekLabel]);
   const dailyQuery = trpc.actionPlans.getDailyPlans.useQuery(
     { weeklyPlanId: weeklyPlan?.id, planDate },
     { enabled: !!weeklyPlan?.id }
@@ -278,14 +276,16 @@ export default function ActionPlanManagement() {
       monthlyCallTarget: m.monthlyCallTarget ?? 0,
       monthlyMessageTarget: m.monthlyMessageTarget ?? 0,
       monthlyFollowUpTarget: m.monthlyFollowUpTarget ?? 0,
-      monthlyRevenueTarget: m.monthlyRevenueTarget ?? m.monthlyPremiumTarget ?? 0,
+      monthlyRevenueTarget:
+        m.monthlyRevenueTarget ?? m.monthlyPremiumTarget ?? 0,
       monthlyNewConsultationTarget: m.monthlyNewConsultationTarget ?? 0,
       monthlyContactTarget: m.monthlyContactTarget ?? m.monthlyCallTarget ?? 0,
       monthlyAnalysisTarget: m.monthlyAnalysisTarget ?? 0,
       monthlyProposalTarget: m.monthlyProposalTarget ?? 0,
       monthlyIntroductionRequestTarget: m.monthlyIntroductionRequestTarget ?? 0,
       focusCustomerGroup: m.focusCustomerGroup ?? "",
-      primaryCustomerSegment: m.primaryCustomerSegment ?? m.focusCustomerGroup ?? "",
+      primaryCustomerSegment:
+        m.primaryCustomerSegment ?? m.focusCustomerGroup ?? "",
       monthlyStrategy: m.monthlyStrategy ?? "",
       preparationMemo: m.preparationMemo ?? "",
       monthlyPreparationStatus: m.monthlyPreparationStatus ?? "",
@@ -310,12 +310,15 @@ export default function ActionPlanManagement() {
       weeklyVisitTarget: weeklyPlan.weeklyVisitTarget ?? 0,
       weeklyProposalTarget: weeklyPlan.weeklyProposalTarget ?? 0,
       weeklyFollowUpTarget: weeklyPlan.weeklyFollowUpTarget ?? 0,
-      weeklyRevenueTarget: weeklyPlan.weeklyRevenueTarget ?? weeklyPlan.weeklyPremiumTarget ?? 0,
+      weeklyRevenueTarget:
+        weeklyPlan.weeklyRevenueTarget ?? weeklyPlan.weeklyPremiumTarget ?? 0,
       weeklyAnalysisTarget: weeklyPlan.weeklyAnalysisTarget ?? 0,
-      weeklyIntroductionRequestTarget: weeklyPlan.weeklyIntroductionRequestTarget ?? 0,
+      weeklyIntroductionRequestTarget:
+        weeklyPlan.weeklyIntroductionRequestTarget ?? 0,
       weeklyReconnectTarget: weeklyPlan.weeklyReconnectTarget ?? 0,
       focusCustomerGroup: weeklyPlan.focusCustomerGroup ?? "",
-      targetCustomerSegment: weeklyPlan.targetCustomerSegment ?? weeklyPlan.focusCustomerGroup ?? "",
+      targetCustomerSegment:
+        weeklyPlan.targetCustomerSegment ?? weeklyPlan.focusCustomerGroup ?? "",
       targetCustomerReference: weeklyPlan.targetCustomerReference ?? "",
       customerStage: weeklyPlan.customerStage ?? "",
       proposedProductCategory: weeklyPlan.proposedProductCategory ?? "",
@@ -350,7 +353,8 @@ export default function ActionPlanManagement() {
       newContactTarget: dailyPlan.newContactTarget ?? dailyPlan.callTarget ?? 0,
       analysisTarget: dailyPlan.analysisTarget ?? 0,
       introductionRequestTarget: dailyPlan.introductionRequestTarget ?? 0,
-      reconnectTarget: dailyPlan.reconnectTarget ?? dailyPlan.followUpTarget ?? 0,
+      reconnectTarget:
+        dailyPlan.reconnectTarget ?? dailyPlan.followUpTarget ?? 0,
       contractTarget: dailyPlan.contractTarget ?? 0,
       targetCustomerSegment: dailyPlan.targetCustomerSegment ?? "",
       targetCustomerReference: dailyPlan.targetCustomerReference ?? "",
@@ -367,10 +371,13 @@ export default function ActionPlanManagement() {
       actualVisitCount: dailyPlan.actualVisitCount ?? 0,
       actualProposalCount: dailyPlan.actualProposalCount ?? 0,
       actualFollowUpCount: dailyPlan.actualFollowUpCount ?? 0,
-      actualNewContactCount: dailyPlan.actualNewContactCount ?? dailyPlan.actualCallCount ?? 0,
+      actualNewContactCount:
+        dailyPlan.actualNewContactCount ?? dailyPlan.actualCallCount ?? 0,
       actualAnalysisCount: dailyPlan.actualAnalysisCount ?? 0,
-      actualIntroductionRequestCount: dailyPlan.actualIntroductionRequestCount ?? 0,
-      actualReconnectCount: dailyPlan.actualReconnectCount ?? dailyPlan.actualFollowUpCount ?? 0,
+      actualIntroductionRequestCount:
+        dailyPlan.actualIntroductionRequestCount ?? 0,
+      actualReconnectCount:
+        dailyPlan.actualReconnectCount ?? dailyPlan.actualFollowUpCount ?? 0,
       actualContractCount: dailyPlan.actualContractCount ?? 0,
       actualResultMemo: dailyPlan.actualResultMemo ?? "",
       nextDayMemo: dailyPlan.nextDayMemo ?? "",
@@ -380,8 +387,7 @@ export default function ActionPlanManagement() {
   }, [dailyPlan]);
 
   const monthlyEditable =
-    !monthlyQuery.data ||
-    isActionPlanEditable(monthlyQuery.data.status as any);
+    !monthlyQuery.data || isActionPlanEditable(monthlyQuery.data.status as any);
   const weeklyEditable =
     !weeklyPlan || isActionPlanEditable(weeklyPlan.status as any);
   const dailyEditable =
@@ -477,25 +483,26 @@ export default function ActionPlanManagement() {
     },
     onError,
   });
-  const downloadReport = trpc.actionPlans.downloadExecutiveReportXlsx.useMutation({
-    onSuccess: result => {
-      const blob = Uint8Array.from(atob(result.contentBase64), c =>
-        c.charCodeAt(0)
-      );
-      const url = URL.createObjectURL(
-        new Blob([blob], { type: result.mimeType })
-      );
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = result.filename;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success("대표 보고서를 다운로드했습니다.");
-      setShowDownloadDialog(false);
-      setDownloadReason("");
-    },
-    onError,
-  });
+  const downloadReport =
+    trpc.actionPlans.downloadExecutiveReportXlsx.useMutation({
+      onSuccess: result => {
+        const blob = Uint8Array.from(atob(result.contentBase64), c =>
+          c.charCodeAt(0)
+        );
+        const url = URL.createObjectURL(
+          new Blob([blob], { type: result.mimeType })
+        );
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.filename;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("대표 보고서를 다운로드했습니다.");
+        setShowDownloadDialog(false);
+        setDownloadReason("");
+      },
+      onError,
+    });
 
   const saveMonthly = () => {
     const payload = { targetMonth, ...monthlyForm };
@@ -662,7 +669,10 @@ export default function ActionPlanManagement() {
                           value={monthlyForm.monthlyCallTarget}
                           disabled={!monthlyEditable}
                           onChange={v =>
-                            setMonthlyForm(f => ({ ...f, monthlyCallTarget: v }))
+                            setMonthlyForm(f => ({
+                              ...f,
+                              monthlyCallTarget: v,
+                            }))
                           }
                         />
                         <NumberField
@@ -753,7 +763,10 @@ export default function ActionPlanManagement() {
                           value={monthlyForm.monthlyRevenueTarget}
                           disabled={!monthlyEditable}
                           onChange={v =>
-                            setMonthlyForm(f => ({ ...f, monthlyRevenueTarget: v }))
+                            setMonthlyForm(f => ({
+                              ...f,
+                              monthlyRevenueTarget: v,
+                            }))
                           }
                         />
                         <NumberField
@@ -761,7 +774,10 @@ export default function ActionPlanManagement() {
                           value={monthlyForm.monthlyAnalysisTarget}
                           disabled={!monthlyEditable}
                           onChange={v =>
-                            setMonthlyForm(f => ({ ...f, monthlyAnalysisTarget: v }))
+                            setMonthlyForm(f => ({
+                              ...f,
+                              monthlyAnalysisTarget: v,
+                            }))
                           }
                         />
                         <div className="md:col-span-2">
@@ -1402,7 +1418,8 @@ export default function ActionPlanManagement() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="text-2xl font-semibold">
-                      {submissionQuery.data?.totals.dailySubmittedRateToday ?? 0}
+                      {submissionQuery.data?.totals.dailySubmittedRateToday ??
+                        0}
                       %
                     </CardContent>
                   </Card>
@@ -1430,7 +1447,8 @@ export default function ActionPlanManagement() {
                       <p>
                         계획 누락:{" "}
                         {(
-                          submissionQuery.data?.dashboard?.todayPlanMissing ?? []
+                          submissionQuery.data?.dashboard?.todayPlanMissing ??
+                          []
                         )
                           .map(u => u.name)
                           .join(", ") || "없음"}
@@ -1447,8 +1465,8 @@ export default function ActionPlanManagement() {
                       <p>
                         코칭 요청:{" "}
                         {(
-                          submissionQuery.data?.dashboard?.coachingRequestUsers ??
-                          []
+                          submissionQuery.data?.dashboard
+                            ?.coachingRequestUsers ?? []
                         )
                           .map(u => u.name)
                           .join(", ") || "없음"}
@@ -1502,7 +1520,9 @@ export default function ActionPlanManagement() {
                           }
                           onFocus={() => {
                             setSelectedPlanId(row.monthly.id);
-                            setFeedbackComment(row.monthly.managerComment ?? "");
+                            setFeedbackComment(
+                              row.monthly.managerComment ?? ""
+                            );
                           }}
                           onChange={e => setFeedbackComment(e.target.value)}
                         />
@@ -1600,7 +1620,9 @@ export default function ActionPlanManagement() {
                 </CardHeader>
                 <CardContent className="text-sm space-y-1">
                   {previewQuery.isLoading ? (
-                    <p className="text-sm text-muted-foreground">불러오는 중…</p>
+                    <p className="text-sm text-muted-foreground">
+                      불러오는 중…
+                    </p>
                   ) : (
                     <>
                       <p>대상 인원: {previewQuery.data?.userCount ?? 0}명</p>
@@ -1618,7 +1640,10 @@ export default function ActionPlanManagement() {
                 </CardContent>
               </Card>
 
-              <Button className="min-h-11" onClick={() => setShowDownloadDialog(true)}>
+              <Button
+                className="min-h-11"
+                onClick={() => setShowDownloadDialog(true)}
+              >
                 <Download className="mr-2 h-4 w-4" />
                 XLSX 다운로드
               </Button>

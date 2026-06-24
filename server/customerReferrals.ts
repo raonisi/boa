@@ -174,7 +174,9 @@ export const customerReferralsRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            error instanceof Error ? error.message : "소개 메모를 확인해 주세요.",
+            error instanceof Error
+              ? error.message
+              : "소개 메모를 확인해 주세요.",
         });
       }
 
@@ -238,7 +240,9 @@ export const customerReferralsRouter = router({
           throw new TRPCError({
             code: "BAD_REQUEST",
             message:
-              error instanceof Error ? error.message : "소개 메모를 확인해 주세요.",
+              error instanceof Error
+                ? error.message
+                : "소개 메모를 확인해 주세요.",
           });
         }
       }

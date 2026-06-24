@@ -307,7 +307,9 @@ export default function CustomerBulkImport() {
           handlePreview(rows, file.name, file.size, nextMimeType);
         })
         .catch((error: any) => {
-          alert("파일을 해석하지 못했습니다. 형식을 확인한 뒤 다시 시도해 주세요.");
+          alert(
+            "파일을 해석하지 못했습니다. 형식을 확인한 뒤 다시 시도해 주세요."
+          );
         });
       return;
     }
@@ -321,7 +323,9 @@ export default function CustomerBulkImport() {
         handlePreview(rows, file.name, file.size, nextMimeType);
       },
       error: (error: any) => {
-        alert("파일을 해석하지 못했습니다. 형식을 확인한 뒤 다시 시도해 주세요.");
+        alert(
+          "파일을 해석하지 못했습니다. 형식을 확인한 뒤 다시 시도해 주세요."
+        );
       },
     });
   };

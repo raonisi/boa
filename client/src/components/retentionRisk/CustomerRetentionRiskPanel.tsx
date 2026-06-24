@@ -50,7 +50,10 @@ import { TERMINAL_RETENTION_STATUSES } from "@shared/retentionRisk";
 import { formatKstLocalDateTime } from "@shared/timePolicy";
 import { Edit2, FileCheck2, Plus, ShieldCheck, Trash2 } from "lucide-react";
 import React, { useMemo, useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
 type RetentionRiskRow = {
@@ -114,8 +117,9 @@ export function CustomerRetentionRiskPanel({
   const utils = trpc.useUtils();
   const canManage = canManageRetentionRisk(user, pageCustomer);
 
-  const { data: cases, isLoading } =
-    trpc.retentionRisk.listByCustomer.useQuery({ customerId });
+  const { data: cases, isLoading } = trpc.retentionRisk.listByCustomer.useQuery(
+    { customerId }
+  );
   const { data: contracts } = trpc.contracts.listByCustomer.useQuery({
     customerId,
   });
@@ -190,7 +194,8 @@ export function CustomerRetentionRiskPanel({
       resetForm();
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.retentionRisk.update.useMutation({
@@ -199,7 +204,8 @@ export function CustomerRetentionRiskPanel({
       setEditTarget(null);
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeLevelMutation = trpc.retentionRisk.changeRiskLevel.useMutation({
@@ -219,7 +225,8 @@ export function CustomerRetentionRiskPanel({
       setResolveTarget(null);
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const deleteMutation = trpc.retentionRisk.delete.useMutation({
@@ -228,7 +235,8 @@ export function CustomerRetentionRiskPanel({
       setDeleteTarget(null);
       await invalidate();
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   function resetForm() {
@@ -336,9 +344,7 @@ export function CustomerRetentionRiskPanel({
           <Label>해지 고민 사유</Label>
           <Select
             value={riskReason}
-            onValueChange={value =>
-              setRiskReason(value as RetentionRiskReason)
-            }
+            onValueChange={value => setRiskReason(value as RetentionRiskReason)}
           >
             <SelectTrigger>
               <SelectValue />
@@ -537,9 +543,7 @@ export function CustomerRetentionRiskPanel({
                 ) : null}
                 {row.followUpId ? (
                   <p>
-                    <span className="text-muted-foreground">
-                      연결 후속관리
-                    </span>{" "}
+                    <span className="text-muted-foreground">연결 후속관리</span>{" "}
                     {followUpLabel.get(row.followUpId) ?? `#${row.followUpId}`}
                   </p>
                 ) : null}
@@ -557,8 +561,7 @@ export function CustomerRetentionRiskPanel({
                 ) : null}
                 {terminal && row.resolvedAt ? (
                   <p className="text-xs text-muted-foreground">
-                    종료{" "}
-                    {formatKstLocalDateTime(String(row.resolvedAt))}
+                    종료 {formatKstLocalDateTime(String(row.resolvedAt))}
                   </p>
                 ) : null}
               </div>
@@ -566,7 +569,9 @@ export function CustomerRetentionRiskPanel({
                 최근 업데이트 {formatKstLocalDateTime(String(row.updatedAt))}
               </p>
               {row.memo ? (
-                <p className="line-clamp-2 text-sm text-slate-700">{row.memo}</p>
+                <p className="line-clamp-2 text-sm text-slate-700">
+                  {row.memo}
+                </p>
               ) : null}
             </div>
             {canManage ? (
@@ -675,8 +680,8 @@ export function CustomerRetentionRiskPanel({
           <DialogHeader>
             <DialogTitle>해지위험 관리 추가</DialogTitle>
             <DialogDescription>
-              현재 고객 기준으로 해지위험 상태와 대응 방향을 기록합니다.
-              다음 확인일을 놓치지 않도록 관리합니다.
+              현재 고객 기준으로 해지위험 상태와 대응 방향을 기록합니다. 다음
+              확인일을 놓치지 않도록 관리합니다.
             </DialogDescription>
           </DialogHeader>
           {renderFormFields(true)}
@@ -699,14 +704,21 @@ export function CustomerRetentionRiskPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(editTarget)} onOpenChange={() => setEditTarget(null)}>
+      <Dialog
+        open={Boolean(editTarget)}
+        onOpenChange={() => setEditTarget(null)}
+      >
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>해지위험 관리 수정</DialogTitle>
           </DialogHeader>
           {renderFormFields(false)}
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -720,7 +732,10 @@ export function CustomerRetentionRiskPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(statusTarget)} onOpenChange={() => setStatusTarget(null)}>
+      <Dialog
+        open={Boolean(statusTarget)}
+        onOpenChange={() => setStatusTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>해지위험 상태 변경</DialogTitle>
@@ -811,7 +826,11 @@ export function CustomerRetentionRiskPanel({
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setStatusTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStatusTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -827,7 +846,10 @@ export function CustomerRetentionRiskPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(resolveTarget)} onOpenChange={() => setResolveTarget(null)}>
+      <Dialog
+        open={Boolean(resolveTarget)}
+        onOpenChange={() => setResolveTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>해지위험 종료 처리</DialogTitle>
@@ -857,7 +879,11 @@ export function CustomerRetentionRiskPanel({
             </Select>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setResolveTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setResolveTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -877,7 +903,10 @@ export function CustomerRetentionRiskPanel({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={Boolean(deleteTarget)} onOpenChange={() => setDeleteTarget(null)}>
+      <Dialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={() => setDeleteTarget(null)}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>해지위험 관리 비활성화</DialogTitle>
@@ -886,7 +915,11 @@ export function CustomerRetentionRiskPanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+            >
               취소
             </Button>
             <Button

@@ -8,28 +8,28 @@
 
 ## 관계 유형
 
-| 코드 | 표시 라벨 (기본) |
-|------|------------------|
-| `family_spouse` | 배우자 |
-| `family_child` | 자녀 (역방향: 부모) |
-| `family_parent` | 부모 (역방향: 자녀) |
-| `family_sibling` | 형제자매 |
-| `referral` | 소개자 (역방향: 피소개자) |
-| `coworker` | 직장동료 |
-| `corporate_representative` | 법인 대표 |
-| `corporate_employee` | 법인 임직원 |
-| `friend` | 지인 |
-| `other` | 기타 |
+| 코드                       | 표시 라벨 (기본)          |
+| -------------------------- | ------------------------- |
+| `family_spouse`            | 배우자                    |
+| `family_child`             | 자녀 (역방향: 부모)       |
+| `family_parent`            | 부모 (역방향: 자녀)       |
+| `family_sibling`           | 형제자매                  |
+| `referral`                 | 소개자 (역방향: 피소개자) |
+| `coworker`                 | 직장동료                  |
+| `corporate_representative` | 법인 대표                 |
+| `corporate_employee`       | 법인 임직원               |
+| `friend`                   | 지인                      |
+| `other`                    | 기타                      |
 
 ## 권한 기준 (서버 RBAC)
 
-| 역할 | 조회 | 생성/수정/삭제 |
-|------|------|----------------|
-| `branch_admin` | 전체 | 전체 (범위 내 두 고객) |
-| `sub_branch_admin` | 본인 산하 | 본인 산하 |
-| `team_leader` | 본인 팀 | 본인 팀 |
-| `member` | 본인 담당 고객 연결 관계 | **본인 담당 고객을 기준**으로만 |
-| `inactive` / `resigned` | 차단 | 차단 |
+| 역할                    | 조회                     | 생성/수정/삭제                  |
+| ----------------------- | ------------------------ | ------------------------------- |
+| `branch_admin`          | 전체                     | 전체 (범위 내 두 고객)          |
+| `sub_branch_admin`      | 본인 산하                | 본인 산하                       |
+| `team_leader`           | 본인 팀                  | 본인 팀                         |
+| `member`                | 본인 담당 고객 연결 관계 | **본인 담당 고객을 기준**으로만 |
+| `inactive` / `resigned` | 차단                     | 차단                            |
 
 - 두 고객 중 하나라도 권한 범위 밖이면 **생성/수정/삭제 차단**
 - 관계 대상 고객 검색도 **권한 범위 내 고객만** 노출

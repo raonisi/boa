@@ -9,7 +9,9 @@ import {
 
 describe("customerListUrlPresets", () => {
   it("accepts whitelisted preset values", () => {
-    expect(parseCustomerListUrlPreset("today-follow-up")).toBe("today-follow-up");
+    expect(parseCustomerListUrlPreset("today-follow-up")).toBe(
+      "today-follow-up"
+    );
     expect(parseCustomerListUrlPreset("overdue_follow_up")).toBe(
       "overdue-follow-up"
     );
@@ -33,9 +35,9 @@ describe("customerListUrlPresets", () => {
   it("maps quick presets to url presets when supported", () => {
     expect(quickPresetToUrlPreset("today_contact")).toBe("priority-contact");
     expect(quickPresetToUrlPreset("mine")).toBeNull();
-    expect(urlPresetMatchesQuickPreset("priority-contact", "today_contact")).toBe(
-      true
-    );
+    expect(
+      urlPresetMatchesQuickPreset("priority-contact", "today_contact")
+    ).toBe(true);
   });
 
   it("filters follow-up presets by scoped customer ids only", () => {

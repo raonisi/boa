@@ -132,7 +132,11 @@ export const customerRelationshipsRouter = router({
         input.customerId,
         input.relatedCustomerId
       );
-      canMutateRelationshipForMember(ctx.user, input.customerId, anchorCustomer);
+      canMutateRelationshipForMember(
+        ctx.user,
+        input.customerId,
+        anchorCustomer
+      );
 
       try {
         assertRelationshipNoteSafe(input.note);
@@ -140,7 +144,9 @@ export const customerRelationshipsRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            error instanceof Error ? error.message : "관계 메모를 확인해 주세요.",
+            error instanceof Error
+              ? error.message
+              : "관계 메모를 확인해 주세요.",
         });
       }
 
@@ -221,7 +227,11 @@ export const customerRelationshipsRouter = router({
         existing.primaryCustomerId,
         existing.relatedCustomerId
       );
-      canMutateRelationshipForMember(ctx.user, input.customerId, anchorCustomer);
+      canMutateRelationshipForMember(
+        ctx.user,
+        input.customerId,
+        anchorCustomer
+      );
 
       if (input.note !== undefined) {
         try {
@@ -336,7 +346,11 @@ export const customerRelationshipsRouter = router({
         existing.primaryCustomerId,
         existing.relatedCustomerId
       );
-      canMutateRelationshipForMember(ctx.user, input.customerId, anchorCustomer);
+      canMutateRelationshipForMember(
+        ctx.user,
+        input.customerId,
+        anchorCustomer
+      );
 
       const deleted = await softDeleteCustomerRelationship(
         input.id,

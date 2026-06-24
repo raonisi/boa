@@ -112,7 +112,9 @@ export const CLAIM_CUSTOMER_ACTION_STATUS_OPTIONS = (
 }));
 
 export const CLAIM_GUIDANCE_CLOSED_REASON_OPTIONS = (
-  Object.keys(CLAIM_GUIDANCE_CLOSED_REASON_LABELS) as ClaimGuidanceClosedReason[]
+  Object.keys(
+    CLAIM_GUIDANCE_CLOSED_REASON_LABELS
+  ) as ClaimGuidanceClosedReason[]
 ).map(value => ({
   value,
   label: CLAIM_GUIDANCE_CLOSED_REASON_LABELS[value],

@@ -9,7 +9,8 @@ import type {
 } from "@shared/retentionRisk";
 import { RETENTION_RISK_SENSITIVE_MEMO_ERROR } from "@shared/retentionRisk";
 
-export const RETENTION_RISK_SENSITIVE_MEMO_NOTICE = RETENTION_RISK_SENSITIVE_MEMO_ERROR;
+export const RETENTION_RISK_SENSITIVE_MEMO_NOTICE =
+  RETENTION_RISK_SENSITIVE_MEMO_ERROR;
 
 export const RETENTION_RISK_REASON_LABELS: Record<RetentionRiskReason, string> =
   {

@@ -3,7 +3,9 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import * as db from "./db";
 
-function createCtx(user: Partial<NonNullable<TrpcContext["user"]>>): TrpcContext {
+function createCtx(
+  user: Partial<NonNullable<TrpcContext["user"]>>
+): TrpcContext {
   return {
     user: {
       id: 2,
@@ -31,7 +33,9 @@ describe("customers.list agent filter scope", () => {
   });
 
   it("allows sub_branch_admin to filter by in-scope member", async () => {
-    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([] as any);
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([] as any);
     vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
       if (id === 4) {
         return {
@@ -85,7 +89,9 @@ describe("customers.list agent filter scope", () => {
   });
 
   it("blocks sub_branch_admin from filtering by out-of-scope agent", async () => {
-    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([] as any);
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([] as any);
     vi.spyOn(db, "getUserById").mockImplementation(async (id: number) => {
       if (id === 99) {
         return {

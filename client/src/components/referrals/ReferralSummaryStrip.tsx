@@ -13,8 +13,12 @@ type ReferralSummaryStripProps = {
 
 export function ReferralSummaryStrip({ user }: ReferralSummaryStripProps) {
   const enabled = canAccessReferralManagement(user);
-  const { data: summary, isLoading, isError, refetch } =
-    trpc.customerReferrals.summary.useQuery(undefined, { enabled });
+  const {
+    data: summary,
+    isLoading,
+    isError,
+    refetch,
+  } = trpc.customerReferrals.summary.useQuery(undefined, { enabled });
 
   if (!enabled) return null;
 

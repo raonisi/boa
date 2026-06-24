@@ -45,9 +45,7 @@ export function resolveCalendarCategoryForSave(input: {
 
 export async function logCalendarCategoryActivity(
   actor: ScheduleActor,
-  action:
-    | "CALENDAR_CATEGORY_SELECTED"
-    | "CALENDAR_CATEGORY_CHANGED",
+  action: "CALENDAR_CATEGORY_SELECTED" | "CALENDAR_CATEGORY_CHANGED",
   metadata: Record<string, unknown>
 ) {
   await createActivityLog({

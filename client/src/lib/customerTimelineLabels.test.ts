@@ -30,7 +30,10 @@ describe("customerTimelineLabels", () => {
       getCustomerTimelineSummary("CUSTOMER_VIEWED", "CUSTOMER_VIEWED")
     ).toBe("고객 상세 조회");
     expect(
-      getCustomerTimelineSummary("consultation_created", "통화 후 상담 약속 잡음")
+      getCustomerTimelineSummary(
+        "consultation_created",
+        "통화 후 상담 약속 잡음"
+      )
     ).toBe("통화 후 상담 약속 잡음");
   });
 });

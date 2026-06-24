@@ -9,7 +9,16 @@ import {
   PriorityBadge,
   StatusBadge,
 } from "@/components/StatusBadge";
-import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState, LoadingMetric, NotFoundState, SensitiveDataUnavailableState, renderMetricValue } from "./empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  ForbiddenInlineState,
+  LoadingState,
+  LoadingMetric,
+  NotFoundState,
+  SensitiveDataUnavailableState,
+  renderMetricValue,
+} from "./empty-state";
 
 describe("shared state components", () => {
   it("renders empty states with a clear next action", () => {
@@ -31,14 +40,14 @@ describe("shared state components", () => {
     const html = renderToStaticMarkup(<LoadingState />);
 
     expect(html).toContain("정보를 불러오는 중입니다.");
-    expect(html).toContain("aria-label=\"불러오는 중\"");
-    expect(html).toContain("aria-busy=\"true\"");
+    expect(html).toContain('aria-label="불러오는 중"');
+    expect(html).toContain('aria-busy="true"');
   });
 
   it("renders loading metrics with Korean accessibility label", () => {
     const html = renderToStaticMarkup(<LoadingMetric className="h-7 w-12" />);
-    expect(html).toContain("aria-label=\"불러오는 중\"");
-    expect(html).toContain("role=\"status\"");
+    expect(html).toContain('aria-label="불러오는 중"');
+    expect(html).toContain('role="status"');
   });
 
   it("renders metric values with loading and error fallbacks", () => {
@@ -129,7 +138,9 @@ describe("StatusBadge family", () => {
   });
 
   it("does not expose raw English coaching priority", () => {
-    const html = renderToStaticMarkup(<CoachingPriorityBadge priority="high" />);
+    const html = renderToStaticMarkup(
+      <CoachingPriorityBadge priority="high" />
+    );
     expect(html).toContain("높음");
     expect(html).not.toContain("HIGH");
   });

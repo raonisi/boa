@@ -2,7 +2,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -28,7 +32,10 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
-import { formatHandoffSuccessMessage, WORKFLOW_COPY } from "@/lib/assignmentWorkflowCopy";
+import {
+  formatHandoffSuccessMessage,
+  WORKFLOW_COPY,
+} from "@/lib/assignmentWorkflowCopy";
 import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,

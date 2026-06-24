@@ -10,7 +10,5 @@ export function formatAssignmentStatusLabel(
   assignmentStatus?: string | null
 ): string {
   if (!assignmentStatus) return ASSIGNMENT_STATUS_LABELS.unassigned;
-  return (
-    ASSIGNMENT_STATUS_LABELS[assignmentStatus] ?? assignmentStatus
-  );
+  return ASSIGNMENT_STATUS_LABELS[assignmentStatus] ?? assignmentStatus;
 }

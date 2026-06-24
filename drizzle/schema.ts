@@ -1364,7 +1364,9 @@ export const weeklyActionPlans = mysqlTable(
     targetCustomerSegment: text("targetCustomerSegment"),
     targetCustomerReference: text("targetCustomerReference"),
     customerStage: varchar("customerStage", { length: 50 }),
-    proposedProductCategory: varchar("proposedProductCategory", { length: 100 }),
+    proposedProductCategory: varchar("proposedProductCategory", {
+      length: 100,
+    }),
     proposedCoverageArea: varchar("proposedCoverageArea", { length: 100 }),
     proposalPurpose: text("proposalPurpose"),
     preparationMaterials: text("preparationMaterials"),
@@ -1423,7 +1425,9 @@ export const dailyActionPlans = mysqlTable(
     preparationMemo: text("preparationMemo"),
     actualCallCount: int("actualCallCount").default(0).notNull(),
     actualMessageCount: int("actualMessageCount").default(0).notNull(),
-    actualConsultationCount: int("actualConsultationCount").default(0).notNull(),
+    actualConsultationCount: int("actualConsultationCount")
+      .default(0)
+      .notNull(),
     actualVisitCount: int("actualVisitCount").default(0).notNull(),
     actualProposalCount: int("actualProposalCount").default(0).notNull(),
     actualFollowUpCount: int("actualFollowUpCount").default(0).notNull(),
@@ -1434,7 +1438,9 @@ export const dailyActionPlans = mysqlTable(
     targetCustomerSegment: text("targetCustomerSegment"),
     targetCustomerReference: text("targetCustomerReference"),
     customerStage: varchar("customerStage", { length: 50 }),
-    proposedProductCategory: varchar("proposedProductCategory", { length: 100 }),
+    proposedProductCategory: varchar("proposedProductCategory", {
+      length: 100,
+    }),
     proposedCoverageArea: varchar("proposedCoverageArea", { length: 100 }),
     proposalPurpose: text("proposalPurpose"),
     preparationMaterials: text("preparationMaterials"),
@@ -1582,7 +1588,9 @@ export const googleCalendarOrgSettings = mysqlTable(
     )
       .default(false)
       .notNull(),
-    allowCustomerNameInGoogleCalendar: boolean("allowCustomerNameInGoogleCalendar")
+    allowCustomerNameInGoogleCalendar: boolean(
+      "allowCustomerNameInGoogleCalendar"
+    )
       .default(false)
       .notNull(),
     allowCustomerContactInGoogleCalendar: boolean(

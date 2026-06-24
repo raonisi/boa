@@ -1,11 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import type { Customer } from "../drizzle/schema";
-import {
-  getAllUsers,
-  getCustomerById,
-  getCustomers,
-  getUserById,
-} from "./db";
+import { getAllUsers, getCustomerById, getCustomers, getUserById } from "./db";
 
 function isSoftDeleted(row: {
   isActive?: boolean | null;
@@ -54,7 +49,12 @@ function maskPhoneForPicker(phone?: string | null): string | null {
 
 function priorityLabel(priority?: string | null): string {
   if (!priority || priority === "unclassified") return "미분류";
-  if (priority === "A" || priority === "B" || priority === "C" || priority === "D") {
+  if (
+    priority === "A" ||
+    priority === "B" ||
+    priority === "C" ||
+    priority === "D"
+  ) {
     return priority;
   }
   return "확인 필요";
@@ -82,7 +82,10 @@ async function assertCustomerAccessible(
 ): Promise<Customer> {
   const customer = await getCustomerById(customerId);
   if (!customer || isSoftDeleted(customer)) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "고객을 찾을 수 없습니다." });
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "고객을 찾을 수 없습니다.",
+    });
   }
   if (user.role === "branch_admin") return customer;
   if (user.role === "sub_branch_admin") {
@@ -230,8 +233,13 @@ export async function searchCustomersForSchedulePicker(
 
   if (input.selectedCustomerId) {
     try {
-      const customer = await assertCustomerAccessible(user, input.selectedCustomerId);
-      const agent = customer.agentId ? await getUserById(customer.agentId) : null;
+      const customer = await assertCustomerAccessible(
+        user,
+        input.selectedCustomerId
+      );
+      const agent = customer.agentId
+        ? await getUserById(customer.agentId)
+        : null;
       selectedCustomer = toPickerItem(customer, agent?.name ?? null);
     } catch {
       selectedCustomer = null;

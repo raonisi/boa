@@ -1,4 +1,7 @@
-import { resolveQuickDateChip, type QuickDateChip } from "./scheduleQuickCreate";
+import {
+  resolveQuickDateChip,
+  type QuickDateChip,
+} from "./scheduleQuickCreate";
 import {
   formatKstLocalDate,
   getKstLocalDateTimeAfter,

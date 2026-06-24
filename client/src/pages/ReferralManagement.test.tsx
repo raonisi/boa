@@ -51,7 +51,12 @@ vi.mock("@/lib/trpc", () => ({
             contracted: 1,
             thankYouPending: 1,
             byStage: { introduced: 1, contracted: 1 },
-            byResultStatus: { in_progress: 2, contracted: 1, deferred: 0, declined: 0 },
+            byResultStatus: {
+              in_progress: 2,
+              contracted: 1,
+              deferred: 0,
+              declined: 0,
+            },
           },
           isLoading: false,
           refetch: vi.fn(),

@@ -233,7 +233,10 @@ export function registerMobileRoutes(app: Express) {
         res.status(e.statusCode).json({ error: e.message });
         return;
       }
-      console.error("[mobile] Google id_token login failed", sanitizeAuthError(e));
+      console.error(
+        "[mobile] Google id_token login failed",
+        sanitizeAuthError(e)
+      );
       res.status(500).json({ error: "Google login failed" });
     }
   });

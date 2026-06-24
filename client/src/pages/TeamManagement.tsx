@@ -21,7 +21,10 @@ import { trpc } from "@/lib/trpc";
 import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { Building2, Edit2, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import {
   getTeamMemberRoleBadgeClasses,
   getTeamUnassignedRoleBadgeClasses,
@@ -228,7 +231,11 @@ function OrgHierarchyView() {
                               key={u.id}
                               className="flex items-center gap-2 text-xs"
                             >
-                              <span className={getTeamMemberRoleBadgeClasses(u.role)}>
+                              <span
+                                className={getTeamMemberRoleBadgeClasses(
+                                  u.role
+                                )}
+                              >
                                 {getRoleLabel(u.role)}
                               </span>
                               <span className="font-medium">{u.name}</span>
@@ -402,7 +409,8 @@ function TeamListView() {
       utils.users.teams.invalidate();
       utils.users.list.invalidate();
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: err =>
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const updateUserTeamMutation = trpc.users.updateTeam.useMutation({

@@ -106,7 +106,9 @@ describe("googleCalendarSafePayload raw sync policy", () => {
         fullRawPolicy
       )
     ).toThrow(/forbidden secret/i);
-    expect(findForbiddenSecretPattern("refresh_token=xyz")).toBe("forbidden_secret");
+    expect(findForbiddenSecretPattern("refresh_token=xyz")).toBe(
+      "forbidden_secret"
+    );
   });
 
   it("does not store raw PII in activity log metadata", () => {
@@ -169,15 +171,21 @@ describe("googleCalendarSafePayload contact policy (legacy safe mode)", () => {
       targetType: "shared_calendar",
     });
     expect(description).not.toContain(sampleContact);
-    expect(findSensitiveCalendarPattern(description, { field: "description" })).toBeNull();
+    expect(
+      findSensitiveCalendarPattern(description, { field: "description" })
+    ).toBeNull();
   });
 
   it("never allows contact in actor personal title or location", () => {
     expect(() => buildSafeGoogleCalendarLocation(sampleContact)).toThrow();
-    expect(findSensitiveCalendarPattern(sampleTitle, { field: "title" })).toBeNull();
-    expect(findSensitiveCalendarPattern(`${sampleTitle} ${sampleContact}`, { field: "title" })).toBe(
-      "phone_number"
-    );
+    expect(
+      findSensitiveCalendarPattern(sampleTitle, { field: "title" })
+    ).toBeNull();
+    expect(
+      findSensitiveCalendarPattern(`${sampleTitle} ${sampleContact}`, {
+        field: "title",
+      })
+    ).toBe("phone_number");
   });
 
   it("includes contact in actor personal description only when legacy policy allows", () => {
@@ -264,9 +272,11 @@ describe("googleCalendarSafePayload contact policy (legacy safe mode)", () => {
     expect(() =>
       buildSafeGoogleCalendarTitle({ rawTitle: "월 보험료 15만원 조정 상담" })
     ).toThrow();
-    expect(findSensitiveCalendarPattern("김철수 피보험자 질병 상담", { field: "description" })).toBe(
-      "customer_name"
-    );
+    expect(
+      findSensitiveCalendarPattern("김철수 피보험자 질병 상담", {
+        field: "description",
+      })
+    ).toBe("customer_name");
   });
 
   it("maps consultation schedules to consultation_followup", () => {

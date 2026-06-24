@@ -13,19 +13,19 @@ PR22-1은 **API·데이터 모델·RBAC·테스트**만 제공합니다. UI는 *
 
 ## 데이터 모델 (`claim_guidance_cases`)
 
-| 필드 | 설명 |
-|------|------|
-| `customerId` | 대상 고객 (필수) |
-| `contractId` | 연관 계약 ID (nullable, 계약번호 원문 저장 금지) |
-| `guidanceType` | 안내 유형 |
-| `guidanceStatus` | 전체 안내 진행 상태 |
-| `documentGuideStatus` | 서류 안내 상태 |
-| `customerActionStatus` | 고객 측 진행 상태 |
-| `followUpId` | 기존 `follow_ups` 연결 (nullable) |
-| `nextFollowUpAt` | 다음 후속 일정 (nullable) |
-| `closedAt` / `closedReason` | 종료 처리 |
-| `memo` | 짧은 업무 메모 (500자) |
-| `deletedAt` | soft delete |
+| 필드                        | 설명                                             |
+| --------------------------- | ------------------------------------------------ |
+| `customerId`                | 대상 고객 (필수)                                 |
+| `contractId`                | 연관 계약 ID (nullable, 계약번호 원문 저장 금지) |
+| `guidanceType`              | 안내 유형                                        |
+| `guidanceStatus`            | 전체 안내 진행 상태                              |
+| `documentGuideStatus`       | 서류 안내 상태                                   |
+| `customerActionStatus`      | 고객 측 진행 상태                                |
+| `followUpId`                | 기존 `follow_ups` 연결 (nullable)                |
+| `nextFollowUpAt`            | 다음 후속 일정 (nullable)                        |
+| `closedAt` / `closedReason` | 종료 처리                                        |
+| `memo`                      | 짧은 업무 메모 (500자)                           |
+| `deletedAt`                 | soft delete                                      |
 
 ### enum (API/DB는 영문, UI는 한글 라벨)
 
@@ -58,25 +58,25 @@ PR22-1은 **API·데이터 모델·RBAC·테스트**만 제공합니다. UI는 *
 
 ## activity log
 
-| action | 설명 |
-|--------|------|
-| `CLAIM_GUIDANCE_CREATED` | 청구 안내 생성 |
-| `CLAIM_GUIDANCE_UPDATED` | 수정 |
-| `CLAIM_GUIDANCE_STATUS_CHANGED` | 상태 변경 |
-| `CLAIM_GUIDANCE_CLOSED` | 종료 |
-| `CLAIM_GUIDANCE_DELETED` | soft delete |
+| action                          | 설명           |
+| ------------------------------- | -------------- |
+| `CLAIM_GUIDANCE_CREATED`        | 청구 안내 생성 |
+| `CLAIM_GUIDANCE_UPDATED`        | 수정           |
+| `CLAIM_GUIDANCE_STATUS_CHANGED` | 상태 변경      |
+| `CLAIM_GUIDANCE_CLOSED`         | 종료           |
+| `CLAIM_GUIDANCE_DELETED`        | soft delete    |
 
 metadata: `claimGuidanceCaseId`, `customerId`, `contractId`, `guidanceType`, `guidanceStatus`, `documentGuideStatus`, `customerActionStatus`, `closedReason`, `followUpId` (+ 상태 변경 시 `previousGuidanceStatus`/`nextGuidanceStatus`) — **memo·고객명·민감정보 미포함**
 
 ## 권한 (서버 RBAC)
 
-| 역할 | 조회 | 생성/수정/종료/삭제 |
-|------|------|---------------------|
-| `branch_admin` | 전체 | 전체 |
-| `sub_branch_admin` | 산하 | 산하 |
-| `team_leader` | 팀 | 팀 |
-| `member` | 본인 담당 고객 | 본인 담당 고객 |
-| `inactive` / `resigned` | 차단 | 차단 |
+| 역할                    | 조회           | 생성/수정/종료/삭제 |
+| ----------------------- | -------------- | ------------------- |
+| `branch_admin`          | 전체           | 전체                |
+| `sub_branch_admin`      | 산하           | 산하                |
+| `team_leader`           | 팀             | 팀                  |
+| `member`                | 본인 담당 고객 | 본인 담당 고객      |
+| `inactive` / `resigned` | 차단           | 차단                |
 
 추가 검증:
 

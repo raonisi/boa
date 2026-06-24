@@ -29,9 +29,11 @@ describe("claimGuidance shared rules", () => {
   it("does not define sensitive fields on claim_guidance_cases schema", () => {
     const columns = Object.keys(getTableColumns(claimGuidanceCases));
     for (const forbidden of CLAIM_GUIDANCE_FORBIDDEN_SCHEMA_FIELDS) {
-      expect(columns.some(name => name.toLowerCase().includes(forbidden.toLowerCase()))).toBe(
-        false
-      );
+      expect(
+        columns.some(name =>
+          name.toLowerCase().includes(forbidden.toLowerCase())
+        )
+      ).toBe(false);
     }
     expect(columns).not.toContain("policyNumber");
     expect(columns).not.toContain("phone");

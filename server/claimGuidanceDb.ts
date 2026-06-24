@@ -91,7 +91,9 @@ function buildListConditions(filter: ClaimGuidanceListFilter) {
     conditions.push(eq(claimGuidanceCases.guidanceType, filter.guidanceType));
   }
   if (filter.guidanceStatus) {
-    conditions.push(eq(claimGuidanceCases.guidanceStatus, filter.guidanceStatus));
+    conditions.push(
+      eq(claimGuidanceCases.guidanceStatus, filter.guidanceStatus)
+    );
   }
   if (filter.documentGuideStatus) {
     conditions.push(
@@ -186,11 +188,17 @@ export async function updateClaimGuidanceCase(
 ) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-  await db.update(claimGuidanceCases).set(data).where(eq(claimGuidanceCases.id, id));
+  await db
+    .update(claimGuidanceCases)
+    .set(data)
+    .where(eq(claimGuidanceCases.id, id));
   return getClaimGuidanceCaseById(id);
 }
 
-export async function softDeleteClaimGuidanceCase(id: number, updatedBy: number) {
+export async function softDeleteClaimGuidanceCase(
+  id: number,
+  updatedBy: number
+) {
   const db = await getDb();
   if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   await db

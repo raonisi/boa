@@ -1,5 +1,6 @@
 const HANGUL = /[가-힣]/;
-const RANGE_PATTERN = /(less than|greater than|too (small|big)|max|maximum|min|minimum|between|range)/i;
+const RANGE_PATTERN =
+  /(less than|greater than|too (small|big)|max|maximum|min|minimum|between|range)/i;
 const REQUIRED_PATTERN =
   /(required|nonempty|too_small|string must contain at least|invalid_type.*undefined|expected .* received undefined)/i;
 const FORMAT_PATTERN =
@@ -26,4 +27,3 @@ export function toSafeValidationMessage(message?: string | null): string {
   if (FORMAT_PATTERN.test(normalized)) return VALIDATION_FALLBACK.format;
   return VALIDATION_FALLBACK.generic;
 }
-

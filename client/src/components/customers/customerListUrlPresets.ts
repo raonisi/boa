@@ -81,14 +81,15 @@ export const CUSTOMER_LIST_URL_PRESET_META: Record<
   },
 };
 
-const QUICK_PRESET_TO_URL: Partial<Record<QuickPresetId, CustomerListUrlPresetId>> =
-  {
-    today_contact: "priority-contact",
-    urgent: "priority-urgent",
-    uncontacted: "uncontacted",
-    sla_overdue: "sla-overdue",
-    no_next_action: "no-next-action",
-  };
+const QUICK_PRESET_TO_URL: Partial<
+  Record<QuickPresetId, CustomerListUrlPresetId>
+> = {
+  today_contact: "priority-contact",
+  urgent: "priority-urgent",
+  uncontacted: "uncontacted",
+  sla_overdue: "sla-overdue",
+  no_next_action: "no-next-action",
+};
 
 export function buildCustomerListPresetPath(
   preset: CustomerListUrlPresetId
@@ -126,7 +127,9 @@ export function urlPresetMatchesQuickPreset(
   quickPresetId: QuickPresetId
 ): boolean {
   const meta = CUSTOMER_LIST_URL_PRESET_META[urlPreset];
-  return meta.kind.type === "quick" && meta.kind.quickPresetId === quickPresetId;
+  return (
+    meta.kind.type === "quick" && meta.kind.quickPresetId === quickPresetId
+  );
 }
 
 export function customerMatchesUrlPreset(input: {

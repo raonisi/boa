@@ -2603,16 +2603,14 @@ export async function ensureDefaultConsultationScripts(createdBy: number) {
       )
       .limit(1);
     if (existing.length > 0) continue;
-    await db
-      .insert(consultationScripts)
-      .values({
-        ...script,
-        complianceNote:
-          "상담 참고용 문구입니다. 고객 상황에 맞게 설명하고 가입 강요, 공포 표현, 확정 표현은 피하세요.",
-        tags: null,
-        createdBy,
-        isActive: true,
-      } as InsertConsultationScript);
+    await db.insert(consultationScripts).values({
+      ...script,
+      complianceNote:
+        "상담 참고용 문구입니다. 고객 상황에 맞게 설명하고 가입 강요, 공포 표현, 확정 표현은 피하세요.",
+      tags: null,
+      createdBy,
+      isActive: true,
+    } as InsertConsultationScript);
     createdCount += 1;
   }
   return { createdCount };

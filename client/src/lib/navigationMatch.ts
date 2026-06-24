@@ -22,7 +22,9 @@ export function getNavMatchScore(itemPath: string, pathOnly: string): number {
   }
 
   if (itemPath === "/customers") {
-    return /^\/customers\/\d+(?:\/|$)/.test(pathOnly) ? itemPath.length + 500 : 0;
+    return /^\/customers\/\d+(?:\/|$)/.test(pathOnly)
+      ? itemPath.length + 500
+      : 0;
   }
 
   return itemPath.length;

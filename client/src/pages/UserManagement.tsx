@@ -3,7 +3,11 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -84,7 +88,11 @@ type PendingUserChange =
       kind: "role";
       userId: number;
       userName: string;
-      previousValue: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+      previousValue:
+        | "branch_admin"
+        | "sub_branch_admin"
+        | "team_leader"
+        | "member";
       nextValue: "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
     }
   | {
@@ -95,7 +103,11 @@ type PendingUserChange =
       nextValue: "active" | "inactive" | "resigned";
     };
 
-type EditableRole = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
+type EditableRole =
+  | "branch_admin"
+  | "sub_branch_admin"
+  | "team_leader"
+  | "member";
 type EditableAccountStatus = "active" | "inactive" | "resigned";
 
 export function shouldQueueUserRoleChange(
@@ -183,7 +195,8 @@ export default function UserManagement() {
       toast.success("소속 부지점장이 변경되었습니다.");
       utils.users.list.invalidate();
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: err =>
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const createUserMutation = trpc.users.create.useMutation({
@@ -192,7 +205,8 @@ export default function UserManagement() {
       utils.users.list.invalidate();
       setShowCreate(false);
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: err =>
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const updatePermissionMutation = trpc.users.updatePermission.useMutation({
@@ -222,7 +236,8 @@ export default function UserManagement() {
       setForceLogoutUser(null);
       setForceLogoutReason("");
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: err =>
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const forceLogoutAllMutation = trpc.adminSecurity.forceLogoutAll.useMutation({
@@ -233,7 +248,8 @@ export default function UserManagement() {
       setAllLogoutReason("");
       setAllLogoutConfirm("");
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: err =>
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const resetOAuthMutation = trpc.adminSecurity.resetOAuthLink.useMutation({
@@ -245,7 +261,8 @@ export default function UserManagement() {
       setOauthResetReason("");
       setOauthResetConfirm("");
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
+    onError: err =>
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed, "admin"),
   });
 
   const handleBlock = (userId: number) => {
@@ -299,7 +316,11 @@ export default function UserManagement() {
   };
 
   const queueAccountStatusConfirmation = (
-    userInfo: { id: number; name: string | null; accountStatus?: string | null },
+    userInfo: {
+      id: number;
+      name: string | null;
+      accountStatus?: string | null;
+    },
     nextStatus: EditableAccountStatus
   ) => {
     const previousStatus = (userInfo.accountStatus ??
@@ -380,245 +401,17 @@ export default function UserManagement() {
                 />
               </div>
             ) : null}
-            {!isUsersLoading && !isTeamsLoading && !isUsersError && !isTeamsError && (
-            <div className="space-y-3 p-3 md:hidden">
-              {(users ?? []).length === 0 ? (
-                <EmptyState
-                  title="등록된 사용자 정보가 없습니다."
-                  description="사용자를 추가하면 권한과 팀 배정을 설정할 수 있습니다."
-                  compact
-                />
-              ) : (
-                (users ?? []).map(u => {
-                  const team = teams?.find(t => t.id === u.teamId);
-                  const sba = (users ?? []).find(
-                    s => s.id === (u as any).subBranchAdminId
-                  );
-                  const isInactive = (u as any).accountStatus !== "active";
-                  const canAssignSubBranch =
-                    u.role === "team_leader" || u.role === "member";
-                  const canManageBulkImport =
-                    u.role === "sub_branch_admin" || u.role === "team_leader";
-                  const hasBulkImportPermission = (
-                    (u as any).permissions ?? []
-                  ).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
-                  const loginStatus = (u as any).loginStatus ?? "linked";
-                  return (
-                    <div
-                      key={u.id}
-                      className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${isInactive ? "opacity-60" : ""}`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
-                            {u.name ?? "-"}
-                          </p>
-                          <p className="mt-1 break-all text-xs leading-5 text-muted-foreground">
-                            {u.email ?? "-"}
-                          </p>
-                        </div>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}
-                        >
-                          {getUserStatusLabel((u as any).accountStatus)}
-                        </span>
-                      </div>
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}
-                        >
-                          {getRoleLabel(u.role)}
-                        </span>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}
-                        >
-                          {loginStatusLabels[loginStatus] ?? loginStatus}
-                        </span>
-                        {u.role === "branch_admin" && (
-                          <Badge
-                            variant="secondary"
-                            className="px-2.5 py-1 text-xs"
-                          >
-                            일괄등록 기본 허용
-                          </Badge>
-                        )}
-                      </div>
-
-                      <div className="mt-4 grid gap-2 text-xs leading-5 text-slate-600">
-                        <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <span className="text-muted-foreground">연락처</span>
-                          <span className="min-w-0 break-words">
-                            {(u as any).phone ?? "-"}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <span className="text-muted-foreground">팀</span>
-                          <span className="min-w-0 break-words">
-                            {team?.name ?? "-"}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <span className="text-muted-foreground">
-                            상위 조직
-                          </span>
-                          <span className="min-w-0 break-words">
-                            {sba?.name ?? "-"}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-[5rem_1fr] gap-2">
-                          <span className="text-muted-foreground">가입일</span>
-                          <span>
-                            {u.createdAt
-                              ? new Date(u.createdAt).toLocaleDateString(
-                                  "ko-KR"
-                                )
-                              : "-"}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid gap-2">
-                        <Select
-                          value={String(u.teamId ?? "none")}
-                          onValueChange={v =>
-                            updateTeamMutation.mutate({
-                              userId: u.id,
-                              teamId: v === "none" ? null : Number(v),
-                            })
-                          }
-                        >
-                          <SelectTrigger className="min-h-12 w-full rounded-xl bg-slate-50 text-xs">
-                            <SelectValue placeholder="팀 없음" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">팀 없음</SelectItem>
-                            {(teams ?? []).map(t => (
-                              <SelectItem key={t.id} value={String(t.id)}>
-                                {t.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-
-                        {canAssignSubBranch ? (
-                          <Select
-                            value={String(
-                              (u as any).subBranchAdminId ?? "none"
-                            )}
-                            onValueChange={v =>
-                              handleSubBranchChange(u.id, u.teamId, v)
-                            }
-                          >
-                            <SelectTrigger className="min-h-12 w-full rounded-xl bg-slate-50 text-xs">
-                              <SelectValue placeholder="미배정" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="none">미배정</SelectItem>
-                              {subBranchAdmins.map(s => (
-                                <SelectItem key={s.id} value={String(s.id)}>
-                                  {s.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        ) : null}
-
-                        {canManageBulkImport ? (
-                          <Button
-                            variant={
-                              hasBulkImportPermission ? "secondary" : "outline"
-                            }
-                            size="sm"
-                            className="min-h-12 w-full rounded-xl text-xs"
-                            disabled={
-                              isInactive || updatePermissionMutation.isPending
-                            }
-                            onClick={() => toggleBulkImportPermission(u)}
-                          >
-                            일괄등록{" "}
-                            {hasBulkImportPermission ? "허용" : "미허용"}
-                          </Button>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-4 space-y-3">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="min-h-12 w-full rounded-xl text-xs"
-                          onClick={() => setEditUser(u)}
-                        >
-                          <UserCog className="h-4 w-4" /> 권한/상태
-                        </Button>
-                        <div className="rounded-2xl border border-red-100 bg-red-50/70 p-3">
-                          <p className="text-[11px] font-semibold text-red-700">
-                            보안/접근 차단
-                          </p>
-                          <div className="mt-3 grid gap-2">
-                            {(u as any).accountStatus === "active" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="min-h-12 w-full rounded-xl border-red-200 bg-white text-xs text-destructive hover:bg-red-50 hover:text-destructive"
-                                onClick={() => handleBlock(u.id)}
-                              >
-                                <ShieldX className="h-4 w-4" /> 퇴사 처리
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50"
-                              onClick={() => setForceLogoutUser(u)}
-                            >
-                              <LogOut className="h-4 w-4" /> 로그아웃
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50"
-                              onClick={() => setOauthResetUser(u)}
-                            >
-                              <KeyRound className="h-4 w-4" /> OAuth 초기화
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-            )}
-            {!isUsersLoading && !isTeamsLoading && !isUsersError && !isTeamsError && (
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader className="bg-slate-50/80">
-                  <TableRow>
-                    <TableHead>이름</TableHead>
-                    <TableHead>이메일</TableHead>
-                    <TableHead>연락처</TableHead>
-                    <TableHead>역할</TableHead>
-                    <TableHead>계정 상태</TableHead>
-                    <TableHead>로그인 상태</TableHead>
-                    <TableHead>일괄등록</TableHead>
-                    <TableHead>팀</TableHead>
-                    <TableHead>소속 부지점장</TableHead>
-                    <TableHead>가입일</TableHead>
-                    <TableHead className="w-16">관리</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            {!isUsersLoading &&
+              !isTeamsLoading &&
+              !isUsersError &&
+              !isTeamsError && (
+                <div className="space-y-3 p-3 md:hidden">
                   {(users ?? []).length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={11}
-                        className="text-center text-muted-foreground py-8"
-                      >
-                        사용자가 없습니다.
-                      </TableCell>
-                    </TableRow>
+                    <EmptyState
+                      title="등록된 사용자 정보가 없습니다."
+                      description="사용자를 추가하면 권한과 팀 배정을 설정할 수 있습니다."
+                      compact
+                    />
                   ) : (
                     (users ?? []).map(u => {
                       const team = teams?.find(t => t.id === u.teamId);
@@ -636,69 +429,85 @@ export default function UserManagement() {
                       ).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
                       const loginStatus = (u as any).loginStatus ?? "linked";
                       return (
-                        <TableRow
+                        <div
                           key={u.id}
-                          className={isInactive ? "opacity-50" : ""}
+                          className={`rounded-2xl border border-slate-200 bg-white p-4 shadow-sm ${isInactive ? "opacity-60" : ""}`}
                         >
-                          <TableCell className="font-medium">
-                            {u.name ?? "-"}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {u.email ?? "-"}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            {(u as any).phone ?? "-"}
-                          </TableCell>
-                          <TableCell>
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
+                                {u.name ?? "-"}
+                              </p>
+                              <p className="mt-1 break-all text-xs leading-5 text-muted-foreground">
+                                {u.email ?? "-"}
+                              </p>
+                            </div>
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}
-                            >
-                              {getRoleLabel(u.role)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}
+                              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}
                             >
                               {getUserStatusLabel((u as any).accountStatus)}
                             </span>
-                          </TableCell>
-                          <TableCell>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
                             <span
-                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}
+                            >
+                              {getRoleLabel(u.role)}
+                            </span>
+                            <span
+                              className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}
                             >
                               {loginStatusLabels[loginStatus] ?? loginStatus}
                             </span>
-                          </TableCell>
-                          <TableCell>
-                            {u.role === "branch_admin" ? (
-                              <Badge variant="secondary" className="text-xs">
-                                기본 허용
-                              </Badge>
-                            ) : canManageBulkImport ? (
-                              <Button
-                                variant={
-                                  hasBulkImportPermission
-                                    ? "secondary"
-                                    : "outline"
-                                }
-                                size="sm"
-                                className="h-7 px-2 text-xs"
-                                disabled={
-                                  isInactive ||
-                                  updatePermissionMutation.isPending
-                                }
-                                onClick={() => toggleBulkImportPermission(u)}
+                            {u.role === "branch_admin" && (
+                              <Badge
+                                variant="secondary"
+                                className="px-2.5 py-1 text-xs"
                               >
-                                {hasBulkImportPermission ? "허용" : "미허용"}
-                              </Button>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                불가
-                              </span>
+                                일괄등록 기본 허용
+                              </Badge>
                             )}
-                          </TableCell>
-                          <TableCell>
+                          </div>
+
+                          <div className="mt-4 grid gap-2 text-xs leading-5 text-slate-600">
+                            <div className="grid grid-cols-[5rem_1fr] gap-2">
+                              <span className="text-muted-foreground">
+                                연락처
+                              </span>
+                              <span className="min-w-0 break-words">
+                                {(u as any).phone ?? "-"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[5rem_1fr] gap-2">
+                              <span className="text-muted-foreground">팀</span>
+                              <span className="min-w-0 break-words">
+                                {team?.name ?? "-"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[5rem_1fr] gap-2">
+                              <span className="text-muted-foreground">
+                                상위 조직
+                              </span>
+                              <span className="min-w-0 break-words">
+                                {sba?.name ?? "-"}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-[5rem_1fr] gap-2">
+                              <span className="text-muted-foreground">
+                                가입일
+                              </span>
+                              <span>
+                                {u.createdAt
+                                  ? new Date(u.createdAt).toLocaleDateString(
+                                      "ko-KR"
+                                    )
+                                  : "-"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 grid gap-2">
                             <Select
                               value={String(u.teamId ?? "none")}
                               onValueChange={v =>
@@ -708,7 +517,7 @@ export default function UserManagement() {
                                 })
                               }
                             >
-                              <SelectTrigger className="h-7 text-xs w-28">
+                              <SelectTrigger className="min-h-12 w-full rounded-xl bg-slate-50 text-xs">
                                 <SelectValue placeholder="팀 없음" />
                               </SelectTrigger>
                               <SelectContent>
@@ -720,8 +529,7 @@ export default function UserManagement() {
                                 ))}
                               </SelectContent>
                             </Select>
-                          </TableCell>
-                          <TableCell>
+
                             {canAssignSubBranch ? (
                               <Select
                                 value={String(
@@ -731,7 +539,7 @@ export default function UserManagement() {
                                   handleSubBranchChange(u.id, u.teamId, v)
                                 }
                               >
-                                <SelectTrigger className="h-7 text-xs w-28">
+                                <SelectTrigger className="min-h-12 w-full rounded-xl bg-slate-50 text-xs">
                                   <SelectValue placeholder="미배정" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -743,69 +551,328 @@ export default function UserManagement() {
                                   ))}
                                 </SelectContent>
                               </Select>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                {sba?.name ?? "-"}
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {u.createdAt
-                              ? new Date(u.createdAt).toLocaleDateString(
-                                  "ko-KR"
-                                )
-                              : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex gap-1">
+                            ) : null}
+
+                            {canManageBulkImport ? (
                               <Button
-                                variant="ghost"
+                                variant={
+                                  hasBulkImportPermission
+                                    ? "secondary"
+                                    : "outline"
+                                }
                                 size="sm"
-                                className="h-7 w-7 p-0"
-                                onClick={() => setEditUser(u)}
-                                aria-label="권한 변경"
+                                className="min-h-12 w-full rounded-xl text-xs"
+                                disabled={
+                                  isInactive ||
+                                  updatePermissionMutation.isPending
+                                }
+                                onClick={() => toggleBulkImportPermission(u)}
                               >
-                                <UserCog className="h-3.5 w-3.5" aria-hidden="true" />
+                                일괄등록{" "}
+                                {hasBulkImportPermission ? "허용" : "미허용"}
                               </Button>
-                              {(u as any).accountStatus === "active" && (
+                            ) : null}
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="min-h-12 w-full rounded-xl text-xs"
+                              onClick={() => setEditUser(u)}
+                            >
+                              <UserCog className="h-4 w-4" /> 권한/상태
+                            </Button>
+                            <div className="rounded-2xl border border-red-100 bg-red-50/70 p-3">
+                              <p className="text-[11px] font-semibold text-red-700">
+                                보안/접근 차단
+                              </p>
+                              <div className="mt-3 grid gap-2">
+                                {(u as any).accountStatus === "active" && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="min-h-12 w-full rounded-xl border-red-200 bg-white text-xs text-destructive hover:bg-red-50 hover:text-destructive"
+                                    onClick={() => handleBlock(u.id)}
+                                  >
+                                    <ShieldX className="h-4 w-4" /> 퇴사 처리
+                                  </Button>
+                                )}
                                 <Button
-                                  variant="ghost"
+                                  variant="outline"
                                   size="sm"
-                                  className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                                  onClick={() => handleBlock(u.id)}
-                                  aria-label="퇴사 처리"
+                                  className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50"
+                                  onClick={() => setForceLogoutUser(u)}
                                 >
-                                  <ShieldX className="h-3.5 w-3.5" aria-hidden="true" />
+                                  <LogOut className="h-4 w-4" /> 로그아웃
                                 </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0"
-                                onClick={() => setForceLogoutUser(u)}
-                                aria-label="강제 로그아웃"
-                              >
-                                <LogOut className="h-3.5 w-3.5" aria-hidden="true" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-7 w-7 p-0"
-                                onClick={() => setOauthResetUser(u)}
-                                aria-label="OAuth 초기화"
-                              >
-                                <KeyRound className="h-3.5 w-3.5" aria-hidden="true" />
-                              </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="min-h-12 w-full rounded-xl border-amber-200 bg-white text-xs text-amber-800 hover:bg-amber-50"
+                                  onClick={() => setOauthResetUser(u)}
+                                >
+                                  <KeyRound className="h-4 w-4" /> OAuth 초기화
+                                </Button>
+                              </div>
                             </div>
-                          </TableCell>
-                        </TableRow>
+                          </div>
+                        </div>
                       );
                     })
                   )}
-                </TableBody>
-              </Table>
-            </div>
-            )}
+                </div>
+              )}
+            {!isUsersLoading &&
+              !isTeamsLoading &&
+              !isUsersError &&
+              !isTeamsError && (
+                <div className="hidden overflow-x-auto md:block">
+                  <Table>
+                    <TableHeader className="bg-slate-50/80">
+                      <TableRow>
+                        <TableHead>이름</TableHead>
+                        <TableHead>이메일</TableHead>
+                        <TableHead>연락처</TableHead>
+                        <TableHead>역할</TableHead>
+                        <TableHead>계정 상태</TableHead>
+                        <TableHead>로그인 상태</TableHead>
+                        <TableHead>일괄등록</TableHead>
+                        <TableHead>팀</TableHead>
+                        <TableHead>소속 부지점장</TableHead>
+                        <TableHead>가입일</TableHead>
+                        <TableHead className="w-16">관리</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(users ?? []).length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={11}
+                            className="text-center text-muted-foreground py-8"
+                          >
+                            사용자가 없습니다.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        (users ?? []).map(u => {
+                          const team = teams?.find(t => t.id === u.teamId);
+                          const sba = (users ?? []).find(
+                            s => s.id === (u as any).subBranchAdminId
+                          );
+                          const isInactive =
+                            (u as any).accountStatus !== "active";
+                          const canAssignSubBranch =
+                            u.role === "team_leader" || u.role === "member";
+                          const canManageBulkImport =
+                            u.role === "sub_branch_admin" ||
+                            u.role === "team_leader";
+                          const hasBulkImportPermission = (
+                            (u as any).permissions ?? []
+                          ).includes(CUSTOMER_BULK_IMPORT_PERMISSION);
+                          const loginStatus =
+                            (u as any).loginStatus ?? "linked";
+                          return (
+                            <TableRow
+                              key={u.id}
+                              className={isInactive ? "opacity-50" : ""}
+                            >
+                              <TableCell className="font-medium">
+                                {u.name ?? "-"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {u.email ?? "-"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {(u as any).phone ?? "-"}
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${roleBadgeColors[u.role] ?? "bg-gray-100 text-gray-600"}`}
+                                >
+                                  {getRoleLabel(u.role)}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${statusBadgeColors[(u as any).accountStatus] ?? "bg-gray-100"}`}
+                                >
+                                  {getUserStatusLabel((u as any).accountStatus)}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${loginStatusColors[loginStatus] ?? "bg-gray-100"}`}
+                                >
+                                  {loginStatusLabels[loginStatus] ??
+                                    loginStatus}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {u.role === "branch_admin" ? (
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    기본 허용
+                                  </Badge>
+                                ) : canManageBulkImport ? (
+                                  <Button
+                                    variant={
+                                      hasBulkImportPermission
+                                        ? "secondary"
+                                        : "outline"
+                                    }
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    disabled={
+                                      isInactive ||
+                                      updatePermissionMutation.isPending
+                                    }
+                                    onClick={() =>
+                                      toggleBulkImportPermission(u)
+                                    }
+                                  >
+                                    {hasBulkImportPermission
+                                      ? "허용"
+                                      : "미허용"}
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    불가
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  value={String(u.teamId ?? "none")}
+                                  onValueChange={v =>
+                                    updateTeamMutation.mutate({
+                                      userId: u.id,
+                                      teamId: v === "none" ? null : Number(v),
+                                    })
+                                  }
+                                >
+                                  <SelectTrigger className="h-7 text-xs w-28">
+                                    <SelectValue placeholder="팀 없음" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="none">
+                                      팀 없음
+                                    </SelectItem>
+                                    {(teams ?? []).map(t => (
+                                      <SelectItem
+                                        key={t.id}
+                                        value={String(t.id)}
+                                      >
+                                        {t.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                {canAssignSubBranch ? (
+                                  <Select
+                                    value={String(
+                                      (u as any).subBranchAdminId ?? "none"
+                                    )}
+                                    onValueChange={v =>
+                                      handleSubBranchChange(u.id, u.teamId, v)
+                                    }
+                                  >
+                                    <SelectTrigger className="h-7 text-xs w-28">
+                                      <SelectValue placeholder="미배정" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="none">
+                                        미배정
+                                      </SelectItem>
+                                      {subBranchAdmins.map(s => (
+                                        <SelectItem
+                                          key={s.id}
+                                          value={String(s.id)}
+                                        >
+                                          {s.name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                ) : (
+                                  <span className="text-xs text-muted-foreground">
+                                    {sba?.name ?? "-"}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground">
+                                {u.createdAt
+                                  ? new Date(u.createdAt).toLocaleDateString(
+                                      "ko-KR"
+                                    )
+                                  : "-"}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => setEditUser(u)}
+                                    aria-label="권한 변경"
+                                  >
+                                    <UserCog
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  </Button>
+                                  {(u as any).accountStatus === "active" && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                                      onClick={() => handleBlock(u.id)}
+                                      aria-label="퇴사 처리"
+                                    >
+                                      <ShieldX
+                                        className="h-3.5 w-3.5"
+                                        aria-hidden="true"
+                                      />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => setForceLogoutUser(u)}
+                                    aria-label="강제 로그아웃"
+                                  >
+                                    <LogOut
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => setOauthResetUser(u)}
+                                    aria-label="OAuth 초기화"
+                                  >
+                                    <KeyRound
+                                      className="h-3.5 w-3.5"
+                                      aria-hidden="true"
+                                    />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
           </CardContent>
         </Card>
 
@@ -846,102 +913,107 @@ export default function UserManagement() {
               />
             ) : null}
             {!isLoginHistoryLoading && !isLoginHistoryError && (
-            <div className="space-y-2 md:hidden">
-              {(loginHistory ?? []).slice(0, 10).length === 0 ? (
-                <EmptyState
-                  title="표시할 활동 로그가 없습니다."
-                  description="최근 보안 작업이 이 영역에 표시됩니다."
-                  compact
-                />
-              ) : (
-                (loginHistory ?? []).slice(0, 10).map(entry => (
-                  <div
-                    key={entry.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">
-                          {securityActionLabels[entry.action] ?? "보안 작업"}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {entry.createdAt
-                            ? new Date(entry.createdAt).toLocaleString("ko-KR")
-                            : "-"}
-                        </p>
+              <div className="space-y-2 md:hidden">
+                {(loginHistory ?? []).slice(0, 10).length === 0 ? (
+                  <EmptyState
+                    title="표시할 활동 로그가 없습니다."
+                    description="최근 보안 작업이 이 영역에 표시됩니다."
+                    compact
+                  />
+                ) : (
+                  (loginHistory ?? []).slice(0, 10).map(entry => (
+                    <div
+                      key={entry.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="line-clamp-2 text-sm font-semibold leading-5 text-slate-900">
+                            {securityActionLabels[entry.action] ?? "보안 작업"}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {entry.createdAt
+                              ? new Date(entry.createdAt).toLocaleString(
+                                  "ko-KR"
+                                )
+                              : "-"}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0 text-xs">
+                          감사
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className="shrink-0 text-xs">
-                        감사
-                      </Badge>
+                      <div className="mt-3 grid gap-1 text-xs leading-5 text-slate-600">
+                        <div className="grid grid-cols-[4rem_1fr] gap-2">
+                          <span className="text-muted-foreground">사용자</span>
+                          <span className="min-w-0 break-words">
+                            {entry.user?.name ?? "-"} ·{" "}
+                            {entry.user?.email ?? "-"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-[4rem_1fr] gap-2">
+                          <span className="text-muted-foreground">처리자</span>
+                          <span className="min-w-0 break-words">
+                            {entry.actor?.name ?? "-"}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <div className="mt-3 grid gap-1 text-xs leading-5 text-slate-600">
-                      <div className="grid grid-cols-[4rem_1fr] gap-2">
-                        <span className="text-muted-foreground">사용자</span>
-                        <span className="min-w-0 break-words">
-                          {entry.user?.name ?? "-"} · {entry.user?.email ?? "-"}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-[4rem_1fr] gap-2">
-                        <span className="text-muted-foreground">처리자</span>
-                        <span className="min-w-0 break-words">
-                          {entry.actor?.name ?? "-"}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+                  ))
+                )}
+              </div>
             )}
             {!isLoginHistoryLoading && !isLoginHistoryError && (
-            <div className="hidden overflow-x-auto md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>시각</TableHead>
-                    <TableHead>사용자</TableHead>
-                    <TableHead>액션</TableHead>
-                    <TableHead>처리자</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(loginHistory ?? []).slice(0, 10).length === 0 ? (
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
                     <TableRow>
-                      <TableCell
-                        colSpan={4}
-                        className="text-center text-muted-foreground py-6"
-                      >
-                        로그인 보안 이력이 없습니다.
-                      </TableCell>
+                      <TableHead>시각</TableHead>
+                      <TableHead>사용자</TableHead>
+                      <TableHead>액션</TableHead>
+                      <TableHead>처리자</TableHead>
                     </TableRow>
-                  ) : (
-                    (loginHistory ?? []).slice(0, 10).map(entry => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="text-xs text-muted-foreground">
-                          {entry.createdAt
-                            ? new Date(entry.createdAt).toLocaleString("ko-KR")
-                            : "-"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <div className="font-medium">
-                            {entry.user?.name ?? "-"}
-                          </div>
-                          <div className="text-muted-foreground">
-                            {entry.user?.email ?? "-"}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs font-medium">
-                          {securityActionLabels[entry.action] ?? "보안 작업"}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          {entry.actor?.name ?? "-"}
+                  </TableHeader>
+                  <TableBody>
+                    {(loginHistory ?? []).slice(0, 10).length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={4}
+                          className="text-center text-muted-foreground py-6"
+                        >
+                          로그인 보안 이력이 없습니다.
                         </TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                    ) : (
+                      (loginHistory ?? []).slice(0, 10).map(entry => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {entry.createdAt
+                              ? new Date(entry.createdAt).toLocaleString(
+                                  "ko-KR"
+                                )
+                              : "-"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            <div className="font-medium">
+                              {entry.user?.name ?? "-"}
+                            </div>
+                            <div className="text-muted-foreground">
+                              {entry.user?.email ?? "-"}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs font-medium">
+                            {securityActionLabels[entry.action] ?? "보안 작업"}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {entry.actor?.name ?? "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -1000,7 +1072,11 @@ export default function UserManagement() {
                   onValueChange={v =>
                     queueRoleChangeConfirmation(
                       editUser,
-                      v as "branch_admin" | "sub_branch_admin" | "team_leader" | "member"
+                      v as
+                        | "branch_admin"
+                        | "sub_branch_admin"
+                        | "team_leader"
+                        | "member"
                     )
                   }
                 >
@@ -1098,11 +1174,13 @@ export default function UserManagement() {
               </div>
               {pendingUserChange.kind === "role" ? (
                 <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-900">
-                  역할 변경은 고객 접근 범위와 업무 권한에 영향을 줄 수 있습니다.
+                  역할 변경은 고객 접근 범위와 업무 권한에 영향을 줄 수
+                  있습니다.
                 </p>
               ) : (
                 <p className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-xs text-amber-900">
-                  계정 상태 변경 후 로그인 및 주요 기능 접근이 제한될 수 있습니다.
+                  계정 상태 변경 후 로그인 및 주요 기능 접근이 제한될 수
+                  있습니다.
                 </p>
               )}
               <div className="grid grid-cols-2 gap-2">

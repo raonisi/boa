@@ -27,7 +27,9 @@ describe("retentionRisk shared rules", () => {
     const columns = Object.keys(getTableColumns(retentionRiskCases));
     for (const forbidden of RETENTION_RISK_FORBIDDEN_SCHEMA_FIELDS) {
       expect(
-        columns.some(name => name.toLowerCase().includes(forbidden.toLowerCase()))
+        columns.some(name =>
+          name.toLowerCase().includes(forbidden.toLowerCase())
+        )
       ).toBe(false);
     }
   });

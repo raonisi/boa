@@ -356,7 +356,9 @@ describe("PR21 manager dashboard", () => {
       { id: 4, name: "Member", role: "member", teamId: 10 },
       { id: 5, name: "Member2", role: "member", teamId: 10 },
     ];
-    const monthly = [{ ...baseMonthly, userId: 4, status: "submitted" as const }];
+    const monthly = [
+      { ...baseMonthly, userId: 4, status: "submitted" as const },
+    ];
     const result = buildManagerDashboard(users, monthly as any, [], [], {
       targetMonth: "2026-06",
       todayDate: "2026-06-02",
@@ -374,11 +376,17 @@ describe("PR21 manager dashboard", () => {
         status: "submitted" as const,
       },
     ];
-    const result = buildManagerDashboard(users, [baseMonthly] as any, weekly as any, [], {
-      targetMonth: "2026-06",
-      weekNumber: 1,
-      todayDate: "2026-06-02",
-    });
+    const result = buildManagerDashboard(
+      users,
+      [baseMonthly] as any,
+      weekly as any,
+      [],
+      {
+        targetMonth: "2026-06",
+        weekNumber: 1,
+        todayDate: "2026-06-02",
+      }
+    );
     expect(result.coachingRequestUsers).toHaveLength(1);
   });
 });

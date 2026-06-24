@@ -337,7 +337,11 @@ export function sanitizeActionPlanLogMetadata(
     if (!SAFE_LOG_KEYS.has(key)) continue;
     if (typeof value === "string") {
       safe[key] = value.length > 0 ? "[redacted-text]" : value;
-      if (key === "reportMonth" || key === "reportWeekLabel" || key === "planType") {
+      if (
+        key === "reportMonth" ||
+        key === "reportWeekLabel" ||
+        key === "planType"
+      ) {
         safe[key] = value;
       }
     } else if (

@@ -57,7 +57,10 @@ import {
   UserRound,
 } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
-import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  toastUserFacingError,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -96,7 +99,11 @@ export function CustomerReferralFlowsPanel({
 }: CustomerReferralFlowsPanelProps) {
   const [, setLocation] = useLocation();
   const utils = trpc.useUtils();
-  const canManageDefault = canManageReferralFlow(user, pageCustomer, customerId);
+  const canManageDefault = canManageReferralFlow(
+    user,
+    pageCustomer,
+    customerId
+  );
 
   const { data: referrals, isLoading } =
     trpc.customerReferrals.listByCustomer.useQuery({ customerId });
@@ -146,7 +153,8 @@ export function CustomerReferralFlowsPanel({
     useState<ReferralSourceType>("customer_referral");
   const [introductionMethod, setIntroductionMethod] =
     useState<IntroductionMethod>("phone");
-  const [referralStage, setReferralStage] = useState<ReferralStage>("introduced");
+  const [referralStage, setReferralStage] =
+    useState<ReferralStage>("introduced");
   const [thankYouStatus, setThankYouStatus] =
     useState<ThankYouStatus>("pending");
   const [memo, setMemo] = useState("");
@@ -170,7 +178,8 @@ export function CustomerReferralFlowsPanel({
       resetCreateForm();
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const updateMutation = trpc.customerReferrals.update.useMutation({
@@ -179,7 +188,8 @@ export function CustomerReferralFlowsPanel({
       setEditTarget(null);
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const changeStageMutation = trpc.customerReferrals.changeStage.useMutation({
@@ -188,7 +198,8 @@ export function CustomerReferralFlowsPanel({
       setStageTarget(null);
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   const thankYouMutation = trpc.customerReferrals.completeThankYou.useMutation({
@@ -206,7 +217,8 @@ export function CustomerReferralFlowsPanel({
       setDeleteTarget(null);
       await utils.customerReferrals.listByCustomer.invalidate({ customerId });
     },
-    onError: error => toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
+    onError: error =>
+      toastUserFacingError(error, USER_FACING_ERRORS.saveFailed, "customer"),
   });
 
   function resetCreateForm() {
@@ -317,7 +329,9 @@ export function CustomerReferralFlowsPanel({
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_RESULT_BADGE_CLASSES[row.resultStatus as keyof typeof REFERRAL_RESULT_BADGE_CLASSES] ?? "bg-slate-100 text-slate-600"}`}
                 >
-                  {REFERRAL_RESULT_STATUS_LABELS[row.resultStatus as keyof typeof REFERRAL_RESULT_STATUS_LABELS] ?? row.resultStatus}
+                  {REFERRAL_RESULT_STATUS_LABELS[
+                    row.resultStatus as keyof typeof REFERRAL_RESULT_STATUS_LABELS
+                  ] ?? row.resultStatus}
                 </span>
                 <span
                   className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_THANK_YOU_BADGE_CLASSES[row.thankYouStatus]}`}
@@ -356,7 +370,9 @@ export function CustomerReferralFlowsPanel({
                   : ""}
               </p>
               {row.memo ? (
-                <p className="line-clamp-2 text-sm text-slate-700">{row.memo}</p>
+                <p className="line-clamp-2 text-sm text-slate-700">
+                  {row.memo}
+                </p>
               ) : null}
             </div>
             <div className="flex shrink-0 flex-col gap-2">
@@ -552,8 +568,8 @@ export function CustomerReferralFlowsPanel({
               {selectedOtherCustomerId &&
               !resolveRelationshipId(selectedOtherCustomerId) ? (
                 <p className="text-xs text-amber-700">
-                  선택한 고객과의 연결 관계가 없습니다. ‘연결 고객’ 탭에서
-                  소개 관계를 먼저 등록해 주세요.
+                  선택한 고객과의 연결 관계가 없습니다. ‘연결 고객’ 탭에서 소개
+                  관계를 먼저 등록해 주세요.
                 </p>
               ) : null}
             </div>
@@ -649,7 +665,9 @@ export function CustomerReferralFlowsPanel({
                 rows={3}
                 maxLength={500}
               />
-              <p className="text-xs text-amber-700">{REFERRAL_SENSITIVE_MEMO_NOTICE}</p>
+              <p className="text-xs text-amber-700">
+                {REFERRAL_SENSITIVE_MEMO_NOTICE}
+              </p>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -730,11 +748,17 @@ export function CustomerReferralFlowsPanel({
                 rows={3}
                 maxLength={500}
               />
-              <p className="text-xs text-amber-700">{REFERRAL_SENSITIVE_MEMO_NOTICE}</p>
+              <p className="text-xs text-amber-700">
+                {REFERRAL_SENSITIVE_MEMO_NOTICE}
+              </p>
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setEditTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setEditTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -781,7 +805,11 @@ export function CustomerReferralFlowsPanel({
             </SelectContent>
           </Select>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setStageTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStageTarget(null)}
+            >
               취소
             </Button>
             <Button
@@ -814,7 +842,11 @@ export function CustomerReferralFlowsPanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+            >
               취소
             </Button>
             <Button

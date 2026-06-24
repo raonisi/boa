@@ -31,7 +31,14 @@ import {
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { UserPlus, Users } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import {
   getUserFacingErrorMessage,
   toastUserFacingError,
@@ -170,20 +177,22 @@ function AssignToAgent() {
 
   const agents = useMemo<AssignmentAgentOption[]>(
     () =>
-      ((allUsers ?? []) as UserRow[]).filter(
-        candidate =>
-          (candidate.role === "team_leader" ||
+      ((allUsers ?? []) as UserRow[])
+        .filter(
+          candidate =>
+            candidate.role === "team_leader" ||
             candidate.role === "member" ||
-            (candidate.role === "branch_admin" && candidate.id === user?.id))
-      ).map(candidate => {
-        const availability = getAssignmentCandidateAvailability(
-          candidate.accountStatus
-        );
-        return {
-          ...candidate,
-          ...availability,
-        };
-      }),
+            (candidate.role === "branch_admin" && candidate.id === user?.id)
+        )
+        .map(candidate => {
+          const availability = getAssignmentCandidateAvailability(
+            candidate.accountStatus
+          );
+          return {
+            ...candidate,
+            ...availability,
+          };
+        }),
     [allUsers, user?.id]
   );
 
@@ -312,7 +321,10 @@ function AssignToSubBranch() {
           customerId,
           customerName: customer?.name ?? `#${customerId}`,
           status: "failed",
-          reason: getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed),
+          reason: getUserFacingErrorMessage(
+            error,
+            USER_FACING_ERRORS.saveFailed
+          ),
         });
       }
     }
@@ -523,7 +535,8 @@ function TeamLeaderAssign() {
 
   const teamMembers = ((allUsers ?? []) as UserRow[])
     .filter(
-      candidate => candidate.role === "member" && candidate.teamId === user?.teamId
+      candidate =>
+        candidate.role === "member" && candidate.teamId === user?.teamId
     )
     .map<AssignmentAgentOption>(candidate => {
       const availability = getAssignmentCandidateAvailability(
@@ -643,7 +656,10 @@ function AssignmentPanel({
           customerId,
           customerName: customer?.name ?? `#${customerId}`,
           status: "failed",
-          reason: getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed),
+          reason: getUserFacingErrorMessage(
+            error,
+            USER_FACING_ERRORS.saveFailed
+          ),
         });
       }
     }

@@ -49,7 +49,9 @@ describe("getUserFacingErrorMessage", () => {
 
   it("maps tRPC UNAUTHORIZED to session expired copy", () => {
     const error = new TRPCClientError("x", {
-      result: { error: { message: "x", code: -32001, data: { code: "UNAUTHORIZED" } } },
+      result: {
+        error: { message: "x", code: -32001, data: { code: "UNAUTHORIZED" } },
+      },
     });
     expect(getUserFacingErrorMessage(error)).toBe(
       USER_FACING_ERRORS.sessionExpired
@@ -64,7 +66,9 @@ describe("getUserFacingErrorMessage", () => {
 
   it("maps tRPC FORBIDDEN to permission copy for admin context", () => {
     const error = new TRPCClientError("x", {
-      result: { error: { message: "x", code: -32003, data: { code: "FORBIDDEN" } } },
+      result: {
+        error: { message: "x", code: -32003, data: { code: "FORBIDDEN" } },
+      },
     });
     expect(getUserFacingErrorMessage(error, undefined, "admin")).toBe(
       USER_FACING_ERRORS.permission
@@ -73,7 +77,9 @@ describe("getUserFacingErrorMessage", () => {
 
   it("maps tRPC FORBIDDEN to customer-safe copy for customer context", () => {
     const error = new TRPCClientError("x", {
-      result: { error: { message: "x", code: -32003, data: { code: "FORBIDDEN" } } },
+      result: {
+        error: { message: "x", code: -32003, data: { code: "FORBIDDEN" } },
+      },
     });
     expect(getUserFacingErrorMessage(error, undefined, "customer")).toBe(
       USER_FACING_ERRORS.customerNotFound
@@ -90,7 +96,9 @@ describe("getUserFacingErrorMessage", () => {
         },
       },
     });
-    expect(getUserFacingErrorMessage(error)).toBe(USER_FACING_ERRORS.validation);
+    expect(getUserFacingErrorMessage(error)).toBe(
+      USER_FACING_ERRORS.validation
+    );
   });
 
   it("exposes standard forbidden and customer access copy constants", () => {

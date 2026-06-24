@@ -407,12 +407,10 @@ describe("seed-backed RBAC integration", () => {
       appRouter.createCaller(ctx(41)).notifications.markRead({ id: 702 })
     ).rejects.toThrow();
     await expect(
-      appRouter
-        .createCaller(ctx(31))
-        .notifications.updateProcessStatus({
-          id: 702,
-          processStatus: "확인" as any,
-        })
+      appRouter.createCaller(ctx(31)).notifications.updateProcessStatus({
+        id: 702,
+        processStatus: "확인" as any,
+      })
     ).rejects.toThrow();
     await expect(
       appRouter
@@ -625,22 +623,18 @@ describe("seed-backed RBAC integration", () => {
         .customers.previewImport({ rows: [], fileName: "customers.txt" })
     ).rejects.toThrow();
     await expect(
-      appRouter
-        .createCaller(ctx(1))
-        .customers.previewImport({
-          rows: [],
-          fileName: "customers.csv",
-          fileSize: 6 * 1024 * 1024,
-        })
+      appRouter.createCaller(ctx(1)).customers.previewImport({
+        rows: [],
+        fileName: "customers.csv",
+        fileSize: 6 * 1024 * 1024,
+      })
     ).rejects.toThrow();
     await expect(
-      appRouter
-        .createCaller(ctx(1))
-        .customers.previewImport({
-          rows: [],
-          fileName: "customers.csv",
-          mimeType: "application/zip",
-        })
+      appRouter.createCaller(ctx(1)).customers.previewImport({
+        rows: [],
+        fileName: "customers.csv",
+        mimeType: "application/zip",
+      })
     ).rejects.toThrow();
   });
 

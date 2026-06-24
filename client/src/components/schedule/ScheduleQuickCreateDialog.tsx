@@ -99,7 +99,9 @@ export default function ScheduleQuickCreateDialog({
 
   useEffect(() => {
     if (!open) return;
-    const defaultKey = defaultDate ? formatKstLocalDate(defaultDate) : formatKstLocalDate(new Date());
+    const defaultKey = defaultDate
+      ? formatKstLocalDate(defaultDate)
+      : formatKstLocalDate(new Date());
     const todayKey = formatKstLocalDate(new Date());
     setPresetId("phone_consultation");
     setDateChip(defaultKey === todayKey ? "today" : "custom");

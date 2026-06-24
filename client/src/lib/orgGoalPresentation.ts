@@ -72,13 +72,18 @@ export type GoalAchievementStatus = {
   variant: StatusVariant;
 };
 
-export function getGoalAchievementStatus(item: {
-  achievementRate?: {
-    contractCount?: number | null;
-    monthlyPremium?: number | null;
-  };
-  remainingDays?: number | null;
-} | null | undefined): GoalAchievementStatus {
+export function getGoalAchievementStatus(
+  item:
+    | {
+        achievementRate?: {
+          contractCount?: number | null;
+          monthlyPremium?: number | null;
+        };
+        remainingDays?: number | null;
+      }
+    | null
+    | undefined
+): GoalAchievementStatus {
   if (!item) {
     return { label: "목표 없음", variant: "neutral" };
   }

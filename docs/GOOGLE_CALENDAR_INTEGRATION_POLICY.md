@@ -8,11 +8,11 @@ BOA 지점관리 CRM의 일정, 상담 예정, 후속관리, 회의/교육 일�
 
 ## 2. 3개 캘린더 구조
 
-| calendarType | 표시명 | 대상 |
-|---|---|---|
-| `branch_common` | BOA 지점 공통 일정 | 회의, 교육, 지점 행사, 공통 공지 |
+| calendarType            | 표시명                 | 대상                                   |
+| ----------------------- | ---------------------- | -------------------------------------- |
+| `branch_common`         | BOA 지점 공통 일정     | 회의, 교육, 지점 행사, 공통 공지       |
 | `consultation_followup` | BOA 상담·후속관리 일정 | 상담, 후속관리, 재연락, 보장점검, 방문 |
-| `admin` | BOA 관리자 일정 | 지점장/팀장/부지점장 운영 회의 |
+| `admin`                 | BOA 관리자 일정        | 지점장/팀장/부지점장 운영 회의         |
 
 ## 3. 캘린더 분류 수동 선택 (Hotfix)
 
@@ -25,11 +25,11 @@ BOA 지점관리 CRM의 일정, 상담 예정, 후속관리, 회의/교육 일�
 
 ### Google Calendar sync 대상
 
-| calendarCategory | Google Calendar |
-|---|---|
-| `branch_common` | BOA 지점 공통 일정 |
+| calendarCategory        | Google Calendar        |
+| ----------------------- | ---------------------- |
+| `branch_common`         | BOA 지점 공통 일정     |
 | `consultation_followup` | BOA 상담·후속관리 일정 |
-| `admin` | BOA 관리자 일정 |
+| `admin`                 | BOA 관리자 일정        |
 
 동기화 우선순위: (1) 저장된 `calendarCategory` → (2) 명시 파라미터 → (3) 일정 유형 추천 → (4) `branch_common` fallback
 
@@ -39,12 +39,12 @@ calendarId가 비활성/미등록이면 `SKIPPED_MISSING_CALENDAR`로 기록하�
 
 `google_calendar_org_settings` 설정 (모두 기본값 `false`):
 
-| 설정 | 설명 |
-|---|---|
-| `syncRawTitleToGoogleCalendar` | BOA CRM 입력 제목을 Google Calendar에 그대로 표시 |
-| `syncRawDescriptionToGoogleCalendar` | BOA CRM 입력 설명을 Google Calendar에 그대로 표시 |
-| `allowCustomerNameInGoogleCalendar` | 제목·설명에 고객 이름 표시 허용 |
-| `allowCustomerContactInGoogleCalendar` | 제목·설명에 고객 연락처 표시 허용 |
+| 설정                                   | 설명                                              |
+| -------------------------------------- | ------------------------------------------------- |
+| `syncRawTitleToGoogleCalendar`         | BOA CRM 입력 제목을 Google Calendar에 그대로 표시 |
+| `syncRawDescriptionToGoogleCalendar`   | BOA CRM 입력 설명을 Google Calendar에 그대로 표시 |
+| `allowCustomerNameInGoogleCalendar`    | 제목·설명에 고객 이름 표시 허용                   |
+| `allowCustomerContactInGoogleCalendar` | 제목·설명에 고객 연락처 표시 허용                 |
 
 ### 운영 방식
 
@@ -199,14 +199,14 @@ TimeTree는 Google Calendar 외부 캘린더 구독 보조 수단입니다.
 
 ### 상태값
 
-| 결과 | 의미 |
-|---|---|
-| `resync_dry_run` | dry-run 완료 |
-| `resync_moved` | Google `events.move` 성공 |
-| `resync_recreated` | delete+insert 또는 신규 insert 성공 |
-| `resync_failed` | Google/DB 갱신 실패 |
+| 결과                       | 의미                                      |
+| -------------------------- | ----------------------------------------- |
+| `resync_dry_run`           | dry-run 완료                              |
+| `resync_moved`             | Google `events.move` 성공                 |
+| `resync_recreated`         | delete+insert 또는 신규 insert 성공       |
+| `resync_failed`            | Google/DB 갱신 실패                       |
 | `skipped_missing_calendar` | `consultation_followup` calendarId 미등록 |
-| `needs_manual_review` | delete 실패 등 수동 확인 필요 |
+| `needs_manual_review`      | delete 실패 등 수동 확인 필요             |
 
 ### activity_logs 원문 개인정보 미저장
 

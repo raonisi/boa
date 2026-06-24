@@ -49,7 +49,10 @@ function createCtx(role: Role): TrpcContext {
       updatedAt: new Date(),
       lastSignedIn: new Date(),
     } as any,
-    req: { protocol: "https", headers: { origin: "https://example.test" } } as TrpcContext["req"],
+    req: {
+      protocol: "https",
+      headers: { origin: "https://example.test" },
+    } as TrpcContext["req"],
     res: { clearCookie: () => {} } as TrpcContext["res"],
   };
 }
@@ -90,37 +93,54 @@ describe("PR22 hotfix schedule calendar category", () => {
 
   it("maps each calendarCategory to the matching Google Calendar target", async () => {
     googleCalendarClient.setGoogleCalendarApiClientForTests(mockClient);
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarOrgSettings"
+    ).mockResolvedValue({
       syncRawTitleToGoogleCalendar: false,
       syncRawDescriptionToGoogleCalendar: false,
       allowCustomerNameInGoogleCalendar: false,
       allowCustomerContactInGoogleCalendar: false,
       includeCustomerContactForActorCalendar: false,
     } as any);
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarPersonalSettings").mockResolvedValue(
-      undefined
-    );
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarOauthCredential").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarPersonalSettings"
+    ).mockResolvedValue(undefined);
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarOauthCredential"
+    ).mockResolvedValue({
       id: 1,
       refreshTokenEnc: "enc",
       isActive: true,
     } as any);
     const integrationSpy = vi
       .spyOn(googleCalendarDb, "getGoogleCalendarIntegrationByType")
-      .mockImplementation(async calendarType =>
-        ({
-          calendarType,
-          googleCalendarId: `${calendarType}@test`,
-          isActive: true,
-        }) as any
+      .mockImplementation(
+        async calendarType =>
+          ({
+            calendarType,
+            googleCalendarId: `${calendarType}@test`,
+            isActive: true,
+          }) as any
       );
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarEventSync").mockResolvedValue(undefined);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(10);
-    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
-    vi.spyOn(googleCalendarCredentialCrypto, "decryptRefreshToken").mockReturnValue(
-      "mock-refresh"
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarEventSync").mockResolvedValue(
+      undefined
     );
-    vi.spyOn(googleCalendarClient, "exchangeGoogleRefreshToken").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(10);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(
+      googleCalendarCredentialCrypto,
+      "decryptRefreshToken"
+    ).mockReturnValue("mock-refresh");
+    vi.spyOn(
+      googleCalendarClient,
+      "exchangeGoogleRefreshToken"
+    ).mockResolvedValue({
       accessToken: "mock-access",
     });
 
@@ -206,17 +226,24 @@ describe("PR22 hotfix schedule calendar category", () => {
 
   it("syncs consultation_followup calendar when calendarCategory is set", async () => {
     googleCalendarClient.setGoogleCalendarApiClientForTests(mockClient);
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarOrgSettings"
+    ).mockResolvedValue({
       syncRawTitleToGoogleCalendar: true,
       syncRawDescriptionToGoogleCalendar: false,
       allowCustomerNameInGoogleCalendar: true,
       allowCustomerContactInGoogleCalendar: true,
       includeCustomerContactForActorCalendar: false,
     } as any);
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarPersonalSettings").mockResolvedValue(
-      undefined
-    );
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarOauthCredential").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarPersonalSettings"
+    ).mockResolvedValue(undefined);
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarOauthCredential"
+    ).mockResolvedValue({
       id: 1,
       refreshTokenEnc: "enc",
       isActive: true,
@@ -240,13 +267,22 @@ describe("PR22 hotfix schedule calendar category", () => {
         }
         return undefined;
       });
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarEventSync").mockResolvedValue(undefined);
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarEventSync").mockResolvedValue(10);
-    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
-    vi.spyOn(googleCalendarCredentialCrypto, "decryptRefreshToken").mockReturnValue(
-      "mock-refresh"
+    vi.spyOn(googleCalendarDb, "getGoogleCalendarEventSync").mockResolvedValue(
+      undefined
     );
-    vi.spyOn(googleCalendarClient, "exchangeGoogleRefreshToken").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarEventSync"
+    ).mockResolvedValue(10);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(
+      googleCalendarCredentialCrypto,
+      "decryptRefreshToken"
+    ).mockReturnValue("mock-refresh");
+    vi.spyOn(
+      googleCalendarClient,
+      "exchangeGoogleRefreshToken"
+    ).mockResolvedValue({
       accessToken: "mock-access",
     });
 
@@ -289,8 +325,14 @@ describe("PR22 hotfix schedule calendar category", () => {
   });
 
   it("allows branch_admin to update sync policy", async () => {
-    vi.spyOn(googleCalendarDb, "upsertGoogleCalendarOrgSettings").mockResolvedValue(1);
-    vi.spyOn(googleCalendarDb, "getGoogleCalendarOrgSettings").mockResolvedValue({
+    vi.spyOn(
+      googleCalendarDb,
+      "upsertGoogleCalendarOrgSettings"
+    ).mockResolvedValue(1);
+    vi.spyOn(
+      googleCalendarDb,
+      "getGoogleCalendarOrgSettings"
+    ).mockResolvedValue({
       syncRawTitleToGoogleCalendar: true,
       syncRawDescriptionToGoogleCalendar: false,
       allowCustomerNameInGoogleCalendar: true,

@@ -6,7 +6,8 @@ export const SCHEDULE_CALENDAR_CATEGORIES = [
   "admin",
 ] as const;
 
-export type ScheduleCalendarCategory = (typeof SCHEDULE_CALENDAR_CATEGORIES)[number];
+export type ScheduleCalendarCategory =
+  (typeof SCHEDULE_CALENDAR_CATEGORIES)[number];
 
 export const SCHEDULE_CALENDAR_CATEGORY_LABELS: Record<
   ScheduleCalendarCategory,
