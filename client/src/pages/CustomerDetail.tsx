@@ -94,6 +94,12 @@ import {
   applyCustomerDetailAction,
   parseCustomerDetailAction,
 } from "@/lib/customerDetailActions";
+import {
+  canLoadCustomerDetailDependencies,
+  isValidCustomerDetailId,
+  shouldShowCustomerDetailLoadingShell,
+  shouldShowCustomerDetailUnavailable,
+} from "@/lib/customerDetailQueryGating";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import {
@@ -333,36 +339,79 @@ export default function CustomerDetail({ id }: { id: number }) {
     refetch: refetchCustomer,
     isLoading: isCustomerLoading,
     isError: isCustomerError,
+    isFetching: isCustomerFetching,
   } = trpc.customers.get.useQuery({ id });
+  const customerAccessState = {
+    customerId: id,
+    customer: customer ?? null,
+    isLoading: isCustomerLoading,
+    isError: isCustomerError,
+    isFetching: isCustomerFetching,
+  };
+  const canLoadDependencies = canLoadCustomerDetailDependencies(
+    customerAccessState
+  );
   const { data: consultations, refetch: refetchConsult } =
-    trpc.consultations.list.useQuery({ customerId: id });
+    trpc.consultations.list.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: contracts, refetch: refetchContracts } =
-    trpc.contracts.listByCustomer.useQuery({ customerId: id });
-  const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery({
-    customerId: id,
-  });
-  const { data: consentLogsData } = trpc.customers.consentLogs.useQuery({
-    customerId: id,
-  });
+    trpc.contracts.listByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
+  const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery(
+    { customerId: id },
+    { enabled: canLoadDependencies }
+  );
+  const { data: consentLogsData } = trpc.customers.consentLogs.useQuery(
+    { customerId: id },
+    { enabled: canLoadDependencies }
+  );
   const { data: assignmentHistoryData } =
-    trpc.customers.assignmentHistory.useQuery({ customerId: id });
+    trpc.customers.assignmentHistory.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: followUps, refetch: refetchFollowUps } =
-    trpc.followUps.listByCustomer.useQuery({ customerId: id });
+    trpc.followUps.listByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: customerRelationships } =
-    trpc.customerRelationships.list.useQuery({ customerId: id });
+    trpc.customerRelationships.list.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: customerReferrals } =
-    trpc.customerReferrals.listByCustomer.useQuery({ customerId: id });
+    trpc.customerReferrals.listByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: claimGuidanceCases } =
-    trpc.claimGuidance.listByCustomer.useQuery({ customerId: id });
+    trpc.claimGuidance.listByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: retentionRiskCases } =
-    trpc.retentionRisk.listByCustomer.useQuery({ customerId: id });
+    trpc.retentionRisk.listByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: users } = trpc.users.list.useQuery();
   const { data: consultationTools } =
-    trpc.consultationTools.listCustomerChecks.useQuery({ customerId: id });
+    trpc.consultationTools.listCustomerChecks.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: messageTemplates } =
     trpc.consultationTools.listMessageTemplates.useQuery({});
   const { data: handoffNotes } =
-    trpc.customerHandoffNotes.listByCustomer.useQuery({ customerId: id });
+    trpc.customerHandoffNotes.listByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: consultationScripts } = trpc.consultationScripts.list.useQuery(
     {}
   );
@@ -376,11 +425,14 @@ export default function CustomerDetail({ id }: { id: number }) {
     trpc.consultationTools.renderMessageTemplate.useQuery(
       renderedMessageInput,
       {
-        enabled: Boolean(selectedTemplateId),
+        enabled: canLoadDependencies && Boolean(selectedTemplateId),
       }
     );
   const { data: contactReasons } =
-    trpc.recommendations.customerContactReasons.useQuery({ customerId: id });
+    trpc.recommendations.customerContactReasons.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const timelineInput = useMemo(() => {
     const selected = TIMELINE_FILTERS.find(
       filter => filter.value === timelineFilter
@@ -400,8 +452,10 @@ export default function CustomerDetail({ id }: { id: number }) {
       limit: 80,
     };
   }, [id, timelineFilter, timelineRange]);
-  const { data: timelineData } =
-    trpc.customers.timeline.useQuery(timelineInput);
+  const { data: timelineData } = trpc.customers.timeline.useQuery(
+    timelineInput,
+    { enabled: canLoadDependencies }
+  );
 
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => {
@@ -670,7 +724,7 @@ export default function CustomerDetail({ id }: { id: number }) {
     next_action: "다음 액션",
   } as const;
 
-  if (isCustomerLoading)
+  if (shouldShowCustomerDetailLoadingShell(customerAccessState))
     return (
       <DashboardLayout>
         <LoadingState
@@ -681,11 +735,13 @@ export default function CustomerDetail({ id }: { id: number }) {
       </DashboardLayout>
     );
 
-  if (isCustomerError || !customer)
+  if (shouldShowCustomerDetailUnavailable(customerAccessState) || !customer)
     return (
       <DashboardLayout>
         <SensitiveDataUnavailableState
-          showRetry={isCustomerError}
+          showRetry={
+            isCustomerError && isValidCustomerDetailId(id)
+          }
           onRetry={() => void refetchCustomer()}
           className="min-h-64"
           fullPage
