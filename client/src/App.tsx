@@ -8,7 +8,6 @@ import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrlResult } from "./const";
 import { getLoginConfigurationNotice } from "./lib/loginConfigurationCopy";
 import { Loader2 } from "lucide-react";
-import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import { ForbiddenState } from "./components/ForbiddenState";
 import { RouteAccessGuard } from "./components/RouteAccessGuard";
 import { lazy, Suspense } from "react";
@@ -186,42 +185,6 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function BulkImportGuard({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  if (!hasCustomerBulkImportAccess(user)) {
-    return <ForbiddenState />;
-  }
-  return <>{children}</>;
-}
-
-function ManagerGuard({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  if (
-    !user ||
-    (user.role !== "branch_admin" &&
-      user.role !== "sub_branch_admin" &&
-      user.role !== "team_leader")
-  ) {
-    return <ForbiddenState />;
-  }
-  return <>{children}</>;
-}
-
-function SubBranchAdminOrAboveGuard({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const { user } = useAuth();
-  if (
-    !user ||
-    (user.role !== "branch_admin" && user.role !== "sub_branch_admin")
-  ) {
-    return <ForbiddenState />;
-  }
-  return <>{children}</>;
-}
-
 function Router() {
   return (
     <Switch>
@@ -257,38 +220,38 @@ function Router() {
       </Route>
       <Route path="/customers/assign">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/customers/assign">
             <LazyRoute>
               <CustomerAssign />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/bulk-import">
         <AuthGuard>
-          <BulkImportGuard>
+          <RouteAccessGuard path="/customers/bulk-import">
             <LazyRoute>
               <CustomerBulkImport />
             </LazyRoute>
-          </BulkImportGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/import-batches">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/customers/import-batches">
             <LazyRoute>
               <ImportBatchManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/merge">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/customers/merge">
             <LazyRoute>
               <CustomerMergeManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/customers/:id">
@@ -349,11 +312,11 @@ function Router() {
       </Route>
       <Route path="/push-notifications">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/push-notifications">
             <LazyRoute>
               <PushNotificationOperations />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/calendar">
@@ -363,65 +326,65 @@ function Router() {
       </Route>
       <Route path="/users/handoff">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/users/handoff">
             <LazyRoute>
               <UserHandoffManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/organization">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/organization">
             <LazyRoute>
               <OrganizationManagement />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/users">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/users">
             <LazyRoute>
               <UserManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/team-insights">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/team-insights">
             <LazyRoute>
               <TeamInsights />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/admin/sla">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/admin/sla">
             <LazyRoute>
               <FirstContactSlaDashboard />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/teams">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/teams">
             <LazyRoute>
               <TeamManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/logs">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/logs">
             <LazyRoute>
               <ActivityLog />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/admin-audit">
@@ -433,47 +396,47 @@ function Router() {
       </Route>
       <Route path="/operation-risk">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/operation-risk">
             <LazyRoute>
               <OperationRiskCenter />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/admin/team-completion">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/admin/team-completion">
             <LazyRoute>
               <TeamCompletionDashboard />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/admin/team-coaching">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/admin/team-coaching">
             <LazyRoute>
               <TeamCoachingDashboard />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/admin/operations-center">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/admin/operations-center">
             <LazyRoute>
               <AdminOperationsCenter />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/management-reports">
         <AuthGuard>
-          <ManagerGuard>
+          <RouteAccessGuard path="/management-reports">
             <LazyRoute>
               <ManagementReports />
             </LazyRoute>
-          </ManagerGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/action-plans">
@@ -532,38 +495,38 @@ function Router() {
       </Route>
       <Route path="/download">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/download">
             <LazyRoute>
               <Download />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/settings">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/settings">
             <LazyRoute>
               <Settings />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/consultation-tools">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/consultation-tools">
             <LazyRoute>
               <ConsultationToolsManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/deleted-data">
         <AuthGuard>
-          <AdminGuard>
+          <RouteAccessGuard path="/deleted-data">
             <LazyRoute>
               <DeletedDataManagement />
             </LazyRoute>
-          </AdminGuard>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route component={NotFound} />
