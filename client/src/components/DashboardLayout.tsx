@@ -188,7 +188,7 @@ function DashboardLayoutContent({
                   <p className="truncate text-sm font-bold tracking-tight text-sidebar-foreground">
                     BOA CRM
                   </p>
-                  <p className="truncate text-[11px] font-medium text-sidebar-primary/90">
+                  <p className="truncate text-xs font-medium text-sidebar-primary/90">
                     지점관리 CRM
                   </p>
                 </div>
@@ -225,7 +225,7 @@ function DashboardLayoutContent({
                       {group.label}
                     </p>
                     {group.description ? (
-                      <p className="mb-1 text-[11px] leading-snug text-sidebar-foreground/35">
+                      <p className="mb-1 text-xs leading-snug text-sidebar-foreground/40">
                         {group.description}
                       </p>
                     ) : null}
@@ -259,7 +259,7 @@ function DashboardLayoutContent({
                             <span className="text-sm">{item.label}</span>
                             {isNotif && unreadBadgeLabel ? (
                               <Badge
-                                className="ml-auto h-4 min-w-4 border-0 bg-red-500 px-1 text-[10px] text-white"
+                                className="ml-auto h-5 min-w-5 border-0 bg-destructive px-1 text-xs text-destructive-foreground"
                                 aria-label={unreadBadgeAriaLabel}
                               >
                                 {unreadBadgeLabel}
@@ -292,7 +292,7 @@ function DashboardLayoutContent({
                       <p className="truncate text-xs font-semibold text-sidebar-foreground">
                         {user?.name ?? "-"}
                       </p>
-                      <p className="truncate text-[10px] text-sidebar-primary/85">
+                      <p className="truncate text-xs text-sidebar-primary/85">
                         {getRoleLabel(user?.role)}
                       </p>
                     </div>

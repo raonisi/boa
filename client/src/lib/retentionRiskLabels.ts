@@ -1,3 +1,4 @@
+import { getStatusVariantClasses } from "@/lib/statusPresentation";
 import type {
   CustomerSentiment,
   ResolutionResult,
@@ -78,22 +79,22 @@ export const RETENTION_RISK_LEVEL_BADGE_CLASSES: Record<
   RetentionRiskLevel,
   string
 > = {
-  low: "bg-slate-100 text-slate-700",
-  medium: "bg-sky-50 text-sky-700",
-  high: "bg-amber-50 text-amber-800",
-  critical: "bg-orange-50 text-orange-800",
+  low: getStatusVariantClasses("neutral"),
+  medium: getStatusVariantClasses("info"),
+  high: getStatusVariantClasses("warning"),
+  critical: getStatusVariantClasses("danger"),
 };
 
 export const RETENTION_STATUS_BADGE_CLASSES: Record<RetentionStatus, string> = {
-  detected: "bg-orange-50 text-orange-700",
-  contacted: "bg-sky-50 text-sky-700",
-  explanation_provided: "bg-indigo-50 text-indigo-700",
-  adjustment_review: "bg-violet-50 text-violet-700",
-  waiting_customer: "bg-amber-50 text-amber-800",
-  retained: "bg-emerald-50 text-emerald-700",
-  adjusted: "bg-teal-50 text-teal-700",
-  surrendered: "bg-slate-100 text-slate-600",
-  closed: "bg-slate-100 text-slate-600",
+  detected: getStatusVariantClasses("warning"),
+  contacted: getStatusVariantClasses("info"),
+  explanation_provided: getStatusVariantClasses("info"),
+  adjustment_review: getStatusVariantClasses("info"),
+  waiting_customer: getStatusVariantClasses("warning"),
+  retained: getStatusVariantClasses("success"),
+  adjusted: getStatusVariantClasses("success"),
+  surrendered: getStatusVariantClasses("inactive"),
+  closed: getStatusVariantClasses("inactive"),
 };
 
 export const RETENTION_RISK_REASON_OPTIONS = Object.entries(

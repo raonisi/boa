@@ -22,6 +22,10 @@ import { getRoleLabel, getUserStatusLabel } from "@/lib/userRole";
 import { Building2, Edit2, Plus, Trash2, Users } from "lucide-react";
 import { useState } from "react";
 import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import {
+  getTeamMemberRoleBadgeClasses,
+  getTeamUnassignedRoleBadgeClasses,
+} from "@/lib/orgGoalPresentation";
 import { toast } from "sonner";
 
 export default function TeamManagement() {
@@ -224,9 +228,7 @@ function OrgHierarchyView() {
                               key={u.id}
                               className="flex items-center gap-2 text-xs"
                             >
-                              <span
-                                className={`px-1.5 py-0.5 rounded text-[10px] ${u.role === "team_leader" ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-600"}`}
-                              >
+                              <span className={getTeamMemberRoleBadgeClasses(u.role)}>
                                 {getRoleLabel(u.role)}
                               </span>
                               <span className="font-medium">{u.name}</span>
@@ -240,7 +242,7 @@ function OrgHierarchyView() {
                                     handleSubBranchChange(u.id, u.teamId, v)
                                   }
                                 >
-                                  <SelectTrigger className="h-6 text-[10px] w-24">
+                                  <SelectTrigger className="h-7 min-h-7 w-24 text-xs">
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -276,7 +278,7 @@ function OrgHierarchyView() {
                           key={u.id}
                           className="flex items-center gap-2 text-xs"
                         >
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-orange-100 text-orange-700">
+                          <span className={getTeamUnassignedRoleBadgeClasses()}>
                             {getRoleLabel(u.role)}
                           </span>
                           <span className="font-medium">{u.name}</span>
@@ -289,7 +291,7 @@ function OrgHierarchyView() {
                               })
                             }
                           >
-                            <SelectTrigger className="h-6 text-[10px] w-24 ml-auto">
+                            <SelectTrigger className="ml-auto h-7 min-h-7 w-24 text-xs">
                               <SelectValue placeholder="팀 배정" />
                             </SelectTrigger>
                             <SelectContent>

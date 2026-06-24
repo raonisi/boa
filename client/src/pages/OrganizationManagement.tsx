@@ -35,6 +35,13 @@ import { useMemo, useState } from "react";
 import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
 import { getEmptyCopy, getLoadErrorCopy, getLoadingCopy } from "@/lib/stateUxCopy";
 import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import { adminPage, adminPanel } from "@/lib/adminDesignTokens";
+import {
+  getAccountStatusBadgeClasses,
+  getOrgRelationBadge,
+  getOrgRelationBadgeClasses,
+  getOrgRoleBadgeClasses,
+} from "@/lib/orgGoalPresentation";
 import { toast } from "sonner";
 
 type OrgNode = {
@@ -48,71 +55,6 @@ type OrgNode = {
   descendantCount: number;
   customerCount: number;
 };
-
-function roleBadgeClass(role: string) {
-  if (role === "branch_admin")
-    return "border-slate-700 bg-slate-900 text-amber-200";
-  if (role === "sub_branch_admin")
-    return "border-blue-200 bg-blue-50 text-blue-700";
-  if (role === "team_leader")
-    return "border-indigo-200 bg-indigo-50 text-indigo-700";
-  return "border-emerald-200 bg-emerald-50 text-emerald-700";
-}
-
-function statusBadgeClass(status: string) {
-  if (status === "active")
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "inactive")
-    return "border-slate-200 bg-slate-100 text-slate-600";
-  return "border-red-200 bg-red-50 text-red-700";
-}
-
-function relationBadge(node: OrgNode, parent?: OrgNode | null) {
-  if (node.role === "branch_admin") return null;
-  if (node.accountStatus !== "active") {
-    return {
-      label: "비활성 조직원",
-      className: "border-slate-200 bg-slate-100 text-slate-500",
-    };
-  }
-  if (!parent) {
-    return {
-      label: "미배정",
-      className: "border-orange-200 bg-orange-50 text-orange-700",
-    };
-  }
-  if (parent.role === "branch_admin" && node.role === "team_leader") {
-    return {
-      label: "직할 팀장",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-    };
-  }
-  if (parent.role === "branch_admin" && node.role === "member") {
-    return {
-      label: "직할 팀원",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-    };
-  }
-  if (parent.role === "sub_branch_admin" && node.role === "team_leader") {
-    return {
-      label: "산하 팀장",
-      className: "border-blue-200 bg-blue-50 text-blue-700",
-    };
-  }
-  if (parent.role === "sub_branch_admin" && node.role === "member") {
-    return {
-      label: "직할 팀원",
-      className: "border-blue-200 bg-blue-50 text-blue-700",
-    };
-  }
-  if (parent.role === "team_leader" && node.role === "member") {
-    return {
-      label: "팀 소속",
-      className: "border-indigo-200 bg-indigo-50 text-indigo-700",
-    };
-  }
-  return null;
-}
 
 function userLabel(node?: Pick<OrgNode, "id" | "name" | "role"> | null) {
   if (!node) return "미배정";
@@ -150,10 +92,10 @@ function descendantIds(
 
 function SummaryCard({ label, value }: { label: string; value: number }) {
   return (
-    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+    <Card className={`rounded-2xl ${adminPage.card}`}>
       <CardContent className="p-4">
-        <p className="text-xs font-semibold text-slate-500">{label}</p>
-        <p className="mt-2 text-2xl font-bold text-slate-950">
+        <p className={adminPage.metricLabel}>{label}</p>
+        <p className={`mt-2 ${adminPage.metricValue}`}>
           {value.toLocaleString()}
         </p>
       </CardContent>
@@ -177,24 +119,21 @@ function OrgSection({
   return (
     <Collapsible
       defaultOpen={defaultOpen}
-      className="rounded-2xl border border-slate-200 bg-slate-50/60"
+      className={`rounded-2xl border ${adminPage.surfaceMuted}`}
     >
       <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left">
         <div>
           <div className="flex items-center gap-2">
-            <p className="font-bold text-slate-950">{title}</p>
-            <Badge
-              variant="outline"
-              className="border-slate-200 bg-white text-slate-600"
-            >
+            <p className="font-bold text-foreground">{title}</p>
+            <Badge variant="outline" className="border-border bg-card text-muted-foreground">
               {count.toLocaleString()}명
             </Badge>
           </div>
           {description ? (
-            <p className="mt-1 text-xs text-slate-500">{description}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{description}</p>
           ) : null}
         </div>
-        <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="space-y-2 px-3 pb-3">{children}</div>
@@ -306,46 +245,42 @@ export default function OrganizationManagement() {
   const renderNode = (node: OrgNode, depth = 0, showChildren = true) => {
     const children = childrenByParent.get(node.id) ?? [];
     const parent = node.parentUserId ? nodeById.get(node.parentUserId) : null;
-    const relation = relationBadge(node, parent);
+    const relation = getOrgRelationBadge(node, parent);
     const muted = node.accountStatus !== "active";
 
     return (
       <div
         key={node.id}
-        className={depth > 0 ? "ml-3 border-l border-slate-200 pl-3" : ""}
+        className={depth > 0 ? "ml-3 border-l border-border pl-3" : ""}
       >
         <Card
-          className={`mb-3 rounded-2xl border shadow-sm ${node.role === "branch_admin" ? "border-slate-800 bg-slate-950 text-white" : muted ? "border-slate-200 bg-slate-50 opacity-80" : "border-slate-200 bg-white"}`}
+          className={`mb-3 rounded-2xl border shadow-sm ${node.role === "branch_admin" ? "border-boa-navy/80 bg-boa-navy text-primary-foreground" : muted ? "border-border bg-muted/40 opacity-80" : adminPage.card}`}
         >
           <CardContent className="p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={roleBadgeClass(node.role)}
-                  >
+                  <Badge className={getOrgRoleBadgeClasses(node.role)}>
                     {getRoleLabel(node.role)}
                   </Badge>
                   <Badge
-                    variant="outline"
-                    className={statusBadgeClass(node.accountStatus)}
+                    className={getAccountStatusBadgeClasses(node.accountStatus)}
                   >
                     {getUserStatusLabel(node.accountStatus)}
                   </Badge>
                   {relation ? (
-                    <Badge variant="outline" className={relation.className}>
+                    <Badge className={getOrgRelationBadgeClasses(relation.variant)}>
                       {relation.label}
                     </Badge>
                   ) : null}
                 </div>
                 <h3
-                  className={`mt-2 text-lg font-bold ${node.role === "branch_admin" ? "text-white" : "text-slate-950"}`}
+                  className={`mt-2 text-lg font-bold ${node.role === "branch_admin" ? "text-primary-foreground" : "text-foreground"}`}
                 >
                   {node.name ?? `사용자 #${node.id}`}
                 </h3>
                 <p
-                  className={`mt-1 text-sm ${node.role === "branch_admin" ? "text-slate-300" : "text-slate-500"}`}
+                  className={`mt-1 text-sm ${node.role === "branch_admin" ? "text-primary-foreground/75" : "text-muted-foreground"}`}
                 >
                   상위:{" "}
                   {parent
@@ -356,19 +291,19 @@ export default function OrganizationManagement() {
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center sm:min-w-64">
-                <div className="rounded-xl bg-slate-50 p-2 text-slate-800">
-                  <p className="text-[11px] text-slate-500">직속</p>
-                  <p className="text-base font-bold">
+                <div className={`rounded-xl p-2 ${adminPage.surface}`}>
+                  <p className="text-xs text-muted-foreground">직속</p>
+                  <p className="text-base font-bold text-foreground">
                     {node.directReportCount}
                   </p>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-2 text-slate-800">
-                  <p className="text-[11px] text-slate-500">산하</p>
-                  <p className="text-base font-bold">{node.descendantCount}</p>
+                <div className={`rounded-xl p-2 ${adminPage.surface}`}>
+                  <p className="text-xs text-muted-foreground">산하</p>
+                  <p className="text-base font-bold text-foreground">{node.descendantCount}</p>
                 </div>
-                <div className="rounded-xl bg-slate-50 p-2 text-slate-800">
-                  <p className="text-[11px] text-slate-500">고객</p>
-                  <p className="text-base font-bold">{node.customerCount}</p>
+                <div className={`rounded-xl p-2 ${adminPage.surface}`}>
+                  <p className="text-xs text-muted-foreground">고객</p>
+                  <p className="text-base font-bold text-foreground">{node.customerCount}</p>
                 </div>
               </div>
             </div>
@@ -379,7 +314,7 @@ export default function OrganizationManagement() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="border-red-200 text-red-700 hover:bg-red-50"
+                    className="border-destructive/30 text-destructive hover:bg-destructive/5"
                     onClick={() => {
                       setSelectedUser(node);
                       setNewParentId("none");
@@ -449,7 +384,7 @@ export default function OrganizationManagement() {
             {branchDirectNodes.length > 0 ? (
               branchDirectNodes.map(node => renderNode(node))
             ) : (
-              <p className="p-3 text-sm text-slate-500">
+              <p className="p-3 text-sm text-muted-foreground">
                 직할 조직원이 없습니다.
               </p>
             )}
@@ -462,7 +397,7 @@ export default function OrganizationManagement() {
             {subBranchNodes.length > 0 ? (
               subBranchNodes.map(node => renderNode(node))
             ) : (
-              <p className="p-3 text-sm text-slate-500">
+              <p className="p-3 text-sm text-muted-foreground">
                 부지점장 조직이 없습니다.
               </p>
             )}
@@ -476,7 +411,7 @@ export default function OrganizationManagement() {
             {unassignedNodes.length > 0 ? (
               unassignedNodes.map(node => renderNode(node))
             ) : (
-              <p className="p-3 text-sm text-slate-500">
+              <p className="p-3 text-sm text-muted-foreground">
                 미배정 사용자가 없습니다.
               </p>
             )}
@@ -492,9 +427,9 @@ export default function OrganizationManagement() {
   if (user?.role === "member") {
     return (
       <DashboardLayout>
-        <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+        <Card className={`rounded-2xl ${adminPage.card}`}>
           <CardContent className="p-6">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-muted-foreground">
               조직 구조 관리는 관리자와 리더 권한에서 확인할 수 있습니다.
             </p>
           </CardContent>
@@ -506,17 +441,17 @@ export default function OrganizationManagement() {
   return (
     <DashboardLayout>
       <div className="space-y-6 pb-24 md:pb-8">
-        <div className="rounded-3xl bg-slate-950 p-6 text-white shadow-sm">
+        <div className="rounded-3xl bg-boa-navy p-6 text-primary-foreground shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="flex items-center gap-2 text-amber-200">
+              <div className="flex items-center gap-2 text-boa-amber">
                 <Network className="h-5 w-5" />
                 <span className="text-sm font-semibold">조직 구조 관리</span>
               </div>
               <h1 className="mt-2 text-2xl font-bold">
                 산하 구조와 고객 배분 가능 범위를 관리합니다
               </h1>
-              <p className="mt-2 max-w-2xl text-sm text-slate-300">
+              <p className="mt-2 max-w-2xl text-sm text-primary-foreground/75">
                 지점장 직할, 부지점장 산하, 팀장 산하 구조를 확인합니다. 조직
                 변경은 기존 고객 담당자를 바꾸지 않고 조회 범위와 DB 배분
                 범위에만 영향을 줍니다.
@@ -558,24 +493,24 @@ export default function OrganizationManagement() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-          <Card className="rounded-3xl border-slate-200 bg-white shadow-sm">
+          <Card className={`rounded-3xl ${adminPage.card}`}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <GitBranch className="h-5 w-5 text-amber-600" />
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <GitBranch className="h-5 w-5 text-boa-amber" />
                 조직 트리
               </CardTitle>
             </CardHeader>
             <CardContent>{renderTreeContent()}</CardContent>
           </Card>
 
-          <Card className="rounded-3xl border-amber-100 bg-amber-50/60 shadow-sm">
+          <Card className={`rounded-3xl shadow-sm ${adminPanel.warningSoft}`}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-slate-950">
-                <ShieldAlert className="h-5 w-5 text-amber-600" />
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <ShieldAlert className="h-5 w-5 text-boa-amber" />
                 변경 영향 안내
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3 text-sm text-slate-700">
+            <CardContent className="space-y-3 text-sm text-foreground/90">
               <p>상위자 변경은 고객 담당자를 자동 변경하지 않습니다.</p>
               <p>
                 산하 조회 범위와 DB 배분 가능 범위만 조직 트리 기준으로 다시
@@ -601,14 +536,12 @@ export default function OrganizationManagement() {
           </DialogHeader>
           {selectedUser ? (
             <div className="space-y-4">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs font-semibold text-slate-500">
-                  대상 사용자
-                </p>
-                <p className="mt-1 font-bold text-slate-950">
+              <div className={`rounded-2xl p-4 ${adminPage.surface}`}>
+                <p className={adminPage.metricLabel}>대상 사용자</p>
+                <p className="mt-1 font-bold text-foreground">
                   {userLabel(selectedUser)}
                 </p>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-muted-foreground">
                   현재 상위:{" "}
                   {selectedUser.parentUserId
                     ? userLabel(nodeById.get(selectedUser.parentUserId))
@@ -616,7 +549,7 @@ export default function OrganizationManagement() {
                 </p>
               </div>
               <div>
-                <label className="text-sm font-semibold text-slate-700">
+                <label className="text-sm font-semibold text-foreground">
                   변경할 상위자
                 </label>
                 <Select value={newParentId} onValueChange={setNewParentId}>
@@ -645,7 +578,7 @@ export default function OrganizationManagement() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="border-red-200 text-red-700 hover:bg-red-50"
+                    className="border-destructive/30 text-destructive hover:bg-destructive/5"
                     onClick={() => applyParentChange(null)}
                     disabled={updateParentMutation.isPending}
                   >

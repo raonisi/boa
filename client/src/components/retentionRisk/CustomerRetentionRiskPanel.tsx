@@ -510,7 +510,7 @@ export function CustomerRetentionRiskPanel({
                   {RETENTION_STATUS_LABELS[row.retentionStatus]}
                 </span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${RETENTION_RISK_LEVEL_BADGE_CLASSES[row.riskLevel]}`}
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${RETENTION_RISK_LEVEL_BADGE_CLASSES[row.riskLevel]}`}
                 >
                   위험 {RETENTION_RISK_LEVEL_LABELS[row.riskLevel]}
                 </span>

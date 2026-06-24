@@ -41,20 +41,18 @@ import type {
   RetentionStatus,
 } from "@shared/retentionRisk";
 import { formatKstLocalDateTime } from "@shared/timePolicy";
+import { adminPage } from "@/lib/adminDesignTokens";
+import { STATUS_BADGE_BASE } from "@/lib/statusPresentation";
 import { Loader2, RefreshCcw, ShieldCheck } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { Link } from "wouter";
 
 function KpiCard({ title, value }: { title: string; value: number }) {
   return (
-    <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium text-slate-500">{title}</p>
-      <p className="mt-2 text-2xl font-bold tabular-nums text-[#1f3b57]">
-        {value}
-      </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
-        기록된 해지위험 상태
-      </p>
+    <div className={`rounded-2xl p-4 shadow-sm ${adminPage.card}`}>
+      <p className={adminPage.metricLabel}>{title}</p>
+      <p className={`mt-2 ${adminPage.metricValue}`}>{value}</p>
+      <p className="mt-1 text-xs text-muted-foreground">기록된 해지위험 상태</p>
     </div>
   );
 }
@@ -487,12 +485,12 @@ export default function RetentionRiskManagement() {
                     >
                       <div className="flex flex-wrap items-center gap-2">
                         <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${RETENTION_STATUS_BADGE_CLASSES[row.retentionStatus]}`}
+                          className={`${STATUS_BADGE_BASE} ${RETENTION_STATUS_BADGE_CLASSES[row.retentionStatus]}`}
                         >
                           {RETENTION_STATUS_LABELS[row.retentionStatus]}
                         </span>
                         <span
-                          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${RETENTION_RISK_LEVEL_BADGE_CLASSES[row.riskLevel]}`}
+                          className={`${STATUS_BADGE_BASE} ${RETENTION_RISK_LEVEL_BADGE_CLASSES[row.riskLevel]}`}
                         >
                           {RETENTION_RISK_LEVEL_LABELS[row.riskLevel]}
                         </span>
@@ -557,7 +555,7 @@ export default function RetentionRiskManagement() {
                         </TableCell>
                         <TableCell>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${RETENTION_RISK_LEVEL_BADGE_CLASSES[row.riskLevel]}`}
+                            className={`${STATUS_BADGE_BASE} ${RETENTION_RISK_LEVEL_BADGE_CLASSES[row.riskLevel]}`}
                           >
                             {RETENTION_RISK_LEVEL_LABELS[row.riskLevel]}
                           </span>
@@ -567,7 +565,7 @@ export default function RetentionRiskManagement() {
                         </TableCell>
                         <TableCell>
                           <span
-                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${RETENTION_STATUS_BADGE_CLASSES[row.retentionStatus]}`}
+                            className={`${STATUS_BADGE_BASE} ${RETENTION_STATUS_BADGE_CLASSES[row.retentionStatus]}`}
                           >
                             {RETENTION_STATUS_LABELS[row.retentionStatus]}
                           </span>

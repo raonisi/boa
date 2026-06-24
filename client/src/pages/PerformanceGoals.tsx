@@ -22,6 +22,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
+import { adminPage, adminPanel } from "@/lib/adminDesignTokens";
+import {
+  getGoalAchievementBadgeClasses,
+  getGoalAchievementStatus,
+} from "@/lib/orgGoalPresentation";
 import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,
@@ -67,19 +72,6 @@ function buildPersonalGoalUserLabel(
 
 function formatWon(value: number | undefined | null) {
   return `${Number(value ?? 0).toLocaleString()}원`;
-}
-
-function goalStatus(item: any) {
-  if (!item)
-    return { label: "목표 없음", className: "bg-slate-100 text-slate-600" };
-  const contractRate = Number(item?.achievementRate?.contractCount ?? 0);
-  const premiumRate = Number(item?.achievementRate?.monthlyPremium ?? 0);
-  const bestRate = Math.max(contractRate, premiumRate);
-  if (bestRate >= 100)
-    return { label: "목표 달성", className: "bg-emerald-100 text-emerald-700" };
-  if ((item?.remainingDays ?? 0) <= 5 && bestRate < 80)
-    return { label: "미달 위험", className: "bg-red-100 text-red-700" };
-  return { label: "진행중", className: "bg-amber-100 text-amber-700" };
 }
 
 export default function PerformanceGoals() {
@@ -198,25 +190,23 @@ export default function PerformanceGoals() {
 
   const items = dashboard?.items ?? [];
   const firstGoal = items[0];
-  const firstGoalStatus = goalStatus(firstGoal);
+  const firstGoalStatus = getGoalAchievementStatus(firstGoal);
 
   return (
     <DashboardLayout>
       <div className="space-y-5 p-4 md:p-6">
-        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className={`overflow-hidden ${adminPage.card}`}>
           <CardContent className="p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-              Goals
-            </p>
+            <p className={adminPage.eyebrow}>Goals</p>
             <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h1 className="text-2xl font-bold text-slate-950">목표관리</h1>
-                <p className="mt-1 text-sm text-slate-500">
+                <h1 className={adminPage.title}>목표관리</h1>
+                <p className={`mt-1 ${adminPage.subtitle}`}>
                   월간 신규 계약 목표와 월납보험료 목표를 설정하고 목표 대비
                   실적을 확인합니다.
                 </p>
               </div>
-              <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600">
+              <div className={`rounded-full px-3 py-1 text-xs font-medium ${adminPage.surface}`}>
                 신규 계약 + 월납보험료 중심
               </div>
             </div>
@@ -224,7 +214,7 @@ export default function PerformanceGoals() {
         </Card>
 
         <div className="grid gap-3 md:grid-cols-4">
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">목표 수</p>
               <p className="mt-1 text-2xl font-bold">
@@ -232,7 +222,7 @@ export default function PerformanceGoals() {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">
                 신규 계약 평균 달성률
@@ -242,7 +232,7 @@ export default function PerformanceGoals() {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">
                 월납보험료 평균 달성률
@@ -252,7 +242,7 @@ export default function PerformanceGoals() {
               </p>
             </CardContent>
           </Card>
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardContent className="p-4">
               <p className="text-xs text-muted-foreground">달성 / 진행</p>
               <p className="mt-1 text-2xl font-bold">
@@ -264,7 +254,7 @@ export default function PerformanceGoals() {
         </div>
 
         {isDashboardLoading ? (
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardContent className="p-4">
               <LoadingState
                 title="목표 정보를 불러오는 중입니다."
@@ -274,7 +264,7 @@ export default function PerformanceGoals() {
             </CardContent>
           </Card>
         ) : isDashboardError ? (
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardContent className="p-4">
               <ErrorState
                 title="목표 정보를 불러오지 못했습니다."
@@ -288,14 +278,16 @@ export default function PerformanceGoals() {
         ) : null}
 
         {!isDashboardLoading && !isDashboardError && items.length === 0 && (
-          <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
+          <Card className={`shadow-sm ${adminPanel.warningSoft}`}>
             <CardContent className="flex flex-col gap-3 p-5 md:flex-row md:items-center md:justify-between">
               <div>
-                <Badge className="bg-amber-100 text-amber-800">목표 없음</Badge>
-                <h2 className="mt-2 text-lg font-bold text-slate-950">
+                <Badge className={getGoalAchievementBadgeClasses({ label: "목표 없음", variant: "neutral" })}>
+                  목표 없음
+                </Badge>
+                <h2 className="mt-2 text-lg font-bold text-foreground">
                   이번 달 목표가 설정되지 않았습니다.
                 </h2>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="mt-1 text-sm text-muted-foreground">
                   목표를 설정하면 필요한 상담량과 계약량을 계산할 수 있습니다.
                 </p>
               </div>
@@ -334,7 +326,7 @@ export default function PerformanceGoals() {
               <CardTitle className="flex items-center gap-2 text-base">
                 <TrendingUp className="h-4 w-4 text-primary" /> 이번 달 핵심
                 목표
-                <Badge className={firstGoalStatus.className}>
+                <Badge className={getGoalAchievementBadgeClasses(firstGoalStatus)}>
                   {firstGoalStatus.label}
                 </Badge>
               </CardTitle>
@@ -442,35 +434,35 @@ export default function PerformanceGoals() {
         </Card>
 
         {user?.role === "branch_admin" && (
-          <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+          <Card className={adminPage.card}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base text-slate-900">
-                <Target className="h-4 w-4 text-[#b99b5f]" /> 목표 추가
+              <CardTitle className="flex items-center gap-2 text-base text-foreground">
+                <Target className="h-4 w-4 text-boa-amber" /> 목표 추가
               </CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3 md:grid-cols-6">
               <div className="md:col-span-6 grid gap-2 md:grid-cols-3">
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs font-semibold text-slate-700">
+                <div className={`rounded-lg p-3 ${adminPage.surface}`}>
+                  <p className="text-xs font-semibold text-foreground">
                     1. 기간 선택
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     월간 운영 기준을 먼저 정합니다.
                   </p>
                 </div>
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs font-semibold text-slate-700">
+                <div className={`rounded-lg p-3 ${adminPage.surface}`}>
+                  <p className="text-xs font-semibold text-foreground">
                     2. 대상 선택
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     지점, 팀, 개인 목표를 구분합니다.
                   </p>
                 </div>
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <p className="text-xs font-semibold text-slate-700">
+                <div className={`rounded-lg p-3 ${adminPage.surface}`}>
+                  <p className="text-xs font-semibold text-foreground">
                     3. 숫자 입력
                   </p>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     신규 계약과 월납 목표를 함께 설정합니다.
                   </p>
                 </div>
@@ -481,7 +473,7 @@ export default function PerformanceGoals() {
                   type="number"
                   value={year}
                   onChange={event => setYear(Number(event.target.value))}
-                  className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"
+                  className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
                 />
               </div>
               <div>
@@ -492,7 +484,7 @@ export default function PerformanceGoals() {
                   max={12}
                   value={month}
                   onChange={event => setMonth(Number(event.target.value))}
-                  className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"
+                  className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
                 />
               </div>
               <div>
@@ -506,7 +498,7 @@ export default function PerformanceGoals() {
                     setPersonalTargetRoleFilter("all");
                   }}
                 >
-                  <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9">
+                  <SelectTrigger className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -534,7 +526,7 @@ export default function PerformanceGoals() {
                           setPersonalTargetSearch(event.target.value)
                         }
                         placeholder="이름, 직책, 팀명 검색"
-                        className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"
+                        className={`min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
                       />
                       <Select
                         value={personalTargetRoleFilter}
@@ -544,7 +536,7 @@ export default function PerformanceGoals() {
                           )
                         }
                       >
-                        <SelectTrigger className="min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9">
+                        <SelectTrigger className={`min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}>
                           <SelectValue placeholder="직책 필터" />
                         </SelectTrigger>
                         <SelectContent>
@@ -561,7 +553,7 @@ export default function PerformanceGoals() {
                     </>
                   ) : null}
                   <Select value={targetId} onValueChange={setTargetId}>
-                    <SelectTrigger className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9">
+                    <SelectTrigger className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}>
                       <SelectValue placeholder="대상 선택" />
                     </SelectTrigger>
                     <SelectContent>
@@ -579,7 +571,7 @@ export default function PerformanceGoals() {
                     </SelectContent>
                   </Select>
                   {targetType === "user" ? (
-                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                    <p className="text-xs leading-relaxed text-muted-foreground">
                       지점장, 부지점장, 팀장, 팀원, 본인을 개인매출 목표
                       대상으로 선택할 수 있습니다.
                     </p>
@@ -595,7 +587,7 @@ export default function PerformanceGoals() {
                   onChange={event =>
                     setContractCountGoal(Number(event.target.value))
                   }
-                  className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"
+                  className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
                 />
               </div>
               <div>
@@ -607,7 +599,7 @@ export default function PerformanceGoals() {
                   onChange={event =>
                     setMonthlyPremiumGoal(Number(event.target.value))
                   }
-                  className="mt-1 min-h-12 rounded-xl bg-slate-50 md:h-9 md:min-h-9"
+                  className={`mt-1 min-h-12 rounded-xl md:h-9 md:min-h-9 ${adminPage.input}`}
                 />
               </div>
               <div className="md:col-span-6 flex justify-end">
@@ -636,10 +628,10 @@ export default function PerformanceGoals() {
           </Card>
         )}
 
-        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+        <Card className={`overflow-hidden ${adminPage.card}`}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base text-slate-900">
-              <Activity className="h-4 w-4 text-[#b99b5f]" /> {year}년 {month}월
+            <CardTitle className="flex items-center gap-2 text-base text-foreground">
+              <Activity className="h-4 w-4 text-boa-amber" /> {year}년 {month}월
               목표 대비 실적
             </CardTitle>
           </CardHeader>
@@ -652,15 +644,15 @@ export default function PerformanceGoals() {
               />
             ) : (
               items.map((item: any) => {
-                const status = goalStatus(item);
+                const status = getGoalAchievementStatus(item);
                 return (
                   <div
                     key={item.goal.id}
-                    className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                    className={`rounded-2xl p-4 shadow-sm ${adminPage.card}`}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <p className="line-clamp-2 text-base font-semibold leading-6 text-slate-950">
+                        <p className="line-clamp-2 text-base font-semibold leading-6 text-foreground">
                           {item.targetLabel}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
@@ -668,50 +660,50 @@ export default function PerformanceGoals() {
                             item.goal.targetType}
                         </p>
                       </div>
-                      <Badge className={`${status.className} shrink-0`}>
+                      <Badge className={`${getGoalAchievementBadgeClasses(status)} shrink-0`}>
                         {status.label}
                       </Badge>
                     </div>
                     <div className="mt-4 grid gap-3 text-sm">
-                      <div className="rounded-xl bg-slate-50 p-3">
+                      <div className={`rounded-xl p-3 ${adminPage.surface}`}>
                         <p className="text-xs text-muted-foreground">
                           신규 계약 달성률
                         </p>
-                        <p className="mt-1 font-semibold text-slate-950">
+                        <p className="mt-1 font-semibold text-foreground">
                           {item.actual.contractCount} /{" "}
                           {item.goal.contractCountGoal}건 ·{" "}
                           {item.achievementRate.contractCount ?? "-"}%
                         </p>
                       </div>
-                      <div className="rounded-xl bg-slate-50 p-3">
+                      <div className={`rounded-xl p-3 ${adminPage.surface}`}>
                         <p className="text-xs text-muted-foreground">
                           월납보험료 달성률
                         </p>
-                        <p className="mt-1 font-semibold text-slate-950">
+                        <p className="mt-1 font-semibold text-foreground">
                           {formatWon(item.actual.monthlyPremium)} /{" "}
                           {formatWon(item.goal.monthlyPremiumGoal)} ·{" "}
                           {item.achievementRate.monthlyPremium ?? "-"}%
                         </p>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="rounded-xl border border-slate-100 p-3">
+                        <div className={`rounded-xl border p-3 ${adminPage.surface}`}>
                           <p className="text-muted-foreground">
                             부족 신규 계약
                           </p>
-                          <p className="mt-1 font-semibold text-slate-950">
+                          <p className="mt-1 font-semibold text-foreground">
                             {item.remaining.contractCount}건
                           </p>
                         </div>
-                        <div className="rounded-xl border border-slate-100 p-3">
+                        <div className={`rounded-xl border p-3 ${adminPage.surface}`}>
                           <p className="text-muted-foreground">남은 기간</p>
-                          <p className="mt-1 font-semibold text-slate-950">
+                          <p className="mt-1 font-semibold text-foreground">
                             {item.remainingDays}일
                           </p>
                         </div>
                       </div>
-                      <div className="rounded-xl border border-slate-100 p-3 text-xs">
+                      <div className={`rounded-xl border p-3 text-xs ${adminPage.surface}`}>
                         <p className="text-muted-foreground">부족 월납보험료</p>
-                        <p className="mt-1 font-semibold text-slate-950">
+                        <p className="mt-1 font-semibold text-foreground">
                           {formatWon(item.remaining.monthlyPremium)}
                         </p>
                       </div>
@@ -735,7 +727,7 @@ export default function PerformanceGoals() {
           </CardContent>
           <CardContent className="hidden overflow-x-auto md:block">
             <Table>
-              <TableHeader className="bg-slate-50/80">
+              <TableHeader className={adminPage.tableHeader}>
                 <TableRow>
                   <TableHead>대상</TableHead>
                   <TableHead>유형</TableHead>
@@ -765,8 +757,8 @@ export default function PerformanceGoals() {
                       <TableCell className="font-medium">
                         <div className="flex flex-col gap-1">
                           <span>{item.targetLabel}</span>
-                          <Badge className={goalStatus(item).className}>
-                            {goalStatus(item).label}
+                          <Badge className={getGoalAchievementBadgeClasses(getGoalAchievementStatus(item))}>
+                            {getGoalAchievementStatus(item).label}
                           </Badge>
                         </div>
                       </TableCell>
