@@ -37,6 +37,7 @@ import {
   toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
+import { getAssignmentCandidateAvailability } from "@/lib/customerAssignAvailability";
 import { toast } from "sonner";
 
 type CustomerRow = CustomerAssignRow;
@@ -48,6 +49,11 @@ type UserRow = {
   accountStatus?: string | null;
   teamId?: number | null;
   subBranchAdminId?: number | null;
+};
+
+type AssignmentAgentOption = UserRow & {
+  disabledReason?: string;
+  selectable: boolean;
 };
 
 type AssignmentResultItem = {
@@ -162,15 +168,22 @@ function AssignToAgent() {
   });
   const { data: allUsers } = trpc.users.list.useQuery();
 
-  const agents = useMemo(
+  const agents = useMemo<AssignmentAgentOption[]>(
     () =>
       ((allUsers ?? []) as UserRow[]).filter(
         candidate =>
-          candidate.accountStatus === "active" &&
           (candidate.role === "team_leader" ||
             candidate.role === "member" ||
             (candidate.role === "branch_admin" && candidate.id === user?.id))
-      ),
+      ).map(candidate => {
+        const availability = getAssignmentCandidateAvailability(
+          candidate.accountStatus
+        );
+        return {
+          ...candidate,
+          ...availability,
+        };
+      }),
     [allUsers, user?.id]
   );
 
@@ -230,11 +243,17 @@ function AssignToSubBranch() {
     assignmentStatus: "unassigned",
   });
   const { data: allUsers } = trpc.users.list.useQuery();
-  const subBranchAdmins = ((allUsers ?? []) as UserRow[]).filter(
-    candidate =>
-      candidate.role === "sub_branch_admin" &&
-      candidate.accountStatus === "active"
-  );
+  const subBranchAdmins = ((allUsers ?? []) as UserRow[])
+    .filter(candidate => candidate.role === "sub_branch_admin")
+    .map<AssignmentAgentOption>(candidate => {
+      const availability = getAssignmentCandidateAvailability(
+        candidate.accountStatus
+      );
+      return {
+        ...candidate,
+        ...availability,
+      };
+    });
   const customers = (unassigned ?? []) as CustomerRow[];
   const filteredCustomers = useMemo(
     () =>
@@ -250,7 +269,8 @@ function AssignToSubBranch() {
     visibleCustomerIds.includes(id)
   ).length;
   const selectedTarget = subBranchAdmins.find(
-    candidate => String(candidate.id) === selectedSubBranchAdmin
+    candidate =>
+      String(candidate.id) === selectedSubBranchAdmin && candidate.selectable
   );
 
   useResetSelectionOnFilterChange(setSelectedCustomers, {
@@ -341,8 +361,12 @@ function AssignToSubBranch() {
                   <SelectItem
                     key={subBranchAdmin.id}
                     value={String(subBranchAdmin.id)}
+                    disabled={!subBranchAdmin.selectable}
                   >
                     {formatUserWithRole(subBranchAdmin)}
+                    {subBranchAdmin.disabledReason
+                      ? ` · ${subBranchAdmin.disabledReason}`
+                      : ""}
                   </SelectItem>
                 ))
               )}
@@ -353,6 +377,7 @@ function AssignToSubBranch() {
             className={isMobile ? "hidden" : undefined}
             disabled={
               !selectedSubBranchAdmin ||
+              !selectedTarget ||
               selectedCustomers.length === 0 ||
               assignToSubBranchMutation.isPending
             }
@@ -368,6 +393,11 @@ function AssignToSubBranch() {
               사용자 관리에서 부지점장을 먼저 지정해주세요.
             </p>
           )}
+          {subBranchAdmins.some(candidate => !candidate.selectable) ? (
+            <p className="basis-full text-xs text-muted-foreground">
+              일부 후보는 계정 상태로 인해 선택할 수 없습니다.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
       <AssignmentResultCard
@@ -445,12 +475,21 @@ function SubBranchAdminAssign() {
   const assignedToMe = ((myDb ?? []) as CustomerRow[]).filter(
     customer => customer.assignmentStatus === "assigned_to_sub_branch"
   );
-  const myTeamMembers = ((allUsers ?? []) as UserRow[]).filter(
-    candidate =>
-      candidate.accountStatus === "active" &&
-      (candidate.role === "team_leader" || candidate.role === "member") &&
-      candidate.subBranchAdminId === user?.id
-  );
+  const myTeamMembers = ((allUsers ?? []) as UserRow[])
+    .filter(
+      candidate =>
+        (candidate.role === "team_leader" || candidate.role === "member") &&
+        candidate.subBranchAdminId === user?.id
+    )
+    .map<AssignmentAgentOption>(candidate => {
+      const availability = getAssignmentCandidateAvailability(
+        candidate.accountStatus
+      );
+      return {
+        ...candidate,
+        ...availability,
+      };
+    });
 
   return (
     <div className="space-y-4">
@@ -482,12 +521,19 @@ function TeamLeaderAssign() {
   const { data: teamCustomers, refetch } = trpc.customers.list.useQuery({});
   const { data: allUsers } = trpc.users.list.useQuery();
 
-  const teamMembers = ((allUsers ?? []) as UserRow[]).filter(
-    candidate =>
-      candidate.accountStatus === "active" &&
-      candidate.role === "member" &&
-      candidate.teamId === user?.teamId
-  );
+  const teamMembers = ((allUsers ?? []) as UserRow[])
+    .filter(
+      candidate => candidate.role === "member" && candidate.teamId === user?.teamId
+    )
+    .map<AssignmentAgentOption>(candidate => {
+      const availability = getAssignmentCandidateAvailability(
+        candidate.accountStatus
+      );
+      return {
+        ...candidate,
+        ...availability,
+      };
+    });
 
   return (
     <div className="space-y-4">
@@ -524,7 +570,7 @@ function AssignmentPanel({
   helperText,
 }: {
   customers: CustomerRow[];
-  agents: UserRow[];
+  agents: AssignmentAgentOption[];
   title: string;
   refetchCustomers: () => void;
   emptyAgentText: string;
@@ -543,7 +589,7 @@ function AssignmentPanel({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [result, setResult] = useState<AssignmentResult | null>(null);
   const selectedAgentUser = agents.find(
-    agent => String(agent.id) === selectedAgent
+    agent => String(agent.id) === selectedAgent && agent.selectable
   );
   const filteredCustomers = useMemo(
     () =>
@@ -640,8 +686,13 @@ function AssignmentPanel({
                 </SelectItem>
               ) : (
                 agents.map(agent => (
-                  <SelectItem key={agent.id} value={String(agent.id)}>
+                  <SelectItem
+                    key={agent.id}
+                    value={String(agent.id)}
+                    disabled={!agent.selectable}
+                  >
                     {formatUserWithRole(agent)}
+                    {agent.disabledReason ? ` · ${agent.disabledReason}` : ""}
                   </SelectItem>
                 ))
               )}
@@ -652,6 +703,7 @@ function AssignmentPanel({
             className={isMobile ? "hidden" : undefined}
             disabled={
               !selectedAgent ||
+              !selectedAgentUser ||
               selectedCustomers.length === 0 ||
               assignMutation.isPending
             }
@@ -667,6 +719,11 @@ function AssignmentPanel({
               {helperText(selectedAgentUser)}
             </p>
           )}
+          {agents.some(candidate => !candidate.selectable) ? (
+            <p className="basis-full text-xs text-muted-foreground">
+              일부 후보는 계정 상태로 인해 선택할 수 없습니다.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
       <AssignmentResultCard
@@ -703,7 +760,7 @@ function AssignmentPanel({
       />
       <CustomerAssignMobileActionBar
         selectedCount={selectedVisibleCount}
-        canExecute={Boolean(selectedAgent)}
+        canExecute={Boolean(selectedAgentUser)}
         workflowKind="dbAssignment"
         actionLabel={
           selectedVisibleCount > 0

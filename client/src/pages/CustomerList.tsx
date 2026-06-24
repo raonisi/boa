@@ -14,6 +14,7 @@ import {
   quickPresetToUrlPreset,
   type CustomerListUrlPresetId,
 } from "@/components/customers/customerListUrlPresets";
+import { buildCustomerListPresetContext } from "@/lib/customerListPresetContext";
 import { parseCustomerDetailAction } from "@/lib/customerDetailActions";
 import { CustomerListDesktopWorkspace } from "@/components/customers/CustomerListDesktopWorkspace";
 import {
@@ -784,6 +785,9 @@ export default function CustomerList() {
     tagFilter !== "all" ||
     nextActionFilter !== "all" ||
     agentFilter !== "all";
+  const presetContext = effectiveUrlPreset
+    ? buildCustomerListPresetContext(effectiveUrlPreset, hasExtraFilters)
+    : null;
 
   const activeQuickPreset = detectActiveQuickPreset({
     workspaceFilter,
@@ -1152,10 +1156,10 @@ export default function CustomerList() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">
-                      {getCustomerListUrlPresetMeta(effectiveUrlPreset).title}
+                      {presetContext?.title}
                     </p>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                      {getCustomerListUrlPresetMeta(effectiveUrlPreset).description}
+                      {presetContext?.description}
                     </p>
                   </div>
                   <Button
