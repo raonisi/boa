@@ -535,7 +535,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const deactivateContractMutation = trpc.contracts.deactivate.useMutation({
     onSuccess: () => {
-      toast.success("계약이 삭제(비활성 처리)되었습니다.");
+      toast.success("계약을 삭제했습니다.");
       setDeleteContractId(null);
       refetchContracts();
     },
@@ -594,7 +594,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const deactivateMutation = trpc.customers.deactivate.useMutation({
     onSuccess: () => {
-      toast.success("고객이 비활성화되었습니다.");
+      toast.success("고객을 삭제했습니다.");
       setLocation("/customers");
     },
     onError: () => toastUserFacingError(null, USER_FACING_ERRORS.saveFailed),
@@ -630,7 +630,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const completeFollowUpMutation = trpc.followUps.complete.useMutation({
     onSuccess: () => {
-      toast.success("후속관리가 완료 처리되었습니다.");
+      toast.success("후속관리를 처리완료로 변경했습니다.");
       refetchFollowUps();
       utils.dashboard.todayWork.invalidate();
     },

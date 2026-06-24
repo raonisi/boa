@@ -17,7 +17,7 @@ export const WORKFLOW_COPY = {
     confirmTitle: "DB 배분 확인",
     confirmDescription:
       "선택한 고객 DB를 지정 부지점장에게 배분합니다. 이후 산하 조직에서 담당자를 배정할 수 있습니다.",
-    confirmButton: "배정 확정",
+    confirmButton: "배분 확정",
   },
   reassignment: {
     title: "담당자 재지정",
@@ -43,7 +43,7 @@ export const WORKFLOW_COPY = {
     historyPathNote:
       "이전된 고객과 업무 범위는 인수인계 이력에서 확인할 수 있습니다.",
     rollbackNote:
-      "실행 후 되돌리려면 별도 재이관이 필요합니다. 기존 상담기록과 활동 로그는 감사 추적을 위해 변경하지 않습니다.",
+      "실행 후 되돌리려면 원래 담당자에게 다시 인수인계해야 합니다. 기존 상담기록과 활동 로그는 감사 추적을 위해 변경하지 않습니다.",
     accessNote:
       "인계자의 계정 상태와 접근권한은 선택한 보안 조치에 따라 처리됩니다.",
   },
@@ -86,7 +86,20 @@ export function formatDbAssignmentSuccessMessage(input: {
   if (input.successCount <= 0) {
     return "배정된 고객이 없습니다. 실패 항목을 확인해 주세요.";
   }
-  const base = `고객 ${input.successCount}건을 ${input.targetLabel} 담당자에게 배정했습니다.`;
+  const base = `${input.successCount}건을 ${input.targetLabel}에게 배정했습니다.`;
+  if (!input.failedCount) return base;
+  return `${base} (실패 ${input.failedCount}건)`;
+}
+
+export function formatDbDistributionSuccessMessage(input: {
+  successCount: number;
+  targetLabel: string;
+  failedCount?: number;
+}): string {
+  if (input.successCount <= 0) {
+    return "배분된 고객이 없습니다. 실패 항목을 확인해 주세요.";
+  }
+  const base = `${input.successCount}건을 ${input.targetLabel}에게 배분했습니다.`;
   if (!input.failedCount) return base;
   return `${base} (실패 ${input.failedCount}건)`;
 }
@@ -108,5 +121,5 @@ export function formatReassignmentSuccessMessage(input: {
 }
 
 export function formatHandoffSuccessMessage(): string {
-  return `인수인계가 완료되었습니다. ${WORKFLOW_COPY.handoff.historyPathNote}`;
+  return `고객 인수인계를 완료했습니다. ${WORKFLOW_COPY.handoff.historyPathNote}`;
 }

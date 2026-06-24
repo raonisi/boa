@@ -134,7 +134,7 @@ export function CustomerRelationshipsPanel({
 
   const deleteMutation = trpc.customerRelationships.delete.useMutation({
     onSuccess: async () => {
-      toast.success("고객 관계가 삭제되었습니다.");
+      toast.success("고객 관계 연결을 해제했습니다.");
       setDeleteTarget(null);
       await Promise.all([
         utils.customerRelationships.list.invalidate({ customerId }),
@@ -278,7 +278,7 @@ export function CustomerRelationshipsPanel({
                   onClick={() => setDeleteTarget(item)}
                 >
                   <Trash2 className="mr-1 h-4 w-4" />
-                  삭제
+                  연결 해제
                 </Button>
               </>
             ) : null}
@@ -538,10 +538,11 @@ export function CustomerRelationshipsPanel({
       >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>고객 관계 삭제</DialogTitle>
+            <DialogTitle>고객 관계 연결 해제</DialogTitle>
             <DialogDescription>
-              {deleteTarget?.relatedCustomer.name} 고객과의 관계를 삭제합니다.
-              삭제된 관계는 목록에서 제외되며 이력에는 기록만 남습니다.
+              {deleteTarget?.relatedCustomer.name} 고객과의 관계 연결을
+              해제합니다. 연결된 고객 정보는 삭제되지 않으며, 관계만 목록에서
+              제외됩니다.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
@@ -558,7 +559,7 @@ export function CustomerRelationshipsPanel({
               onClick={confirmDelete}
               disabled={deleteMutation.isPending}
             >
-              삭제
+              연결 해제
             </Button>
           </DialogFooter>
         </DialogContent>

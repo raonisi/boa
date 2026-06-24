@@ -66,7 +66,7 @@ describe("CustomerRelationshipsPanel", () => {
     expect(html).toContain("배우자");
     expect(html).toContain("관계 추가");
     expect(html).toContain("수정");
-    expect(html).toContain("삭제");
+    expect(html).toContain("연결 해제");
   });
 
   it("hides manage controls without permission", () => {

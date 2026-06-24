@@ -405,7 +405,7 @@ function TeamListView() {
 
   const deactivateTeamMutation = trpc.users.deactivateTeam.useMutation({
     onSuccess: () => {
-      toast.success("팀이 삭제(비활성 처리)되었습니다.");
+      toast.success("팀을 삭제했습니다.");
       utils.users.teams.invalidate();
       utils.users.list.invalidate();
     },

@@ -1235,7 +1235,7 @@ export function TodayWorkSection({
                                 processStatus: "처리완료",
                               });
                             },
-                            successMessage: "알림을 처리완료했습니다.",
+                            successMessage: "알림을 처리완료로 변경했습니다.",
                           })
                         }
                       >
@@ -1599,7 +1599,7 @@ export function TodayWorkSection({
                                   processStatus: "처리완료",
                                 });
                               },
-                              successMessage: "알림을 처리완료했습니다.",
+                              successMessage: "알림을 처리완료로 변경했습니다.",
                             })
                           }
                         >

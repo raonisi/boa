@@ -183,7 +183,7 @@ export default function PerformanceGoals() {
   });
   const deactivateMutation = trpc.performanceGoals.deactivate.useMutation({
     onSuccess: () => {
-      toast.success("목표가 비활성 처리되었습니다.");
+      toast.success("목표를 비활성화했습니다.");
       utils.performanceGoals.dashboard.invalidate();
     },
     onError: error =>

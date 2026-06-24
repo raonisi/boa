@@ -66,7 +66,7 @@ export default function CustomerMergeManagement() {
 
   const executeMutation = trpc.customerMerge.execute.useMutation({
     onSuccess: result => {
-      toast.success("고객 병합이 완료되었습니다.");
+      toast.success("고객 병합을 완료했습니다.");
       setLocation(`/customers/${result.targetCustomerId}`);
       utils.customerMerge.findDuplicates.invalidate();
       utils.customers.list.invalidate();

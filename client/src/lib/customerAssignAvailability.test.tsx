@@ -9,12 +9,32 @@ describe("customerAssignAvailability", () => {
     });
   });
 
-  it("marks inactive-like candidates with safe reason", () => {
-    const inactive = getAssignmentCandidateAvailability("inactive");
-    const resigned = getAssignmentCandidateAvailability("resigned");
+  it("maps inactive and resigned candidates to explicit reasons", () => {
+    expect(getAssignmentCandidateAvailability("inactive")).toEqual({
+      selectable: false,
+      disabledReason: "비활성 계정입니다",
+    });
+    expect(getAssignmentCandidateAvailability("resigned")).toEqual({
+      selectable: false,
+      disabledReason: "퇴사 처리된 사용자입니다",
+    });
+  });
 
-    expect(inactive.selectable).toBe(false);
-    expect(resigned.selectable).toBe(false);
-    expect(inactive.disabledReason).toBe("선택할 수 없는 계정 상태입니다");
+  it("uses a safe fallback for unknown account status", () => {
+    expect(getAssignmentCandidateAvailability("blocked")).toEqual({
+      selectable: false,
+      disabledReason: "현재 선택할 수 없는 사용자입니다",
+    });
+  });
+
+  it("marks the current assignee as not selectable", () => {
+    expect(
+      getAssignmentCandidateAvailability("active", {
+        isCurrentAssignee: true,
+      })
+    ).toEqual({
+      selectable: false,
+      disabledReason: "현재 담당자입니다",
+    });
   });
 });

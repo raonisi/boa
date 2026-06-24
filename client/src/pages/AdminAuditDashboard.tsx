@@ -155,7 +155,7 @@ export default function AdminAuditDashboard() {
     },
     {
       key: "recentDeleteRestore",
-      label: "삭제·복구·완전삭제",
+      label: "삭제·복구·영구 삭제",
       helper: "위험 작업 이력과 승인 흐름을 확인하세요.",
       icon: Trash2,
     },

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatDbAssignmentSuccessMessage,
+  formatDbDistributionSuccessMessage,
   formatHandoffSuccessMessage,
   formatReassignmentSuccessMessage,
   summarizeCurrentAssignees,
@@ -41,7 +42,16 @@ describe("assignmentWorkflowCopy", () => {
         successCount: 5,
         targetLabel: "김팀장",
       })
-    ).toBe("고객 5건을 김팀장 담당자에게 배정했습니다.");
+    ).toBe("5건을 김팀장에게 배정했습니다.");
+  });
+
+  it("formats db distribution success copy", () => {
+    expect(
+      formatDbDistributionSuccessMessage({
+        successCount: 3,
+        targetLabel: "김부지점장",
+      })
+    ).toBe("3건을 김부지점장에게 배분했습니다.");
   });
 
   it("formats reassignment success copy with history guidance", () => {
@@ -63,7 +73,7 @@ describe("assignmentWorkflowCopy", () => {
 
   it("formats handoff success copy", () => {
     expect(formatHandoffSuccessMessage()).toContain(
-      "인수인계가 완료되었습니다."
+      "고객 인수인계를 완료했습니다."
     );
   });
 });
