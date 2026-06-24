@@ -37,6 +37,14 @@ import {
 import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
+import {
+  formatReassignmentSuccessMessage,
+  WORKFLOW_COPY,
+} from "@/lib/assignmentWorkflowCopy";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { formatUserWithRole, getRoleLabel } from "@/lib/userRole";
 import {
   getCustomerTimelineEventLabel,
@@ -250,6 +258,7 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [showConsultModal, setShowConsultModal] = useState(false);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showChangeAgentModal, setShowChangeAgentModal] = useState(false);
+  const [showChangeAgentConfirm, setShowChangeAgentConfirm] = useState(false);
   const [selectedNewAgentId, setSelectedNewAgentId] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingConsultId, setEditingConsultId] = useState<number | null>(null);
@@ -472,12 +481,29 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   const changeAgentMutation = trpc.customers.changeAgent.useMutation({
     onSuccess: () => {
-      toast.success("담당자가 변경되었습니다.");
+      const newAgent = (users ?? []).find(
+        candidate => candidate.id === Number(selectedNewAgentId)
+      );
+      toast.success(
+        formatReassignmentSuccessMessage({
+          changedCount: 1,
+          previousAssigneeLabel: agentName,
+          newAssigneeLabel: newAgent
+            ? formatUserWithRole(newAgent)
+            : "새 담당자",
+        })
+      );
       setSelectedNewAgentId("");
+      setShowChangeAgentConfirm(false);
       setShowChangeAgentModal(false);
       refetchCustomer();
+      utils.customers.assignmentHistory.invalidate({ customerId: id });
+      utils.customers.timeline.invalidate({ customerId: id });
     },
-    onError: err => toast.error(err.message || "담당자 변경에 실패했습니다."),
+    onError: err =>
+      toast.error(
+        getUserFacingErrorMessage(err, USER_FACING_ERRORS.saveFailed)
+      ),
   });
 
   const reclaimMutation = trpc.customers.reclaim.useMutation({
@@ -958,7 +984,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                         setShowChangeAgentModal(true);
                       }}
                     >
-                      <UserCog className="h-4 w-4" /> 담당자 변경
+                      <UserCog className="h-4 w-4" /> 담당자 재지정
                     </DropdownMenuItem>
                   )}
                   {canReclaimCustomer && (
@@ -2914,38 +2940,46 @@ export default function CustomerDetail({ id }: { id: number }) {
           open={true}
           onOpenChange={() => {
             setSelectedNewAgentId("");
+            setShowChangeAgentConfirm(false);
             setShowChangeAgentModal(false);
           }}
         >
           <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto rounded-2xl">
             <DialogHeader>
-              <DialogTitle>담당자 변경 - {customer.name}</DialogTitle>
+              <DialogTitle>{WORKFLOW_COPY.reassignment.title}</DialogTitle>
+              <DialogDescription>
+                {WORKFLOW_COPY.reassignment.description}
+              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3">
-              <p className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                현재 담당자: <strong>{agentName}</strong>
-              </p>
-              <Select
-                value={selectedNewAgentId}
-                onValueChange={setSelectedNewAgentId}
-              >
-                <SelectTrigger className="h-10 rounded-xl bg-slate-50">
-                  <SelectValue placeholder="새 담당자 선택" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(users ?? [])
-                    .filter(
-                      u =>
-                        (u as any).accountStatus === "active" &&
-                        u.id !== customer.agentId
-                    )
-                    .map(u => (
-                      <SelectItem key={u.id} value={String(u.id)}>
-                        {formatUserWithRole(u)}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
+              <div className="rounded-xl border bg-slate-50 px-3 py-2 text-sm">
+                <p className="text-xs text-muted-foreground">현재 담당자</p>
+                <p className="font-semibold text-foreground">{agentName}</p>
+              </div>
+              <div>
+                <Label className="text-xs">새 담당자</Label>
+                <Select
+                  value={selectedNewAgentId}
+                  onValueChange={setSelectedNewAgentId}
+                >
+                  <SelectTrigger className="mt-1 h-10 rounded-xl bg-slate-50">
+                    <SelectValue placeholder="새 담당자 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(users ?? [])
+                      .filter(
+                        u =>
+                          (u as any).accountStatus === "active" &&
+                          u.id !== customer.agentId
+                      )
+                      .map(u => (
+                        <SelectItem key={u.id} value={String(u.id)}>
+                          {formatUserWithRole(u)}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="sticky bottom-0 flex gap-2 bg-background pt-2">
                 <Button
                   variant="outline"
@@ -2953,33 +2987,106 @@ export default function CustomerDetail({ id }: { id: number }) {
                   className="flex-1"
                   onClick={() => {
                     setSelectedNewAgentId("");
+                    setShowChangeAgentConfirm(false);
                     setShowChangeAgentModal(false);
                   }}
                 >
-                  취소
+                  {WORKFLOW_COPY.reassignment.cancelButton}
                 </Button>
                 <Button
                   size="sm"
                   className="flex-1"
                   disabled={
                     !selectedNewAgentId ||
-                    Number(selectedNewAgentId) === customer.agentId ||
-                    changeAgentMutation.isPending
+                    Number(selectedNewAgentId) === customer.agentId
                   }
-                  onClick={() =>
-                    changeAgentMutation.mutate({
-                      customerId: id,
-                      newAgentId: Number(selectedNewAgentId),
-                    })
-                  }
+                  onClick={() => setShowChangeAgentConfirm(true)}
                 >
-                  {changeAgentMutation.isPending ? "변경 중..." : "변경 확정"}
+                  재지정 검토
                 </Button>
               </div>
             </div>
           </DialogContent>
         </Dialog>
       )}
+
+      <Dialog
+        open={showChangeAgentConfirm}
+        onOpenChange={open => {
+          setShowChangeAgentConfirm(open);
+        }}
+      >
+        <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-sm overflow-y-auto rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{WORKFLOW_COPY.reassignment.confirmTitle}</DialogTitle>
+            <DialogDescription>
+              {WORKFLOW_COPY.reassignment.confirmDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
+            <p>
+              고객 수: <span className="font-semibold">1건</span>
+            </p>
+            <p>
+              현재 담당자: <span className="font-semibold">{agentName}</span>
+            </p>
+            <p>
+              새 담당자:{" "}
+              <span className="font-semibold">
+                {selectedNewAgentId
+                  ? formatUserWithRole(
+                      (users ?? []).find(
+                        candidate => candidate.id === Number(selectedNewAgentId)
+                      )
+                    )
+                  : "-"}
+              </span>
+            </p>
+            <p>
+              변경 후 책임자:{" "}
+              <span className="font-semibold">
+                {selectedNewAgentId
+                  ? formatUserWithRole(
+                      (users ?? []).find(
+                        candidate => candidate.id === Number(selectedNewAgentId)
+                      )
+                    )
+                  : "-"}
+              </span>
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {WORKFLOW_COPY.reassignment.historyNote}{" "}
+              {WORKFLOW_COPY.reassignment.accessNote}
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setShowChangeAgentConfirm(false)}
+              disabled={changeAgentMutation.isPending}
+            >
+              {WORKFLOW_COPY.reassignment.cancelButton}
+            </Button>
+            <Button
+              disabled={
+                !selectedNewAgentId ||
+                Number(selectedNewAgentId) === customer.agentId ||
+                changeAgentMutation.isPending
+              }
+              onClick={() =>
+                changeAgentMutation.mutate({
+                  customerId: id,
+                  newAgentId: Number(selectedNewAgentId),
+                })
+              }
+            >
+              {changeAgentMutation.isPending
+                ? "처리 중..."
+                : WORKFLOW_COPY.reassignment.confirmButton}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

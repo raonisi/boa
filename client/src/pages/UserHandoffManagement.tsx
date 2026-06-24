@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
+import { formatHandoffSuccessMessage, WORKFLOW_COPY } from "@/lib/assignmentWorkflowCopy";
 import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,
@@ -85,7 +86,7 @@ export default function UserHandoffManagement() {
 
   const executeMutation = trpc.adminHandoff.execute.useMutation({
     onSuccess: () => {
-      toast.success("인수인계가 완료되었습니다.");
+      toast.success(formatHandoffSuccessMessage());
       setConfirmOpen(false);
       setConfirmText("");
       utils.adminHandoff.preview.invalidate();
@@ -124,14 +125,13 @@ export default function UserHandoffManagement() {
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#b99b5f]">
-              User Handoff
+              Customer Handoff
             </p>
             <h1 className="mt-1 text-2xl font-bold text-slate-950">
-              인수인계 관리
+              {WORKFLOW_COPY.handoff.title}
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              퇴사자 또는 조직 이동 대상자의 고객, 후속관리, 미완료 일정, 미확인
-              알림을 인수자에게 안전하게 이관합니다.
+              {WORKFLOW_COPY.handoff.description}
             </p>
           </CardContent>
         </Card>
@@ -143,6 +143,10 @@ export default function UserHandoffManagement() {
                 <ArrowRightLeft className="h-4 w-4 text-[#b99b5f]" /> 인수인계
                 마법사
               </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                인계자의 고객·계약·후속관리·일정·알림 이전 범위를 확인한 뒤
+                실행하세요.
+              </p>
             </CardHeader>
             <CardContent className="space-y-5">
               {isUsersLoading ? (
@@ -363,8 +367,7 @@ export default function UserHandoffManagement() {
                 </div>
 
                 <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-                  기존 상담기록과 활동 로그는 감사 추적을 위해 변경하지
-                  않습니다. 실행 후 되돌리려면 별도 재이관이 필요합니다.
+                  {WORKFLOW_COPY.handoff.rollbackNote}
                 </div>
 
                 <div className="mt-3 flex justify-end">
@@ -373,7 +376,7 @@ export default function UserHandoffManagement() {
                     disabled={!canSubmit}
                     onClick={() => setConfirmOpen(true)}
                   >
-                    인수인계 실행
+                    인수인계 검토
                   </Button>
                 </div>
               </div>
@@ -526,11 +529,11 @@ export default function UserHandoffManagement() {
         </Card>
 
         <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-          <DialogContent className="max-h-[90vh] overflow-y-auto rounded-2xl">
+          <DialogContent className="max-h-[min(90vh,42rem)] overflow-y-auto rounded-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-amber-600" /> 인수인계 실행
-                확인
+                <ShieldAlert className="h-4 w-4 text-amber-600" />{" "}
+                {WORKFLOW_COPY.handoff.confirmTitle}
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 text-sm">
@@ -544,18 +547,50 @@ export default function UserHandoffManagement() {
                   {selectedTarget ? formatUserWithRole(selectedTarget) : "-"}
                 </p>
                 <p>
-                  <span className="text-muted-foreground">이관 범위:</span>{" "}
+                  <span className="text-muted-foreground">대상 고객 수:</span>{" "}
+                  {preview?.counts?.activeCustomers ?? 0}명
+                </p>
+                <p>
+                  <span className="text-muted-foreground">이전 범위:</span>{" "}
                   {handoffScopeSummary}
                 </p>
+                <p>
+                  <span className="text-muted-foreground">계약:</span>{" "}
+                  {transferCustomers
+                    ? `${preview?.counts?.activeContracts ?? 0}건 포함`
+                    : "미포함"}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">후속관리:</span>{" "}
+                  {transferFollowUps ? "포함" : "미포함"}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">일정:</span>{" "}
+                  {transferSchedules ? "포함" : "미포함"}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">알림:</span>{" "}
+                  {transferNotifications ? "포함" : "미포함"}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">계정 상태 영향:</span>{" "}
+                  {updateSourceAccountStatus === "keep"
+                    ? "인계자 상태 유지"
+                    : updateSourceAccountStatus === "inactive"
+                      ? "인계자 비활성 전환"
+                      : "인계자 퇴사자 전환"}
+                  {forceLogoutSource ? " · 강제 로그아웃" : ""}
+                  {resetOAuthSource ? " · OAuth 초기화" : ""}
+                </p>
               </div>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {WORKFLOW_COPY.handoff.accessNote}
+              </p>
               <p className="text-amber-800">
                 실행 후 선택한 업무가 인수자에게 이관됩니다. 인계자와 인수자를
                 다시 확인하세요.
               </p>
-              <p>
-                이 작업은 고객 담당자와 미완료 업무 담당자를 변경합니다. 기존
-                상담기록과 활동 로그는 변경하지 않습니다.
-              </p>
+              <p>{WORKFLOW_COPY.handoff.rollbackNote}</p>
               <p className="text-muted-foreground">
                 진행하려면 아래 입력창에 “인수인계”를 입력하세요.
               </p>
@@ -571,7 +606,7 @@ export default function UserHandoffManagement() {
                   className="min-h-12 md:min-h-10"
                   onClick={() => setConfirmOpen(false)}
                 >
-                  취소
+                  {WORKFLOW_COPY.handoff.cancelButton}
                 </Button>
                 <Button
                   className="min-h-12 md:min-h-10"
@@ -599,7 +634,9 @@ export default function UserHandoffManagement() {
                     })
                   }
                 >
-                  실행
+                  {executeMutation.isPending
+                    ? "처리 중..."
+                    : WORKFLOW_COPY.handoff.confirmButton}
                 </Button>
               </div>
             </div>

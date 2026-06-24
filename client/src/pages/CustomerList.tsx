@@ -58,6 +58,15 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
+import {
+  formatReassignmentSuccessMessage,
+  summarizeCurrentAssignees,
+  WORKFLOW_COPY,
+} from "@/lib/assignmentWorkflowCopy";
+import {
+  getUserFacingErrorMessage,
+  USER_FACING_ERRORS,
+} from "@/lib/userFacingMessages";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
   expectedPremiumStoredWonFromManwonInput,
@@ -151,6 +160,7 @@ export default function CustomerList() {
   );
   const [bulkReclaimOpen, setBulkReclaimOpen] = useState(false);
   const [bulkAssigneeOpen, setBulkAssigneeOpen] = useState(false);
+  const [bulkAssigneeConfirmOpen, setBulkAssigneeConfirmOpen] = useState(false);
   const [reclaimReason, setReclaimReason] = useState("");
   const [bulkAssigneeId, setBulkAssigneeId] = useState("");
   const [bulkAssigneeReason, setBulkAssigneeReason] = useState("");
@@ -431,17 +441,30 @@ export default function CustomerList() {
   const bulkChangeAgentMutation = trpc.customers.bulkChangeAgent.useMutation({
     onSuccess: result => {
       toast.success(
-        `${result.changedCount}명의 담당자를 변경했습니다.${result.skippedCount ? ` (${result.skippedCount}건 제외)` : ""}`
+        formatReassignmentSuccessMessage({
+          changedCount: result.changedCount,
+          newAssigneeLabel: selectedBulkAssignee
+            ? formatUserWithRole(selectedBulkAssignee)
+            : "새 담당자",
+          skippedCount: result.skippedCount,
+        })
       );
       setBulkAssigneeOpen(false);
+      setBulkAssigneeConfirmOpen(false);
       setBulkAssigneeId("");
       setBulkAssigneeReason("");
       setSelectedCustomerIds([]);
       utils.customers.list.invalidate();
+      utils.customers.assignmentHistory.invalidate();
       refetch();
     },
     onError: err =>
-      toast.error(err.message || "담당자 일괄 지정에 실패했습니다."),
+      toast.error(
+        getUserFacingErrorMessage(
+          err,
+          USER_FACING_ERRORS.saveFailed
+        )
+      ),
   });
 
   const agents = (allUsers ?? []).filter(
@@ -628,6 +651,11 @@ export default function CustomerList() {
   });
   const selectedBulkAssignee = bulkAssignableUsers.find(
     agent => String(agent.id) === bulkAssigneeId
+  );
+  const reassignmentCurrentAssigneeSummary = summarizeCurrentAssignees(
+    selectedAssignableIds,
+    customers ?? [],
+    agentId => formatUserWithRole(agentById.get(agentId))
   );
 
   const activeFilterChips = [
@@ -881,15 +909,19 @@ export default function CustomerList() {
     reclaimBulkMutation.mutate({ customerIds: selectedReclaimableIds, reason });
   };
 
-  const handleSubmitBulkAssignee = () => {
+  const handleOpenBulkAssigneeConfirm = () => {
     if (!bulkAssigneeId) {
-      toast.error("담당자를 선택해주세요.");
+      toast.error("새 담당자를 선택해주세요.");
       return;
     }
     if (selectedAssignableIds.length === 0) {
-      toast.error("담당자를 지정할 고객을 선택해주세요.");
+      toast.error("재지정할 고객을 선택해주세요.");
       return;
     }
+    setBulkAssigneeConfirmOpen(true);
+  };
+
+  const handleSubmitBulkAssignee = () => {
     bulkChangeAgentMutation.mutate({
       customerIds: selectedAssignableIds,
       newAgentId: Number(bulkAssigneeId),
@@ -1552,7 +1584,7 @@ export default function CustomerList() {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {canBulkChangeAssignee && selectedAssignableIds.length > 0
-                    ? `담당자 지정 가능 ${selectedAssignableIds.length}명`
+                    ? `담당자 재지정 가능 ${selectedAssignableIds.length}명`
                     : ""}
                   {canReclaimCustomer && selectedReclaimableIds.length > 0
                     ? `${canBulkChangeAssignee && selectedAssignableIds.length > 0 ? " · " : ""}DB 회수 가능 ${selectedReclaimableIds.length}명`
@@ -1598,7 +1630,7 @@ export default function CustomerList() {
                     }}
                   >
                     <UserCog className="mr-1 h-4 w-4" />
-                    담당자 지정 {selectedAssignableIds.length}
+                    담당자 재지정 {selectedAssignableIds.length}
                   </Button>
                 )}
                 {canReclaimCustomer && selectedReclaimableIds.length > 0 && (
@@ -1679,17 +1711,17 @@ export default function CustomerList() {
           if (!open) {
             setBulkAssigneeId("");
             setBulkAssigneeReason("");
+            setBulkAssigneeConfirmOpen(false);
           }
         }}
       >
         <DialogContent className="flex max-h-[min(85dvh,42rem)] max-w-lg flex-col overflow-hidden rounded-2xl border-emerald-100 p-0">
           <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
             <DialogTitle className="flex items-center gap-2 text-emerald-800">
-              <UserCog className="h-5 w-5" /> 담당자 일괄 지정
+              <UserCog className="h-5 w-5" /> {WORKFLOW_COPY.reassignment.title}
             </DialogTitle>
             <DialogDescription>
-              선택한 고객의 담당자를 한 번에 변경합니다. 권한 범위 밖 고객은
-              서버에서 제외됩니다.
+              {WORKFLOW_COPY.reassignment.description}
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
@@ -1721,7 +1753,7 @@ export default function CustomerList() {
               변경 대상에서 제외됩니다.
             </div>
             <div>
-              <Label className="text-xs">담당자 선택 *</Label>
+              <Label className="text-xs">새 담당자 *</Label>
               <Select value={bulkAssigneeId} onValueChange={setBulkAssigneeId}>
                 <SelectTrigger className="mt-1">
                   <SelectValue placeholder="새 담당자를 선택하세요" />
@@ -1781,9 +1813,85 @@ export default function CustomerList() {
                 selectedAssignableIds.length === 0 ||
                 isBulkChangingAssignee
               }
+              onClick={handleOpenBulkAssigneeConfirm}
+            >
+              재지정 검토
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={bulkAssigneeConfirmOpen}
+        onOpenChange={open => {
+          setBulkAssigneeConfirmOpen(open);
+        }}
+      >
+        <DialogContent className="flex max-h-[min(85dvh,42rem)] max-w-lg flex-col overflow-hidden rounded-2xl border-emerald-100 p-0">
+          <DialogHeader className="shrink-0 px-4 pt-4 sm:px-6 sm:pt-6">
+            <DialogTitle className="flex items-center gap-2 text-emerald-800">
+              <UserCog className="h-5 w-5" /> {WORKFLOW_COPY.reassignment.confirmTitle}
+            </DialogTitle>
+            <DialogDescription>
+              {WORKFLOW_COPY.reassignment.confirmDescription}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3 sm:px-6">
+            <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
+              <p>
+                고객 수:{" "}
+                <span className="font-semibold">
+                  {selectedAssignableIds.length}건
+                </span>
+              </p>
+              <p>
+                현재 담당자:{" "}
+                <span className="font-semibold">
+                  {reassignmentCurrentAssigneeSummary}
+                </span>
+              </p>
+              <p>
+                새 담당자:{" "}
+                <span className="font-semibold">
+                  {selectedBulkAssignee
+                    ? formatUserWithRole(selectedBulkAssignee)
+                    : "-"}
+                </span>
+              </p>
+              <p>
+                변경 후 책임자:{" "}
+                <span className="font-semibold">
+                  {selectedBulkAssignee
+                    ? formatUserWithRole(selectedBulkAssignee)
+                    : "-"}
+                </span>
+              </p>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                {WORKFLOW_COPY.reassignment.historyNote}{" "}
+                {WORKFLOW_COPY.reassignment.accessNote}
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6 sm:justify-end">
+            <Button
+              variant="outline"
+              onClick={() => setBulkAssigneeConfirmOpen(false)}
+              disabled={isBulkChangingAssignee}
+            >
+              {WORKFLOW_COPY.reassignment.cancelButton}
+            </Button>
+            <Button
+              className="bg-emerald-700 text-white hover:bg-emerald-800"
+              disabled={
+                !bulkAssigneeId ||
+                selectedAssignableIds.length === 0 ||
+                isBulkChangingAssignee
+              }
               onClick={handleSubmitBulkAssignee}
             >
-              {isBulkChangingAssignee ? "변경 중..." : "변경 확정"}
+              {isBulkChangingAssignee
+                ? "처리 중..."
+                : WORKFLOW_COPY.reassignment.confirmButton}
             </Button>
           </DialogFooter>
         </DialogContent>

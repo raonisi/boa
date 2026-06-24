@@ -28,6 +28,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  formatDbAssignmentSuccessMessage,
+  WORKFLOW_COPY,
+} from "@/lib/assignmentWorkflowCopy";
 import { trpc } from "@/lib/trpc";
 import { formatUserWithRole } from "@/lib/userRole";
 import { Search, UserPlus, Users } from "lucide-react";
@@ -146,8 +150,8 @@ function BranchAdminAssign() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="DB 배정 관리"
-        description="고객 DB를 부지점장에게 배분하거나 팀/담당자에게 직접 배정합니다."
+        title={WORKFLOW_COPY.dbAssignment.title}
+        description={`${WORKFLOW_COPY.dbAssignment.description} 지점장은 부지점장에게 배분하거나 조직원에게 직접 배정할 수 있습니다.`}
       />
       <Tabs defaultValue="to_agent">
         <TabsList className="flex h-auto flex-wrap">
@@ -289,7 +293,13 @@ function AssignToSubBranch() {
     setConfirmOpen(false);
     if (nextResult.successCount > 0) {
       toast.success(
-        `DB 배분 완료: 성공 ${nextResult.successCount}건, 실패 ${nextResult.failedCount}건`
+        formatDbAssignmentSuccessMessage({
+          successCount: nextResult.successCount,
+          targetLabel: selectedTarget
+            ? formatUserWithRole(selectedTarget)
+            : "선택한 부지점장",
+          failedCount: nextResult.failedCount,
+        })
       );
       setSelectedCustomers([]);
       setSelectedSubBranchAdmin("");
@@ -383,9 +393,13 @@ function AssignToSubBranch() {
       <AssignmentConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="DB 배분 확인"
+        title={WORKFLOW_COPY.dbDistribution.confirmTitle}
+        description={WORKFLOW_COPY.dbDistribution.confirmDescription}
         selectedCount={selectedCustomers.length}
         targetLabel={selectedTarget ? formatUserWithRole(selectedTarget) : "-"}
+        currentAssigneeLabel={WORKFLOW_COPY.dbAssignment.unassignedLabel}
+        postAssigneeNote="배분 후 부지점장이 산하 조직원에게 다시 배정할 수 있습니다."
+        confirmButtonLabel={WORKFLOW_COPY.dbDistribution.confirmButton}
         loading={assignToSubBranchMutation.isPending}
         onConfirm={handleAssign}
       />
@@ -411,8 +425,8 @@ function SubBranchAdminAssign() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="DB 배정"
-        description="배분받은 DB를 산하 팀장·팀원에게 배정합니다."
+        title={WORKFLOW_COPY.dbAssignment.title}
+        description={`${WORKFLOW_COPY.dbAssignment.description} 배분받은 DB를 산하 팀장·팀원에게 배정합니다.`}
       />
       <AssignmentPanel
         customers={assignedToMe}
@@ -448,8 +462,8 @@ function TeamLeaderAssign() {
   return (
     <div className="space-y-4">
       <PageHeader
-        title="DB 배정"
-        description="본인 팀 고객 DB를 산하 팀원에게 배정합니다."
+        title={WORKFLOW_COPY.dbAssignment.title}
+        description={`${WORKFLOW_COPY.dbAssignment.description} 본인 팀 고객 DB를 산하 팀원에게 배정합니다.`}
       />
       <AssignmentPanel
         customers={(teamCustomers ?? []) as CustomerRow[]}
@@ -556,7 +570,13 @@ function AssignmentPanel({
     setConfirmOpen(false);
     if (nextResult.successCount > 0) {
       toast.success(
-        `DB 배정 완료: 성공 ${nextResult.successCount}건, 실패 ${nextResult.failedCount}건`
+        formatDbAssignmentSuccessMessage({
+          successCount: nextResult.successCount,
+          targetLabel: selectedAgentUser
+            ? formatUserWithRole(selectedAgentUser)
+            : "선택한 담당자",
+          failedCount: nextResult.failedCount,
+        })
       );
       setSelectedCustomers([]);
       setSelectedAgent("");
@@ -644,11 +664,15 @@ function AssignmentPanel({
       <AssignmentConfirmDialog
         open={confirmOpen}
         onOpenChange={setConfirmOpen}
-        title="DB 배정 확인"
+        title={WORKFLOW_COPY.dbAssignment.confirmTitle}
+        description={WORKFLOW_COPY.dbAssignment.confirmDescription}
         selectedCount={selectedCustomers.length}
         targetLabel={
           selectedAgentUser ? formatUserWithRole(selectedAgentUser) : "-"
         }
+        currentAssigneeLabel={WORKFLOW_COPY.dbAssignment.unassignedLabel}
+        postAssigneeNote={WORKFLOW_COPY.dbAssignment.postAssigneeNote}
+        confirmButtonLabel={WORKFLOW_COPY.dbAssignment.confirmButton}
         loading={assignMutation.isPending}
         onConfirm={handleAssign}
       />
@@ -735,51 +759,66 @@ function AssignmentConfirmDialog({
   open,
   onOpenChange,
   title,
+  description,
   selectedCount,
   targetLabel,
+  currentAssigneeLabel,
+  postAssigneeNote,
+  confirmButtonLabel,
   loading,
   onConfirm,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   title: string;
+  description: string;
   selectedCount: number;
   targetLabel: string;
+  currentAssigneeLabel: string;
+  postAssigneeNote: string;
+  confirmButtonLabel: string;
   loading: boolean;
   onConfirm: () => void;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md rounded-2xl">
+      <DialogContent className="max-h-[min(85dvh,40rem)] max-w-md overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            선택한 고객 DB를 지정 대상에게 배정합니다. 권한과 상태는 서버에서
-            다시 검증됩니다.
-          </DialogDescription>
+          <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="space-y-2 rounded-xl border bg-slate-50 p-3 text-sm">
           <p>
             선택 고객: <span className="font-semibold">{selectedCount}건</span>
           </p>
           <p>
+            {WORKFLOW_COPY.dbAssignment.currentAssigneeLabel}:{" "}
+            <span className="font-semibold">{currentAssigneeLabel}</span>
+          </p>
+          <p>
             배정 대상: <span className="font-semibold">{targetLabel}</span>
           </p>
+          <p>
+            배정 후 책임자: <span className="font-semibold">{targetLabel}</span>
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            {postAssigneeNote}
+          </p>
           <p className="text-xs text-muted-foreground">
-            일부 고객은 권한 또는 상태 문제로 실패할 수 있으며, 완료 후 결과
-            breakdown을 표시합니다.
+            일부 고객은 권한 또는 상태 문제로 실패할 수 있으며, 완료 후 결과를
+            표시합니다.
           </p>
         </div>
-        <DialogFooter>
+        <DialogFooter className="gap-2 sm:justify-end">
           <Button
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={loading}
           >
-            취소
+            {WORKFLOW_COPY.dbAssignment.cancelButton}
           </Button>
           <Button onClick={onConfirm} disabled={loading || selectedCount === 0}>
-            {loading ? "처리 중..." : "배정 실행"}
+            {loading ? "처리 중..." : confirmButtonLabel}
           </Button>
         </DialogFooter>
       </DialogContent>
