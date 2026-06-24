@@ -21,6 +21,7 @@ export interface PremiumStatCardProps {
   isLoading?: boolean;
   isError?: boolean;
   onRetry?: () => void;
+  onClick?: () => void;
 }
 
 function formatNumber(value: number | string | undefined) {
@@ -39,6 +40,7 @@ export function PremiumStatCard({
   isLoading = false,
   isError = false,
   onRetry,
+  onClick,
 }: PremiumStatCardProps) {
   const toneClass = {
     navy: "border border-primary/35 bg-primary/[0.07] text-primary",
@@ -52,7 +54,22 @@ export function PremiumStatCard({
   }[tone];
 
   return (
-    <Card className="crm-dashboard-card overflow-hidden">
+    <Card
+      className={`crm-dashboard-card overflow-hidden ${onClick ? "cursor-pointer transition hover:shadow-md" : ""}`}
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={
+        onClick
+          ? event => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+    >
       <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

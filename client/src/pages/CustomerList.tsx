@@ -6,6 +6,14 @@ import {
   newDbDateRange,
   type QuickPresetId,
 } from "@/components/customers/customerListQuickPresets";
+import {
+  buildCustomerListPresetPath,
+  customerMatchesUrlPreset,
+  getCustomerListUrlPresetMeta,
+  parseCustomerListUrlPreset,
+  quickPresetToUrlPreset,
+  type CustomerListUrlPresetId,
+} from "@/components/customers/customerListUrlPresets";
 import { CustomerListDesktopWorkspace } from "@/components/customers/CustomerListDesktopWorkspace";
 import {
   buildListExecution,
@@ -77,7 +85,7 @@ import {
   UserCog,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
 import FollowUpModal from "@/components/followups/FollowUpModal";
@@ -156,13 +164,143 @@ export default function CustomerList() {
   const [followUpCustomerId, setFollowUpCustomerId] = useState<number | null>(
     null
   );
+  const [activeUrlPreset, setActiveUrlPreset] =
+    useState<CustomerListUrlPresetId | null>(null);
+  const lastUrlPresetRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
+
+  const presetInUrl = useMemo(() => {
+    const query = location.split("?")[1]?.split("#")[0];
+    return parseCustomerListUrlPreset(
+      new URLSearchParams(query ?? "").get("preset")
+    );
+  }, [location]);
+  const effectiveUrlPreset =
+    activeUrlPreset ??
+    (presetInUrl && presetInUrl !== "invalid" ? presetInUrl : null);
+  const needsTodayFollowUps = effectiveUrlPreset === "today-follow-up";
+  const needsOverdueFollowUps = effectiveUrlPreset === "overdue-follow-up";
+
+  const { data: todayFollowUps } = trpc.followUps.listToday.useQuery(
+    {},
+    { enabled: needsTodayFollowUps }
+  );
+  const { data: overdueFollowUps } = trpc.followUps.listOverdue.useQuery(
+    {},
+    { enabled: needsOverdueFollowUps }
+  );
+
+  const followUpTodayCustomerIds = useMemo(
+    () => new Set((todayFollowUps ?? []).map(followUp => followUp.customerId)),
+    [todayFollowUps]
+  );
+  const followUpOverdueCustomerIds = useMemo(
+    () =>
+      new Set((overdueFollowUps ?? []).map(followUp => followUp.customerId)),
+    [overdueFollowUps]
+  );
+
+  const applyUrlPreset = (presetId: CustomerListUrlPresetId) => {
+    const meta = getCustomerListUrlPresetMeta(presetId);
+    setSearch("");
+    setStatusFilter("all");
+    setRegionFilter("");
+    setSourceFilter("");
+    setPriorityFilter("all");
+    setTagFilter("all");
+    setNextActionFilter("all");
+    setAgentFilter("all");
+    setScopeFilter("all");
+    setRecommendationFilter("all");
+    setWorkspaceFilter("all");
+    setAssignedDateFrom("");
+    setAssignedDateTo("");
+
+    if (meta.kind.type === "quick") {
+      switch (meta.kind.quickPresetId) {
+        case "today_contact":
+          setWorkspaceFilter("priority");
+          break;
+        case "urgent":
+          setRecommendationFilter("high");
+          break;
+        case "uncontacted":
+          setWorkspaceFilter("uncontacted");
+          break;
+        case "sla_overdue":
+          setWorkspaceFilter("sla_overdue");
+          break;
+        case "no_next_action":
+          setWorkspaceFilter("no_next_action");
+          break;
+        default:
+          break;
+      }
+    }
+    setActiveUrlPreset(presetId);
+  };
+
+  const syncUrlPreset = (presetId: CustomerListUrlPresetId | null) => {
+    const query = location.split("?")[1]?.split("#")[0] ?? "";
+    const params = new URLSearchParams(query);
+    if (presetId) {
+      params.set("preset", presetId);
+    } else {
+      params.delete("preset");
+    }
+    const nextQuery = params.toString();
+    const nextPath = nextQuery ? `/customers?${nextQuery}` : "/customers";
+    if (nextPath !== location) setLocation(nextPath);
+  };
+
+  const clearUrlPreset = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setRegionFilter("");
+    setSourceFilter("");
+    setPriorityFilter("all");
+    setTagFilter("all");
+    setNextActionFilter("all");
+    setAgentFilter("all");
+    setScopeFilter("all");
+    setRecommendationFilter("all");
+    setWorkspaceFilter("all");
+    setAssignedDateFrom("");
+    setAssignedDateTo("");
+    setActiveUrlPreset(null);
+    lastUrlPresetRef.current = null;
+    syncUrlPreset(null);
+  };
 
   useEffect(() => {
     const query = location.split("?")[1]?.split("#")[0];
-    if (!query) return;
-    const action = new URLSearchParams(query).get("action");
+    const params = new URLSearchParams(query ?? "");
+    const action = params.get("action");
     if (action === "quick-followup") setShowFollowUpQuickModal(true);
+
+    const presetRaw = params.get("preset");
+    const parsedPreset = parseCustomerListUrlPreset(presetRaw);
+
+    if (parsedPreset === "invalid") {
+      if (lastUrlPresetRef.current !== presetRaw) {
+        toast.error("지원하지 않는 업무 보기입니다.");
+        lastUrlPresetRef.current = presetRaw;
+      }
+      setActiveUrlPreset(null);
+      if (presetRaw) syncUrlPreset(null);
+      return;
+    }
+
+    if (parsedPreset && parsedPreset !== lastUrlPresetRef.current) {
+      lastUrlPresetRef.current = parsedPreset;
+      applyUrlPreset(parsedPreset);
+      return;
+    }
+
+    if (!parsedPreset && lastUrlPresetRef.current) {
+      lastUrlPresetRef.current = null;
+      setActiveUrlPreset(null);
+    }
   }, [location]);
 
   const utils = trpc.useUtils();
@@ -405,6 +543,19 @@ export default function CustomerList() {
   const workspaceCustomers = filtered
     .filter(c => {
       const recommendation = recommendationByCustomerId.get(c.id);
+      if (effectiveUrlPreset) {
+        return customerMatchesUrlPreset({
+          preset: effectiveUrlPreset,
+          customerId: c.id,
+          consultStatus: c.consultStatus,
+          nextAction: (c as any).nextAction,
+          agentId: c.agentId,
+          assignedAt: c.assignedAt,
+          followUpTodayCustomerIds,
+          followUpOverdueCustomerIds,
+          recommendation,
+        });
+      }
       if (workspaceFilter === "priority") return Boolean(recommendation);
       if (workspaceFilter === "warning")
         return Boolean(recommendation?.warnings?.length);
@@ -634,6 +785,9 @@ export default function CustomerList() {
 
     switch (presetId) {
       case "all":
+        setActiveUrlPreset(null);
+        lastUrlPresetRef.current = null;
+        syncUrlPreset(null);
         break;
       case "today_contact":
         setWorkspaceFilter("priority");
@@ -660,22 +814,24 @@ export default function CustomerList() {
         break;
       }
     }
+
+    const mappedUrlPreset = quickPresetToUrlPreset(presetId);
+    if (mappedUrlPreset) {
+      setActiveUrlPreset(mappedUrlPreset);
+      lastUrlPresetRef.current = mappedUrlPreset;
+      syncUrlPreset(mappedUrlPreset);
+      return;
+    }
+
+    if (presetId !== "all") {
+      setActiveUrlPreset(null);
+      lastUrlPresetRef.current = null;
+      syncUrlPreset(null);
+    }
   };
 
   const clearFilters = () => {
-    setSearch("");
-    setStatusFilter("all");
-    setRegionFilter("");
-    setSourceFilter("");
-    setPriorityFilter("all");
-    setTagFilter("all");
-    setNextActionFilter("all");
-    setAgentFilter("all");
-    setScopeFilter("all");
-    setRecommendationFilter("all");
-    setWorkspaceFilter("all");
-    setAssignedDateFrom("");
-    setAssignedDateTo("");
+    clearUrlPreset();
   };
 
   const handleDeactivateCustomer = (id: number, e: React.MouseEvent) => {
@@ -948,6 +1104,30 @@ export default function CustomerList() {
                 )}
               </div>
             </div>
+
+            {effectiveUrlPreset ? (
+              <div className="rounded-xl border border-primary/20 bg-primary/[0.05] p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-foreground">
+                      {getCustomerListUrlPresetMeta(effectiveUrlPreset).title}
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {getCustomerListUrlPresetMeta(effectiveUrlPreset).description}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11 shrink-0"
+                    onClick={clearUrlPreset}
+                  >
+                    전체 고객 보기
+                  </Button>
+                </div>
+              </div>
+            ) : null}
 
             <div>
               <p className="mb-2 text-xs font-semibold text-muted-foreground">

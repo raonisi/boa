@@ -18,6 +18,7 @@ import {
   type TodayWorkItem,
   type TodayWorkQueueFilter,
 } from "@/lib/todayWorkExecution";
+import { buildCustomerListPresetPath } from "@/components/customers/customerListUrlPresets";
 import { trpc } from "@/lib/trpc";
 import {
   formatKstLocalDateTime,
@@ -252,6 +253,12 @@ export function TodayWorkSection({
         : role === "team_leader"
           ? "팀의 오늘 연락, 미완료 일정, 누락 위험을 먼저 정리합니다."
           : "내 고객의 오늘 연락과 후속관리부터 바로 처리합니다.";
+  const customerPresetPaths = {
+    todayFollowUp: buildCustomerListPresetPath("today-follow-up"),
+    overdueFollowUp: buildCustomerListPresetPath("overdue-follow-up"),
+    longUnmanaged: buildCustomerListPresetPath("long-unmanaged"),
+    priorityContact: buildCustomerListPresetPath("priority-contact"),
+  };
   const fieldQueueBase = [
     {
       key: "notifications",
@@ -267,8 +274,8 @@ export function TodayWorkSection({
       title: "미처리 후속",
       count: cards?.overdueFollowUpCount ?? 0,
       hint: "기한이 지난 재연락 업무",
-      actionLabel: "후속관리 열기",
-      onClick: () => setLocation("/customers"),
+      actionLabel: "고객 목록에서 보기",
+      onClick: () => setLocation(customerPresetPaths.overdueFollowUp),
       tone: "border-red-200 bg-red-50/55 dark:border-red-900/40 dark:bg-red-950/20",
     },
     {
@@ -276,8 +283,8 @@ export function TodayWorkSection({
       title: "오늘 연락 대상",
       count: cards?.todayFollowUpCount ?? 0,
       hint: "이전에 약속한 연락 업무",
-      actionLabel: "고객 DB",
-      onClick: () => setLocation("/customers"),
+      actionLabel: "고객 목록에서 보기",
+      onClick: () => setLocation(customerPresetPaths.todayFollowUp),
       tone: "border-emerald-200 bg-emerald-50/55 dark:border-emerald-900/40 dark:bg-emerald-950/20",
     },
     {
@@ -385,13 +392,13 @@ export function TodayWorkSection({
     {
       label: "미처리 후속",
       value: cards?.overdueFollowUpCount ?? 0,
-      path: "/customers",
+      path: customerPresetPaths.overdueFollowUp,
       tone: "text-red-700",
     },
     {
       label: "오늘 연락",
       value: cards?.todayFollowUpCount ?? 0,
-      path: "/customers",
+      path: customerPresetPaths.todayFollowUp,
       tone: "text-emerald-700",
     },
     {
@@ -413,14 +420,14 @@ export function TodayWorkSection({
       label: "미처리 후속 완료",
       value: cards?.overdueFollowUpCount ?? 0,
       helper: "기한이 지난 재연락",
-      path: "/customers",
+      path: customerPresetPaths.overdueFollowUp,
       tone: "border-orange-200 bg-orange-50/70 text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/20 dark:text-orange-200",
     },
     {
       label: "오늘 연락 실행",
       value: cards?.todayFollowUpCount ?? 0,
       helper: "오늘 도래한 후속관리",
-      path: "/customers",
+      path: customerPresetPaths.todayFollowUp,
       tone: "border-emerald-200 bg-emerald-50/70 text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-200",
     },
     {
@@ -434,7 +441,7 @@ export function TodayWorkSection({
       label: "장기 미관리 점검",
       value: cards?.longUnmanagedCustomerCount ?? 0,
       helper: "누락 위험 고객",
-      path: "/customers",
+      path: customerPresetPaths.longUnmanaged,
       tone: "border-slate-200 bg-slate-50/80 text-slate-800 dark:border-slate-800 dark:bg-slate-950/20 dark:text-slate-200",
     },
   ]
@@ -444,12 +451,13 @@ export function TodayWorkSection({
   const primaryCommandPath =
     (cards?.pendingNotificationCount ?? 0) > 0
       ? "/notifications"
-      : (cards?.overdueFollowUpCount ?? 0) > 0 ||
-          (cards?.todayFollowUpCount ?? 0) > 0
-        ? "/customers"
-        : (cards?.todayScheduleCount ?? 0) > 0
-          ? "/calendar"
-          : "/calendar";
+      : (cards?.overdueFollowUpCount ?? 0) > 0
+        ? customerPresetPaths.overdueFollowUp
+        : (cards?.todayFollowUpCount ?? 0) > 0
+          ? customerPresetPaths.todayFollowUp
+          : (cards?.todayScheduleCount ?? 0) > 0
+            ? "/calendar"
+            : "/calendar";
   const primaryCommandLabel =
     (cards?.pendingNotificationCount ?? 0) > 0
       ? "알림 처리하기"
@@ -723,6 +731,7 @@ export function TodayWorkSection({
           isLoading={isLoading}
           isError={isError}
           onRetry={retryTodayWork}
+          onClick={() => setLocation(customerPresetPaths.todayFollowUp)}
         />
         <PremiumStatCard
           title="미처리 후속관리"
@@ -733,6 +742,7 @@ export function TodayWorkSection({
           isLoading={isLoading}
           isError={isError}
           onRetry={retryTodayWork}
+          onClick={() => setLocation(customerPresetPaths.overdueFollowUp)}
         />
         <PremiumStatCard
           title="오늘 상담 예정"
@@ -743,6 +753,7 @@ export function TodayWorkSection({
           isLoading={isLoading}
           isError={isError}
           onRetry={retryTodayWork}
+          onClick={() => setLocation("/calendar")}
         />
         <PremiumStatCard
           title="미완료 일정"
@@ -763,6 +774,7 @@ export function TodayWorkSection({
           isLoading={isLoading}
           isError={isError}
           onRetry={retryTodayWork}
+          onClick={() => setLocation("/notifications")}
         />
         <PremiumStatCard
           title="이번 달 신규 계약"
@@ -805,12 +817,12 @@ export function TodayWorkSection({
               {
                 label: "미처리 후속",
                 value: cards?.overdueFollowUpCount ?? 0,
-                path: "/customers",
+                path: customerPresetPaths.overdueFollowUp,
               },
               {
                 label: "오늘 연락",
                 value: cards?.todayFollowUpCount ?? 0,
-                path: "/customers",
+                path: customerPresetPaths.todayFollowUp,
               },
               {
                 label: "오늘 일정",
@@ -1234,7 +1246,7 @@ export function TodayWorkSection({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setLocation("/customers")}
+                  onClick={() => setLocation(customerPresetPaths.priorityContact)}
                 >
                   고객 DB에서 확인하기
                 </Button>
@@ -1590,7 +1602,7 @@ export function TodayWorkSection({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => setLocation("/customers")}
+                  onClick={() => setLocation(customerPresetPaths.longUnmanaged)}
                 >
                   고객 DB 보기
                 </Button>
@@ -1649,7 +1661,7 @@ export function TodayWorkSection({
                     type="button"
                     size="sm"
                     variant="outline"
-                    onClick={() => setLocation("/customers")}
+                    onClick={() => setLocation(customerPresetPaths.todayFollowUp)}
                   >
                     고객 목록에서 후속관리 확인
                   </Button>
