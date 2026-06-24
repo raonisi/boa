@@ -13,4 +13,3 @@ describe("Checkbox touch target", () => {
     expect(html).toContain("size-6");
   });
 });
-

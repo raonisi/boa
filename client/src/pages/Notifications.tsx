@@ -671,9 +671,7 @@ export default function Notifications() {
             <p className="text-lg font-bold tabular-nums text-foreground">
               {priorityCounts.urgent}
             </p>
-            <p className="text-xs text-muted-foreground">
-              위험·기한 임박 업무
-            </p>
+            <p className="text-xs text-muted-foreground">위험·기한 임박 업무</p>
           </button>
           <button
             type="button"
@@ -688,9 +686,7 @@ export default function Notifications() {
             <p className="text-lg font-bold tabular-nums text-foreground">
               {priorityCounts.today}
             </p>
-            <p className="text-xs text-muted-foreground">
-              오늘 확인할 업무
-            </p>
+            <p className="text-xs text-muted-foreground">오늘 확인할 업무</p>
           </button>
           <button
             type="button"

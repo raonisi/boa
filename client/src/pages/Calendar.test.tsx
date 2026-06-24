@@ -28,4 +28,3 @@ describe("Calendar day accessibility labels", () => {
     expect(label).not.toContain("일정");
   });
 });
-
