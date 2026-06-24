@@ -454,7 +454,7 @@ export function CustomerClaimGuidancePanel({
                 >
                   {CLAIM_GUIDANCE_STATUS_LABELS[row.guidanceStatus]}
                 </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                   {CLAIM_GUIDANCE_TYPE_LABELS[row.guidanceType]}
                 </span>
               </div>

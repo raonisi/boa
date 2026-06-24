@@ -1097,7 +1097,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                         key={item.label}
                         className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
                       >
-                        <p className="text-[11px] font-medium text-slate-500">
+                        <p className="text-xs font-medium text-slate-500">
                           {item.label}
                         </p>
                         <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
@@ -1142,7 +1142,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                     key={item.label}
                     className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
                   >
-                    <p className="text-[11px] font-medium text-slate-500">
+                    <p className="text-xs font-medium text-slate-500">
                       {item.label}
                     </p>
                     <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
@@ -1164,7 +1164,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                       판단
                     </span>
                     <span
-                      className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${execution.gradeClassName}`}
+                      className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}
                     >
                       {execution.grade}
                     </span>
@@ -1184,7 +1184,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                       .map(reason => (
                         <span
                           key={reason.label}
-                          className="rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-[11px] font-medium text-slate-700"
+                          className="rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-700"
                         >
                           {reason.points > 0
                             ? `${reason.label} +${reason.points}`
@@ -1215,7 +1215,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             </div>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[11px] text-slate-500">최근 상담</p>
+                <p className="text-xs text-slate-500">최근 상담</p>
                 <p className="mt-0.5 text-sm font-semibold text-slate-900">
                   {latestConsultDate
                     ? formatDate(latestConsultDate)
@@ -1223,7 +1223,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </p>
               </div>
               <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-                <p className="text-[11px] text-slate-500">다음 연락일</p>
+                <p className="text-xs text-slate-500">다음 연락일</p>
                 <p className="mt-0.5 text-sm font-semibold text-slate-900">
                   {nextFollowUp
                     ? formatDate(nextFollowUp.nextContactDate)
@@ -1231,13 +1231,13 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </p>
               </div>
               <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2">
-                <p className="text-[11px] text-amber-700">오늘 확인할 후속</p>
+                <p className="text-xs text-amber-700">오늘 확인할 후속</p>
                 <p className="mt-0.5 text-sm font-semibold text-amber-900">
                   {dueTodayFollowUpCount}건
                 </p>
               </div>
               <div className="rounded-lg border border-red-200 bg-red-50/70 px-3 py-2">
-                <p className="text-[11px] text-red-700">지연된 후속관리</p>
+                <p className="text-xs text-red-700">지연된 후속관리</p>
                 <p className="mt-0.5 text-sm font-semibold text-red-900">
                   {overdueFollowUpCount}건
                 </p>
@@ -1323,7 +1323,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <p className="text-sm font-semibold text-slate-950">
                   바로 실행
                 </p>
-                <p className="text-[11px] font-medium text-primary/70">행동</p>
+                <p className="text-xs font-medium text-primary/70">행동</p>
                 <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
                   {recommendedAction.next}
                 </p>
@@ -1600,7 +1600,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                         {reason.description}
                       </p>
                       {reason.situation && (
-                        <p className="mt-2 text-[11px] text-primary">
+                        <p className="mt-2 text-xs text-primary">
                           추천 문구 상황: {reason.situation}
                         </p>
                       )}
@@ -1953,17 +1953,17 @@ export default function CustomerDetail({ id }: { id: number }) {
                           <div className="flex items-center gap-2 mb-2">
                             <StatusBadge status={c.status} />
                             {(c as any).consultationType && (
-                              <span className="text-[10px] rounded-full border px-2 py-0.5">
+                              <span className="text-xs rounded-full border px-2 py-0.5">
                                 {(c as any).consultationType}
                               </span>
                             )}
                             {(c as any).customerNeed && (
-                              <span className="text-[10px] rounded-full bg-secondary px-2 py-0.5">
+                              <span className="text-xs rounded-full bg-secondary px-2 py-0.5">
                                 {(c as any).customerNeed}
                               </span>
                             )}
                             {(c as any).nextAction && (
-                              <span className="text-[10px] rounded-full border px-2 py-0.5">
+                              <span className="text-xs rounded-full border px-2 py-0.5">
                                 다음: {(c as any).nextAction}
                               </span>
                             )}
@@ -2613,7 +2613,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             {customer.phone ? (
               <Button
                 variant="default"
-                className="min-h-12 flex-col gap-0.5 bg-blue-600 px-1 text-[11px] hover:bg-blue-700"
+                className="min-h-12 flex-col gap-0.5 bg-blue-600 px-1 text-xs hover:bg-blue-700"
                 asChild
               >
                 <a href={`tel:${customer.phone}`}>
@@ -2624,7 +2624,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             ) : (
               <Button
                 variant="outline"
-                className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
+                className="min-h-12 flex-col gap-0.5 px-1 text-xs"
                 disabled
               >
                 <Phone className="h-4 w-4" />
@@ -2633,7 +2633,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             )}
             <Button
               variant="default"
-              className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
+              className="min-h-12 flex-col gap-0.5 px-1 text-xs"
               onClick={() => setShowConsultModal(true)}
             >
               <MessageSquare className="h-4 w-4" />
@@ -2641,7 +2641,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             </Button>
             <Button
               variant="secondary"
-              className="min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-[11px] text-amber-900 hover:bg-amber-200"
+              className="min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-xs text-amber-900 hover:bg-amber-200"
               onClick={() => setShowFollowUpQuickModal(true)}
             >
               <CalendarPlus className="h-4 w-4" />
@@ -2651,7 +2651,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           <div className="mx-auto mt-2 grid max-w-lg grid-cols-2 gap-2">
             <Button
               variant="outline"
-              className="min-h-12 flex-col gap-0.5 px-1 text-[11px]"
+              className="min-h-12 flex-col gap-0.5 px-1 text-xs"
               onClick={() =>
                 setLocation(
                   `/calendar?customerId=${customer.id}&action=quick-create`
@@ -2663,7 +2663,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             </Button>
             <Button
               variant="secondary"
-              className="min-h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-[11px] text-white hover:bg-emerald-800"
+              className="min-h-12 flex-col gap-0.5 bg-emerald-700 px-1 text-xs text-white hover:bg-emerald-800"
               onClick={() => setShowContractModal(true)}
             >
               <FilePlus2 className="h-4 w-4" />

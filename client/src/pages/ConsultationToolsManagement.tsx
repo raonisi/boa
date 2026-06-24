@@ -840,7 +840,7 @@ export default function ConsultationToolsManagement() {
                                 <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
                                   {item.title}
                                 </p>
-                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold">
                                   <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
                                     {item.phase}
                                   </span>
@@ -1185,7 +1185,7 @@ export default function ConsultationToolsManagement() {
                                 <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
                                   {item.title}
                                 </p>
-                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold">
                                   <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
                                     {item.situation}
                                   </span>
@@ -1503,7 +1503,7 @@ export default function ConsultationToolsManagement() {
                                 <p className="line-clamp-2 font-semibold leading-6 text-slate-950">
                                   {item.title}
                                 </p>
-                                <div className="mt-2 flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                                <div className="mt-2 flex flex-wrap gap-1.5 text-xs font-semibold">
                                   <span className="rounded-full bg-slate-100 px-2 py-1 text-slate-700">
                                     {item.category}
                                   </span>

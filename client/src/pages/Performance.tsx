@@ -315,7 +315,7 @@ export default function Performance() {
                   <p className="mt-1 text-lg font-bold text-slate-950">
                     {item.value}
                   </p>
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     {item.helper}
                   </p>
                 </div>

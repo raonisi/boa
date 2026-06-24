@@ -584,7 +584,7 @@ export default function UserManagement() {
                               <UserCog className="h-4 w-4" /> 권한/상태
                             </Button>
                             <div className="rounded-2xl border border-red-100 bg-red-50/70 p-3">
-                              <p className="text-[11px] font-semibold text-red-700">
+                              <p className="text-xs font-semibold text-red-700">
                                 보안/접근 차단
                               </p>
                               <div className="mt-3 grid gap-2">
@@ -1565,7 +1565,7 @@ function CreateUserModal({
               rows={2}
               placeholder="내부 메모 (선택)"
             />
-            <p className="text-[10px] text-muted-foreground mt-1">
+            <p className="text-[11px] text-muted-foreground mt-1">
               ⚠️ 메모에는 주민번호, 민감 병력, 금융 비밀번호 등 민감정보를
               입력하지 마세요.
             </p>

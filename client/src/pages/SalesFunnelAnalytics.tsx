@@ -949,7 +949,7 @@ export default function SalesFunnelAnalytics() {
                           key={item}
                           className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-xs text-amber-950"
                         >
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-[11px] font-bold text-amber-950">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-200 text-xs font-bold text-amber-950">
                             {index + 1}
                           </span>
                           <span className="leading-relaxed">{item}</span>

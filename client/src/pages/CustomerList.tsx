@@ -1396,16 +1396,17 @@ export default function CustomerList() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           {(canReclaimCustomer || canBulkChangeAssignee) && (
-                            <Checkbox
-                              checked={selectedCustomerIds.includes(c.id)}
-                              disabled={!selectableFilteredIds.includes(c.id)}
-                              onClick={e => e.stopPropagation()}
-                              onCheckedChange={checked =>
-                                toggleCustomerSelection(c.id, checked === true)
-                              }
-                              aria-label="고객 선택"
-                              className="mt-0.5"
-                            />
+                            <div className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0" onClick={e => e.stopPropagation()}>
+                              <Checkbox
+                                checked={selectedCustomerIds.includes(c.id)}
+                                disabled={!selectableFilteredIds.includes(c.id)}
+                                onCheckedChange={checked =>
+                                  toggleCustomerSelection(c.id, checked === true)
+                                }
+                                aria-label="고객 선택"
+                                className="mt-0.5 sm:mt-0"
+                              />
+                            </div>
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">

@@ -523,7 +523,7 @@ export default function CustomerDataQualityDashboard() {
                                 <Badge
                                   key={label}
                                   variant="outline"
-                                  className="text-[11px]"
+                                  className="text-xs"
                                 >
                                   {label}
                                 </Badge>
@@ -592,7 +592,7 @@ export default function CustomerDataQualityDashboard() {
                           <Badge
                             key={label}
                             variant="outline"
-                            className="text-[11px]"
+                            className="text-xs"
                           >
                             {label}
                           </Badge>

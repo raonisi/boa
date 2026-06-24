@@ -162,19 +162,19 @@ function PipelineCard({
             </p>
             <PriorityBadge
               priority={customer.priority}
-              className="shrink-0 text-[10px]"
+              className="shrink-0 text-xs"
             />
           </div>
           <div className="flex flex-wrap gap-1">
             {tags.length === 0 ? (
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-[11px] text-muted-foreground">
                 태그 없음
               </span>
             ) : (
               tags.map(t => (
                 <span
                   key={t}
-                  className="rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+                  className="rounded-full border border-border/80 bg-muted/50 px-2 py-0.5 text-xs font-medium text-muted-foreground"
                 >
                   {t}
                 </span>
@@ -225,7 +225,7 @@ function PipelineColumn({
         <h2 className="text-sm font-bold tracking-tight text-foreground">
           {title}
         </h2>
-        <p className="text-[11px] font-medium text-muted-foreground">
+        <p className="text-xs font-medium text-muted-foreground">
           {subtitle}
         </p>
       </div>
@@ -525,7 +525,7 @@ export default function SalesPipeline() {
                       </p>
                       <PriorityBadge
                         priority={activeCustomer.priority}
-                        className="text-[10px]"
+                        className="text-xs"
                       />
                     </div>
                   </div>

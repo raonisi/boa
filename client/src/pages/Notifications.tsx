@@ -878,15 +878,17 @@ export default function Notifications() {
                 >
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <Checkbox
-                        checked={isSelected}
-                        disabled={isBulkPending}
-                        className="mt-0.5"
-                        aria-label="알림 선택"
-                        onCheckedChange={checked =>
-                          toggleNotificationSelection(n.id, checked === true)
-                        }
-                      />
+                      <div className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0" onClick={e => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          disabled={isBulkPending}
+                          className="mt-0.5 sm:mt-0"
+                          aria-label="알림 선택"
+                          onCheckedChange={checked =>
+                            toggleNotificationSelection(n.id, checked === true)
+                          }
+                        />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="mb-2 flex flex-wrap items-start gap-2">
                           <Bell className="h-3.5 w-3.5 shrink-0 text-ring" />

@@ -214,7 +214,7 @@ export function CustomerRelationshipsPanel({
               </span>
               <StatusBadge status={item.relatedCustomer.consultStatus} />
               {item.status === "inactive" ? (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                   비활성
                 </span>
               ) : null}

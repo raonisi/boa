@@ -161,7 +161,7 @@ function CalendarCategoryBadge({
         : "bg-emerald-50 text-emerald-800";
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium ${tone}`}
+      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${tone}`}
     >
       {label ?? (category ? SCHEDULE_CALENDAR_CATEGORY_LABELS[category] : "")}
     </span>
@@ -244,7 +244,7 @@ function CalendarCategoryCardPicker({
                 {card.helper}
               </p>
               {disabled ? (
-                <p className="mt-2 text-[11px] font-medium text-amber-700">
+                <p className="mt-2 text-xs font-medium text-amber-700">
                   팀원 계정에서는 선택할 수 없습니다.
                 </p>
               ) : null}

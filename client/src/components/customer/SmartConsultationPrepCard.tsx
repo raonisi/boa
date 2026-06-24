@@ -118,7 +118,7 @@ export function SmartConsultationPrepCard(
                     key={item.label}
                     className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2"
                   >
-                    <p className="text-[11px] text-slate-500">{item.label}</p>
+                    <p className="text-xs text-slate-500">{item.label}</p>
                     <p className="mt-0.5 text-sm font-medium text-slate-900">
                       {item.value}
                     </p>
@@ -149,19 +149,19 @@ export function SmartConsultationPrepCard(
               </p>
               <div className="grid gap-2 md:grid-cols-2">
                 <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[11px] text-slate-500">최근 상담기록</p>
+                  <p className="text-xs text-slate-500">최근 상담기록</p>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-800">
                     {view.recentConsultSummary}
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[11px] text-slate-500">최근 후속관리</p>
+                  <p className="text-xs text-slate-500">최근 후속관리</p>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-800">
                     {view.recentFollowUpSummary}
                   </p>
                 </div>
                 <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[11px] text-slate-500">고객 경고/추천</p>
+                  <p className="text-xs text-slate-500">고객 경고/추천</p>
                   {view.warningSummaries.length > 0 ? (
                     <ul className="mt-1 space-y-1 text-sm text-slate-800">
                       {view.warningSummaries.map(warning => (
@@ -177,14 +177,14 @@ export function SmartConsultationPrepCard(
                   )}
                 </div>
                 <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[11px] text-slate-500">인수인계 메모</p>
+                  <p className="text-xs text-slate-500">인수인계 메모</p>
                   <p className="mt-1 line-clamp-2 text-sm text-slate-800">
                     {view.handoffSummary}
                   </p>
                 </div>
               </div>
               <div className="rounded-lg border border-primary/15 bg-primary/[0.04] px-3 py-2">
-                <p className="text-[11px] font-medium text-primary/80">
+                <p className="text-xs font-medium text-primary/80">
                   오늘 상담 목표
                 </p>
                 <p className="mt-0.5 text-sm font-semibold text-slate-900">
@@ -199,7 +199,7 @@ export function SmartConsultationPrepCard(
               </p>
               <div className="grid gap-2 lg:grid-cols-2">
                 <div className="rounded-lg border border-slate-200 p-3">
-                  <p className="text-[11px] font-medium text-slate-600">
+                  <p className="text-xs font-medium text-slate-600">
                     추천 접근 방향
                   </p>
                   <ul className="mt-2 space-y-1 text-sm text-slate-800">
@@ -211,7 +211,7 @@ export function SmartConsultationPrepCard(
                   </ul>
                 </div>
                 <div className="rounded-lg border border-amber-200/80 bg-amber-50/40 p-3">
-                  <p className="text-[11px] font-medium text-amber-800">
+                  <p className="text-xs font-medium text-amber-800">
                     피해야 할 말
                   </p>
                   <ul className="mt-2 space-y-1 text-xs text-amber-900">

@@ -113,7 +113,7 @@ function OperationCard({
           <Badge
             variant="outline"
             className={cn(
-              "text-[11px] font-medium",
+              "text-xs font-medium",
               riskBadgeClasses[card.riskLevel]
             )}
           >
@@ -122,7 +122,7 @@ function OperationCard({
           <Badge
             variant="outline"
             className={cn(
-              "text-[11px] font-medium",
+              "text-xs font-medium",
               statusBadgeClasses[card.status]
             )}
           >

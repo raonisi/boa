@@ -211,7 +211,7 @@ export function CustomerListDesktopWorkspace({
                 >
                   {showSelection ? (
                     <div
-                      className="flex items-start justify-center pt-1"
+                      className="flex items-start justify-center pt-1 min-h-[44px] min-w-[44px] -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0"
                       onClick={e => e.stopPropagation()}
                     >
                       <Checkbox
@@ -238,7 +238,7 @@ export function CustomerListDesktopWorkspace({
                         <PriorityBadge priority={customer.priority} />
                       ) : null}
                       {relationFlags?.[customer.id] ? (
-                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-700">
+                        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-semibold text-indigo-700">
                           연결
                         </span>
                       ) : null}
@@ -266,7 +266,7 @@ export function CustomerListDesktopWorkspace({
                     </p>
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${execution.gradeClassName}`}
+                        className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}
                       >
                         관리점수 {execution.score}
                       </span>

@@ -216,7 +216,7 @@ export default function CustomerMergeManagement() {
                               상세
                             </Button>
                             <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-2">
-                              <p className="mb-2 text-[11px] font-semibold text-amber-800">
+                              <p className="mb-2 text-xs font-semibold text-amber-800">
                                 병합 실행 후보
                               </p>
                               <div className="grid gap-2">

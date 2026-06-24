@@ -229,7 +229,7 @@ export default function FollowUpModal({
                       </SelectContent>
                     </Select>
                   </div>
-                  <p className="text-[11px] text-blue-800">
+                  <p className="text-xs text-blue-800">
                     다음 연락일과 같은 시각에 고객 연결 일정이 생성됩니다.
                   </p>
                 </div>

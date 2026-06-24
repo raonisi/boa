@@ -79,10 +79,10 @@ export default function ScheduleCustomerLinkPicker({
               <p className="truncate text-sm font-medium">
                 {selectedCustomer.name}
               </p>
-              <Badge variant="secondary" className="text-[10px]">
+              <Badge variant="secondary" className="text-xs">
                 {selectedCustomer.statusLabel}
               </Badge>
-              <Badge variant="outline" className="text-[10px]">
+              <Badge variant="outline" className="text-xs">
                 {selectedCustomer.priorityLabel}
               </Badge>
             </div>
@@ -166,7 +166,7 @@ export default function ScheduleCustomerLinkPicker({
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{item.name}</span>
-                  <Badge variant="secondary" className="text-[10px]">
+                  <Badge variant="secondary" className="text-xs">
                     {item.statusLabel}
                   </Badge>
                 </div>

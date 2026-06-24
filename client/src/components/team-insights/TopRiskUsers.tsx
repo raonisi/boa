@@ -70,7 +70,7 @@ export default function TopRiskUsers({ users }: { users: UserMetric[] }) {
                       <Badge
                         key={i}
                         variant="outline"
-                        className="text-[10px] px-1.5 py-0"
+                        className="text-xs px-1.5 py-0"
                       >
                         {r}
                       </Badge>
@@ -78,7 +78,7 @@ export default function TopRiskUsers({ users }: { users: UserMetric[] }) {
                     {reasons.length > 2 && (
                       <Badge
                         variant="outline"
-                        className="text-[10px] px-1.5 py-0 text-muted-foreground"
+                        className="text-[11px] px-1.5 py-0 text-muted-foreground"
                       >
                         +{reasons.length - 2}
                       </Badge>

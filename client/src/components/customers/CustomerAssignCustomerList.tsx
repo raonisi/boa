@@ -272,12 +272,14 @@ export function CustomerAssignCustomerList({
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => onToggle(customer.id)}
-                          aria-label="고객 선택"
-                          className="mt-0.5"
-                        />
+                        <div className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0" onClick={e => e.stopPropagation()}>
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => onToggle(customer.id)}
+                            aria-label="고객 선택"
+                            className="mt-0.5 sm:mt-0"
+                          />
+                        </div>
                         <div className="min-w-0 flex-1 space-y-2">
                           <div className="flex min-w-0 flex-wrap items-center gap-2">
                             <span className="min-w-0 truncate text-base font-semibold text-foreground">

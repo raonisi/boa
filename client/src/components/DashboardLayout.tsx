@@ -329,6 +329,12 @@ function DashboardLayoutContent({
       </div>
 
       <SidebarInset>
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          본문으로 바로가기
+        </a>
         <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-border/90 bg-background/92 px-4 shadow-sm backdrop-blur-md supports-[backdrop-filter]:bg-background/78">
           <SidebarTrigger className="h-9 w-9 shrink-0 rounded-lg border border-transparent hover:bg-muted/70" />
           <BrandLogo
@@ -388,7 +394,7 @@ function DashboardLayoutContent({
             ) : null}
           </button>
         </header>
-        <main className="boa-page min-h-[calc(100vh-4rem)] flex-1 p-3 pb-24 sm:p-4 sm:pb-20 md:p-7 md:pb-7">
+        <main id="main-content" tabIndex={-1} className="boa-page outline-none min-h-[calc(100vh-4rem)] flex-1 p-3 pb-24 sm:p-4 sm:pb-20 md:p-7 md:pb-7">
           {children}
         </main>
         <MobileNav />

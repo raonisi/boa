@@ -647,7 +647,7 @@ export function TodayWorkSection({
                   onClick={() => setLocation(item.path)}
                   className="crm-dashboard-action min-h-12 rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm"
                 >
-                  <p className="text-[11px] font-medium text-muted-foreground">
+                  <p className="text-xs font-medium text-muted-foreground">
                     {item.label}
                   </p>
                   <p
@@ -741,7 +741,7 @@ export function TodayWorkSection({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-center dark:border-emerald-900/40 dark:bg-emerald-950/30">
-                <p className="text-[11px] font-medium text-emerald-800 dark:text-emerald-200">
+                <p className="text-xs font-medium text-emerald-800 dark:text-emerald-200">
                   내 오늘 업무
                 </p>
                 <p className="mt-1 text-xl font-bold text-emerald-900 dark:text-emerald-100">
@@ -752,7 +752,7 @@ export function TodayWorkSection({
                 </p>
               </div>
               <div className="rounded-lg border border-violet-200 bg-violet-50/70 px-3 py-2 text-center dark:border-violet-900/40 dark:bg-violet-950/30">
-                <p className="text-[11px] font-medium text-violet-800 dark:text-violet-200">
+                <p className="text-xs font-medium text-violet-800 dark:text-violet-200">
                   지점 운영 확인
                 </p>
                 <p className="mt-1 text-xl font-bold text-violet-900 dark:text-violet-100">
@@ -1190,7 +1190,7 @@ export function TodayWorkSection({
                       {notification.title}
                     </p>
                     <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                      className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                         priority === "urgent"
                           ? "crm-priority-urgent"
                           : priority === "today"

@@ -327,14 +327,14 @@ export function CustomerReferralFlowsPanel({
                   {REFERRAL_STAGE_LABELS[row.referralStage]}
                 </span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_RESULT_BADGE_CLASSES[row.resultStatus as keyof typeof REFERRAL_RESULT_BADGE_CLASSES] ?? "bg-slate-100 text-slate-600"}`}
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${REFERRAL_RESULT_BADGE_CLASSES[row.resultStatus as keyof typeof REFERRAL_RESULT_BADGE_CLASSES] ?? "bg-slate-100 text-slate-600"}`}
                 >
                   {REFERRAL_RESULT_STATUS_LABELS[
                     row.resultStatus as keyof typeof REFERRAL_RESULT_STATUS_LABELS
                   ] ?? row.resultStatus}
                 </span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${REFERRAL_THANK_YOU_BADGE_CLASSES[row.thankYouStatus]}`}
+                  className={`rounded-full px-2 py-0.5 text-xs font-semibold ${REFERRAL_THANK_YOU_BADGE_CLASSES[row.thankYouStatus]}`}
                 >
                   감사 {THANK_YOU_STATUS_LABELS[row.thankYouStatus]}
                 </span>

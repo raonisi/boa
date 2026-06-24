@@ -494,7 +494,7 @@ export default function Download() {
                   >
                     <span
                       className={cn(
-                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-xs font-bold",
                         item.done
                           ? "bg-emerald-600 text-white"
                           : "bg-muted text-muted-foreground"
@@ -504,7 +504,7 @@ export default function Download() {
                     </span>
                     <span>
                       <span className="font-semibold">{item.label}</span>
-                      <span className="mt-0.5 block text-[11px] leading-relaxed opacity-90">
+                      <span className="mt-0.5 block text-xs leading-relaxed opacity-90">
                         {item.hint}
                       </span>
                     </span>
