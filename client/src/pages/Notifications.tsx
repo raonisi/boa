@@ -779,6 +779,7 @@ export default function Notifications() {
               <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
                 <label className="flex min-h-11 items-center gap-3 text-sm font-medium text-foreground">
                   <Checkbox
+                    touchTarget
                     checked={getBulkSelectionCheckboxState({
                       allVisibleSelected,
                       selectedVisibleCount: selectedVisibleIds.length,
@@ -878,8 +879,9 @@ export default function Notifications() {
                 >
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <div className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0" onClick={e => e.stopPropagation()}>
+                      <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
                         <Checkbox
+                          touchTarget
                           checked={isSelected}
                           disabled={isBulkPending}
                           className="mt-0.5 sm:mt-0"

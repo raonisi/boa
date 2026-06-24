@@ -272,8 +272,9 @@ export function CustomerAssignCustomerList({
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3">
-                        <div className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0" onClick={e => e.stopPropagation()}>
+                        <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
                           <Checkbox
+                            touchTarget
                             checked={isSelected}
                             onCheckedChange={() => onToggle(customer.id)}
                             aria-label="고객 선택"
@@ -338,13 +339,16 @@ export function CustomerAssignCustomerList({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-10">
-                    <input
-                      type="checkbox"
-                      onChange={onToggleAll}
-                      checked={allVisibleSelected}
-                      aria-label="현재 목록 전체 선택"
-                    />
+                  <TableHead className="w-12">
+                    <label className="-ml-2 flex min-h-11 min-w-11 items-center justify-center">
+                      <input
+                        type="checkbox"
+                        onChange={onToggleAll}
+                        checked={allVisibleSelected}
+                        aria-label="현재 목록 전체 선택"
+                        className="h-6 w-6 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                    </label>
                   </TableHead>
                   <TableHead>이름</TableHead>
                   <TableHead>연락처</TableHead>
@@ -378,12 +382,15 @@ export function CustomerAssignCustomerList({
                       }
                     >
                       <TableCell>
-                        <input
-                          type="checkbox"
-                          checked={selected.includes(customer.id)}
-                          onChange={() => onToggle(customer.id)}
-                          aria-label="고객 선택"
-                        />
+                        <label className="-ml-2 flex min-h-11 min-w-11 items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={selected.includes(customer.id)}
+                            onChange={() => onToggle(customer.id)}
+                            aria-label="고객 선택"
+                            className="h-6 w-6 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                          />
+                        </label>
                       </TableCell>
                       <TableCell className="font-medium">
                         {customer.name}

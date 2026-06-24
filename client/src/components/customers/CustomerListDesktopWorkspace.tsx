@@ -102,6 +102,7 @@ export function CustomerListDesktopWorkspace({
             {showSelection ? (
               <div className="flex items-center justify-center pt-0.5">
                 <Checkbox
+                  touchTarget
                   checked={allVisibleSelectableSelected}
                   disabled={selectableFilteredIds.length === 0}
                   onCheckedChange={checked =>
@@ -211,10 +212,11 @@ export function CustomerListDesktopWorkspace({
                 >
                   {showSelection ? (
                     <div
-                      className="flex items-start justify-center pt-1 min-h-[44px] min-w-[44px] -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0"
+                      className="-ml-2 -mt-2 flex items-start justify-center sm:m-0"
                       onClick={e => e.stopPropagation()}
                     >
                       <Checkbox
+                        touchTarget
                         checked={selectedCustomerIds.includes(customer.id)}
                         disabled={!selectableFilteredIds.includes(customer.id)}
                         onCheckedChange={checked =>

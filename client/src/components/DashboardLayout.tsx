@@ -125,6 +125,7 @@ function DashboardLayoutContent({
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const mainContentRef = useRef<HTMLElement>(null);
   const { theme, toggleTheme } = useTheme();
 
   const {
@@ -168,6 +169,15 @@ function DashboardLayoutContent({
       document.body.style.userSelect = "";
     };
   }, [isResizing, setSidebarWidth]);
+
+  const focusMainContent = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    mainContentRef.current?.focus({ preventScroll: true });
+    mainContentRef.current?.scrollIntoView({
+      block: "start",
+      behavior: "smooth",
+    });
+  };
 
   return (
     <>
@@ -331,6 +341,7 @@ function DashboardLayoutContent({
       <SidebarInset>
         <a
           href="#main-content"
+          onClick={focusMainContent}
           className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[100] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-md focus:outline-none focus:ring-2 focus:ring-ring"
         >
           본문으로 바로가기
@@ -394,7 +405,12 @@ function DashboardLayoutContent({
             ) : null}
           </button>
         </header>
-        <main id="main-content" tabIndex={-1} className="boa-page outline-none min-h-[calc(100vh-4rem)] flex-1 p-3 pb-24 sm:p-4 sm:pb-20 md:p-7 md:pb-7">
+        <main
+          id="main-content"
+          ref={mainContentRef}
+          tabIndex={-1}
+          className="boa-page min-h-[calc(100vh-4rem)] flex-1 scroll-mt-16 p-3 pb-24 outline-none sm:p-4 sm:pb-20 md:p-7 md:pb-7"
+        >
           {children}
         </main>
         <MobileNav />

@@ -183,7 +183,7 @@ export function RoleOperationalDashboardSection({
                       미처리 후속 {assignee.overdueFollowUpCount}건 · 오늘 연락{" "}
                       {assignee.todayFollowUpCount}건
                     </p>
-                    <p className="mt-1 text-[11px] text-muted-foreground">
+                    <p className="mt-1 text-xs text-muted-foreground">
                       확인 필요 업무 {assignee.openWorkCount}건
                     </p>
                   </button>

@@ -175,7 +175,7 @@ export function TodayWorkExecutionQueue({
                       <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
                         {item.description}
                       </p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {formatDueLabel(item)}
                       </p>
                     </div>

@@ -1565,7 +1565,7 @@ function CreateUserModal({
               rows={2}
               placeholder="내부 메모 (선택)"
             />
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               ⚠️ 메모에는 주민번호, 민감 병력, 금융 비밀번호 등 민감정보를
               입력하지 마세요.
             </p>

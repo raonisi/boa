@@ -1088,7 +1088,7 @@ function AuditLogsTab(props: {
       <CardContent className="space-y-3">
         <div className="grid gap-2 md:grid-cols-6">
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">기간</Label>
+            <Label className="text-xs text-muted-foreground">기간</Label>
             <Select
               value={props.auditDatePreset}
               onValueChange={value =>
@@ -1107,7 +1107,7 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">분류</Label>
+            <Label className="text-xs text-muted-foreground">분류</Label>
             <Select
               value={props.auditCategory}
               onValueChange={props.onCategoryChange}
@@ -1125,7 +1125,7 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">대상</Label>
+            <Label className="text-xs text-muted-foreground">대상</Label>
             <Select
               value={props.auditTargetType}
               onValueChange={props.onTargetTypeChange}
@@ -1145,7 +1145,7 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">
+            <Label className="text-xs text-muted-foreground">
               작업 코드
             </Label>
             <Input
@@ -1156,7 +1156,7 @@ function AuditLogsTab(props: {
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-[11px] text-muted-foreground">검색</Label>
+            <Label className="text-xs text-muted-foreground">검색</Label>
             <Input
               value={props.auditSearch}
               onChange={event => props.onSearchChange(event.target.value)}

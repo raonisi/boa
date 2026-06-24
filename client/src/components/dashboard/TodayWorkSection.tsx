@@ -900,7 +900,7 @@ export function TodayWorkSection({
                 onClick={() => setLocation(item.path)}
                 className="min-h-12 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
               >
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   {item.label}
                 </p>
                 <div className="mt-1 text-lg font-bold tabular-nums tracking-tight">
@@ -1558,7 +1558,7 @@ export function TodayWorkSection({
                         <span className="truncate text-sm font-semibold text-foreground">
                           {notification.title}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-xs text-muted-foreground">
                           {getStatusLabel(notification.processStatus)}
                         </span>
                       </div>
@@ -1789,7 +1789,7 @@ export function TodayWorkSection({
                   <span className="truncate text-sm font-semibold text-foreground">
                     {followUp.customerName ?? `고객 #${followUp.customerId}`}
                   </span>
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {followUp.nextAction}
                   </span>
                 </div>

@@ -185,7 +185,7 @@ function CalendarCategoryCardPicker({
         <Label className="text-xs font-medium" id="calendar-category-label">
           캘린더 분류
         </Label>
-        <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
           이 일정이 Google Calendar의 어느 공유 캘린더에 표시될지 선택하세요.
           자동 추천보다 직접 선택한 값이 우선 적용됩니다.
         </p>
@@ -240,7 +240,7 @@ function CalendarCategoryCardPicker({
                   <Check className="h-3.5 w-3.5" />
                 </span>
               </div>
-              <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                 {card.helper}
               </p>
               {disabled ? (
@@ -469,7 +469,7 @@ function ScheduleOwnerFilter({
       <CardContent className="space-y-3 p-3">
         <div>
           <p className="text-xs font-semibold text-slate-700">일정 보기</p>
-          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
             기본값은 내 일정입니다. 다른 조직원 일정은 조회만 가능합니다.
           </p>
         </div>

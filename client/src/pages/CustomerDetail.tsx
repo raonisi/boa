@@ -1160,7 +1160,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                     <p className="text-xs font-semibold text-amber-800">
                       지금 할 일
                     </p>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       판단
                     </span>
                     <span
@@ -1419,7 +1419,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold">관리 상태</p>
-                    <span className="text-[11px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       상태
                     </span>
                   </div>
@@ -1515,7 +1515,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </div>
                 <div>
                   <Label className="text-xs">상담 성향</Label>
-                  <p className="mb-2 text-[11px] text-muted-foreground">
+                  <p className="mb-2 text-xs text-muted-foreground">
                     주요 태그만 빠르게 선택합니다. 전체 목록은 아래에서
                     확인하세요.
                   </p>
@@ -1640,7 +1640,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <p className="text-xs font-semibold text-muted-foreground">
               상담 흐름
             </p>
-            <p className="mt-0.5 text-[11px] text-muted-foreground">
+            <p className="mt-0.5 text-xs text-muted-foreground">
               오늘 확인 → 상담 기록 → 진행 관리 → 계약·보장 → 상세 정보
             </p>
           </div>
@@ -2851,7 +2851,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 maxLength={300}
                 placeholder="예: 담당자 퇴사/휴직, 지점장 재분배 검토, 미배정 풀 재정리"
               />
-              <p className="mt-1 text-right text-[11px] text-muted-foreground">
+              <p className="mt-1 text-right text-xs text-muted-foreground">
                 {reclaimReason.length}/300
               </p>
             </div>
@@ -3829,7 +3829,7 @@ function ConsultModal({
               className="mt-1 min-h-28 w-full resize-none rounded-md border border-input bg-background px-3 py-3 text-sm leading-6"
               placeholder="상담 내용을 입력하세요..."
             />
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지
               마세요.
             </p>
@@ -4057,7 +4057,7 @@ function EditConsultModal({
               onChange={e => setForm({ ...form, content: e.target.value })}
               className="mt-1 min-h-28 w-full resize-none rounded-md border border-input bg-background px-3 py-3 text-sm leading-6"
             />
-            <p className="text-[11px] text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               주민등록번호, 증권번호, 계좌번호, 병력상세 등 민감정보는 입력하지
               마세요.
             </p>

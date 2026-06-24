@@ -50,7 +50,7 @@ export function MemberQuickExecutionSection() {
                 <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 {action.label}
               </span>
-              <span className="text-[11px] font-normal leading-snug text-muted-foreground">
+              <span className="text-xs font-normal leading-snug text-muted-foreground">
                 {action.hint}
               </span>
             </Button>

@@ -1396,8 +1396,9 @@ export default function CustomerList() {
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-3">
                           {(canReclaimCustomer || canBulkChangeAssignee) && (
-                            <div className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center -ml-2 -mt-2 sm:m-0 sm:min-h-0 sm:min-w-0" onClick={e => e.stopPropagation()}>
+                            <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
                               <Checkbox
+                                touchTarget
                                 checked={selectedCustomerIds.includes(c.id)}
                                 disabled={!selectableFilteredIds.includes(c.id)}
                                 onCheckedChange={checked =>
@@ -1819,7 +1820,7 @@ export default function CustomerList() {
                 maxLength={300}
                 placeholder="예: 담당자 업무 조정, 지점 운영 배분, 산하 조직 재정리"
               />
-              <p className="mt-1 text-right text-[11px] text-muted-foreground">
+              <p className="mt-1 text-right text-xs text-muted-foreground">
                 {bulkAssigneeReason.length}/300
               </p>
             </div>
@@ -1969,7 +1970,7 @@ export default function CustomerList() {
                 maxLength={300}
                 placeholder="예: 담당자 퇴사/휴직, 지점장 재분배 검토, 미배정 풀 재정리"
               />
-              <p className="mt-1 text-right text-[11px] text-muted-foreground">
+              <p className="mt-1 text-right text-xs text-muted-foreground">
                 {reclaimReason.length}/300
               </p>
             </div>
