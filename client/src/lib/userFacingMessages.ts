@@ -37,8 +37,10 @@ export const FORBIDDEN_UX = {
 } as const;
 
 export const CUSTOMER_ACCESS_UX = {
-  title: "고객 정보를 표시할 수 없습니다.",
+  title: "정보를 확인할 수 없습니다",
   description: USER_FACING_ERRORS.customerNotFound,
+  listActionLabel: "고객 목록으로 이동",
+  backLabel: FORBIDDEN_UX.backLabel,
 } as const;
 
 function getTrpcErrorCode(error: unknown): string | undefined {

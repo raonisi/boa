@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { trpc } from "@/lib/trpc";
+import { ERROR_UX } from "@/lib/stateUxCopy";
 import { cn } from "@/lib/utils";
 import { Loader2, Search, UserRound, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -132,8 +133,8 @@ export default function ScheduleCustomerLinkPicker({
       ) : null}
 
       {pickerQuery.isError ? (
-        <p className="text-xs text-destructive">
-          고객을 불러오지 못했습니다. 다시 시도해 주세요.
+        <p className="text-xs text-destructive" role="alert">
+          {ERROR_UX.scopedLoadTitle("고객")} {ERROR_UX.loadDescription}
         </p>
       ) : null}
 

@@ -9,7 +9,7 @@ import {
   PriorityBadge,
   StatusBadge,
 } from "@/components/StatusBadge";
-import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState, LoadingMetric, NotFoundState, renderMetricValue } from "./empty-state";
+import { EmptyState, ErrorState, ForbiddenInlineState, LoadingState, LoadingMetric, NotFoundState, SensitiveDataUnavailableState, renderMetricValue } from "./empty-state";
 
 describe("shared state components", () => {
   it("renders empty states with a clear next action", () => {
@@ -30,7 +30,7 @@ describe("shared state components", () => {
   it("renders loading states with Korean accessibility labels", () => {
     const html = renderToStaticMarkup(<LoadingState />);
 
-    expect(html).toContain("정보를 불러오고 있습니다.");
+    expect(html).toContain("정보를 불러오는 중입니다.");
     expect(html).toContain("aria-label=\"불러오는 중\"");
     expect(html).toContain("aria-busy=\"true\"");
   });
@@ -76,6 +76,27 @@ describe("shared state components", () => {
     expect(html).not.toContain("고객명");
     expect(html).not.toContain("전화번호");
     expect(html).not.toContain("생년월일");
+  });
+
+  it("renders sensitive customer access states without forbidden styling", () => {
+    const html = renderToStaticMarkup(<SensitiveDataUnavailableState />);
+
+    expect(html).toContain("정보를 확인할 수 없습니다");
+    expect(html).toContain("데이터가 없거나 접근할 수 없습니다.");
+    expect(html).toContain("고객 목록으로 이동");
+    expect(html).not.toContain("접근 권한이 없습니다");
+  });
+
+  it("maps query errors through safe user-facing copy", () => {
+    const html = renderToStaticMarkup(
+      <ErrorState
+        error={new Error("Internal server error")}
+        onRetry={() => undefined}
+      />
+    );
+
+    expect(html).toContain("정보를 불러오지 못했습니다.");
+    expect(html).not.toContain("Internal server error");
   });
 
   it("renders not-found guidance in Korean", () => {

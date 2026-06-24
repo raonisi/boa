@@ -3,6 +3,7 @@ import DashboardLayout from "@/components/DashboardLayout";
 import { StatusBadge, CONSULT_STATUSES, getPriorityLabel, PriorityBadge, ExecutionBadge, UrgencyBadge } from "@/components/StatusBadge";
 import { adminPanel } from "@/lib/adminDesignTokens";
 import { getSeveritySurfaceClasses, getStatusVariantClasses, STATUS_BADGE_BASE } from "@/lib/statusPresentation";
+import { getLoadingCopy } from "@/lib/stateUxCopy";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -37,7 +38,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { EmptyState, ForbiddenInlineState } from "@/components/ui/empty-state";
+import { EmptyState, LoadingState, SensitiveDataUnavailableState } from "@/components/ui/empty-state";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
 import {
@@ -45,7 +46,6 @@ import {
   WORKFLOW_COPY,
 } from "@/lib/assignmentWorkflowCopy";
 import {
-  CUSTOMER_ACCESS_UX,
   getUserFacingErrorMessage,
   toastUserFacingError,
   USER_FACING_ERRORS,
@@ -673,11 +673,10 @@ export default function CustomerDetail({ id }: { id: number }) {
   if (isCustomerLoading)
     return (
       <DashboardLayout>
-        <EmptyState
-          variant="loading"
-          title="고객 정보를 불러오는 중입니다."
-          description="상담 이력과 후속관리 정보를 확인하고 있습니다."
+        <LoadingState
+          {...getLoadingCopy("고객 정보")}
           className="min-h-64 border-0 bg-transparent"
+          fullPage
         />
       </DashboardLayout>
     );
@@ -685,26 +684,11 @@ export default function CustomerDetail({ id }: { id: number }) {
   if (isCustomerError || !customer)
     return (
       <DashboardLayout>
-        <ForbiddenInlineState
-          title={CUSTOMER_ACCESS_UX.title}
-          description={CUSTOMER_ACCESS_UX.description}
+        <SensitiveDataUnavailableState
+          showRetry={isCustomerError}
+          onRetry={() => void refetchCustomer()}
           className="min-h-64"
-          action={
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setLocation("/customers")}
-              >
-                고객 DB로 이동
-              </Button>
-              {isCustomerError ? (
-                <Button type="button" onClick={() => refetchCustomer()}>
-                  다시 시도
-                </Button>
-              ) : null}
-            </div>
-          }
+          fullPage
         />
 
         <Dialog

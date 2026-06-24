@@ -32,6 +32,8 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
+import { EmptyState, ErrorState, LoadingState } from "@/components/ui/empty-state";
+import { getEmptyCopy, getLoadErrorCopy, getLoadingCopy } from "@/lib/stateUxCopy";
 import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
@@ -410,16 +412,29 @@ export default function OrganizationManagement() {
   const renderTreeContent = () => {
     if (treeQuery.isLoading) {
       return (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-          조직 구조를 불러오는 중입니다.
-        </div>
+        <LoadingState
+          {...getLoadingCopy("조직 구조")}
+          className="border-dashed bg-muted/20"
+        />
+      );
+    }
+    if (treeQuery.isError) {
+      return (
+        <ErrorState
+          {...getLoadErrorCopy("조직 구조")}
+          onRetry={() => void treeQuery.refetch()}
+          className="border-dashed bg-muted/20"
+        />
       );
     }
     if (!nodes || roots.length === 0) {
+      const empty = getEmptyCopy("조직 구조");
       return (
-        <div className="rounded-2xl border border-dashed border-slate-200 p-6 text-center text-sm text-slate-500">
-          표시할 조직 구조가 없습니다.
-        </div>
+        <EmptyState
+          title={empty.title}
+          description={empty.description}
+          className="border-dashed bg-muted/20"
+        />
       );
     }
     if (isBranchAdmin && branchRoot) {

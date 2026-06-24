@@ -1,6 +1,16 @@
+import { CustomerAccessDefaultActions } from "@/components/CustomerAccessDefaultActions";
 import { ForbiddenDefaultActions } from "@/components/ForbiddenDefaultActions";
 import { Button } from "@/components/ui/button";
-import { FORBIDDEN_UX } from "@/lib/userFacingMessages";
+import {
+  FORBIDDEN_UX,
+  getUserFacingErrorMessage,
+  type UserFacingErrorContext,
+} from "@/lib/userFacingMessages";
+import {
+  ERROR_UX,
+  LOADING_UX,
+  SENSITIVE_ACCESS_UX,
+} from "@/lib/stateUxCopy";
 import { cn } from "@/lib/utils";
 import {
   AlertCircle,
@@ -195,8 +205,8 @@ export function BoaStateCard({
 }
 
 export function LoadingState({
-  title = "정보를 불러오고 있습니다.",
-  description = "잠시만 기다려 주세요.",
+  title = LOADING_UX.defaultTitle,
+  description = LOADING_UX.defaultDescription,
   className,
   compact,
   fullPage,
@@ -243,10 +253,12 @@ export function renderMetricValue(
 }
 
 export function ErrorState({
-  title = "정보를 불러오지 못했습니다.",
-  description = "잠시 후 다시 시도해 주세요.",
-  retryLabel = "다시 시도",
+  title = ERROR_UX.loadTitle,
+  description = ERROR_UX.loadDescription,
+  retryLabel = ERROR_UX.retryLabel,
   onRetry,
+  error,
+  context = "default",
   className,
   compact,
   fullPage,
@@ -255,15 +267,22 @@ export function ErrorState({
   description?: string;
   retryLabel?: string;
   onRetry?: () => void;
+  error?: unknown;
+  context?: UserFacingErrorContext;
   className?: string;
   compact?: boolean;
   fullPage?: boolean;
 }) {
+  const resolvedDescription =
+    error != null
+      ? getUserFacingErrorMessage(error, description, context)
+      : description;
+
   return (
     <EmptyState
       variant="error"
       title={title}
-      description={description}
+      description={resolvedDescription}
       actionLabel={onRetry ? retryLabel : undefined}
       onAction={onRetry}
       className={className}
@@ -301,6 +320,50 @@ export function ForbiddenInlineState({
   );
 }
 
+/** 민감 고객 데이터 — 존재 여부·권한을 구분하지 않는 안전 안내 */
+export function SensitiveDataUnavailableState({
+  title = SENSITIVE_ACCESS_UX.title,
+  description = SENSITIVE_ACCESS_UX.description,
+  onRetry,
+  showRetry = false,
+  action,
+  className,
+  compact,
+  fullPage,
+}: {
+  title?: string;
+  description?: string;
+  onRetry?: () => void;
+  showRetry?: boolean;
+  action?: React.ReactNode;
+  className?: string;
+  compact?: boolean;
+  fullPage?: boolean;
+}) {
+  return (
+    <EmptyState
+      icon={FileQuestion}
+      tone="neutral"
+      title={title}
+      description={description}
+      action={
+        action ?? (
+          <CustomerAccessDefaultActions
+            onRetry={onRetry}
+            showRetry={showRetry}
+          />
+        )
+      }
+      className={className}
+      compact={compact}
+      fullPage={fullPage}
+    />
+  );
+}
+
+/** @deprecated alias — use SensitiveDataUnavailableState */
+export const CustomerAccessUnavailableState = SensitiveDataUnavailableState;
+
 export function NotFoundState({
   title = "요청한 화면을 찾을 수 없습니다.",
   description = "이전 화면으로 돌아가 주세요.",
@@ -335,4 +398,5 @@ export const BoaEmptyState = EmptyState;
 export const BoaLoadingState = LoadingState;
 export const BoaErrorState = ErrorState;
 export const BoaForbiddenState = ForbiddenInlineState;
+export const BoaSensitiveAccessState = SensitiveDataUnavailableState;
 export const BoaInlineState = EmptyState;

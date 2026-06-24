@@ -3,6 +3,10 @@ import {
   ErrorState,
   LoadingState,
 } from "@/components/ui/empty-state";
+import {
+  getLoadErrorCopy,
+  getLoadingCopy,
+} from "@/lib/stateUxCopy";
 import type { ReactNode } from "react";
 
 type ConsultationToolsListStateProps = {
@@ -31,8 +35,7 @@ export function ConsultationToolsListState({
   if (!hasLoaded && isLoading) {
     return (
       <LoadingState
-        title="상담 도구를 불러오고 있습니다."
-        description="잠시만 기다려 주세요."
+        {...getLoadingCopy("상담 도구")}
         className="border-dashed bg-muted/20"
       />
     );
@@ -41,8 +44,7 @@ export function ConsultationToolsListState({
   if (isError) {
     return (
       <ErrorState
-        title="상담 도구를 불러오지 못했습니다."
-        description="잠시 후 다시 시도해 주세요."
+        {...getLoadErrorCopy("상담 도구")}
         onRetry={onRetry}
         className="border-dashed bg-muted/20"
       />

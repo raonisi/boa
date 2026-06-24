@@ -23,8 +23,9 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { adminPage } from "@/lib/adminDesignTokens";
-import { trpc } from "@/lib/trpc";
 import { ErrorState, LoadingState } from "@/components/ui/empty-state";
+import { trpc } from "@/lib/trpc";
+import { getSafeBlockedMessage } from "@/lib/stateUxCopy";
 import { CalendarDays, Link2, RefreshCw, ShieldAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
@@ -649,7 +650,7 @@ export default function GoogleCalendarIntegration() {
                 </div>
                 {previewQuery.data?.blocked ? (
                   <p className="text-sm text-destructive">
-                    {previewQuery.data.message}
+                    {getSafeBlockedMessage(previewQuery.data.message)}
                   </p>
                 ) : previewQuery.data && !previewQuery.data.blocked ? (
                   <Textarea

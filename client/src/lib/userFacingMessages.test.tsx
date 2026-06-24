@@ -96,6 +96,7 @@ describe("getUserFacingErrorMessage", () => {
   it("exposes standard forbidden and customer access copy constants", () => {
     expect(FORBIDDEN_UX.title).toBe("접근 권한이 없습니다");
     expect(FORBIDDEN_UX.description).toBe(USER_FACING_ERRORS.permission);
+    expect(CUSTOMER_ACCESS_UX.title).toBe("정보를 확인할 수 없습니다");
     expect(CUSTOMER_ACCESS_UX.description).toBe(
       USER_FACING_ERRORS.customerNotFound
     );

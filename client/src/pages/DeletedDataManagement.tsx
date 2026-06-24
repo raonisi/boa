@@ -23,6 +23,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { trpc } from "@/lib/trpc";
 import { AlertTriangle, Check, RotateCcw, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { ErrorState } from "@/components/ui/empty-state";
+import { getLoadErrorCopy } from "@/lib/stateUxCopy";
 import { toastUserFacingError, USER_FACING_ERRORS } from "@/lib/userFacingMessages";
 import { toast } from "sonner";
 
@@ -568,9 +570,11 @@ export default function DeletedDataManagement() {
                     )}
                   </>
                 ) : (
-                  <p className="mt-1">
-                    연결 데이터 확인 정보를 불러오지 못했습니다.
-                  </p>
+                  <ErrorState
+                    {...getLoadErrorCopy("연결 데이터 확인 정보")}
+                    compact
+                    className="mt-1 border-0 bg-transparent py-4"
+                  />
                 )}
               </div>
             )}
