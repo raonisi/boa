@@ -42,6 +42,13 @@ interface ValidationResult {
   errors: string[];
 }
 
+interface ImportResultSummary {
+  createdCustomers?: number;
+  updatedCustomers?: number;
+  consultationCreatedRows?: number;
+  manualReviewRows?: number;
+}
+
 const BIRTH_DATE_HEADERS = new Set(["birthDate", "생년월일"]);
 
 function pad2(value: number) {
@@ -150,6 +157,8 @@ export default function CustomerBulkImport() {
   const [stage, setStage] = useState<"upload" | "preview" | "result">("upload");
   const [isLoading, setIsLoading] = useState(false);
   const [importBatchId, setImportBatchId] = useState<string>("");
+  const [importResultSummary, setImportResultSummary] =
+    useState<ImportResultSummary | null>(null);
   const [assignmentMode, setAssignmentMode] = useState<string>("csv");
 
   const downloadTemplateQuery =
@@ -188,6 +197,10 @@ export default function CustomerBulkImport() {
         "미상담",
         "상담 전 확인 필요",
         "김담당",
+          "부재",
+          "2026-06-25 10:00",
+          "초기 통화 연결되지 않음",
+          "2026-06-27 11:00",
       ]
     : [
         "홍길동",
@@ -201,6 +214,10 @@ export default function CustomerBulkImport() {
         "렌선",
         "미상담",
         "상담 전 확인 필요",
+          "부재",
+          "2026-06-25 10:00",
+          "초기 통화 연결되지 않음",
+          "2026-06-27 11:00",
       ];
 
   const templateGuideRows = [
@@ -208,7 +225,11 @@ export default function CustomerBulkImport() {
     ["필수 컬럼", "이름, 생년월일, 연락처"],
     [
       "선택 컬럼",
-      "성별, 지역, 예상보험료(만원), 통화가능시간, 유입경로, DB 업체명, 상담상태, 메모",
+      "성별, 지역, 예상보험료(만원), 통화가능시간, 유입경로, DB 업체명, 상담상태, 메모, 상담일시, 상담메모, 다음연락일",
+    ],
+    [
+      "상담기록",
+      "전화끊음, 입원중, 부재, 거절, 상담예정 중 하나. 별칭(예: 부재중, 통화거절)도 허용됩니다.",
     ],
     [
       "예상보험료",
@@ -351,6 +372,9 @@ export default function CustomerBulkImport() {
         agentId: selectedAgentId,
       });
       setValidationResults(result.validationResults);
+      setImportResultSummary({
+        manualReviewRows: (result as any).manualReviewRows,
+      });
       setStage("preview");
     } catch (error: any) {
       alert("파일 검증에 실패했습니다. 내용을 확인한 뒤 다시 시도해 주세요.");
@@ -373,6 +397,12 @@ export default function CustomerBulkImport() {
       });
       setImportBatchId(result.importBatchId);
       setValidationResults(result.validationResults);
+      setImportResultSummary({
+        createdCustomers: (result as any).createdCustomers,
+        updatedCustomers: (result as any).updatedCustomers,
+        consultationCreatedRows: (result as any).consultationCreatedRows,
+        manualReviewRows: (result as any).manualReviewRows,
+      });
       setStage("result");
     } catch (error: any) {
       alert("등록에 실패했습니다. 다시 시도해 주세요.");
@@ -434,7 +464,15 @@ export default function CustomerBulkImport() {
                 </div>
                 <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                   <p>필수 컬럼은 이름, 생년월일, 연락처입니다.</p>
+                  <p>
+                    상담기록 컬럼은 선택 입력입니다. 값이 있으면 고객 상담이력에
+                    `DB 통화결과`로 저장됩니다.
+                  </p>
                   <p>상담상태는 선택값이며, 미입력 시 미상담으로 등록됩니다.</p>
+                  <p>
+                    기존 양식(상담기록/상담일시/상담메모/다음연락일 없음)도 그대로
+                    업로드할 수 있습니다.
+                  </p>
                   {canSelectAssignee ? (
                     <p>
                       담당자 컬럼을 입력하면 해당 담당자에게 고객이 배정됩니다.
@@ -595,6 +633,11 @@ export default function CustomerBulkImport() {
                 </CardContent>
               </Card>
             </div>
+            <div className="text-xs text-muted-foreground space-y-1">
+              <p>
+                수동 확인 필요: {importResultSummary?.manualReviewRows ?? 0}건
+              </p>
+            </div>
 
             {/* Preview Table */}
             <Card>
@@ -617,6 +660,9 @@ export default function CustomerBulkImport() {
                           연락처
                         </th>
                         <th className="text-left py-2 px-2 font-medium">
+                          상담기록
+                        </th>
+                        <th className="text-left py-2 px-2 font-medium">
                           상태
                         </th>
                         <th className="text-left py-2 px-2 font-medium">
@@ -637,6 +683,7 @@ export default function CustomerBulkImport() {
                             <td className="py-2 px-2">{result.rowIndex + 1}</td>
                             <td className="py-2 px-2">{row.이름 || "-"}</td>
                             <td className="py-2 px-2">{row.연락처 || "-"}</td>
+                            <td className="py-2 px-2">{row.상담기록 || "-"}</td>
                             <td className="py-2 px-2">
                               {result.isValid ? (
                                 <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
@@ -679,6 +726,7 @@ export default function CustomerBulkImport() {
                   setFileName("");
                   setParsedRows([]);
                   setValidationResults([]);
+                  setImportResultSummary(null);
                 }}
               >
                 다시 선택
@@ -757,6 +805,50 @@ export default function CustomerBulkImport() {
                 </CardContent>
               </Card>
             </div>
+            <p className="text-xs text-muted-foreground">
+              상담기록이 입력된 정상 행은 고객 상담이력에 `DB 일괄등록` 출처로
+              별도 기록됩니다.
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <p className="text-2xl font-bold tabular-nums">
+                    {importResultSummary?.createdCustomers ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">등록된 고객 수</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <p className="text-2xl font-bold tabular-nums">
+                    {importResultSummary?.updatedCustomers ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    업데이트된 고객 수
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <p className="text-2xl font-bold tabular-nums">
+                    {importResultSummary?.consultationCreatedRows ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    생성된 상담기록 수
+                  </p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6 text-center">
+                  <p className="text-2xl font-bold tabular-nums">
+                    {importResultSummary?.manualReviewRows ?? 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    수동 확인 필요
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Error List */}
             {errorCount > 0 && (
@@ -832,6 +924,7 @@ export default function CustomerBulkImport() {
                   setParsedRows([]);
                   setValidationResults([]);
                   setImportBatchId("");
+                  setImportResultSummary(null);
                 }}
               >
                 다시 업로드
