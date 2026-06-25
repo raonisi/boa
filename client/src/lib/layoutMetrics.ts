@@ -46,6 +46,13 @@ export function meetsMinimumHitTarget(
   return rect.width + tolerance >= minSize && rect.height + tolerance >= minSize;
 }
 
+export function verticalGapBetweenRects(
+  upper: RectLike,
+  lower: RectLike
+): number {
+  return lower.top - upper.bottom;
+}
+
 export const RESPONSIVE_VIEWPORTS = {
   desktop1440: { width: 1440, height: 900 },
   desktop1280: { width: 1280, height: 800 },

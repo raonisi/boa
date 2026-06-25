@@ -5,6 +5,7 @@ import {
   collectPageErrors,
   expectClickCenterReachable,
   expectMinimumHitTarget,
+  expectMinimumVerticalGapBetween,
   expectNoHorizontalOverflow,
   expectStablePageShell,
   RESPONSIVE_VIEWPORTS,
@@ -213,7 +214,7 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     ).toBeVisible();
   });
 
-  test("mobile customer assign action bar does not overlap bottom navigation", async ({
+  test("mobile customer assign action bar keeps gap above bottom navigation", async ({
     page,
   }, testInfo) => {
     test.skip(
@@ -226,15 +227,46 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
 
     await page.goto("/customers/assign", { waitUntil: "domcontentloaded" });
     await page.getByPlaceholder(/고객명|연락처|지역|유입/).fill("[E2E]");
-    await page.getByRole("checkbox", { name: "고객 선택" }).check();
+    await page
+      .getByRole("checkbox", {
+        name: "현재 페이지 배정 대상 고객 1번 행 선택",
+      })
+      .check();
     const actionBar = page.getByRole("region", { name: "선택 고객 일괄 작업" });
     const clearSelection = actionBar.getByRole("button", { name: "선택 해제" });
     const mobileNav = page.locator("nav.fixed");
     await expect(actionBar).toBeVisible();
+    await expectMinimumVerticalGapBetween(actionBar, mobileNav, 8);
     await expectLocatorPairWithinViewport(page, actionBar, mobileNav);
     await expectClickCenterReachable(clearSelection);
     await expectStablePageShell(page, errors);
   });
+
+  for (const viewportKey of MOBILE_VIEWPORT_KEYS) {
+    test(`mobile ${RESPONSIVE_VIEWPORTS[viewportKey].width}px customer assign action bar gap`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(
+        !testInfo.project.name.includes("mobile"),
+        "mobile-only action bar gap"
+      );
+      await setResponsiveViewport(page, viewportKey);
+      await mockBoaTrpc(page, "branch_admin");
+      await page.goto("/customers/assign", { waitUntil: "domcontentloaded" });
+      await page.getByPlaceholder(/고객명|연락처|지역|유입/).fill("[E2E]");
+      await page
+        .getByRole("checkbox", {
+          name: "현재 페이지 배정 대상 고객 1번 행 선택",
+        })
+        .check();
+      const actionBar = page.getByRole("region", { name: "선택 고객 일괄 작업" });
+      const mobileNav = page.locator("nav.fixed");
+      await expectMinimumVerticalGapBetween(actionBar, mobileNav, 8);
+      await expectClickCenterReachable(
+        actionBar.getByRole("button", { name: "선택 해제" })
+      );
+    });
+  }
 
   test("mobile notifications bulk checkbox exposes 44px touch target", async ({
     page,
@@ -250,7 +282,7 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
       .getByText("[E2E] Today notification")
       .locator("xpath=ancestor::*[contains(@class,'crm-elevated-card')][1]");
     const checkbox = notificationRow.getByRole("checkbox", {
-      name: "알림 선택",
+      name: "현재 페이지 알림 1번 행 선택",
     });
     await expectMinimumHitTarget(checkbox, 44);
     await checkbox.check();

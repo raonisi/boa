@@ -6,8 +6,10 @@ import {
   rectWithinViewport,
   rectsOverlap,
   RESPONSIVE_VIEWPORTS,
+  verticalGapBetweenRects,
   type RectLike,
 } from "../../client/src/lib/layoutMetrics";
+import { MOBILE_FIXED_ABOVE_NAV_GAP_PX } from "../../client/src/lib/mobileLayout";
 
 export { RESPONSIVE_VIEWPORTS };
 
@@ -74,6 +76,21 @@ export async function expectClickCenterReachable(locator: Locator) {
     return element === hit || element.contains(hit);
   });
   expect(reachable).toBe(true);
+}
+
+export async function expectMinimumVerticalGapBetween(
+  upper: Locator,
+  lower: Locator,
+  minGap = MOBILE_FIXED_ABOVE_NAV_GAP_PX,
+  tolerance = 1
+) {
+  const [upperRect, lowerRect] = await Promise.all([
+    getLocatorRect(upper),
+    getLocatorRect(lower),
+  ]);
+  expect(verticalGapBetweenRects(upperRect, lowerRect)).toBeGreaterThanOrEqual(
+    minGap - tolerance
+  );
 }
 
 export async function setResponsiveViewport(
