@@ -20,6 +20,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  getPageRowSelectionLabel,
+  getPageSelectAllLabel,
+} from "@/lib/checkboxA11yLabels";
+import {
   classifyNotificationPriority,
   sortNotificationsForQueue,
 } from "@/lib/notificationPriority";
@@ -787,7 +791,7 @@ export default function Notifications() {
                     disabled={
                       visibleNotificationIds.length === 0 || isBulkPending
                     }
-                    aria-label="현재 페이지 알림 전체 선택"
+                    aria-label={getPageSelectAllLabel({ surface: "notification" })}
                     onCheckedChange={checked =>
                       toggleVisibleSelection(checked === true)
                     }
@@ -855,7 +859,7 @@ export default function Notifications() {
                 </div>
               </CardContent>
             </Card>
-            {sortedNotifications.map(n => {
+            {sortedNotifications.map((n, rowIndex) => {
               const processStatus =
                 (n.processStatus as ProcessStatus) ?? "미확인";
               const colorClass =
@@ -885,7 +889,10 @@ export default function Notifications() {
                           checked={isSelected}
                           disabled={isBulkPending}
                           className="mt-0.5 sm:mt-0"
-                          aria-label="알림 선택"
+                          aria-label={getPageRowSelectionLabel({
+                            surface: "notification",
+                            rowIndex: rowIndex + 1,
+                          })}
                           onCheckedChange={checked =>
                             toggleNotificationSelection(n.id, checked === true)
                           }

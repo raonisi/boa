@@ -5,6 +5,7 @@ import {
   meetsMinimumHitTarget,
   rectWithinViewport,
   rectsOverlap,
+  verticalGapBetweenRects,
 } from "./layoutMetrics";
 
 describe("layoutMetrics", () => {
@@ -61,5 +62,14 @@ describe("layoutMetrics", () => {
         height: 24,
       }, 44)
     ).toBe(false);
+  });
+
+  it("computes vertical gap between stacked rectangles", () => {
+    expect(
+      verticalGapBetweenRects(
+        { top: 0, left: 0, bottom: 100, right: 10, width: 10, height: 100 },
+        { top: 108, left: 0, bottom: 150, right: 10, width: 10, height: 42 }
+      )
+    ).toBe(8);
   });
 });

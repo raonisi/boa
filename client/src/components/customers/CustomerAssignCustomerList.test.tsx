@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CustomerAssignCustomerList } from "./CustomerAssignCustomerList";
 import { CustomerAssignMobileActionBar } from "./CustomerAssignMobileActionBar";
 import { WORKFLOW_COPY } from "@/lib/assignmentWorkflowCopy";
+import { MOBILE_FIXED_ABOVE_NAV_BOTTOM } from "@/lib/mobileLayout";
 
 const sampleCustomers = [
   {
@@ -79,6 +80,8 @@ describe("CustomerAssign mobile workspace", () => {
     );
 
     expect(html).toContain("선택됨");
+    expect(html).toContain("현재 페이지 배정 대상 고객 1번 행 선택");
+    expect(html).not.toContain('aria-label="고객 선택"');
   });
 
   it("renders mobile action bar with workflow-specific copy", () => {
@@ -99,7 +102,7 @@ describe("CustomerAssign mobile workspace", () => {
     expect(html).toContain(WORKFLOW_COPY.dbAssignment.title);
     expect(html).toContain("2명 배정");
     expect(html).toContain("선택 해제");
-    expect(html).toContain("bottom-[68px]");
+    expect(html).toContain(MOBILE_FIXED_ABOVE_NAV_BOTTOM);
   });
 
   it("hides action bar when nothing is selected", () => {

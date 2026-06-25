@@ -28,6 +28,10 @@ import {
 } from "@/components/ui/table";
 import { formatAssignmentStatusLabel } from "@/components/customers/customerAssignLabels";
 import { useIsMobile } from "@/hooks/useMobile";
+import {
+  getPageRowSelectionLabel,
+  getPageSelectAllLabel,
+} from "@/lib/checkboxA11yLabels";
 import { WORKFLOW_COPY } from "@/lib/assignmentWorkflowCopy";
 import { cn } from "@/lib/utils";
 import { Filter, Search, X } from "lucide-react";
@@ -260,8 +264,13 @@ export function CustomerAssignCustomerList({
                 className="border-dashed bg-muted/20 py-8"
               />
             ) : (
-              customers.map(customer => {
+              customers.map((customer, rowIndex) => {
                 const isSelected = selected.includes(customer.id);
+                const rowCheckboxLabel = getPageRowSelectionLabel({
+                  surface: "customer",
+                  rowIndex: rowIndex + 1,
+                  workflow: "assign",
+                });
                 return (
                   <Card
                     key={customer.id}
@@ -277,7 +286,7 @@ export function CustomerAssignCustomerList({
                             touchTarget
                             checked={isSelected}
                             onCheckedChange={() => onToggle(customer.id)}
-                            aria-label="고객 선택"
+                            aria-label={rowCheckboxLabel}
                             className="mt-0.5 sm:mt-0"
                           />
                         </div>
@@ -345,7 +354,10 @@ export function CustomerAssignCustomerList({
                         type="checkbox"
                         onChange={onToggleAll}
                         checked={allVisibleSelected}
-                        aria-label="현재 목록 전체 선택"
+                        aria-label={getPageSelectAllLabel({
+                          surface: "customer",
+                          workflow: "assign",
+                        })}
                         className="h-6 w-6 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       />
                     </label>
@@ -374,7 +386,7 @@ export function CustomerAssignCustomerList({
                     </TableCell>
                   </TableRow>
                 ) : (
-                  customers.map(customer => (
+                  customers.map((customer, rowIndex) => (
                     <TableRow
                       key={customer.id}
                       className={
@@ -387,7 +399,11 @@ export function CustomerAssignCustomerList({
                             type="checkbox"
                             checked={selected.includes(customer.id)}
                             onChange={() => onToggle(customer.id)}
-                            aria-label="고객 선택"
+                            aria-label={getPageRowSelectionLabel({
+                              surface: "customer",
+                              rowIndex: rowIndex + 1,
+                              workflow: "assign",
+                            })}
                             className="h-6 w-6 rounded border-input text-primary focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
                           />
                         </label>

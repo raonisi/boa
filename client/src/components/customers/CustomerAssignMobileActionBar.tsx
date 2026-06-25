@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { WORKFLOW_COPY } from "@/lib/assignmentWorkflowCopy";
+import { MOBILE_FIXED_ABOVE_NAV_BOTTOM } from "@/lib/mobileLayout";
 import { UserPlus, Users, X } from "lucide-react";
 import React from "react";
 
@@ -35,10 +36,8 @@ export function CustomerAssignMobileActionBar({
 
   return (
     <div
-      className="fixed inset-x-0 bottom-[68px] z-40 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
-      style={{
-        paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))",
-      }}
+      className="fixed inset-x-0 z-40 border-t border-border bg-background/95 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden"
+      style={{ bottom: MOBILE_FIXED_ABOVE_NAV_BOTTOM }}
       role="region"
       aria-label="선택 고객 일괄 작업"
     >
