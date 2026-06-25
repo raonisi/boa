@@ -4,6 +4,8 @@ import SuperJSON from "superjson";
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 type MockOptions = {
   permissions?: string[];
+  accountStatus?: "active" | "inactive" | "resigned";
+  customerDetailDenied?: boolean;
 };
 
 const fixtureToday = new Date();
@@ -25,16 +27,51 @@ const oneHourAfterNow = new Date(
 ).toISOString();
 
 function userFor(role: Role, options?: MockOptions) {
+  const accountStatus = options?.accountStatus ?? "active";
+  const profileByRole: Record<
+    Role,
+    { id: number; name: string; teamId: number | null; subBranchAdminId: number | null; parentUserId: number | null }
+  > = {
+    branch_admin: {
+      id: 1,
+      name: "[E2E] Branch Admin",
+      teamId: null,
+      subBranchAdminId: null,
+      parentUserId: null,
+    },
+    sub_branch_admin: {
+      id: 2,
+      name: "[E2E] Sub Admin",
+      teamId: null,
+      subBranchAdminId: null,
+      parentUserId: 1,
+    },
+    team_leader: {
+      id: 3,
+      name: "[E2E] Team Leader",
+      teamId: 10,
+      subBranchAdminId: 2,
+      parentUserId: 2,
+    },
+    member: {
+      id: 4,
+      name: "[E2E] Member",
+      teamId: 10,
+      subBranchAdminId: 2,
+      parentUserId: 3,
+    },
+  };
+  const profile = profileByRole[role];
   return {
-    id: role === "member" ? 4 : 1,
+    id: profile.id,
     openId: `e2e-${role}`,
     email: `${role}@e2e.test`,
-    name: role === "member" ? "[E2E] Member" : "[E2E] Branch Admin",
+    name: profile.name,
     role,
-    accountStatus: "active",
-    teamId: role === "member" ? 10 : null,
-    subBranchAdminId: role === "member" ? 2 : null,
-    parentUserId: role === "member" ? 3 : null,
+    accountStatus,
+    teamId: profile.teamId,
+    subBranchAdminId: profile.subBranchAdminId,
+    parentUserId: profile.parentUserId,
     sessionInvalidatedAt: null,
     permissions: options?.permissions,
   };
@@ -42,21 +79,21 @@ function userFor(role: Role, options?: MockOptions) {
 
 const users = [
   userFor("branch_admin"),
-  {
-    ...userFor("sub_branch_admin"),
-    id: 2,
-    name: "[E2E] Sub Admin",
-    parentUserId: 1,
-  },
-  {
-    ...userFor("team_leader"),
-    id: 3,
-    name: "[E2E] Team Leader",
-    teamId: 10,
-    subBranchAdminId: 2,
-    parentUserId: 2,
-  },
+  userFor("sub_branch_admin"),
+  userFor("team_leader"),
   userFor("member"),
+  {
+    ...userFor("member"),
+    id: 6,
+    name: "[TEST] UI Inactive User",
+    accountStatus: "inactive" as const,
+  },
+  {
+    ...userFor("member"),
+    id: 7,
+    name: "[TEST] UI Resigned User",
+    accountStatus: "resigned" as const,
+  },
 ];
 
 const customer = {
@@ -709,13 +746,33 @@ const defaults: Record<string, unknown> = {
   "download.preview": downloadPreview,
 };
 
+const outOfScopeCustomer = {
+  ...customer,
+  id: 202,
+  name: "[TEST] UI Out of Scope",
+  agentId: 99,
+};
+
 function responseFor(procedure: string, role: Role, options?: MockOptions) {
   if (procedure === "auth.me") return userFor(role, options);
+  if (procedure === "customers.list") {
+    return [customer, outOfScopeCustomer];
+  }
   return defaults[procedure] ?? null;
 }
 
 function serialize(data: unknown) {
   return { result: { data: SuperJSON.serialize(data) } };
+}
+
+function extractCustomerIdFromRequest(route: Route, url: URL): number | null {
+  const blob = `${url.search}\n${route.request().postData() ?? ""}`;
+  const explicit = blob.match(/"id"\s*:\s*(\d+)/);
+  if (explicit) return Number(explicit[1]);
+  if (url.pathname.includes("customers.get") && /\b202\b/.test(blob)) {
+    return outOfScopeCustomer.id;
+  }
+  return null;
 }
 
 async function fulfillTrpc(route: Route, role: Role, options?: MockOptions) {
@@ -724,9 +781,22 @@ async function fulfillTrpc(route: Route, role: Role, options?: MockOptions) {
     url.pathname.replace(/^\/api\/trpc\/?/, "")
   );
   const procedures = rawPath.split(",").filter(Boolean);
-  const body = procedures.map(procedure =>
-    serialize(responseFor(procedure, role, options))
-  );
+
+  const body = procedures.map(procedure => {
+    if (procedure === "customers.get") {
+      const payload = `${url.search}\n${route.request().postData() ?? ""}`;
+      const requestedId = extractCustomerIdFromRequest(route, url);
+      if (
+        options?.customerDetailDenied ||
+        requestedId === outOfScopeCustomer.id ||
+        /:\s*202\b/.test(payload)
+      ) {
+        return serialize(null);
+      }
+      return serialize(customer);
+    }
+    return serialize(responseFor(procedure, role, options));
+  });
 
   await route.fulfill({
     status: 200,
