@@ -3,6 +3,7 @@ import {
   normalizePhone,
   detectForbiddenColumns,
   normalizeBulkImportRow,
+  normalizeBulkImportConsultationResult,
   validateBulkImportRow,
   getAllActiveCustomerPhones,
   bulkCreateCustomers,
@@ -342,6 +343,39 @@ describe("Bulk Import Functions", () => {
       expect(result.isValid).toBe(false);
       expect(result.errors.some(e => e.includes("기존 DB에 존재"))).toBe(true);
     });
+
+    it("should accept allowed consultation log aliases", async () => {
+      const row = {
+        이름: "홍길동",
+        연락처: "010-2222-2222",
+        생년월일: "1990-01-15",
+        상담기록: "부재중",
+      };
+
+      const result = await validateBulkImportRow(row, 0, new Set(), new Set());
+      expect(
+        result.errors.some(e =>
+          e.includes(
+            "상담기록은 전화끊음, 입원중, 부재, 거절, 상담예정 중 하나로 입력해 주세요."
+          )
+        )
+      ).toBe(false);
+    });
+
+    it("should reject unsupported consultation log values", async () => {
+      const row = {
+        이름: "홍길동",
+        연락처: "010-3333-3333",
+        생년월일: "1990-01-15",
+        상담기록: "알수없음",
+      };
+
+      const result = await validateBulkImportRow(row, 0, new Set(), new Set());
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toContain(
+        "상담기록은 전화끊음, 입원중, 부재, 거절, 상담예정 중 하나로 입력해 주세요."
+      );
+    });
   });
 
   describe("Edge Cases", () => {
@@ -502,6 +536,41 @@ describe("Bulk Import Functions", () => {
         "DB 업체명": "렌선",
       });
       expect(row.dbCompany).toBe("렌선");
+    });
+
+    it("reads consultation log columns and optional datetime fields", () => {
+      const row = normalizeBulkImportRow({
+        이름: "테스트",
+        상담기록: "부재",
+        상담일시: "2026-06-25 10:00",
+        상담메모: "재연락 필요",
+        다음연락일: "2026-06-27 11:00",
+      });
+      expect(row.consultationLog).toBe("부재");
+      expect(row.consultationDateTime).toBe("2026-06-25 10:00");
+      expect(row.consultationMemo).toBe("재연락 필요");
+      expect(row.nextContactDate).toBe("2026-06-27 11:00");
+    });
+  });
+
+  describe("consultation log normalization", () => {
+    it("normalizes allowed aliases", () => {
+      expect(normalizeBulkImportConsultationResult("전화 끊음")).toBe("전화끊음");
+      expect(normalizeBulkImportConsultationResult("끊음")).toBe("전화끊음");
+      expect(normalizeBulkImportConsultationResult("부재중")).toBe("부재");
+      expect(normalizeBulkImportConsultationResult("안받음")).toBe("부재");
+      expect(normalizeBulkImportConsultationResult("통화거절")).toBe("거절");
+      expect(normalizeBulkImportConsultationResult("상담 예정")).toBe("상담예정");
+      expect(normalizeBulkImportConsultationResult("재통화예정")).toBe("상담예정");
+    });
+
+    it("returns null for unsupported consultation values", () => {
+      expect(normalizeBulkImportConsultationResult("미확인")).toBeNull();
+    });
+
+    it("returns undefined for empty values", () => {
+      expect(normalizeBulkImportConsultationResult("")).toBeUndefined();
+      expect(normalizeBulkImportConsultationResult(undefined)).toBeUndefined();
     });
   });
 

@@ -2050,15 +2050,18 @@ export async function getConsultationById(id: number) {
 
 export async function createConsultation(
   data: InsertConsultation,
-  client?: DbExecutor
+  client?: DbExecutor,
+  options?: { updateCustomerConsultStatus?: boolean }
 ) {
   const db = client ?? (await getDb());
   if (!db) return;
   await db.insert(consultations).values({ ...data, isActive: true });
-  await db
-    .update(customers)
-    .set({ consultStatus: data.status })
-    .where(eq(customers.id, data.customerId));
+  if (options?.updateCustomerConsultStatus ?? true) {
+    await db
+      .update(customers)
+      .set({ consultStatus: data.status })
+      .where(eq(customers.id, data.customerId));
+  }
 }
 
 export async function updateConsultation(

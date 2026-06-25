@@ -8907,16 +8907,12 @@ export const appRouter = router({
             const normalizedConsultationResult = normalizeBulkImportConsultationResult(
               row.consultationLog
             );
-            const normalizedStatusFromConsultation =
-              normalizedConsultationResult
-                ? mapImportConsultationResultToCustomerStatus(
-                    normalizedConsultationResult
-                  )
-                : undefined;
-            const normalizedConsultStatus =
-              normalizedStatusFromConsultation ??
-              row.consultStatus ??
-              "미상담";
+            const normalizedStatusFromConsultation = normalizedConsultationResult
+              ? mapImportConsultationResultToCustomerStatus(
+                  normalizedConsultationResult
+                )
+              : undefined;
+            const normalizedConsultStatus = row.consultStatus ?? "미상담";
             const customerPayload = {
               name: row.name!,
               phone:
@@ -8965,7 +8961,6 @@ export const appRouter = router({
                   availableTime: customerPayload.availableTime,
                   source: customerPayload.source,
                   dbCompany: customerPayload.dbCompany,
-                  consultStatus: customerPayload.consultStatus as any,
                   memo: customerPayload.memo,
                   agentId: customerPayload.agentId,
                   subBranchAdminId: customerPayload.subBranchAdminId,
@@ -8991,13 +8986,15 @@ export const appRouter = router({
                 ? parseImportDateTimeOrThrow(row.nextContactDate, "다음연락일")
                 : undefined;
               const summary = "DB 일괄등록";
-              const content =
+              const assignedAgentId = result.agentId ?? ctx.user.id;
+              const baseContent =
                 row.consultationMemo?.trim() ||
                 `DB 일괄등록으로 업로드된 전화 상담기록입니다. 결과: ${normalizedConsultationResult}`;
+              const content = `${baseContent}\n작성자:${ctx.user.id}\n담당자:${assignedAgentId}`;
               await createConsultation(
                 {
                   customerId,
-                  agentId: result.agentId ?? ctx.user.id,
+                  agentId: assignedAgentId,
                   status: normalizedStatusFromConsultation ?? "상담예정",
                   consultationType: "DB 통화결과",
                   summary,
@@ -9005,7 +9002,8 @@ export const appRouter = router({
                   nextContactAt,
                   createdAt: consultationOccurredAt,
                 } as any,
-                tx
+                tx,
+                { updateCustomerConsultStatus: false }
               );
               consultationLogsCreated += 1;
             }
