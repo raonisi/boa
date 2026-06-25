@@ -1559,6 +1559,138 @@ describe("Bulk import branch-admin access policy", () => {
     );
   });
 
+  it("does not create consultation history when 상담기록 is empty", async () => {
+    vi.spyOn(db, "getAllActiveCustomerPhones")
+      .mockResolvedValueOnce(new Set())
+      .mockResolvedValueOnce(new Set());
+    vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
+    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([{ insertId: 10 }] as any);
+    const createConsultationSpy = vi
+      .spyOn(db, "createConsultation")
+      .mockResolvedValue(undefined);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) =>
+      callback({})
+    );
+
+    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.bulkImport({
+      fileName: "customers.csv",
+      rows: [
+        {
+          ...row,
+          name: "[TEST] No Consultation Log",
+          상담기록: "",
+        },
+      ],
+    });
+
+    expect(createConsultationSpy).not.toHaveBeenCalled();
+  });
+
+  it("stores imported consultation with assignee in agentId and uploader metadata while skipping customer status update side effects", async () => {
+    const existingCustomer = {
+      id: 77,
+      name: "[TEST] Existing",
+      phone: "01020000009",
+      consultStatus: "미상담",
+      isActive: true,
+    } as any;
+    vi.spyOn(db, "getAllActiveCustomerPhones")
+      .mockResolvedValueOnce(new Set(["01020000009"]))
+      .mockResolvedValueOnce(new Set(["01020000009"]));
+    vi.spyOn(db, "getCustomers").mockResolvedValue([existingCustomer]);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      role: "member",
+      accountStatus: "active",
+      teamId: 10,
+      subBranchAdminId: 2,
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
+    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([] as any);
+    const updateCustomerSpy = vi
+      .spyOn(db, "updateCustomer")
+      .mockResolvedValue(undefined);
+    const createConsultationSpy = vi
+      .spyOn(db, "createConsultation")
+      .mockResolvedValue(undefined);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) =>
+      callback({})
+    );
+
+    await appRouter
+      .createCaller(createCtx("branch_admin", { userId: 1 }))
+      .customers.bulkImport({
+        fileName: "customers.xlsx",
+        rows: [
+          {
+            ...row,
+            phone: "010-2000-0009",
+            담당자: "담당자A",
+            상담기록: "부재",
+            상담메모: "",
+          },
+        ],
+        agentId: 4,
+      });
+
+    expect(updateCustomerSpy).toHaveBeenCalledTimes(1);
+    const updatedPayload = updateCustomerSpy.mock.calls[0]?.[1] as Record<
+      string,
+      unknown
+    >;
+    expect(updatedPayload).toBeDefined();
+    expect("consultStatus" in updatedPayload).toBe(false);
+
+    expect(createConsultationSpy).toHaveBeenCalledTimes(1);
+    const createConsultArgs = createConsultationSpy.mock.calls[0] as any[];
+    expect(createConsultArgs[0]).toEqual(
+      expect.objectContaining({
+        customerId: 77,
+        agentId: 4,
+        consultationType: "DB 통화결과",
+      })
+    );
+    expect(String(createConsultArgs[0].content)).toContain("작성자:1");
+    expect(String(createConsultArgs[0].content)).toContain("담당자:4");
+    expect(createConsultArgs[2]).toEqual(
+      expect.objectContaining({ updateCustomerConsultStatus: false })
+    );
+  });
+
+  it("returns partial success for invalid 상담기록 rows", async () => {
+    vi.spyOn(db, "getAllActiveCustomerPhones")
+      .mockResolvedValueOnce(new Set())
+      .mockResolvedValueOnce(new Set());
+    vi.spyOn(db, "getCustomers").mockResolvedValue([]);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
+    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([{ insertId: 11 }] as any);
+    vi.spyOn(db, "createConsultation").mockResolvedValue(undefined);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) =>
+      callback({})
+    );
+
+    const result = await appRouter
+      .createCaller(createCtx("branch_admin", { userId: 1 }))
+      .customers.bulkImport({
+        fileName: "customers.csv",
+        rows: [
+          { ...row, name: "[TEST] Valid 상담기록", 상담기록: "상담 예정" },
+          { ...row, name: "[TEST] Invalid 상담기록", phone: "010-2000-0012", 상담기록: "알수없음" },
+        ],
+      });
+
+    expect(result.successRows).toBe(1);
+    expect(result.failedRows).toBe(1);
+    expect(result.consultationCreatedRows).toBe(1);
+    expect(result.validationResults[1]?.errors).toContain(
+      "상담기록은 전화끊음, 입원중, 부재, 거절, 상담예정 중 하나로 입력해 주세요."
+    );
+  });
+
   it("lets branch_admin grant and revoke customers.bulk_import only for managers", async () => {
     const setPermissionSpy = vi
       .spyOn(db, "setUserPermission")

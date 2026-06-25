@@ -175,6 +175,7 @@ import {
   getNotificationsFiltered,
   normalizePhone,
   normalizeBulkImportRow,
+  normalizeBulkImportConsultationResult,
   runDbTransaction,
   detectForbiddenColumns,
   findUserByNameUnique,
@@ -3103,6 +3104,28 @@ async function buildPhoneDuplicateScope(user: {
     return { agentIds: await getHierarchyScopeUserIds(user) };
   }
   return { agentId: user.id };
+}
+
+function parseImportDateTimeOrThrow(value: string, fieldName: string) {
+  const trimmed = value.trim();
+  const normalized = trimmed.includes("T")
+    ? trimmed
+    : trimmed.replace(" ", "T");
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `${fieldName} 형식을 확인해 주세요.`,
+    });
+  }
+  return parsed;
+}
+
+function mapImportConsultationResultToCustomerStatus(result: string) {
+  if (result === "거절") return "거절";
+  if (result === "상담예정") return "상담예정";
+  if (result === "입원중") return "보류";
+  return "부재";
 }
 
 function parseScheduleDateTime(value: string, fieldName: string) {
@@ -8534,6 +8557,10 @@ export const appRouter = router({
           "DB 업체명",
           "상담상태",
           "메모",
+          "상담기록",
+          "상담일시",
+          "상담메모",
+          "다음연락일",
         ];
         const headers =
           ctx.user.role === "branch_admin"
@@ -8591,9 +8618,18 @@ export const appRouter = router({
           });
         }
 
-        const existingPhones = await getAllActiveCustomerPhones(
-          await buildPhoneDuplicateScope(ctx.user)
-        );
+        const customerScope = await buildPhoneDuplicateScope(ctx.user);
+        const existingPhones = await getAllActiveCustomerPhones(customerScope);
+        const scopedCustomers = await getCustomers(customerScope);
+        const allActivePhones = await getAllActiveCustomerPhones({});
+        const scopedCustomersByPhone = new Map<string, typeof scopedCustomers>();
+        for (const customer of scopedCustomers) {
+          if (!customer.phone) continue;
+          const phone = normalizePhone(customer.phone);
+          const list = scopedCustomersByPhone.get(phone) ?? [];
+          list.push(customer);
+          scopedCustomersByPhone.set(phone, list);
+        }
         const filePhones = new Set<string>();
         const forcedAssignee =
           ctx.user.role === "branch_admin"
@@ -8610,16 +8646,55 @@ export const appRouter = router({
             i,
             existingPhones,
             filePhones,
-            forcedAssignee
-              ? {
-                  forceAssignee: {
-                    agentId: forcedAssignee.agentId,
-                    teamId: forcedAssignee.assignedTeamId,
-                    subBranchAdminId: forcedAssignee.subBranchAdminId,
-                  },
-                }
-              : undefined
+            {
+              ...(forcedAssignee
+                ? {
+                    forceAssignee: {
+                      agentId: forcedAssignee.agentId,
+                      teamId: forcedAssignee.assignedTeamId,
+                      subBranchAdminId: forcedAssignee.subBranchAdminId,
+                    },
+                  }
+                : {}),
+              skipExistingPhoneCheck: true,
+            }
           );
+          if (result.isValid && result.normalizedPhone) {
+            const scopedMatches =
+              scopedCustomersByPhone.get(result.normalizedPhone) ?? [];
+            if (scopedMatches.length > 1) {
+              result.isValid = false;
+              result.requiresManualReview = true;
+              result.errors.push("중복 고객이 있어 수동 확인이 필요합니다.");
+            } else if (scopedMatches.length === 1) {
+              result.matchedExistingCustomerId = scopedMatches[0].id;
+            } else if (allActivePhones.has(result.normalizedPhone)) {
+              result.isValid = false;
+              result.errors.push("이 고객을 수정할 권한이 없습니다.");
+            }
+          }
+          if (result.isValid) {
+            const parsedRow = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            if (parsedRow.consultationDateTime?.trim()) {
+              try {
+                parseImportDateTimeOrThrow(
+                  parsedRow.consultationDateTime,
+                  "상담일시"
+                );
+              } catch (error) {
+                result.isValid = false;
+                result.errors.push("상담일시 형식을 확인해 주세요.");
+              }
+            }
+            if (parsedRow.nextContactDate?.trim()) {
+              try {
+                parseImportDateTimeOrThrow(parsedRow.nextContactDate, "다음연락일");
+              } catch (error) {
+                result.isValid = false;
+                result.errors.push("다음연락일 형식을 확인해 주세요.");
+              }
+            }
+          }
           validationResults.push(result);
         }
 
@@ -8642,6 +8717,9 @@ export const appRouter = router({
           totalRows: input.rows.length,
           successRows: successCount,
           failedRows: errorCount,
+          manualReviewRows: validationResults.filter(
+            result => result.requiresManualReview
+          ).length,
           validationResults,
         };
       }),
@@ -8698,9 +8776,18 @@ export const appRouter = router({
           });
         }
 
-        const existingPhones = await getAllActiveCustomerPhones(
-          await buildPhoneDuplicateScope(ctx.user)
-        );
+        const customerScope = await buildPhoneDuplicateScope(ctx.user);
+        const existingPhones = await getAllActiveCustomerPhones(customerScope);
+        const scopedCustomers = await getCustomers(customerScope);
+        const allActivePhones = await getAllActiveCustomerPhones({});
+        const scopedCustomersByPhone = new Map<string, typeof scopedCustomers>();
+        for (const customer of scopedCustomers) {
+          if (!customer.phone) continue;
+          const phone = normalizePhone(customer.phone);
+          const list = scopedCustomersByPhone.get(phone) ?? [];
+          list.push(customer);
+          scopedCustomersByPhone.set(phone, list);
+        }
         const filePhones = new Set<string>();
         const forcedAssignee =
           ctx.user.role === "branch_admin"
@@ -8717,16 +8804,55 @@ export const appRouter = router({
             i,
             existingPhones,
             filePhones,
-            forcedAssignee
-              ? {
-                  forceAssignee: {
-                    agentId: forcedAssignee.agentId,
-                    teamId: forcedAssignee.assignedTeamId,
-                    subBranchAdminId: forcedAssignee.subBranchAdminId,
-                  },
-                }
-              : undefined
+            {
+              ...(forcedAssignee
+                ? {
+                    forceAssignee: {
+                      agentId: forcedAssignee.agentId,
+                      teamId: forcedAssignee.assignedTeamId,
+                      subBranchAdminId: forcedAssignee.subBranchAdminId,
+                    },
+                  }
+                : {}),
+              skipExistingPhoneCheck: true,
+            }
           );
+          if (result.isValid && result.normalizedPhone) {
+            const scopedMatches =
+              scopedCustomersByPhone.get(result.normalizedPhone) ?? [];
+            if (scopedMatches.length > 1) {
+              result.isValid = false;
+              result.requiresManualReview = true;
+              result.errors.push("중복 고객이 있어 수동 확인이 필요합니다.");
+            } else if (scopedMatches.length === 1) {
+              result.matchedExistingCustomerId = scopedMatches[0].id;
+            } else if (allActivePhones.has(result.normalizedPhone)) {
+              result.isValid = false;
+              result.errors.push("이 고객을 수정할 권한이 없습니다.");
+            }
+          }
+          if (result.isValid) {
+            const parsedRow = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            if (parsedRow.consultationDateTime?.trim()) {
+              try {
+                parseImportDateTimeOrThrow(
+                  parsedRow.consultationDateTime,
+                  "상담일시"
+                );
+              } catch (error) {
+                result.isValid = false;
+                result.errors.push("상담일시 형식을 확인해 주세요.");
+              }
+            }
+            if (parsedRow.nextContactDate?.trim()) {
+              try {
+                parseImportDateTimeOrThrow(parsedRow.nextContactDate, "다음연락일");
+              } catch (error) {
+                result.isValid = false;
+                result.errors.push("다음연락일 형식을 확인해 주세요.");
+              }
+            }
+          }
           validationResults.push(result);
         }
 
@@ -8751,50 +8877,10 @@ export const appRouter = router({
         }
 
         const importedAt = new Date();
-        const customersToCreate = validRows.map(result => {
-          const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
-          return {
-            name: row.name!,
-            phone:
-              result.normalizedPhone ??
-              (row.phone ? normalizePhone(row.phone) : undefined),
-            birthDate: row.birthDate ? new Date(row.birthDate) : undefined,
-            gender: (row.gender === "남" || row.gender === "male"
-              ? "male"
-              : row.gender === "여" || row.gender === "female"
-                ? "female"
-                : row.gender === "기타" || row.gender === "other"
-                  ? "other"
-                  : undefined) as any,
-            region: row.region,
-            expectedPremium: row.expectedPremium
-              ? expectedPremiumStoredWonFromManwonInput(
-                  String(row.expectedPremium)
-                )
-              : undefined,
-            availableTime: row.availableTime,
-            source: row.source,
-            dbCompany: row.dbCompany,
-            consultStatus: row.consultStatus || "미상담",
-            memo: row.memo,
-            agentId: result.agentId,
-            subBranchAdminId: result.subBranchAdminId,
-            assignedTeamId: result.teamId,
-            assignmentStatus: result.assignmentStatus as
-              | "unassigned"
-              | "assigned_to_sub_branch"
-              | "assigned_to_agent",
-            assignedAt: result.agentId ? importedAt : undefined,
-            createdBy: ctx.user.id,
-            importBatchId,
-            importedBy: ctx.user.id,
-            importedAt,
-          };
-        });
 
         const errorCount = validationResults.filter(r => !r.isValid).length;
         const duplicateCount = validationResults.filter(r =>
-          r.errors.some(e => e.includes("?? DB? ??"))
+          r.errors.some(e => e.includes("기존 DB에 존재"))
         ).length;
 
         await runDbTransaction(async tx => {
@@ -8812,7 +8898,116 @@ export const appRouter = router({
             },
             tx
           );
-          await bulkCreateCustomers(customersToCreate, tx);
+          let createdCustomers = 0;
+          let updatedCustomers = 0;
+          let consultationLogsCreated = 0;
+
+          for (const result of validRows) {
+            const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            const normalizedConsultationResult = normalizeBulkImportConsultationResult(
+              row.consultationLog
+            );
+            const normalizedStatusFromConsultation = normalizedConsultationResult
+              ? mapImportConsultationResultToCustomerStatus(
+                  normalizedConsultationResult
+                )
+              : undefined;
+            const normalizedConsultStatus = row.consultStatus ?? "미상담";
+            const customerPayload = {
+              name: row.name!,
+              phone:
+                result.normalizedPhone ??
+                (row.phone ? normalizePhone(row.phone) : undefined),
+              birthDate: row.birthDate ? new Date(row.birthDate) : undefined,
+              gender: (row.gender === "남" || row.gender === "male"
+                ? "male"
+                : row.gender === "여" || row.gender === "female"
+                  ? "female"
+                  : row.gender === "기타" || row.gender === "other"
+                    ? "other"
+                    : undefined) as any,
+              region: row.region,
+              expectedPremium: row.expectedPremium
+                ? expectedPremiumStoredWonFromManwonInput(String(row.expectedPremium))
+                : undefined,
+              availableTime: row.availableTime,
+              source: row.source,
+              dbCompany: row.dbCompany,
+              consultStatus: normalizedConsultStatus as any,
+              memo: row.memo,
+              agentId: result.agentId,
+              subBranchAdminId: result.subBranchAdminId,
+              assignedTeamId: result.teamId,
+              assignmentStatus: result.assignmentStatus as
+                | "unassigned"
+                | "assigned_to_sub_branch"
+                | "assigned_to_agent",
+              assignedAt: result.agentId ? importedAt : undefined,
+              createdBy: ctx.user.id,
+              importBatchId,
+              importedBy: ctx.user.id,
+              importedAt,
+            };
+
+            let customerId: number;
+            if (result.matchedExistingCustomerId) {
+              customerId = result.matchedExistingCustomerId;
+              updatedCustomers += 1;
+              await updateCustomer(
+                customerId,
+                {
+                  region: customerPayload.region,
+                  expectedPremium: customerPayload.expectedPremium,
+                  availableTime: customerPayload.availableTime,
+                  source: customerPayload.source,
+                  dbCompany: customerPayload.dbCompany,
+                  memo: customerPayload.memo,
+                  agentId: customerPayload.agentId,
+                  subBranchAdminId: customerPayload.subBranchAdminId,
+                  assignedTeamId: customerPayload.assignedTeamId,
+                  assignmentStatus: customerPayload.assignmentStatus,
+                  importBatchId: customerPayload.importBatchId,
+                  importedBy: customerPayload.importedBy,
+                  importedAt: customerPayload.importedAt,
+                },
+                tx
+              );
+            } else {
+              createdCustomers += 1;
+              const created = await bulkCreateCustomers([customerPayload], tx);
+              customerId = Number((created as any)?.insertId ?? 0);
+            }
+
+            if (normalizedConsultationResult && customerId > 0) {
+              const consultationOccurredAt = row.consultationDateTime?.trim()
+                ? parseImportDateTimeOrThrow(row.consultationDateTime, "상담일시")
+                : importedAt;
+              const nextContactAt = row.nextContactDate?.trim()
+                ? parseImportDateTimeOrThrow(row.nextContactDate, "다음연락일")
+                : undefined;
+              const summary = "DB 일괄등록";
+              const assignedAgentId = result.agentId ?? ctx.user.id;
+              const baseContent =
+                row.consultationMemo?.trim() ||
+                `DB 일괄등록으로 업로드된 전화 상담기록입니다. 결과: ${normalizedConsultationResult}`;
+              const content = `${baseContent}\n작성자:${ctx.user.id}\n담당자:${assignedAgentId}`;
+              await createConsultation(
+                {
+                  customerId,
+                  agentId: assignedAgentId,
+                  status: normalizedStatusFromConsultation ?? "상담예정",
+                  consultationType: "DB 통화결과",
+                  summary,
+                  content,
+                  nextContactAt,
+                  createdAt: consultationOccurredAt,
+                } as any,
+                tx,
+                { updateCustomerConsultStatus: false }
+              );
+              consultationLogsCreated += 1;
+            }
+          }
           await log(
             ctx.user.id,
             "CUSTOMER_BULK_IMPORTED",
@@ -8823,9 +9018,12 @@ export const appRouter = router({
               fileName: input.fileName,
               uploadedBy: ctx.user.id,
               totalRows: input.rows.length,
-              successRows: validRows.length,
+              successRows: createdCustomers + updatedCustomers,
               failedRows: errorCount,
               duplicateRows: duplicateCount,
+              createdCustomers,
+              updatedCustomers,
+              consultationLogsCreated,
               importedAt: importedAt.toISOString(),
             }),
             tx
@@ -8838,12 +9036,13 @@ export const appRouter = router({
             logDetails({
               actor: ctx.user.id,
               targetType: "customers",
-              afterValue: { successRows: validRows.length },
+              afterValue: { successRows: createdCustomers + updatedCustomers },
               metadata: {
                 importBatchId,
                 fileName: input.fileName,
                 type: "bulk_import",
-                successRows: validRows.length,
+                successRows: createdCustomers + updatedCustomers,
+                consultationLogsCreated,
               },
             }),
             tx
@@ -8857,6 +9056,19 @@ export const appRouter = router({
           successRows: validRows.length,
           failedRows: errorCount,
           duplicateRows: duplicateCount,
+          manualReviewRows: validationResults.filter(
+            result => result.requiresManualReview
+          ).length,
+          consultationCreatedRows: validRows.filter(result => {
+            const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            return Boolean(normalizeBulkImportConsultationResult(row.consultationLog));
+          }).length,
+          createdCustomers: validRows.filter(
+            result => !result.matchedExistingCustomerId
+          ).length,
+          updatedCustomers: validRows.filter(
+            result => Boolean(result.matchedExistingCustomerId)
+          ).length,
           validationResults,
         };
       }),

@@ -1275,17 +1275,21 @@ export async function getCustomerById(id: number) {
   return result[0];
 }
 
-export async function createCustomer(data: InsertCustomer) {
-  const db = await getDb();
+export async function createCustomer(data: InsertCustomer, client?: DbExecutor) {
+  const db = client ?? (await getDb());
   if (!db) return;
-  await db.insert(customers).values({ ...data, isActive: true });
+  const result = await db
+    .insert(customers)
+    .values({ ...data, isActive: true });
+  return result as any;
 }
 
 export async function updateCustomer(
   id: number,
-  data: Partial<InsertCustomer>
+  data: Partial<InsertCustomer>,
+  client?: DbExecutor
 ) {
-  const db = await getDb();
+  const db = client ?? (await getDb());
   if (!db) return;
   await db.update(customers).set(data).where(eq(customers.id, id));
 }
@@ -2044,14 +2048,20 @@ export async function getConsultationById(id: number) {
   return result[0];
 }
 
-export async function createConsultation(data: InsertConsultation) {
-  const db = await getDb();
+export async function createConsultation(
+  data: InsertConsultation,
+  client?: DbExecutor,
+  options?: { updateCustomerConsultStatus?: boolean }
+) {
+  const db = client ?? (await getDb());
   if (!db) return;
   await db.insert(consultations).values({ ...data, isActive: true });
-  await db
-    .update(customers)
-    .set({ consultStatus: data.status })
-    .where(eq(customers.id, data.customerId));
+  if (options?.updateCustomerConsultStatus ?? true) {
+    await db
+      .update(customers)
+      .set({ consultStatus: data.status })
+      .where(eq(customers.id, data.customerId));
+  }
 }
 
 export async function updateConsultation(
@@ -5652,10 +5662,49 @@ export function normalizeBulkImportRow(
     ),
     consultStatus: pickString(row, "consultStatus", "상담상태"),
     memo: pickString(row, "memo", "메모"),
+    consultationLog: pickString(row, "consultationLog", "상담기록"),
+    consultationDateTime: pickString(
+      row,
+      "consultationDateTime",
+      "상담일시"
+    ),
+    consultationMemo: pickString(row, "consultationMemo", "상담메모"),
+    nextContactDate: pickString(row, "nextContactDate", "다음연락일"),
     subBranchAdminName: pickString(row, "subBranchAdminName", "부지점장"),
     teamName: pickString(row, "teamName", "팀"),
     agentName: pickString(row, "agentName", "담당자"),
   };
+}
+
+const BULK_IMPORT_CONSULTATION_RESULT_CANONICAL = [
+  "전화끊음",
+  "입원중",
+  "부재",
+  "거절",
+  "상담예정",
+] as const;
+
+const BULK_IMPORT_CONSULTATION_RESULT_ALIAS: Record<string, string> = {
+  "전화 끊음": "전화끊음",
+  끊음: "전화끊음",
+  통화끊김: "전화끊음",
+  부재중: "부재",
+  안받음: "부재",
+  통화거절: "거절",
+  "상담 예정": "상담예정",
+  재통화예정: "상담예정",
+};
+
+const BULK_IMPORT_CONSULTATION_RESULT_SET = new Set<string>([
+  ...BULK_IMPORT_CONSULTATION_RESULT_CANONICAL,
+  ...Object.keys(BULK_IMPORT_CONSULTATION_RESULT_ALIAS),
+]);
+
+export function normalizeBulkImportConsultationResult(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  if (!BULK_IMPORT_CONSULTATION_RESULT_SET.has(trimmed)) return null;
+  return BULK_IMPORT_CONSULTATION_RESULT_ALIAS[trimmed] ?? trimmed;
 }
 
 /** 금지 컬럼 감지 */
@@ -5733,6 +5782,10 @@ export interface BulkImportRow {
   dbCompany?: string;
   consultStatus?: string;
   memo?: string;
+  consultationLog?: string;
+  consultationDateTime?: string;
+  consultationMemo?: string;
+  nextContactDate?: string;
   subBranchAdminName?: string;
   teamName?: string;
   agentName?: string;
@@ -5750,6 +5803,8 @@ export interface BulkImportValidationResult {
     | "unassigned"
     | "assigned_to_sub_branch"
     | "assigned_to_agent";
+  matchedExistingCustomerId?: number;
+  requiresManualReview?: boolean;
 }
 
 export async function validateBulkImportRow(
@@ -5763,6 +5818,7 @@ export async function validateBulkImportRow(
       teamId: number | null;
       subBranchAdminId: number | null;
     };
+    skipExistingPhoneCheck?: boolean;
   }
 ): Promise<BulkImportValidationResult> {
   const row = normalizeBulkImportRow(sourceRow as Record<string, unknown>);
@@ -5798,7 +5854,7 @@ export async function validateBulkImportRow(
       }
 
       // 기존 DB 중복 검증
-      if (existingPhones.has(normalizedPhone)) {
+      if (!options?.skipExistingPhoneCheck && existingPhones.has(normalizedPhone)) {
         errors.push(`연락처가 기존 DB에 존재합니다. (${row.phone})`);
       }
     }
@@ -5844,6 +5900,17 @@ export async function validateBulkImportRow(
     ];
     if (!validStatuses.includes(row.consultStatus)) {
       errors.push(`상담상태 값이 올바르지 않습니다. (${row.consultStatus})`);
+    }
+  }
+
+  if (row.consultationLog && row.consultationLog.trim() !== "") {
+    const normalizedConsultationResult = normalizeBulkImportConsultationResult(
+      row.consultationLog
+    );
+    if (!normalizedConsultationResult) {
+      errors.push(
+        "상담기록은 전화끊음, 입원중, 부재, 거절, 상담예정 중 하나로 입력해 주세요."
+      );
     }
   }
 
