@@ -35,11 +35,16 @@ async function expectForbiddenState(page: Page) {
 }
 
 async function expectSensitiveUnavailableState(page: Page) {
-  await expect(page.getByText("정보를 확인할 수 없습니다").first()).toBeVisible();
   await expect(
-    page.getByText("데이터가 없거나 접근할 수 없습니다.")
+    page.getByText("고객 정보를 불러올 수 없습니다.").first()
+  ).toBeVisible();
+  await expect(
+    page.getByText(/다시 선택해 주세요/).first()
   ).toBeVisible();
   await expect(page.getByText("접근 권한이 없습니다")).toHaveCount(0);
+  // 존재 여부·권한·담당 여부를 드러내는 문구가 없어야 한다.
+  await expect(page.getByText("권한이 없습니다")).toHaveCount(0);
+  await expect(page.getByText("다른 담당자")).toHaveCount(0);
 }
 
 async function expectBlockedState(page: Page) {
@@ -188,6 +193,63 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     await expect(page.locator("#root")).not.toBeEmpty();
   });
 
+  test("customer list preset works via direct URL entry (today-follow-up)", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+    await page.goto("/customers?preset=today-follow-up", {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(
+      page.getByText("현재 보기: 오늘 연락할 고객").first()
+    ).toBeVisible();
+    await expect(page.getByText("today-follow-up")).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: "전체 고객 보기" })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    expect(errors, errors.join("\n")).toEqual([]);
+  });
+
+  test("customer list preset works via direct URL entry (priority-contact)", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "member");
+    const errors = collectPageErrors(page);
+    await page.goto("/customers?preset=priority-contact", {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(
+      page.getByText("현재 보기: 우선 연락 고객").first()
+    ).toBeVisible();
+    await expect(page.getByText("priority-contact")).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+    expect(errors, errors.join("\n")).toEqual([]);
+  });
+
+  test("direct preset URL combined with search keeps both contexts", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "branch_admin");
+    await page.goto("/customers?preset=priority-contact", {
+      waitUntil: "domcontentloaded",
+    });
+    await expect(
+      page.getByText("현재 보기: 우선 연락 고객").first()
+    ).toBeVisible();
+    await page
+      .getByPlaceholder("고객명, 연락처를 검색하세요")
+      .fill("[TEST]");
+    await expect(page.getByText("검색어: [TEST]").first()).toBeVisible();
+    await expect(
+      page.getByText("현재 보기: 우선 연락 고객").first()
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("member sees sensitive unavailable state for denied customer detail", async ({
     page,
   }) => {
@@ -313,6 +375,80 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     );
     expect(labels.join(" ")).not.toContain("010-");
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("member sees forbidden state on direct /customers/assign access", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "member");
+    const errors = collectPageErrors(page);
+    await page.goto("/customers/assign", { waitUntil: "domcontentloaded" });
+
+    await expectForbiddenState(page);
+    await expect(page.getByText("[E2E] Customer Alpha")).toHaveCount(0);
+    await expect(page.getByText("[E2E] Sub Admin")).toHaveCount(0);
+    expect(errors, errors.join("\n")).toEqual([]);
+  });
+
+  test("member mobile more menu hides DB 배정 entry", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.name.includes("mobile"),
+      "mobile-only nav visibility"
+    );
+    await setResponsiveViewport(page, "mobile375");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers", { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("button", { name: "더보기" }).click();
+    await expect(page.getByText("업무 메뉴")).toBeVisible();
+    await expect(page.getByText("DB 배정")).toHaveCount(0);
+  });
+
+  for (const status of ["inactive", "resigned"] as const) {
+    for (const viewportKey of ["mobile390", "mobile375"] as const) {
+      test(`${status} account hides mobile nav at ${RESPONSIVE_VIEWPORTS[viewportKey].width}px`, async ({
+        page,
+      }, testInfo) => {
+        test.skip(
+          !testInfo.project.name.includes("mobile"),
+          "mobile-only nav suppression"
+        );
+        await setResponsiveViewport(page, viewportKey);
+        await mockBoaTrpc(page, "member", { accountStatus: status });
+
+        for (const route of ["/", "/customers", "/customers/assign"]) {
+          await page.goto(route, { waitUntil: "domcontentloaded" });
+          await expectBlockedState(page);
+          await expect(page.locator("nav.fixed")).toHaveCount(0);
+          await expect(
+            page.getByTestId("mobile-more-menu-item")
+          ).toHaveCount(0);
+          await expect(page.getByText("[E2E] Customer Alpha")).toHaveCount(0);
+        }
+      });
+    }
+  }
+
+  test("permanent delete confirm clarifies the exact required phrase", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "branch_admin");
+    await page.goto("/deleted-data", { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("tab", { name: "삭제된 고객" }).click();
+    await page
+      .getByRole("button", { name: "영구 삭제" })
+      .first()
+      .click();
+
+    const confirmInput = page.getByLabel("영구 삭제 확인 문구 입력 (완전삭제)");
+    await expect(confirmInput).toBeVisible();
+    await expect(confirmInput).toHaveAttribute("placeholder", "완전삭제");
+    await expect(
+      page.getByText('정확히 "완전삭제"를 입력해야 영구 삭제가 활성화됩니다.')
+    ).toBeVisible();
   });
 
 });

@@ -150,6 +150,16 @@ const CUSTOMER_NEXT_ACTIONS = [
   "사후관리",
 ] as const;
 
+/** wouter pathname may omit `?search` on direct browser entry — mirror Calendar.tsx */
+export function getCustomerListQueryString(location: string): string {
+  const browserSearch =
+    typeof window !== "undefined" ? window.location.search : "";
+  if (location.includes("?")) {
+    return location.slice(location.indexOf("?") + 1).split("#")[0] ?? "";
+  }
+  return browserSearch.replace(/^\?/, "");
+}
+
 export default function CustomerList() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
@@ -196,9 +206,8 @@ export default function CustomerList() {
   const isMobile = useIsMobile();
 
   const presetInUrl = useMemo(() => {
-    const query = location.split("?")[1]?.split("#")[0];
     return parseCustomerListUrlPreset(
-      new URLSearchParams(query ?? "").get("preset")
+      new URLSearchParams(getCustomerListQueryString(location)).get("preset")
     );
   }, [location]);
   const effectiveUrlPreset =
@@ -267,8 +276,7 @@ export default function CustomerList() {
   };
 
   const syncUrlPreset = (presetId: CustomerListUrlPresetId | null) => {
-    const query = location.split("?")[1]?.split("#")[0] ?? "";
-    const params = new URLSearchParams(query);
+    const params = new URLSearchParams(getCustomerListQueryString(location));
     if (presetId) {
       params.set("preset", presetId);
     } else {
@@ -299,8 +307,7 @@ export default function CustomerList() {
   };
 
   useEffect(() => {
-    const query = location.split("?")[1]?.split("#")[0];
-    const params = new URLSearchParams(query ?? "");
+    const params = new URLSearchParams(getCustomerListQueryString(location));
     const action = parseCustomerDetailAction(params.get("action"));
     if (action === "invalid") {
       toast.error("지원하지 않는 실행 작업입니다.");

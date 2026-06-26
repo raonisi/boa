@@ -35,9 +35,22 @@ describe("stateUxCopy", () => {
   });
 
   it("keeps sensitive access copy separate from forbidden copy", () => {
-    expect(SENSITIVE_ACCESS_UX.title).toBe("정보를 확인할 수 없습니다");
-    expect(SENSITIVE_ACCESS_UX.description).toContain("데이터가 없거나");
+    expect(SENSITIVE_ACCESS_UX.title).toBe("고객 정보를 불러올 수 없습니다.");
+    expect(SENSITIVE_ACCESS_UX.description).toContain("다시 선택해 주세요");
     expect(SENSITIVE_ACCESS_UX.listActionLabel).toBe("고객 목록으로 이동");
+  });
+
+  it("never discloses existence, ownership, or permission in sensitive copy", () => {
+    const combined = `${SENSITIVE_ACCESS_UX.title} ${SENSITIVE_ACCESS_UX.description}`;
+    for (const banned of [
+      "권한이 없",
+      "다른 담당자",
+      "타 지점",
+      "존재하지 않",
+      "고객 ID",
+    ]) {
+      expect(combined).not.toContain(banned);
+    }
   });
 
   it("sanitizes unsafe blocked preview messages", () => {

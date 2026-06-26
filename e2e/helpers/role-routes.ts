@@ -57,6 +57,7 @@ export const ROLE_ROUTE_MATRIX: Record<SmokeRole, RoleRouteExpectation[]> = {
     { path: "/customers/101" },
     { path: "/calendar" },
     { path: "/notifications" },
+    { path: "/customers/assign", expectForbidden: true },
     { path: "/users", expectForbidden: true },
     { path: "/deleted-data", expectForbidden: true },
   ],

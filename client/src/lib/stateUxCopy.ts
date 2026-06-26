@@ -35,10 +35,16 @@ export const ERROR_UX = {
   refreshLabel: "새로고침",
 } as const;
 
+/**
+ * 민감 고객 데이터 접근 실패 안내.
+ * 존재 여부·권한·담당 여부를 드러내지 않고, 다음 행동만 안내한다.
+ * (권한/존재 노출 금지 — Forbidden 상태와 분리 유지)
+ */
 export const SENSITIVE_ACCESS_UX = {
-  title: CUSTOMER_ACCESS_UX.title,
-  description: CUSTOMER_ACCESS_UX.description,
-  listActionLabel: "고객 목록으로 이동",
+  title: "고객 정보를 불러올 수 없습니다.",
+  description:
+    "선택한 고객 정보를 현재 화면에서 확인할 수 없습니다. 접근 가능한 고객 목록에서 다시 선택해 주세요.",
+  listActionLabel: CUSTOMER_ACCESS_UX.listActionLabel,
   backLabel: FORBIDDEN_UX.backLabel,
 } as const;
 

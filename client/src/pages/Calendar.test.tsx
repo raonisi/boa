@@ -65,6 +65,23 @@ describe("Calendar day accessibility labels", () => {
     expect(label).toContain("현재 달이 아님");
   });
 
+  it("composes outside-month, selected, and schedule count without sensitive content", () => {
+    const label = buildCalendarDayA11yLabel({
+      day: new Date("2026-05-31T00:00:00.000Z"),
+      isToday: false,
+      isSelected: true,
+      isOutsideMonth: true,
+      scheduleCount: 2,
+    });
+
+    expect(label).toContain("2026년 5월 31일");
+    expect(label).toContain("현재 달이 아님");
+    expect(label).toContain("선택됨");
+    expect(label).toContain("일정 2건");
+    expect(label).not.toContain("[E2E]");
+    expect(label).not.toContain("010-");
+  });
+
   it("marks disabled dates", () => {
     const label = buildCalendarDayA11yLabel({
       day: new Date("2026-06-24T00:00:00.000Z"),
