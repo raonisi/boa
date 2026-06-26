@@ -48,7 +48,7 @@ function KpiCard({ title, value }: { title: string; value: number }) {
       <p className="mt-2 text-2xl font-bold tabular-nums text-[#1f3b57]">
         {value}
       </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">
+      <p className="mt-1 text-2xs text-muted-foreground">
         기록된 청구 안내 상태
       </p>
     </div>

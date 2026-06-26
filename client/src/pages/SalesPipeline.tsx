@@ -167,7 +167,7 @@ function PipelineCard({
           </div>
           <div className="flex flex-wrap gap-1">
             {tags.length === 0 ? (
-              <span className="text-[11px] text-muted-foreground">
+              <span className="text-2xs text-muted-foreground">
                 태그 없음
               </span>
             ) : (
@@ -182,7 +182,7 @@ function PipelineCard({
             )}
           </div>
           <div className="flex items-center justify-between gap-2 border-t border-border/60 pt-2">
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-2xs text-muted-foreground">
               담당: {agentName}
             </span>
             <Button

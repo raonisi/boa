@@ -409,11 +409,17 @@ export function CustomerAssignCustomerList({
                         </label>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {customer.name}
+                        <span className="block max-w-[12rem] truncate">
+                          {customer.name}
+                        </span>
                       </TableCell>
                       <TableCell>{customer.phone ?? "-"}</TableCell>
                       <TableCell>{customer.region ?? "-"}</TableCell>
-                      <TableCell>{customer.source ?? "-"}</TableCell>
+                      <TableCell>
+                        <span className="block max-w-[10rem] truncate">
+                          {customer.source ?? "-"}
+                        </span>
+                      </TableCell>
                       <TableCell>
                         <StatusBadge status={customer.consultStatus ?? "-"} />
                       </TableCell>

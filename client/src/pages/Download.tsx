@@ -460,7 +460,7 @@ export default function Download() {
                 className="mt-1"
                 placeholder="예: 파일럿 운영 전 고객 DB 정합성 점검"
               />
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-2xs text-muted-foreground">
                 5자 이상 300자 이하로 입력해 주세요.
               </p>
             </div>
@@ -512,7 +512,7 @@ export default function Download() {
                 ))}
               </ul>
               {!canExecute ? (
-                <p className="mt-3 text-[11px] text-muted-foreground">
+                <p className="mt-3 text-2xs text-muted-foreground">
                   아직 충족되지 않은 확인 항목이 있습니다. 위 체크리스트를
                   완료하면 다운로드할 수 있습니다.
                 </p>

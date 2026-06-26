@@ -64,7 +64,7 @@ export default function ScheduleCustomerLinkPicker({
     <div className="space-y-2">
       <div>
         <Label className="text-xs">고객 연결</Label>
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 text-2xs text-muted-foreground">
           일정과 연결할 고객을 검색해 선택하세요.
         </p>
       </div>
@@ -123,7 +123,7 @@ export default function ScheduleCustomerLinkPicker({
       </div>
 
       {!canSearch && !pickerQuery.isFetching ? (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {pickerQuery.data?.hint ??
             "고객명 또는 연락처 2글자 이상으로 검색해 주세요."}
         </p>
@@ -170,7 +170,7 @@ export default function ScheduleCustomerLinkPicker({
                     {item.statusLabel}
                   </Badge>
                 </div>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
+                <p className="mt-0.5 text-2xs text-muted-foreground">
                   {item.maskedPhone ?? "연락처 없음"}
                   {item.assignedUserName
                     ? ` · 담당 ${item.assignedUserName}`
@@ -180,7 +180,7 @@ export default function ScheduleCustomerLinkPicker({
             ))
           )}
           {pickerQuery.data.tooManyResults ? (
-            <p className="px-2 py-1 text-[11px] text-muted-foreground">
+            <p className="px-2 py-1 text-2xs text-muted-foreground">
               검색 결과가 많습니다. 검색어를 더 입력해 주세요.
             </p>
           ) : null}
