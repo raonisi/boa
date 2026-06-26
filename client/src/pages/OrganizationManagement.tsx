@@ -291,7 +291,7 @@ export default function OrganizationManagement() {
                   ) : null}
                 </div>
                 <h3
-                  className={`mt-2 text-lg font-bold ${node.role === "branch_admin" ? "text-primary-foreground" : "text-foreground"}`}
+                  className={`mt-2 truncate text-lg font-bold ${node.role === "branch_admin" ? "text-primary-foreground" : "text-foreground"}`}
                 >
                   {node.name ?? `사용자 #${node.id}`}
                 </h3>

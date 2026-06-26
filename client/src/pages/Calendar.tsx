@@ -1308,7 +1308,7 @@ export default function Calendar() {
                                 })}
                                 aria-current={isToday ? "date" : undefined}
                                 data-selected={isSelectedDay}
-                                className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isSelectedDay ? "bg-slate-900 text-white" : ""}`}
+                                className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 ${isToday ? "bg-primary text-primary-foreground shadow-sm" : isSelectedDay ? "bg-slate-900 text-white" : ""}`}
                                 onClick={() => {
                                   setSelectedDate(day);
                                   setCurrentDate(day);
@@ -1380,7 +1380,7 @@ export default function Calendar() {
                             <div className="flex items-start justify-between px-2">
                               <button
                                 type="button"
-                                className="text-left"
+                                className="text-left rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
                                 aria-label={buildCalendarDayA11yLabel({
                                   day,
                                   isToday,

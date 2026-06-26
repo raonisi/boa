@@ -11,6 +11,10 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Micro caption token for non-core meta text (timestamps, helper hints).
+     Replaces arbitrary text-[11px] usages with a shared scale step. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -374,7 +378,7 @@
   }
 
   .crm-priority-chip {
-    @apply min-h-11 rounded-full px-3 py-2 text-[11px] font-semibold transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] sm:min-h-8 sm:py-1;
+    @apply min-h-11 rounded-full px-3 py-2 text-2xs font-semibold transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.98] sm:min-h-8 sm:py-1;
   }
 
   .crm-priority-chip-active {

@@ -222,7 +222,7 @@ export default function FollowupQuickCreateDialog({
                 className="h-11 md:h-9"
               />
             ) : (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 다음 연락 예정: {nextContactPreview.replace("T", " ")}
               </p>
             )}
@@ -244,7 +244,7 @@ export default function FollowupQuickCreateDialog({
                   placeholder={preset.memoPlaceholder}
                   className="h-20 w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-2xs text-muted-foreground">
                   메모를 남겨두면 다음 상담이 쉬워집니다.
                 </p>
               </div>

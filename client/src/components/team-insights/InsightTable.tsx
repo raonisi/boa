@@ -83,7 +83,7 @@ export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
                   </div>
                   <div>
                     <p className="text-sm">{item.user.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-2xs text-muted-foreground">
                       {item.user.role === "team_leader" ? "팀장" : "팀원"}
                     </p>
                   </div>
