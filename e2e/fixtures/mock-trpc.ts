@@ -744,6 +744,22 @@ const defaults: Record<string, unknown> = {
     total: 1,
   },
   "download.preview": downloadPreview,
+  "deletedData.listTeams": [],
+  "deletedData.listCustomers": [
+    {
+      id: 901,
+      name: "[TEST] Deleted Customer",
+      deletedAt: now,
+      createdAt: now,
+    },
+  ],
+  "deletedData.listContracts": [],
+  "deletedData.permanentDeletePreview": {
+    canDelete: true,
+    linkedCount: 0,
+    blockers: {},
+  },
+  "deleteRequests.listAllRequestsForAdmin": [],
 };
 
 const outOfScopeCustomer = {

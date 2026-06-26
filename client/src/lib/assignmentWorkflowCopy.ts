@@ -78,6 +78,18 @@ export function summarizeCurrentAssignees(
   return `${agentIds.length}명의 담당자에게 분산`;
 }
 
+/**
+ * 부분 실패 안내 문구.
+ * 고객명·연락처·계약정보 등 민감정보는 넣지 않고 건수 중심으로만 요약한다.
+ */
+function formatPartialFailureSummary(input: {
+  successCount: number;
+  failedCount: number;
+}): string {
+  const total = input.successCount + input.failedCount;
+  return `총 ${total}건 중 ${input.successCount}건을 처리했습니다. ${input.failedCount}건은 권한 또는 상태 문제로 제외되었습니다.`;
+}
+
 export function formatDbAssignmentSuccessMessage(input: {
   successCount: number;
   targetLabel: string;
@@ -88,7 +100,10 @@ export function formatDbAssignmentSuccessMessage(input: {
   }
   const base = `${input.successCount}건을 ${input.targetLabel}에게 배정했습니다.`;
   if (!input.failedCount) return base;
-  return `${base} (실패 ${input.failedCount}건)`;
+  return `${base} ${formatPartialFailureSummary({
+    successCount: input.successCount,
+    failedCount: input.failedCount,
+  })}`;
 }
 
 export function formatDbDistributionSuccessMessage(input: {
@@ -101,7 +116,10 @@ export function formatDbDistributionSuccessMessage(input: {
   }
   const base = `${input.successCount}건을 ${input.targetLabel}에게 배분했습니다.`;
   if (!input.failedCount) return base;
-  return `${base} (실패 ${input.failedCount}건)`;
+  return `${base} ${formatPartialFailureSummary({
+    successCount: input.successCount,
+    failedCount: input.failedCount,
+  })}`;
 }
 
 export function formatReassignmentSuccessMessage(input: {

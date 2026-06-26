@@ -45,6 +45,17 @@ describe("assignmentWorkflowCopy", () => {
     ).toBe("5건을 김팀장에게 배정했습니다.");
   });
 
+  it("summarizes db assignment partial failures by count without sensitive details", () => {
+    const message = formatDbAssignmentSuccessMessage({
+      successCount: 4,
+      targetLabel: "김팀장",
+      failedCount: 1,
+    });
+    expect(message).toContain("총 5건 중 4건을 처리했습니다.");
+    expect(message).toContain("1건은 권한 또는 상태 문제로 제외되었습니다.");
+    expect(message).not.toContain("010-");
+  });
+
   it("formats db distribution success copy", () => {
     expect(
       formatDbDistributionSuccessMessage({
@@ -52,6 +63,16 @@ describe("assignmentWorkflowCopy", () => {
         targetLabel: "김부지점장",
       })
     ).toBe("3건을 김부지점장에게 배분했습니다.");
+  });
+
+  it("summarizes db distribution partial failures by count", () => {
+    const message = formatDbDistributionSuccessMessage({
+      successCount: 2,
+      targetLabel: "김부지점장",
+      failedCount: 3,
+    });
+    expect(message).toContain("총 5건 중 2건을 처리했습니다.");
+    expect(message).toContain("3건은 권한 또는 상태 문제로 제외되었습니다.");
   });
 
   it("formats reassignment success copy with history guidance", () => {

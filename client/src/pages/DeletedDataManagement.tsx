@@ -599,13 +599,22 @@ export default function DeletedDataManagement() {
               </div>
             )}
             <div>
-              <Label>진행하려면 아래에 "완전삭제"를 입력하세요.</Label>
+              <Label htmlFor="permanent-delete-confirm">
+                진행하려면 아래에 "완전삭제"를 입력하세요.
+              </Label>
               <Input
+                id="permanent-delete-confirm"
                 value={confirmText}
                 onChange={e => setConfirmText(e.target.value)}
                 className="mt-1 min-h-12 md:min-h-9"
+                placeholder="완전삭제"
+                aria-label="영구 삭제 확인 문구 입력 (완전삭제)"
+                autoComplete="off"
                 disabled={permanentPending}
               />
+              <p className="mt-1 text-2xs text-muted-foreground">
+                정확히 "완전삭제"를 입력해야 영구 삭제가 활성화됩니다.
+              </p>
             </div>
           </div>
           <DialogFooter className="shrink-0 border-t bg-background px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-6">
