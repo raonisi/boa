@@ -306,13 +306,24 @@ export function buildCalendarDayA11yLabel(input: {
   isToday: boolean;
   isSelected: boolean;
   scheduleCount: number;
+  isOutsideMonth?: boolean;
+  isDisabled?: boolean;
 }) {
   const parts = [format(input.day, "yyyy년 M월 d일", { locale: ko })];
   if (input.isToday) parts.push("오늘");
   if (input.isSelected) parts.push("선택됨");
-  if (input.scheduleCount > 0) parts.push(`일정 ${input.scheduleCount}건`);
+  if (input.isOutsideMonth) parts.push("현재 달이 아님");
+  if (input.isDisabled) parts.push("선택할 수 없음");
+  // 일정 수는 현재 역할 범위 안의 일정만 기준으로 한다. 음수·비정상 값은 제외.
+  if (Number.isFinite(input.scheduleCount) && input.scheduleCount > 0) {
+    parts.push(`일정 ${input.scheduleCount}건`);
+  }
   return parts.join(", ");
 }
+
+/** 모바일에서 캘린더가 기간별 목록으로 표시됨을 알리는 짧은 안내 문구 */
+export const CALENDAR_MOBILE_VIEW_HINT =
+  "모바일에서는 선택한 기간의 일정을 목록으로 표시합니다.";
 
 function scheduleDefaultReminderOffset(schedule: any) {
   return scheduleReminderOffset(schedule);
@@ -1045,6 +1056,9 @@ export default function Calendar() {
                   <Clock3 className="h-4 w-4 text-[#b99b5f]" /> 조회 일정 (
                   {mobileList.length})
                 </CardTitle>
+                <p className="mt-1 text-xs text-slate-500">
+                  {CALENDAR_MOBILE_VIEW_HINT}
+                </p>
               </CardHeader>
               <CardContent className="space-y-2">
                 {mobileList.length === 0 ? (
@@ -1243,14 +1257,18 @@ export default function Calendar() {
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <h2 className="text-base font-semibold">{headerTitle}</h2>
-                  <Button variant="ghost" size="sm" onClick={() => navigate(1)}>
-                    <span className="sr-only">
-                      {viewMode === "month"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => navigate(1)}
+                    aria-label={
+                      viewMode === "month"
                         ? "다음 달 보기"
                         : viewMode === "week"
                           ? "다음 주 보기"
-                          : "다음 날 보기"}
-                    </span>
+                          : "다음 날 보기"
+                    }
+                  >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -1285,6 +1303,7 @@ export default function Calendar() {
                                   day,
                                   isToday,
                                   isSelected: isSelectedDay,
+                                  isOutsideMonth: !isCurrentMonth,
                                   scheduleCount: daySchedules.length,
                                 })}
                                 aria-current={isToday ? "date" : undefined}
