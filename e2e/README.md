@@ -4,84 +4,93 @@ Playwright 기반 E2E는 `e2e/`에 있으며, 모든 케이스는 페이지 단�
 (`e2e/fixtures/mock-trpc.ts`)을 사용합니다. 실제 운영 DB·고객정보·외부 네트워크를
 사용하지 않습니다.
 
+## 기본 port (중요)
+
+| 항목 | 값 |
+| --- | --- |
+| 기본 port | **3187** (`E2E_DEFAULT_PORT`) |
+| baseURL | `http://127.0.0.1:3187` (또는 `E2E_PORT`와 동일) |
+| webServer | `node e2e/start-dev-server.mjs` |
+| strict binding | E2E 전용 `RAILWAY_ENVIRONMENT=e2e`로 port fallback **비활성** |
+
+dev server가 3187 대신 3188 등으로 뜨면 Playwright baseURL과 불일치해
+`ECONNREFUSED` / `Failed to fetch`가 발생합니다. E2E는 **fallback 없이** 3187에
+고정하거나, 충돌 시 명확히 실패합니다.
+
+### port 충돌 시 처리
+
+1. 다른 Playwright/ dev 프로세스가 3187을 점유 중인지 확인 후 종료.
+2. `netstat -ano | findstr :3187` (Windows)로 PID 확인.
+3. 재실행: `pnpm.cmd test:e2e:smoke`
+4. 다른 port가 필요하면 **동일 값**으로 `E2E_PORT` 설정 (webServer·baseURL·OAuth URL 모두 자동 정렬).
+5. Unix 전용 `E2E_PORT=3187 pnpm ...` 문법은 Windows에서 쓰지 않음 — PowerShell:
+   `$env:E2E_PORT='3190'; pnpm.cmd test:e2e:smoke`
+
 ## 구성 요약
 
-- spec 파일
-  - `core-smoke.spec.ts` — 핵심 라우트/권한/다운로드/캘린더/배정 스모크
-  - `role-responsive-smoke.spec.ts` — 역할·viewport·route guard·preset·MobileNav·민감정보 비노출
-- 프로젝트(viewport)
-  - `desktop-chromium` (1440), `desktop-1280` (1280), `mobile-chromium` (Pixel 5)
-- 동시성: `fullyParallel: true`, `workers = E2E_WORKERS ?? (CI ? 2 : "50%")`
-- 단일 dev server(`e2e/start-dev-server.mjs`)를 모든 worker가 공유
-- 총 케이스 범위: 186 (mobile/desktop 전용 케이스는 비대상 프로젝트에서 의도적으로 skip)
+- spec: `core-smoke.spec.ts`, `role-responsive-smoke.spec.ts`
+- 프로젝트: `desktop-chromium` (1440), `desktop-1280`, `mobile-chromium` (Pixel 5)
+- 기본 config: `workers=1`, `fullyParallel=false` (안정성 우선)
+- 총 케이스: 186 (비대상 프로젝트에서 viewport 게이팅 skip)
+
+## 권장 로컬 실행 순서
+
+```powershell
+pnpm.cmd check
+pnpm.cmd test
+pnpm.cmd build
+pnpm.cmd test:e2e:smoke
+pnpm.cmd test:e2e:roles
+```
+
+배포 전 또는 회귀 확인 시: `pnpm.cmd test:e2e` 또는 shard 4분할 병렬.
 
 ## 명령어
 
-| 명령 | 목적 |
-| --- | --- |
-| `pnpm.cmd test:e2e` | 전체 E2E (3 프로젝트 × 2 spec) |
-| `pnpm.cmd test:e2e:smoke` | `core-smoke.spec.ts`만 — 빠른 핵심 검사 |
-| `pnpm.cmd test:e2e:roles` | `role-responsive-smoke.spec.ts`만 — 역할/viewport |
-| `pnpm.cmd test:e2e:desktop` | desktop 1440 + 1280 프로젝트 |
-| `pnpm.cmd test:e2e:mobile` | mobile(Pixel 5) 프로젝트 |
-| `pnpm.cmd test:e2e:bulk-import` | 일괄등록 관련 케이스(`--grep "bulk import"`) |
-| `pnpm.cmd test:e2e:calendar` | 캘린더 관련 케이스(`--grep "calendar"`) |
-| `pnpm.cmd test:e2e:customer` | 고객 관련 케이스(`--grep "customer"`) |
-| `pnpm.cmd test:e2e:shard:1` … `:4` | CI 샤딩(`--shard=n/4`), 4분할 |
+| 명령 | 목적 | workers |
+| --- | --- | ---: |
+| `pnpm.cmd test:e2e:smoke` | 핵심 스모크 (`core-smoke.spec.ts`) | 1 |
+| `pnpm.cmd test:e2e:roles` | 역할/viewport/route guard (`role-responsive-smoke.spec.ts`) | 1 |
+| `pnpm.cmd test:e2e:desktop` | desktop 1440 + 1280 | 1 |
+| `pnpm.cmd test:e2e:mobile` | mobile (Pixel 5) | 1 |
+| `pnpm.cmd test:e2e:bulk-import` | 일괄등록 grep | 1 |
+| `pnpm.cmd test:e2e:calendar` | 캘린더 grep | 1 |
+| `pnpm.cmd test:e2e:customer` | 고객 grep | 1 |
+| `pnpm.cmd test:e2e:shard:1` … `:4` | CI 4분할 shard | 1 |
+| `pnpm.cmd test:e2e` | 전체 E2E (3 프로젝트 × 2 spec) | 2 |
 
-### CI 샤딩
+### workers 조정
 
-`--shard=n/4`는 Playwright가 모든 프로젝트·spec의 테스트를 4등분해 배분합니다.
-4개 shard를 합치면 `test:e2e` 전체 범위와 동일합니다. CI에서는 4개 job을 병렬로
-실행해 단일 실행 timeout을 피합니다.
+- 기본: config `workers=1`, smoke/roles/shard 스크립트는 `--workers=1` 고정.
+- 전체 suite: `test:e2e`는 `--workers=2`.
+- override: `$env:E2E_WORKERS='2'; pnpm.cmd test:e2e` (PowerShell).
 
-```bash
-# 예: GitHub Actions matrix
-pnpm.cmd test:e2e:shard:1   # job 1
-pnpm.cmd test:e2e:shard:2   # job 2
-pnpm.cmd test:e2e:shard:3   # job 3
-pnpm.cmd test:e2e:shard:4   # job 4
-```
+### CI 권장
 
-worker 수를 직접 조정하려면 `E2E_WORKERS`를 사용합니다(예: `E2E_WORKERS=4`).
-
-## 실행 시간 기준선
-
-| 명령 | 결과 | 소요시간 |
-| --- | --- | --- |
-| `test:e2e` (직렬 구버전) | 300s timeout | >8m (실패) |
-| `test:e2e` (병렬) | 149 passed / 37 skipped | ~3.2m |
-| `test:e2e:smoke` | 81 passed / 9 skipped | ~1.4m |
-
-> 과거 단일 전체 실행이 300초에서 멈춘 원인은 **기능 결함이 아니라 직렬 실행
-> 구성**(`workers:1`, `fullyParallel:false`)이었습니다. 프로젝트/spec별 분할 실행은
-> 모두 통과했습니다.
+- **게이트**: `test:e2e:smoke` + `test:e2e:roles` (순차 job 또는 병렬 job, 각각 단일 worker).
+- **전체 coverage**: 4개 shard job 병렬 (`test:e2e:shard:1` … `:4`, 각 `--workers=1`).
+- full `test:e2e` 단일 job은 5분+ 소요 가능 — **CI 표준은 shard 4분할**.
 
 ## timeout 발생 시 확인 순서
 
-1. 어느 명령에서 멈췄는지 확인 (`test:e2e` 전체 vs 특정 프로젝트/spec).
-2. `test:e2e:smoke`로 핵심 경로가 정상인지 먼저 확인.
-3. 프로젝트별(`:desktop`, `:mobile`) 또는 shard(`:shard:1`..`:4`)로 분할 재실행.
-4. 단일 케이스가 느리면 `--grep "<title>"`로 격리하고 `--trace on`으로 추적.
-5. 직렬 환경(저사양 CI)이라면 shard 수를 늘리거나 `E2E_WORKERS`를 낮춰 안정화.
-6. dev server 기동 실패면 포트(`E2E_PORT`, 기본 3187) 점유 여부 확인.
+1. port 3187 점유 / 3188 fallback 로그 여부 (`Port 3187 is busy, using port 3188`).
+2. `test:e2e:smoke` 단독 재실행.
+3. 프로젝트별(`:desktop`, `:mobile`) 또는 shard로 분할.
+4. `--grep "<title>"` + `--trace on`으로 단일 케이스 격리.
+5. full timeout이면 suite 시간 문제 — shard를 표준으로 사용.
 
-## 의도된 skip 목록
+## 의도된 skip
 
-모든 skip은 **프로젝트(viewport) 게이팅**이며, 다른 프로젝트에서 동일 케이스가
-실행됩니다. 실패를 숨기기 위한 skip은 없습니다.
+모든 skip은 **viewport 프로젝트 게이팅** (`desktop-only` / `mobile-only`).
+다른 프로젝트에서 동일 케이스가 실행됩니다. 실패 은폐용 skip 없음.
 
-- `desktop-only` 게이팅: 비desktop 프로젝트에서 skip
-  (데스크톱 시각 스모크 등)
-- `mobile-only` 게이팅: 비mobile 프로젝트에서 skip
-  (모바일 비주얼 스모크, 모바일 고객상세 빠른액션, 모바일 운영리스크 탭,
-  모바일 매니저 운영리스크, MobileNav action bar gap,
-  inactive/resigned MobileNav 미노출, 모바일 알림 일괄 체크박스, member more 메뉴 등)
+## 실행 시간 참고
 
-## 운영 배포 전 권장 조합
+| 명령 | 대략 소요 |
+| --- | --- |
+| `test:e2e:smoke` | ~2–3m |
+| `test:e2e:roles` | ~4–6m |
+| `test:e2e` (workers=2) | ~5–8m |
+| shard (각 1/4) | ~1–2m |
 
-1. `pnpm.cmd check && pnpm.cmd test && pnpm.cmd build`
-2. `pnpm.cmd test:e2e:smoke` (빠른 게이트)
-3. `pnpm.cmd test:e2e` 또는 CI에서 `:shard:1`..`:4` 병렬
-
-> Railway 배포·실제 브라우저·Android는 별도 절차이며 이 가이드 범위 밖입니다.
+> Railway 배포·실제 브라우저·Android는 별도 절차입니다.
