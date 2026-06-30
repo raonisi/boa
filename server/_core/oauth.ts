@@ -13,19 +13,6 @@ import { exchangeGoogleCalendarAuthCode } from "../googleCalendarClient";
 import { storeGoogleCalendarRefreshToken } from "../googleCalendarSync";
 import { sdk } from "./sdk";
 
-const GOOGLE_AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const DEFAULT_AUTH_RETURN_PATH = "/";
-const PUBLIC_AUTH_RETURN_PATHS = new Set([
-  "/",
-  "/directory",
-  "/work-tools",
-  "/claim-documents",
-  "/disclosure-links",
-  "/knowledge",
-  "/message-templates",
-  "/search",
-]);
-
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
@@ -78,104 +65,6 @@ function decodeState(state: string): string | null {
     return Buffer.from(state, "base64").toString("utf8");
   } catch {
     return null;
-  }
-}
-
-type LoginOAuthState = {
-  redirectUri: string;
-  returnTo: string;
-};
-
-function encodeLoginOAuthState(state: LoginOAuthState) {
-  return Buffer.from(JSON.stringify(state), "utf8").toString("base64");
-}
-
-function decodeLoginOAuthState(state: string): LoginOAuthState | null {
-  const decoded = decodeState(state);
-  if (!decoded) return null;
-
-  try {
-    const parsed = JSON.parse(decoded) as Partial<LoginOAuthState>;
-    if (typeof parsed.redirectUri !== "string") return null;
-    return {
-      redirectUri: parsed.redirectUri,
-      returnTo: safePublicReturnTo(parsed.returnTo),
-    };
-  } catch {
-    return {
-      redirectUri: decoded,
-      returnTo: DEFAULT_AUTH_RETURN_PATH,
-    };
-  }
-}
-
-function decodeOnce(value: string) {
-  try {
-    return decodeURIComponent(value);
-  } catch {
-    return null;
-  }
-}
-
-function normalizeCandidateReturnTo(value: string) {
-  let candidate = value.trim();
-  for (let i = 0; i < 2; i += 1) {
-    const decoded = decodeOnce(candidate);
-    if (!decoded || decoded === candidate) break;
-    candidate = decoded.trim();
-  }
-  return candidate;
-}
-
-export function safePublicReturnTo(value: unknown): string {
-  if (typeof value !== "string") return DEFAULT_AUTH_RETURN_PATH;
-  const candidate = normalizeCandidateReturnTo(value);
-  if (!candidate || !candidate.startsWith("/") || candidate.startsWith("//")) {
-    return DEFAULT_AUTH_RETURN_PATH;
-  }
-
-  let url: URL;
-  try {
-    url = new URL(candidate, "https://boa.local");
-  } catch {
-    return DEFAULT_AUTH_RETURN_PATH;
-  }
-
-  if (url.origin !== "https://boa.local") return DEFAULT_AUTH_RETURN_PATH;
-  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) {
-    return DEFAULT_AUTH_RETURN_PATH;
-  }
-  if (!PUBLIC_AUTH_RETURN_PATHS.has(url.pathname)) {
-    return DEFAULT_AUTH_RETURN_PATH;
-  }
-
-  return `${url.pathname}${url.search}`;
-}
-
-export function safeAuthRedirectUrl(url: string, baseUrl: string) {
-  let origin: URL;
-  try {
-    origin = new URL(baseUrl);
-  } catch {
-    return DEFAULT_AUTH_RETURN_PATH;
-  }
-
-  let candidate = url.trim();
-  const decoded = decodeOnce(candidate);
-  if (decoded) candidate = decoded.trim();
-
-  if (!candidate || candidate.startsWith("//")) {
-    return `${origin.origin}${DEFAULT_AUTH_RETURN_PATH}`;
-  }
-
-  try {
-    const parsed = new URL(candidate, origin.origin);
-    if (parsed.origin !== origin.origin) {
-      return `${origin.origin}${DEFAULT_AUTH_RETURN_PATH}`;
-    }
-    return `${origin.origin}${safePublicReturnTo(`${parsed.pathname}${parsed.search}`)}`;
-  } catch {
-    return `${origin.origin}${DEFAULT_AUTH_RETURN_PATH}`;
   }
 }
 
@@ -239,36 +128,6 @@ export function buildGoogleCalendarOAuthAuthorizeUrl(origin: string) {
   return url.toString();
 }
 
-export function buildGoogleLoginOAuthAuthorizeUrl({
-  clientId,
-  redirectUri,
-  returnTo,
-}: {
-  clientId: string;
-  redirectUri: string;
-  returnTo?: string;
-}) {
-  const normalizedClientId = clientId.trim();
-  if (!normalizedClientId) {
-    throw new Error("Google OAuth Client ID is not configured");
-  }
-
-  const url = new URL(GOOGLE_AUTHORIZE_URL);
-  url.searchParams.set("client_id", normalizedClientId);
-  url.searchParams.set("redirect_uri", redirectUri);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "openid email profile");
-  url.searchParams.set(
-    "state",
-    encodeLoginOAuthState({
-      redirectUri,
-      returnTo: safePublicReturnTo(returnTo),
-    })
-  );
-  url.searchParams.set("prompt", "select_account");
-  return url.toString();
-}
-
 async function logOAuthEvent({
   action,
   targetId = 0,
@@ -312,41 +171,18 @@ async function logOAuthEvent({
 }
 
 export function registerOAuthRoutes(app: Express) {
-  app.get("/api/auth/signin", (req: Request, res: Response) => {
-    const expectedRedirectUri = getExpectedRedirectUri(req);
-    if (!expectedRedirectUri) {
-      res.status(400).json({ error: "OAuth redirect URI is unavailable" });
-      return;
-    }
-
-    try {
-      const callbackUrl =
-        getQueryParam(req, "callbackUrl") ?? getQueryParam(req, "returnTo");
-      res.redirect(
-        302,
-        buildGoogleLoginOAuthAuthorizeUrl({
-          clientId: ENV.googleClientId,
-          redirectUri: expectedRedirectUri,
-          returnTo: callbackUrl,
-        })
-      );
-    } catch {
-      res.status(503).json({ error: "Google OAuth is not configured" });
-    }
-  });
-
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
     const state = getQueryParam(req, "state");
     const expectedRedirectUri = getExpectedRedirectUri(req);
-    const loginState = state ? decodeLoginOAuthState(state) : null;
+    const stateRedirectUri = state ? decodeState(state) : null;
 
     if (!code || !state) {
       res.status(400).json({ error: "code and state are required" });
       return;
     }
 
-    if (!expectedRedirectUri || loginState?.redirectUri !== expectedRedirectUri) {
+    if (!expectedRedirectUri || stateRedirectUri !== expectedRedirectUri) {
       await logOAuthEvent({
         action: "LOGIN_BLOCKED",
         metadata: { reason: "state_mismatch" },
@@ -401,7 +237,7 @@ export function registerOAuthRoutes(app: Express) {
         maxAge: ONE_YEAR_MS,
       });
 
-      res.redirect(302, loginState.returnTo);
+      res.redirect(302, "/");
     } catch (error) {
       await logOAuthEvent({
         action: "LOGIN_BLOCKED",
