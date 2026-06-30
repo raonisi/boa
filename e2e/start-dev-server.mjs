@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 import net from "node:net";
 
-const port = Number(process.env.E2E_PORT ?? process.env.PORT ?? 3187);
+/** Fixed E2E port — must match playwright.config.ts baseURL (no fallback). */
+const E2E_DEFAULT_PORT = 3187;
+const port = Number(process.env.E2E_PORT ?? E2E_DEFAULT_PORT);
 
 async function assertPortFree(targetPort) {
   await new Promise((resolve, reject) => {
@@ -9,7 +11,9 @@ async function assertPortFree(targetPort) {
     server.once("error", () => {
       reject(
         new Error(
-          `E2E dev server port ${targetPort} is already in use. Stop the stale server or set E2E_PORT.`
+          `E2E dev server port ${targetPort} is already in use. ` +
+            `Stop the stale process (e.g. another Playwright run) or set E2E_PORT to a free port. ` +
+            `Do not rely on automatic port fallback — baseURL and webServer must stay aligned.`
         )
       );
     });
@@ -31,7 +35,13 @@ const child = spawn(command, args, {
     ...process.env,
     HOST: "127.0.0.1",
     PORT: String(port),
+    E2E_PORT: String(port),
     NODE_ENV: "development",
+    /**
+     * Reuse existing strict-port gate in server/_core/index.ts (E2E-only).
+     * Prevents findAvailablePort() from silently binding 3188 when 3187 is busy.
+     */
+    RAILWAY_ENVIRONMENT: "e2e",
   },
   shell: process.platform === "win32",
   stdio: "inherit",

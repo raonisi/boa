@@ -1,13 +1,22 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const PORT = Number(process.env.E2E_PORT ?? 3187);
+/** Fixed default — webServer, baseURL, and VITE_OAUTH_PORTAL_URL must all use this port. */
+export const E2E_DEFAULT_PORT = 3187;
+const PORT = Number(process.env.E2E_PORT ?? E2E_DEFAULT_PORT);
 const baseURL = `http://127.0.0.1:${PORT}`;
+
+/**
+ * Default worker budget: stable single-worker execution.
+ * Override with E2E_WORKERS (e.g. full suite / CI shard). Smoke/roles scripts
+ * also pass --workers=1 explicitly for Codex/Antigravity gate commands.
+ */
+const workers = process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1;
 
 export default defineConfig({
   testDir: "./e2e",
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
   timeout: 30_000,
-  workers: 1,
+  workers,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
@@ -32,7 +41,8 @@ export default defineConfig({
       PORT: String(PORT),
       HOST: "127.0.0.1",
       NODE_ENV: "development",
-      VITE_OAUTH_PORTAL_URL: "http://127.0.0.1:3187/__e2e__/oauth",
+      RAILWAY_ENVIRONMENT: "e2e",
+      VITE_OAUTH_PORTAL_URL: `${baseURL}/__e2e__/oauth`,
       VITE_APP_ID: "boa-e2e",
       VITE_MANUS_DEBUG_COLLECTOR: "0",
     },
