@@ -9,6 +9,7 @@ import {
   UrgencyBadge,
 } from "@/components/StatusBadge";
 import { adminPanel } from "@/lib/adminDesignTokens";
+import { MOBILE_FIXED_ABOVE_NAV_BOTTOM } from "@/lib/mobileLayout";
 import {
   getSeveritySurfaceClasses,
   getStatusVariantClasses,
@@ -907,7 +908,7 @@ export default function CustomerDetail({ id }: { id: number }) {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5 pb-[max(5.5rem,env(safe-area-inset-bottom))] md:pb-0">
+      <div className="space-y-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] md:pb-0">
         {/* Customer execution summary */}
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="space-y-5 p-4 sm:p-5">
@@ -2608,7 +2609,10 @@ export default function CustomerDetail({ id }: { id: number }) {
       </div>
 
       {isMobile && (
-        <div className="fixed inset-x-0 bottom-[68px] z-40 border-t border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur pb-[max(0.5rem,env(safe-area-inset-bottom))] md:hidden">
+        <div
+          className="fixed inset-x-0 z-40 border-t border-border bg-background/95 px-3 py-2 shadow-lg backdrop-blur md:hidden"
+          style={{ bottom: MOBILE_FIXED_ABOVE_NAV_BOTTOM }}
+        >
           <div className="mx-auto grid max-w-lg grid-cols-3 gap-2">
             {customer.phone ? (
               <Button
