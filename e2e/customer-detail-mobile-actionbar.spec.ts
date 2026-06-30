@@ -21,7 +21,7 @@ test.describe("CustomerDetail mobile action bar", () => {
       page,
     }) => {
       const errors = collectPageErrors(page);
-      
+
       // Set viewport before navigating so isMobile hook triggers
       await setResponsiveViewport(page, viewport);
 
