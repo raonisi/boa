@@ -18,6 +18,7 @@ import {
   ClipboardList,
   Phone,
 } from "lucide-react";
+import React from "react";
 import type { ElementType } from "react";
 
 const FILTER_LABELS: Record<TodayWorkQueueFilter, string> = {
@@ -91,7 +92,7 @@ export function TodayWorkExecutionQueue({
 
   return (
     <Card className={cn("crm-dashboard-card", className)}>
-      <CardHeader className="flex-row flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
+      <CardHeader className="flex-col items-stretch gap-3 border-b border-border/70 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-base font-semibold tracking-tight">
             {compact ? "먼저 처리할 일" : "오늘 업무 실행"}
@@ -100,15 +101,16 @@ export function TodayWorkExecutionQueue({
             일정·후속관리·알림을 우선순위대로 정리했습니다.
           </p>
         </div>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-1.5">
           {(Object.keys(FILTER_LABELS) as TodayWorkQueueFilter[]).map(key => (
             <button
               key={key}
               type="button"
+              aria-label={`오늘 업무 필터: ${FILTER_LABELS[key]} ${counts[key]}건`}
               aria-pressed={filter === key}
               onClick={() => onFilterChange(key)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                "min-h-11 rounded-full border px-3 py-2 text-xs font-semibold transition-colors sm:min-h-9 sm:py-1.5",
                 filter === key
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-muted/30 text-muted-foreground"
@@ -119,7 +121,7 @@ export function TodayWorkExecutionQueue({
           ))}
         </div>
       </CardHeader>
-      <CardContent className="space-y-2 px-5 pb-5">
+      <CardContent className="space-y-2 px-4 pb-5 sm:px-5">
         {isLoading ? (
           <div className="space-y-2">
             {[0, 1, 2].map(index => (
@@ -157,7 +159,7 @@ export function TodayWorkExecutionQueue({
             return (
               <div
                 key={item.key}
-                className="crm-dashboard-card rounded-xl border border-border/80 p-3 shadow-sm"
+                className="crm-dashboard-card rounded-xl border border-border/80 p-3 shadow-sm sm:p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -168,7 +170,7 @@ export function TodayWorkExecutionQueue({
                       <button
                         type="button"
                         onClick={() => onSelectItem(item)}
-                        className="truncate text-left text-sm font-semibold text-foreground hover:underline"
+                        className="line-clamp-2 text-left text-sm font-semibold leading-5 text-foreground hover:underline"
                       >
                         {item.title}
                       </button>
@@ -189,11 +191,11 @@ export function TodayWorkExecutionQueue({
                     {item.priorityLabel}
                   </span>
                 </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
                   <Button
                     type="button"
                     size="sm"
-                    className="min-h-10"
+                    className="col-span-2 min-h-11 justify-center sm:col-span-1 sm:min-h-10"
                     disabled={isBusy}
                     onClick={() => onPrimaryAction(item)}
                   >
@@ -205,7 +207,7 @@ export function TodayWorkExecutionQueue({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="min-h-10"
+                      className="min-h-11 justify-center sm:min-h-10"
                       onClick={() =>
                         onNavigate(
                           buildCustomerDetailPath(
@@ -227,7 +229,7 @@ export function TodayWorkExecutionQueue({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="min-h-10"
+                      className="min-h-11 justify-center sm:min-h-10"
                       onClick={() =>
                         onNavigate(
                           `/calendar?customerId=${item.customerId}&action=quick-create`
@@ -242,7 +244,7 @@ export function TodayWorkExecutionQueue({
                       type="button"
                       size="sm"
                       variant="outline"
-                      className="min-h-10"
+                      className="min-h-11 justify-center sm:min-h-10"
                       onClick={() =>
                         onNavigate(
                           buildCustomerDetailPath(
@@ -259,7 +261,7 @@ export function TodayWorkExecutionQueue({
                     type="button"
                     size="sm"
                     variant="ghost"
-                    className="min-h-10"
+                    className="min-h-11 justify-center sm:min-h-10"
                     onClick={() => onNavigate(item.route)}
                   >
                     바로 처리

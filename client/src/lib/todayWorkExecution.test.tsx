@@ -1,4 +1,7 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { TodayWorkExecutionQueue } from "@/components/dashboard/TodayWorkExecutionQueue";
 import {
   buildTodayWorkItems,
   countTodayWorkItemsByFilter,
@@ -144,5 +147,42 @@ describe("todayWorkExecution", () => {
 
     expect(items[0]?.route).toBe("/customers/42?action=quick-followup");
     expect(items[0]?.primaryActionLabel).toBe("완료");
+  });
+
+  it("renders mobile command queue filters and touch actions with accessible labels", () => {
+    const items = buildTodayWorkItems(
+      {
+        todayFollowUps: [
+          {
+            id: 5,
+            customerId: 42,
+            customerName: "박고객",
+            nextContactDate: "2026-06-15T10:00",
+          },
+        ],
+      },
+      NOW
+    );
+
+    const html = renderToStaticMarkup(
+      <TodayWorkExecutionQueue
+        items={items}
+        filter="all"
+        onFilterChange={() => undefined}
+        isLoading={false}
+        isError={false}
+        onRetry={() => undefined}
+        onSelectItem={() => undefined}
+        onPrimaryAction={() => undefined}
+        onNavigate={() => undefined}
+      />
+    );
+
+    expect(html).toContain('aria-label="오늘 업무 필터: 전체 1건"');
+    expect(html).toContain('aria-pressed="true"');
+    expect(html).toContain("오늘 업무 실행");
+    expect(html).toContain("고객 보기");
+    expect(html).toContain("일정 등록");
+    expect(html).toContain("바로 처리");
   });
 });

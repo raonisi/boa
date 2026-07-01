@@ -645,7 +645,7 @@ export function TodayWorkSection({
                   key={item.label}
                   type="button"
                   onClick={() => setLocation(item.path)}
-                  className="crm-dashboard-action min-h-12 rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm"
+                  className="crm-dashboard-action min-h-14 rounded-lg border border-border/80 bg-muted/30 p-3 text-left shadow-sm md:min-h-12"
                 >
                   <p className="text-xs font-medium text-muted-foreground">
                     {item.label}
@@ -665,7 +665,7 @@ export function TodayWorkSection({
               <Button
                 type="button"
                 onClick={() => setLocation(primaryCommandPath)}
-                className="min-h-12 gap-2 rounded-lg md:min-h-10"
+                className="min-h-12 w-full justify-center gap-2 rounded-lg sm:w-auto md:min-h-10 xl:w-full"
               >
                 <BellDot className="h-4 w-4" aria-hidden="true" />
                 {hasImmediateWork ? primaryCommandLabel : "일정 등록하기"}
@@ -674,7 +674,7 @@ export function TodayWorkSection({
                 type="button"
                 variant="outline"
                 onClick={() => setLocation("/sales-pipeline")}
-                className="min-h-12 gap-2 rounded-lg md:min-h-10"
+                className="min-h-12 w-full justify-center gap-2 rounded-lg sm:w-auto md:min-h-10 xl:w-full"
               >
                 <LayoutGrid className="h-4 w-4" aria-hidden="true" />
                 파이프라인
@@ -708,22 +708,29 @@ export function TodayWorkSection({
       </Card>
 
       {roleShortcutItems.length > 0 ? (
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-          {roleShortcutItems.map(item => (
-            <button
-              key={item.path}
-              type="button"
-              onClick={() => setLocation(item.path)}
-              className="crm-dashboard-action min-h-14 rounded-lg border border-border/80 bg-card p-4 text-left shadow-sm"
-            >
-              <p className="text-sm font-semibold text-foreground">
-                {item.label}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {item.hint}
-              </p>
-            </button>
-          ))}
+        <div className="space-y-2">
+          <div className="md:hidden">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              지점 운영 바로가기
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+            {roleShortcutItems.map(item => (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => setLocation(item.path)}
+                className="crm-dashboard-action min-h-14 rounded-lg border border-border/80 bg-card p-4 text-left shadow-sm"
+              >
+                <p className="text-sm font-semibold text-foreground">
+                  {item.label}
+                </p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {item.hint}
+                </p>
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
 
@@ -865,7 +872,7 @@ export function TodayWorkSection({
           <button
             type="button"
             onClick={() => setLocation("/notifications")}
-            className="text-xs font-semibold text-primary hover:underline"
+            className="min-h-10 rounded-md px-2 text-xs font-semibold text-primary hover:underline"
           >
             바로 처리
           </button>
@@ -898,7 +905,7 @@ export function TodayWorkSection({
                 key={item.label}
                 type="button"
                 onClick={() => setLocation(item.path)}
-                className="min-h-12 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
+                className="min-h-14 rounded-lg border border-border bg-muted/25 px-3 py-2 text-left"
               >
                 <p className="text-xs text-muted-foreground">
                   {item.label}
