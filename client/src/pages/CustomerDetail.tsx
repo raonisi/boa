@@ -103,6 +103,7 @@ import {
   Undo2,
   ChevronDown,
   Zap,
+  Bell,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
@@ -1244,6 +1245,19 @@ export default function CustomerDetail({ id }: { id: number }) {
                 `/calendar?customerId=${customer.id}&action=quick-create`
               )
             }
+          />
+        ) : null}
+
+        {isMobile ? (
+          <CustomerQuickActionHub
+            onShowConsultations={() => setActiveTab("consult")}
+            onShowFollowUps={() => setActiveTab("info")}
+            onShowCalendar={() =>
+              setLocation(
+                `/calendar?customerId=${customer.id}&action=quick-create`
+              )
+            }
+            onShowNotifications={() => setLocation("/notifications")}
           />
         ) : null}
 
@@ -3555,6 +3569,99 @@ function Customer360SummaryCard({
         </div>
 
         <p className="text-xs leading-5 text-muted-foreground">
+          권한 또는 상태에 따라 일부 정보는 표시되지 않을 수 있습니다
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function CustomerQuickActionHub({
+  onShowConsultations,
+  onShowFollowUps,
+  onShowCalendar,
+  onShowNotifications,
+}: {
+  onShowConsultations: () => void;
+  onShowFollowUps: () => void;
+  onShowCalendar: () => void;
+  onShowNotifications: () => void;
+}) {
+  const actions = [
+    {
+      testId: "customer-quick-action-consultation",
+      label: "상담기록 보기",
+      icon: MessageSquare,
+      onClick: onShowConsultations,
+      className: "min-[380px]:col-span-2",
+      variant: "default" as const,
+    },
+    {
+      testId: "customer-quick-action-followup",
+      label: "후속 확인",
+      icon: CalendarPlus,
+      onClick: onShowFollowUps,
+      variant: "outline" as const,
+    },
+    {
+      testId: "customer-quick-action-calendar",
+      label: "일정 보기",
+      icon: CalendarPlus,
+      onClick: onShowCalendar,
+      variant: "outline" as const,
+    },
+    {
+      testId: "customer-quick-action-notifications",
+      label: "알림 확인",
+      icon: Bell,
+      onClick: onShowNotifications,
+      className: "min-[380px]:col-span-2",
+      variant: "secondary" as const,
+    },
+  ];
+
+  return (
+    <Card
+      className="border-slate-200/80 bg-slate-950 text-white shadow-sm md:hidden"
+      data-testid="customer-quick-action-hub"
+    >
+      <CardContent className="space-y-4 p-4">
+        <div>
+          <p
+            className="text-base font-bold"
+            data-testid="customer-quick-action-title"
+          >
+            다음 행동
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-300">
+            상담, 후속, 일정을 빠르게 확인하세요
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
+          {actions.map(action => {
+            const Icon = action.icon;
+
+            return (
+              <Button
+                key={action.testId}
+                type="button"
+                variant={action.variant}
+                className={cn(
+                  "min-h-11 justify-center gap-2 text-sm font-semibold",
+                  action.className
+                )}
+                onClick={action.onClick}
+                data-testid={action.testId}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {action.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        <p className="text-xs leading-5 text-slate-300">
           권한 또는 상태에 따라 일부 정보는 표시되지 않을 수 있습니다
         </p>
       </CardContent>

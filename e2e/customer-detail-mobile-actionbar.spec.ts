@@ -62,6 +62,29 @@ test.describe("CustomerDetail mobile action bar", () => {
         "일정 보기"
       );
 
+      const quickActionHub = page.getByTestId("customer-quick-action-hub");
+      await expect(quickActionHub).toBeVisible();
+      await expect(page.getByTestId("customer-quick-action-title")).toHaveText(
+        "다음 행동"
+      );
+      await expect(quickActionHub).toContainText(
+        "상담, 후속, 일정을 빠르게 확인하세요"
+      );
+      await expect(
+        page.getByTestId("customer-quick-action-consultation")
+      ).toHaveText("상담기록 보기");
+      await expect(page.getByTestId("customer-quick-action-followup")).toHaveText(
+        "후속 확인"
+      );
+      await expect(page.getByTestId("customer-quick-action-calendar")).toHaveText(
+        "일정 보기"
+      );
+      await expect(
+        page.getByTestId("customer-quick-action-notifications")
+      ).toHaveText("알림 확인");
+      await expect(quickActionHub).not.toContainText("전화");
+      await expect(quickActionHub).not.toContainText("문자");
+
       // Verify no horizontal overflow
       await expectNoHorizontalOverflow(page);
 
@@ -71,6 +94,19 @@ test.describe("CustomerDetail mobile action bar", () => {
       await summaryConsultationAction.scrollIntoViewIfNeeded();
       await expectMinimumHitTarget(summaryConsultationAction, 44);
       await expectClickCenterReachable(summaryConsultationAction);
+
+      for (const testId of [
+        "customer-quick-action-consultation",
+        "customer-quick-action-followup",
+        "customer-quick-action-calendar",
+        "customer-quick-action-notifications",
+      ]) {
+        const quickAction = page.getByTestId(testId);
+        await quickAction.evaluate(element =>
+          element.scrollIntoView({ block: "center", inline: "nearest" })
+        );
+        await expectMinimumHitTarget(quickAction, 44);
+      }
 
       // Locate MobileNav and Action bar
       const mobileNav = page.locator("nav.fixed.bottom-0").first();
@@ -102,5 +138,24 @@ test.describe("CustomerDetail mobile action bar", () => {
 
     await page.getByTestId("customer-360-action-calendar").click();
     await expect(page).toHaveURL(/\/calendar\?customerId=101&action=quick-create/);
+  });
+
+  test("keeps quick action hub on existing routes", async ({ page }) => {
+    await setResponsiveViewport(page, "mobile360");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101");
+
+    await page.getByTestId("customer-quick-action-consultation").click();
+    await expect(page).toHaveURL(/\/customers\/101/);
+
+    await page.getByTestId("customer-quick-action-followup").click();
+    await expect(page).toHaveURL(/\/customers\/101/);
+
+    await page.getByTestId("customer-quick-action-calendar").click();
+    await expect(page).toHaveURL(/\/calendar\?customerId=101&action=quick-create/);
+
+    await page.goto("/customers/101");
+    await page.getByTestId("customer-quick-action-notifications").click();
+    await expect(page).toHaveURL(/\/notifications/);
   });
 });
