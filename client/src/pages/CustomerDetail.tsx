@@ -276,6 +276,18 @@ function daysSince(value?: string | Date | null) {
   return Math.floor((Date.now() - date.getTime()) / (24 * 60 * 60 * 1000));
 }
 
+function isSameLocalDate(value?: string | Date | null) {
+  if (!value) return false;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return false;
+  const today = new Date();
+  return (
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  );
+}
+
 export default function CustomerDetail({ id }: { id: number }) {
   const [location, setLocation] = useLocation();
   const { user } = useAuth();
@@ -366,11 +378,15 @@ export default function CustomerDetail({ id }: { id: number }) {
   };
   const canLoadDependencies =
     canLoadCustomerDetailDependencies(customerAccessState);
-  const { data: consultations, refetch: refetchConsult } =
-    trpc.consultations.list.useQuery(
-      { customerId: id },
-      { enabled: canLoadDependencies }
-    );
+  const {
+    data: consultations,
+    refetch: refetchConsult,
+    isLoading: isConsultationsLoading,
+    isError: isConsultationsError,
+  } = trpc.consultations.list.useQuery(
+    { customerId: id },
+    { enabled: canLoadDependencies }
+  );
   const { data: contracts, refetch: refetchContracts } =
     trpc.contracts.listByCustomer.useQuery(
       { customerId: id },
@@ -389,11 +405,15 @@ export default function CustomerDetail({ id }: { id: number }) {
       { customerId: id },
       { enabled: canLoadDependencies }
     );
-  const { data: followUps, refetch: refetchFollowUps } =
-    trpc.followUps.listByCustomer.useQuery(
-      { customerId: id },
-      { enabled: canLoadDependencies }
-    );
+  const {
+    data: followUps,
+    refetch: refetchFollowUps,
+    isLoading: isFollowUpsLoading,
+    isError: isFollowUpsError,
+  } = trpc.followUps.listByCustomer.useQuery(
+    { customerId: id },
+    { enabled: canLoadDependencies }
+  );
   const { data: customerRelationships } =
     trpc.customerRelationships.list.useQuery(
       { customerId: id },
@@ -467,10 +487,13 @@ export default function CustomerDetail({ id }: { id: number }) {
       limit: 80,
     };
   }, [id, timelineFilter, timelineRange]);
-  const { data: timelineData } = trpc.customers.timeline.useQuery(
-    timelineInput,
-    { enabled: canLoadDependencies }
-  );
+  const {
+    data: timelineData,
+    isLoading: isTimelineLoading,
+    isError: isTimelineError,
+  } = trpc.customers.timeline.useQuery(timelineInput, {
+    enabled: canLoadDependencies,
+  });
 
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => {
@@ -884,6 +907,14 @@ export default function CustomerDetail({ id }: { id: number }) {
   const managementStartDate = customer.assignedAt ?? customer.createdAt;
   const daysFromManagementStart = daysSince(managementStartDate);
   const daysFromLatestConsult = daysSince(latestConsultDate);
+  const todayScheduleCount = (timelineData?.items ?? []).filter(
+    (item: any) =>
+      item.source === "schedules" && isSameLocalDate(item.occurredAt)
+  ).length;
+  const isCustomer360Loading =
+    isConsultationsLoading || isFollowUpsLoading || isTimelineLoading;
+  const isCustomer360Error =
+    isConsultationsError || isFollowUpsError || isTimelineError;
   const isLongUnmanaged = latestConsultDate
     ? (daysFromLatestConsult ?? 0) >= 90
     : (daysFromManagementStart ?? 0) >= 90;
@@ -1198,6 +1229,23 @@ export default function CustomerDetail({ id }: { id: number }) {
             </div>
           </CardContent>
         </Card>
+
+        {isMobile ? (
+          <Customer360SummaryCard
+            openFollowUpCount={openFollowUps.length}
+            todayScheduleCount={todayScheduleCount}
+            daysFromLatestConsult={daysFromLatestConsult}
+            isLoading={isCustomer360Loading}
+            isError={isCustomer360Error}
+            onShowConsultations={() => setActiveTab("consult")}
+            onShowFollowUps={() => setActiveTab("info")}
+            onShowCalendar={() =>
+              setLocation(
+                `/calendar?customerId=${customer.id}&action=quick-create`
+              )
+            }
+          />
+        ) : null}
 
         <Card className="border-blue-100 bg-gradient-to-br from-blue-50/70 to-white shadow-sm">
           <CardContent className="space-y-3 p-4">
@@ -3366,6 +3414,151 @@ function CustomerTimelinePanel({
         </div>
       )}
     </div>
+  );
+}
+
+function Customer360SummaryCard({
+  openFollowUpCount,
+  todayScheduleCount,
+  daysFromLatestConsult,
+  isLoading,
+  isError,
+  onShowConsultations,
+  onShowFollowUps,
+  onShowCalendar,
+}: {
+  openFollowUpCount: number;
+  todayScheduleCount: number;
+  daysFromLatestConsult: number | null;
+  isLoading: boolean;
+  isError: boolean;
+  onShowConsultations: () => void;
+  onShowFollowUps: () => void;
+  onShowCalendar: () => void;
+}) {
+  const chips = [
+    {
+      testId: "customer-360-followup-chip",
+      label:
+        openFollowUpCount > 0
+          ? `미처리 후속 ${openFollowUpCount}건`
+          : "미처리 후속 없음",
+      className:
+        openFollowUpCount > 0
+          ? "border-amber-200 bg-amber-50 text-amber-900"
+          : "border-slate-200 bg-slate-50 text-slate-700",
+    },
+    {
+      testId: "customer-360-schedule-chip",
+      label:
+        todayScheduleCount > 0
+          ? `오늘 일정 ${todayScheduleCount}건`
+          : "오늘 일정 없음",
+      className:
+        todayScheduleCount > 0
+          ? "border-blue-200 bg-blue-50 text-blue-900"
+          : "border-slate-200 bg-slate-50 text-slate-700",
+    },
+    {
+      testId: "customer-360-consultation-chip",
+      label:
+        daysFromLatestConsult == null
+          ? "상담기록 없음"
+          : `최근 상담 ${Math.max(daysFromLatestConsult, 0)}일 전`,
+      className:
+        daysFromLatestConsult == null
+          ? "border-slate-200 bg-slate-50 text-slate-700"
+          : "border-emerald-200 bg-emerald-50 text-emerald-900",
+      fullWidth: true,
+    },
+  ];
+
+  return (
+    <Card
+      className="border-slate-200/80 bg-white shadow-sm md:hidden"
+      data-testid="customer-360-summary-card"
+    >
+      <CardContent className="space-y-4 p-4">
+        <div>
+          <p
+            className="text-base font-bold text-slate-950"
+            data-testid="customer-360-summary-title"
+          >
+            고객 360 요약
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            최근 기록과 다음 일정을 먼저 확인하세요
+          </p>
+        </div>
+
+        <div className="space-y-2" data-testid="customer-360-priority-section">
+          <p className="text-xs font-semibold text-slate-600">
+            오늘 먼저 확인할 것
+          </p>
+          {isLoading ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-muted-foreground">
+              고객 요약을 불러오는 중입니다
+            </div>
+          ) : isError ? (
+            <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3 text-sm text-muted-foreground">
+              고객 정보를 불러올 수 없습니다
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
+              {chips.map(chip => (
+                <span
+                  key={chip.testId}
+                  data-testid={chip.testId}
+                  className={cn(
+                    "min-h-11 rounded-lg border px-3 py-2 text-sm font-semibold",
+                    chip.fullWidth ? "min-[380px]:col-span-2" : "",
+                    chip.className
+                  )}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2" data-testid="customer-360-actions">
+          <p className="text-xs font-semibold text-slate-600">다음 행동</p>
+          <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
+            <Button
+              type="button"
+              className="min-h-11 min-[380px]:col-span-2"
+              onClick={onShowConsultations}
+              data-testid="customer-360-action-consultation"
+            >
+              상담기록 보기
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={onShowFollowUps}
+              data-testid="customer-360-action-followup"
+            >
+              후속 확인
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-11"
+              onClick={onShowCalendar}
+              data-testid="customer-360-action-calendar"
+            >
+              일정 보기
+            </Button>
+          </div>
+        </div>
+
+        <p className="text-xs leading-5 text-muted-foreground">
+          권한 또는 상태에 따라 일부 정보는 표시되지 않을 수 있습니다
+        </p>
+      </CardContent>
+    </Card>
   );
 }
 
