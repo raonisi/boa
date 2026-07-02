@@ -781,6 +781,22 @@ export default function Calendar() {
       (a, b) =>
         new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
+  const mobileAgendaGroups = mobileList.reduce<
+    Array<{ key: string; label: string; schedules: CalendarSchedule[] }>
+  >((groups, schedule) => {
+    const date = scheduleDate(schedule.startTime);
+    const key = format(date, "yyyy-MM-dd");
+    const label = isSameDay(date, today)
+      ? `오늘 · ${format(date, "M월 d일 (EEE)", { locale: ko })}`
+      : format(date, "M월 d일 (EEE)", { locale: ko });
+    const existing = groups.find(group => group.key === key);
+    if (existing) {
+      existing.schedules.push(schedule);
+      return groups;
+    }
+    groups.push({ key, label, schedules: [schedule] });
+    return groups;
+  }, []);
   const reminderSchedules = (schedules ?? []).filter(s => {
     if (!["예정", "변경", "보류"].includes(s.status)) return false;
     if ((s.reminderOffsetMinutes ?? 30) < 0) return false;
@@ -908,31 +924,43 @@ export default function Calendar() {
             </div>
 
             {/* 오늘 일정 */}
-            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <Card
+              className="border-slate-200/80 bg-white/95 shadow-sm"
+              data-testid="calendar-mobile-agenda-section"
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
                   <CalendarDays className="h-4 w-4 text-[#b99b5f]" /> 오늘 일정
                   ({todaySchedules.length})
                 </CardTitle>
+                <p className="mt-1 text-xs text-slate-500">
+                  오늘 확인할 일정을 먼저 보세요
+                </p>
               </CardHeader>
               <CardContent className="space-y-2">
                 {todaySchedules.length === 0 ? (
                   <ScheduleEmptyState
-                    title="오늘 일정이 없습니다."
+                    title="오늘 예정된 일정이 없습니다."
                     description="상담 예약이나 후속관리 일정을 등록해보세요."
                     onCreate={() => openQuickCreate()}
                   />
                 ) : (
                   todaySchedules.map(s => (
-                    <div
+                    <button
                       key={s.id}
-                      className={`flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl p-3.5 text-white shadow-sm ${typeColors[s.type] ?? "bg-slate-400"}`}
+                      type="button"
+                      data-testid="calendar-mobile-agenda-card"
+                      className={`flex min-h-16 w-full cursor-pointer items-start gap-3 rounded-2xl p-3.5 text-left text-white shadow-sm transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${typeColors[s.type] ?? "bg-slate-400"}`}
+                      aria-label={`일정 보기: ${s.title}`}
                       onClick={() => setSelectedSchedule(s)}
                     >
                       <div className="text-xs font-bold w-10 shrink-0">
                         {formatScheduleTime(s.startTime)}
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div
+                        className="flex-1 min-w-0"
+                        data-testid="calendar-mobile-agenda-item"
+                      >
                         <p className="line-clamp-2 text-sm font-semibold leading-5">
                           {s.title}
                         </p>
@@ -946,8 +974,11 @@ export default function Calendar() {
                           {s.type} · {getStatusLabel(s.status)} · 알림{" "}
                           {scheduleReminderText(s)}
                         </p>
+                        <span className="mt-2 inline-flex rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold">
+                          자세히 보기
+                        </span>
                       </div>
-                    </div>
+                    </button>
                   ))
                 )}
               </CardContent>
@@ -1050,58 +1081,87 @@ export default function Calendar() {
               </CardContent>
             </Card>
 
-            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <Card
+              className="border-slate-200/80 bg-white/95 shadow-sm"
+              data-testid="calendar-mobile-agenda-section"
+            >
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-sm">
-                  <Clock3 className="h-4 w-4 text-[#b99b5f]" /> 조회 일정 (
+                  <Clock3 className="h-4 w-4 text-[#b99b5f]" /> 예정 일정 (
                   {mobileList.length})
                 </CardTitle>
                 <p className="mt-1 text-xs text-slate-500">
-                  {CALENDAR_MOBILE_VIEW_HINT}
+                  다가오는 일정을 확인하세요. {CALENDAR_MOBILE_VIEW_HINT}
                 </p>
               </CardHeader>
               <CardContent className="space-y-2">
                 {mobileList.length === 0 ? (
-                  <ScheduleEmptyState
-                    title="선택한 조건에 해당하는 일정이 없습니다."
-                    description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
-                    onCreate={() => openQuickCreate()}
-                  />
+                  <div data-testid="calendar-mobile-empty-state">
+                    <ScheduleEmptyState
+                      title="선택한 조건에 해당하는 일정이 없습니다."
+                      description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
+                      onCreate={() => openQuickCreate()}
+                    />
+                  </div>
                 ) : (
-                  mobileList.map(s => (
+                  mobileAgendaGroups.map(group => (
                     <div
-                      key={s.id}
-                      className="flex min-h-16 cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 p-3.5 hover:bg-slate-50"
-                      onClick={() => setSelectedSchedule(s)}
+                      key={group.key}
+                      className="space-y-2"
+                      data-testid="calendar-mobile-agenda-date-group"
                     >
-                      <div
-                        className={`h-2 w-2 rounded-full shrink-0 ${typeColors[s.type] ?? "bg-slate-400"}`}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="line-clamp-2 text-sm font-medium leading-5">
-                          {s.title}
-                        </p>
-                        {showOwnerName && s.ownerName ? (
-                          <p className="text-xs font-medium text-violet-700">
-                            {s.ownerName}
-                          </p>
-                        ) : null}
-                        <p className="text-xs text-emerald-700">
-                          {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(
-                            scheduleDate(s.startTime),
-                            "M/d (EEE) HH:mm",
-                            {
-                              locale: ko,
-                            }
-                          )}
-                        </p>
+                      <div className="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                        <span>{group.label}</span>
+                        <span className="tabular-nums">
+                          {group.schedules.length}건
+                        </span>
                       </div>
-                      <div className="shrink-0">
-                        <StatusBadge status={s.status} />
-                      </div>
+                      {group.schedules.map(s => (
+                        <button
+                          key={s.id}
+                          type="button"
+                          data-testid="calendar-mobile-agenda-card"
+                          className="flex min-h-16 w-full cursor-pointer items-start gap-3 rounded-2xl border border-slate-200 bg-white p-3.5 text-left shadow-sm transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          aria-label={`일정 보기: ${s.title}`}
+                          onClick={() => setSelectedSchedule(s)}
+                        >
+                          <div
+                            className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${typeColors[s.type] ?? "bg-slate-400"}`}
+                          />
+                          <div
+                            className="flex-1 min-w-0"
+                            data-testid="calendar-mobile-agenda-item"
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <p className="line-clamp-2 min-w-0 text-sm font-semibold leading-5 text-slate-950">
+                                {s.title}
+                              </p>
+                              <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-700">
+                                {formatScheduleTime(s.startTime)}
+                              </span>
+                            </div>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                              <StatusBadge status={s.status} />
+                              <CalendarCategoryBadge
+                                category={s.calendarCategory}
+                                label={s.calendarCategoryLabel}
+                              />
+                              {showOwnerName && s.ownerName ? (
+                                <span className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-700">
+                                  {s.ownerName}
+                                </span>
+                              ) : null}
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 font-medium text-slate-600">
+                                {getScheduleCustomerLabel(s) ??
+                                  "연결 고객 없음"}
+                              </span>
+                              <span className="rounded-full bg-blue-50 px-2 py-0.5 font-semibold text-blue-700">
+                                일정 보기
+                              </span>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   ))
                 )}

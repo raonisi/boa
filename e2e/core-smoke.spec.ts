@@ -156,10 +156,40 @@ test.describe("BOA CRM e2e smoke", () => {
 
     await mobileNavButtons.nth(2).click();
     await expect(page).toHaveURL(/\/calendar$/);
+    await expect(
+      page.getByTestId("calendar-mobile-agenda-section").first()
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("calendar-mobile-agenda-date-group").first()
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("calendar-mobile-agenda-card").first()
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("calendar-mobile-agenda-item").first()
+    ).toContainText("[E2E]");
     await expectStablePageShell(page, errors);
 
     await mobileNavButtons.nth(3).click();
     await expect(page).toHaveURL(/\/notifications$/);
+    await expect(
+      page.getByTestId("notifications-priority-section")
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("notifications-priority-chip-urgent")
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("notifications-priority-chip-today")
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("notifications-priority-chip-normal")
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("notifications-priority-chip-done")
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("notifications-mobile-notification-card").first()
+    ).toBeVisible();
     await expect(page.getByTestId("notifications-bulk-actions")).toBeVisible();
     await page
       .getByRole("checkbox", { name: "현재 페이지 알림 1번 행 선택" })

@@ -81,7 +81,7 @@ const processStatusColors: Record<string, string> = {
 };
 
 type ProcessStatus = "미확인" | "확인" | "처리완료" | "보류";
-type PriorityFilter = "all" | "urgent" | "today" | "general";
+type PriorityFilter = "all" | "urgent" | "today" | "general" | "done";
 type BulkCompleteConfirmation = {
   ids: number[];
   action: "complete" | "todayComplete";
@@ -113,12 +113,14 @@ const titleMap: Record<string, string> = {
 
 const LIMIT = 50;
 
-function priorityLabel(priority: "urgent" | "today" | "general") {
+function priorityLabel(priority: "urgent" | "today" | "general" | "done") {
   return priority === "urgent"
     ? "긴급"
     : priority === "today"
       ? "오늘 처리"
-      : "일반";
+      : priority === "done"
+        ? "처리완료"
+        : "일반";
 }
 
 function priorityCardClass(priority: PriorityFilter, active: boolean) {
@@ -130,6 +132,10 @@ function priorityCardClass(priority: PriorityFilter, active: boolean) {
     return active
       ? "border-amber-300 bg-amber-50 text-amber-800"
       : "border-amber-100 bg-white hover:bg-amber-50/60";
+  if (priority === "done")
+    return active
+      ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+      : "border-emerald-100 bg-white hover:bg-emerald-50/60";
   return active
     ? "border-slate-300 bg-slate-100 text-slate-900"
     : "border-slate-200 bg-white hover:bg-slate-50";
@@ -181,11 +187,11 @@ export default function Notifications() {
     refetch: refetchNotifications,
   } = trpc.notifications.list.useQuery(queryInput);
   const notifications = result?.items ?? [];
-  const filteredNotifications = notifications.filter(n =>
-    priorityFilter === "all"
-      ? true
-      : classifyNotificationPriority(n) === priorityFilter
-  );
+  const filteredNotifications = notifications.filter(n => {
+    if (priorityFilter === "all") return true;
+    if (priorityFilter === "done") return n.processStatus === "처리완료";
+    return classifyNotificationPriority(n) === priorityFilter;
+  });
   const sortedNotifications = sortNotificationsForQueue(filteredNotifications);
   const priorityCounts = {
     urgent: notifications.filter(
@@ -197,6 +203,7 @@ export default function Notifications() {
     general: notifications.filter(
       n => classifyNotificationPriority(n) === "general"
     ).length,
+    done: notifications.filter(n => n.processStatus === "처리완료").length,
   };
   const totalCount = result?.totalCount ?? 0;
   const hasMore = result?.hasMore ?? false;
@@ -554,6 +561,7 @@ export default function Notifications() {
                   <SelectItem value="urgent">긴급</SelectItem>
                   <SelectItem value="today">오늘 처리</SelectItem>
                   <SelectItem value="general">일반</SelectItem>
+                  <SelectItem value="done">처리완료</SelectItem>
                 </SelectContent>
               </Select>
               <Select
@@ -661,55 +669,91 @@ export default function Notifications() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-2 sm:grid-cols-3">
-          <button
-            type="button"
-            aria-pressed={priorityFilter === "urgent"}
-            className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
-            onClick={() => {
-              setPriorityFilter(priorityFilter === "urgent" ? "all" : "urgent");
-              setSelectedNotificationIds([]);
-            }}
-          >
-            <p className="text-xs font-semibold">긴급</p>
-            <p className="text-lg font-bold tabular-nums text-foreground">
-              {priorityCounts.urgent}
+        <section
+          className="space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm"
+          data-testid="notifications-priority-section"
+        >
+          <div>
+            <p className="text-sm font-semibold text-foreground">
+              알림 우선순위
             </p>
-            <p className="text-xs text-muted-foreground">위험·기한 임박 업무</p>
-          </button>
-          <button
-            type="button"
-            aria-pressed={priorityFilter === "today"}
-            className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
-            onClick={() => {
-              setPriorityFilter(priorityFilter === "today" ? "all" : "today");
-              setSelectedNotificationIds([]);
-            }}
-          >
-            <p className="text-xs font-semibold">오늘 처리</p>
-            <p className="text-lg font-bold tabular-nums text-foreground">
-              {priorityCounts.today}
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              먼저 처리할 알림을 확인하세요
             </p>
-            <p className="text-xs text-muted-foreground">오늘 확인할 업무</p>
-          </button>
-          <button
-            type="button"
-            aria-pressed={priorityFilter === "general"}
-            className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
-            onClick={() => {
-              setPriorityFilter(
-                priorityFilter === "general" ? "all" : "general"
-              );
-              setSelectedNotificationIds([]);
-            }}
-          >
-            <p className="text-xs font-semibold">일반</p>
-            <p className="text-lg font-bold tabular-nums text-foreground">
-              {priorityCounts.general}
-            </p>
-            <p className="text-xs text-muted-foreground">정보성 알림</p>
-          </button>
-        </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-4">
+            <button
+              type="button"
+              data-testid="notifications-priority-chip-urgent"
+              aria-pressed={priorityFilter === "urgent"}
+              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
+              onClick={() => {
+                setPriorityFilter(
+                  priorityFilter === "urgent" ? "all" : "urgent"
+                );
+                setSelectedNotificationIds([]);
+              }}
+            >
+              <p className="text-xs font-semibold">긴급</p>
+              <p className="text-lg font-bold tabular-nums text-foreground">
+                {priorityCounts.urgent}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                기한 임박 업무
+              </p>
+            </button>
+            <button
+              type="button"
+              data-testid="notifications-priority-chip-today"
+              aria-pressed={priorityFilter === "today"}
+              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
+              onClick={() => {
+                setPriorityFilter(priorityFilter === "today" ? "all" : "today");
+                setSelectedNotificationIds([]);
+              }}
+            >
+              <p className="text-xs font-semibold">오늘</p>
+              <p className="text-lg font-bold tabular-nums text-foreground">
+                {priorityCounts.today}
+              </p>
+              <p className="text-xs text-muted-foreground">오늘 확인할 업무</p>
+            </button>
+            <button
+              type="button"
+              data-testid="notifications-priority-chip-normal"
+              aria-pressed={priorityFilter === "general"}
+              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
+              onClick={() => {
+                setPriorityFilter(
+                  priorityFilter === "general" ? "all" : "general"
+                );
+                setSelectedNotificationIds([]);
+              }}
+            >
+              <p className="text-xs font-semibold">일반</p>
+              <p className="text-lg font-bold tabular-nums text-foreground">
+                {priorityCounts.general}
+              </p>
+              <p className="text-xs text-muted-foreground">정보성 알림</p>
+            </button>
+            <button
+              type="button"
+              data-testid="notifications-priority-chip-done"
+              aria-pressed={priorityFilter === "done"}
+              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("done", priorityFilter === "done")}`}
+              onClick={() => {
+                setPriorityFilter(priorityFilter === "done" ? "all" : "done");
+                setSelectedNotificationIds([]);
+              }}
+            >
+              <p className="text-xs font-semibold">처리완료</p>
+              <p className="text-lg font-bold tabular-nums text-foreground">
+                {priorityCounts.done}
+              </p>
+              <p className="text-xs text-muted-foreground">완료된 업무</p>
+            </button>
+          </div>
+        </section>
 
         {/* 알림 목록 */}
         {isNotificationsLoading ? (
@@ -727,53 +771,57 @@ export default function Notifications() {
             fullPage
           />
         ) : filteredNotifications.length === 0 ? (
-          <EmptyState
-            icon={BellOff}
-            title={
-              hasActiveFilters
-                ? "조건에 맞는 알림이 없습니다."
-                : isReadFilter === "unread"
-                  ? "읽지 않은 알림이 없습니다."
-                  : priorityFilter === "urgent" || priorityFilter === "today"
-                    ? "처리할 알림이 없습니다."
-                    : "현재 확인할 알림이 없습니다."
-            }
-            description={
-              hasActiveFilters
-                ? "필터를 조정하거나 초기화해 보세요."
-                : "일정 알림은 설정한 시각에 표시됩니다. 알림 설정을 확인해 주세요."
-            }
-            action={
-              hasActiveFilters ? (
+          <div data-testid="notifications-mobile-empty-state">
+            <EmptyState
+              icon={BellOff}
+              title={
+                hasActiveFilters
+                  ? "조건에 맞는 알림이 없습니다."
+                  : isReadFilter === "unread"
+                    ? "읽지 않은 알림이 없습니다."
+                    : priorityFilter === "urgent" ||
+                        priorityFilter === "today" ||
+                        priorityFilter === "done"
+                      ? "처리할 알림이 없습니다."
+                      : "현재 확인할 알림이 없습니다."
+              }
+              description={
+                hasActiveFilters
+                  ? "필터를 조정하거나 초기화해 보세요."
+                  : "일정 알림은 설정한 시각에 표시됩니다. 알림 설정을 확인해 주세요."
+              }
+              action={
+                hasActiveFilters ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-12 sm:min-h-8"
+                    onClick={clearFilters}
+                  >
+                    <Filter className="h-4 w-4 mr-1" /> 필터 초기화
+                  </Button>
+                ) : (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-12 sm:min-h-8"
+                    onClick={() => setLocation("/notification-preferences")}
+                  >
+                    <Settings className="h-4 w-4 mr-1" /> 알림 설정 보기
+                  </Button>
+                )
+              }
+              secondaryAction={
                 <Button
                   size="sm"
-                  variant="outline"
                   className="min-h-12 sm:min-h-8"
-                  onClick={clearFilters}
+                  onClick={() => setLocation("/dashboard")}
                 >
-                  <Filter className="h-4 w-4 mr-1" /> 필터 초기화
+                  오늘 업무로 이동
                 </Button>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="min-h-12 sm:min-h-8"
-                  onClick={() => setLocation("/notification-preferences")}
-                >
-                  <Settings className="h-4 w-4 mr-1" /> 알림 설정 보기
-                </Button>
-              )
-            }
-            secondaryAction={
-              <Button
-                size="sm"
-                className="min-h-12 sm:min-h-8"
-                onClick={() => setLocation("/dashboard")}
-              >
-                오늘 업무로 이동
-              </Button>
-            }
-          />
+              }
+            />
+          </div>
         ) : (
           <div className="space-y-3">
             <Card
@@ -879,7 +927,8 @@ export default function Notifications() {
               return (
                 <Card
                   key={n.id}
-                  className={`crm-elevated-card overflow-hidden border-l-4 transition-colors ${colorClass}`}
+                  data-testid="notifications-mobile-notification-card"
+                  className={`crm-elevated-card overflow-hidden rounded-2xl border-l-4 transition-colors ${colorClass}`}
                 >
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
