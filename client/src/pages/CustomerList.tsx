@@ -83,6 +83,7 @@ import {
   toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
+import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import { formatUserWithRole } from "@/lib/userRole";
 import {
   expectedPremiumStoredWonFromManwonInput,
@@ -1327,7 +1328,7 @@ export default function CustomerList() {
                   <EmptyState
                     variant="loading"
                     title="고객 목록을 불러오는 중입니다."
-                    description="권한 범위 안의 고객 데이터를 확인하고 있습니다."
+                    description={MOBILE_STATE_UX.customerList.loadingDescription}
                     className="border-0 bg-transparent py-8"
                   />
                 </CardContent>
@@ -1337,7 +1338,9 @@ export default function CustomerList() {
                 <CardContent className="py-4">
                   <ErrorState
                     title="고객 목록을 불러오지 못했습니다."
-                    description="고객이 없는 상태와 구분해 표시하고 있습니다. 잠시 후 다시 시도해 주세요."
+                    description={
+                      MOBILE_STATE_UX.customerList.loadErrorDescription
+                    }
                     retryLabel="다시 시도"
                     onRetry={() => void refetch()}
                     className="border-0 bg-transparent py-8"
@@ -1352,12 +1355,12 @@ export default function CustomerList() {
                     title={
                       hasActiveFilters
                         ? "현재 필터에 맞는 고객이 없습니다."
-                        : "표시할 고객이 없습니다."
+                        : MOBILE_STATE_UX.customerList.emptyTitle
                     }
                     description={
                       hasActiveFilters
                         ? "필터를 초기화해 다시 확인해 보세요."
-                        : "권한 범위 안에서 확인할 수 있는 고객이 없습니다."
+                        : MOBILE_STATE_UX.customerList.emptyDescription
                     }
                     className="border-0 bg-transparent py-8"
                     action={

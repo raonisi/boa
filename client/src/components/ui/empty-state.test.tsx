@@ -90,12 +90,14 @@ describe("shared state components", () => {
   it("renders sensitive customer access states without forbidden styling", () => {
     const html = renderToStaticMarkup(<SensitiveDataUnavailableState />);
 
-    expect(html).toContain("고객 정보를 불러올 수 없습니다.");
-    expect(html).toContain("다시 선택해 주세요");
+    expect(html).toContain("세부 정보를 표시할 수 없습니다.");
+    expect(html).toContain("목록으로 돌아가 다시 선택해 주세요");
     expect(html).toContain("고객 목록으로 이동");
     expect(html).not.toContain("접근 권한이 없습니다");
     expect(html).not.toContain("권한이 없");
     expect(html).not.toContain("다른 담당자");
+    expect(html).not.toContain("존재하지");
+    expect(html).not.toContain("고객 ID");
   });
 
   it("maps query errors through safe user-facing copy", () => {

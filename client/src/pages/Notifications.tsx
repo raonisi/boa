@@ -32,6 +32,7 @@ import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
+import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import {
   EmptyState,
   ErrorState,
@@ -765,7 +766,7 @@ export default function Notifications() {
         ) : isNotificationsError ? (
           <ErrorState
             title="알림 정보를 불러오지 못했습니다."
-            description="잠시 후 다시 시도해 주세요."
+            description={MOBILE_STATE_UX.notifications.loadErrorDescription}
             retryLabel="새로고침"
             onRetry={() => refetchNotifications()}
             fullPage
@@ -776,19 +777,19 @@ export default function Notifications() {
               icon={BellOff}
               title={
                 hasActiveFilters
-                  ? "조건에 맞는 알림이 없습니다."
+                  ? MOBILE_STATE_UX.notifications.filteredEmptyTitle
                   : isReadFilter === "unread"
-                    ? "읽지 않은 알림이 없습니다."
+                    ? MOBILE_STATE_UX.notifications.unreadEmptyTitle
                     : priorityFilter === "urgent" ||
                         priorityFilter === "today" ||
                         priorityFilter === "done"
-                      ? "처리할 알림이 없습니다."
-                      : "현재 확인할 알림이 없습니다."
+                      ? MOBILE_STATE_UX.notifications.actionEmptyTitle
+                      : MOBILE_STATE_UX.notifications.emptyTitle
               }
               description={
                 hasActiveFilters
-                  ? "필터를 조정하거나 초기화해 보세요."
-                  : "일정 알림은 설정한 시각에 표시됩니다. 알림 설정을 확인해 주세요."
+                  ? MOBILE_STATE_UX.notifications.filteredEmptyDescription
+                  : MOBILE_STATE_UX.notifications.emptyDescription
               }
               action={
                 hasActiveFilters ? (

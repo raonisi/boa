@@ -20,7 +20,7 @@ export type UserFacingErrorContext =
 export const USER_FACING_ERRORS = {
   sessionExpired: "로그인 정보가 만료되었습니다. 다시 로그인해 주세요.",
   permission: "현재 권한으로는 이 기능을 사용할 수 없습니다.",
-  customerNotFound: "데이터가 없거나 접근할 수 없습니다.",
+  customerNotFound: "정보를 확인할 수 없습니다.",
   validation: "입력 내용을 확인해 주세요.",
   saveFailed: "변경사항을 저장하지 못했습니다. 다시 시도해 주세요.",
   loadFailed: "정보를 불러오지 못했습니다. 다시 시도해 주세요.",
@@ -38,7 +38,7 @@ export const FORBIDDEN_UX = {
 
 export const CUSTOMER_ACCESS_UX = {
   title: "정보를 확인할 수 없습니다",
-  description: USER_FACING_ERRORS.customerNotFound,
+  description: "목록으로 돌아가 다시 확인해 주세요.",
   listActionLabel: "고객 목록으로 이동",
   backLabel: FORBIDDEN_UX.backLabel,
 } as const;

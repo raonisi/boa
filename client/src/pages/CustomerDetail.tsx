@@ -15,7 +15,7 @@ import {
   getStatusVariantClasses,
   STATUS_BADGE_BASE,
 } from "@/lib/statusPresentation";
-import { getLoadingCopy } from "@/lib/stateUxCopy";
+import { getLoadingCopy, MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -1993,10 +1993,14 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </Button>
               </div>
               {(consultations ?? []).length === 0 ? (
-                <EmptyState
-                  icon={MessageSquare}
-                  title="상담기록이 없습니다."
-                  description="통화, 메시지, 방문 상담 내용을 기록하면 다음 행동을 더 정확히 판단할 수 있습니다."
+                  <EmptyState
+                    icon={MessageSquare}
+                  title={
+                    MOBILE_STATE_UX.customerDetail.consultationEmptyTitle
+                  }
+                  description={
+                    MOBILE_STATE_UX.customerDetail.consultationEmptyDescription
+                  }
                   action={
                     <Button
                       type="button"
@@ -3369,8 +3373,8 @@ function CustomerTimelinePanel({
       {visibleItems.length === 0 ? (
         <EmptyState
           icon={History}
-          title="아직 표시할 히스토리가 없습니다."
-          description="상담, 계약, 후속관리, 배정 변경이 발생하면 이곳에 시간순으로 표시됩니다."
+          title={MOBILE_STATE_UX.customerDetail.timelineEmptyTitle}
+          description={MOBILE_STATE_UX.customerDetail.timelineEmptyDescription}
         />
       ) : (
         <div className="space-y-3">
@@ -3708,8 +3712,10 @@ function FollowUpPanel({
         {openItems.length === 0 ? (
           <EmptyState
             icon={CalendarPlus}
-            title="등록된 다음 연락일이 없습니다."
-            description="다음 연락일을 정하면 모바일 대시보드와 알림 흐름에서 바로 확인할 수 있습니다."
+            title={MOBILE_STATE_UX.customerDetail.nextContactEmptyTitle}
+            description={
+              MOBILE_STATE_UX.customerDetail.nextContactEmptyDescription
+            }
             action={
               <Button
                 type="button"
