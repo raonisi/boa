@@ -99,10 +99,15 @@ export function MobileNav() {
       <button
         key={item.path}
         type="button"
+        data-testid={isActive ? "mobile-nav-active-item" : "mobile-nav-item"}
+        data-active={isActive ? "true" : "false"}
+        aria-current={isActive ? "page" : undefined}
         onClick={() => goTo(item.path)}
         className={cn(
-          "relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-xs font-semibold transition-colors",
-          isActive ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+          "relative flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-xs font-semibold transition-[color,background-color,transform] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/35 active:scale-[0.98]",
+          isActive
+            ? "bg-sidebar-primary/8 text-sidebar-primary"
+            : "text-sidebar-foreground/70"
         )}
       >
         <span
@@ -134,15 +139,23 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bg-sidebar/98 text-sidebar-foreground shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:shadow-[0_-8px_28px_rgba(0,0,0,0.35)]">
-        <div className="grid min-h-[68px] grid-cols-5 px-1 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5">
+      <nav
+        data-testid="mobile-nav"
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-sidebar-border bg-sidebar/98 text-sidebar-foreground shadow-[0_-8px_24px_rgba(0,0,0,0.08)] backdrop-blur-md md:hidden dark:shadow-[0_-8px_28px_rgba(0,0,0,0.35)]"
+      >
+        <div className="grid min-h-[76px] grid-cols-5 gap-0.5 px-1 pb-[max(0.875rem,env(safe-area-inset-bottom))] pt-1.5">
           {mobilePrimaryItems.map(item => renderMenuButton(item))}
           <button
             type="button"
+            data-testid={moreOpen ? "mobile-nav-active-item" : "mobile-nav-item"}
+            data-active={moreOpen ? "true" : "false"}
+            aria-expanded={moreOpen}
             onClick={() => setMoreOpen(true)}
             className={cn(
-              "flex min-h-12 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-xs font-semibold transition-colors",
-              moreOpen ? "text-sidebar-primary" : "text-sidebar-foreground/70"
+              "flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-1 text-xs font-semibold transition-[color,background-color,transform] focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-sidebar-primary/35 active:scale-[0.98]",
+              moreOpen
+                ? "bg-sidebar-primary/8 text-sidebar-primary"
+                : "text-sidebar-foreground/70"
             )}
           >
             <span

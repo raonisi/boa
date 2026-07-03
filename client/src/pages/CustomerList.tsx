@@ -1194,13 +1194,19 @@ export default function CustomerList() {
               <p className="mb-2 text-xs font-semibold text-muted-foreground">
                 오늘 처리할 고객
               </p>
-              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div
+                className="-mx-1 flex snap-x gap-2 overflow-x-auto px-1 pb-1 scroll-px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                data-testid="customer-list-mobile-filter-row"
+                aria-label="고객 빠른 필터"
+              >
                 {quickPresets.map(preset => (
                   <button
                     key={preset.id}
                     type="button"
                     onClick={() => applyQuickPreset(preset.id)}
-                    className={`min-h-11 shrink-0 rounded-full border px-3 py-2 text-left transition hover:shadow-sm ${activeQuickPreset === preset.id ? "ring-2 ring-primary/35" : ""} ${preset.tone}`}
+                    data-testid="customer-list-mobile-filter-chip"
+                    aria-pressed={activeQuickPreset === preset.id}
+                    className={`min-h-12 min-w-[5.25rem] shrink-0 snap-start rounded-2xl border px-3.5 py-2.5 text-left transition hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 active:scale-[0.98] ${activeQuickPreset === preset.id ? "ring-2 ring-primary/35" : ""} ${preset.tone}`}
                   >
                     <span className="block text-xs font-medium text-muted-foreground">
                       {preset.label}
@@ -1217,19 +1223,34 @@ export default function CustomerList() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <div className="relative flex-1">
+              <div
+                className="relative flex-1"
+                data-testid="customer-list-mobile-search"
+              >
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="고객명, 연락처를 검색하세요"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  className="min-h-12 rounded-lg border-border bg-background pl-10 shadow-sm focus-visible:shadow-sm md:h-11 md:min-h-11"
+                  placeholder="고객명, 연락처, 지역, 유입경로 검색"
+                  className="min-h-12 rounded-xl border-border bg-background pl-10 pr-12 shadow-sm focus-visible:shadow-sm md:h-11 md:min-h-11"
                 />
+                {search.trim() ? (
+                  <button
+                    type="button"
+                    data-testid="customer-list-mobile-search-clear"
+                    className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+                    onClick={() => setSearch("")}
+                    aria-label="검색어 지우기"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
               </div>
               <Button
                 variant={hasActiveFilters ? "default" : "outline"}
                 size="sm"
-                className="min-h-12 shrink-0 rounded-lg md:h-11 md:min-h-11"
+                data-testid="customer-list-mobile-filter-toggle"
+                className="min-h-12 shrink-0 rounded-xl md:h-11 md:min-h-11"
                 onClick={() => setShowFilters(!showFilters)}
               >
                 <Filter className="mr-1 h-4 w-4" />
@@ -1239,7 +1260,8 @@ export default function CustomerList() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="min-h-12 rounded-lg md:h-11 md:min-h-11"
+                  data-testid="customer-list-mobile-filter-reset"
+                  className="min-h-12 rounded-xl md:h-11 md:min-h-11"
                   onClick={clearFilters}
                 >
                   필터 초기화
@@ -1254,7 +1276,13 @@ export default function CustomerList() {
             )}
 
             {hasActiveFilters && (
-              <div className={statusSemantic.filterChipPanel}>
+              <div
+                className={cn(
+                  statusSemantic.filterChipPanel,
+                  "overflow-hidden"
+                )}
+                data-testid="customer-list-active-filter-summary"
+              >
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-xs font-semibold text-muted-foreground">
                     적용된 필터
@@ -1263,19 +1291,24 @@ export default function CustomerList() {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-7 px-2 text-xs"
+                    data-testid="customer-list-mobile-filter-reset"
+                    className="min-h-10 px-3 text-xs"
                     onClick={clearFilters}
                   >
                     필터 초기화
                   </Button>
                 </div>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:flex-wrap [&::-webkit-scrollbar]:hidden">
                   {activeFilterChips.map(chip => (
                     <button
                       key={chip.key}
                       type="button"
                       onClick={chip.clear}
-                      className={statusSemantic.filterChip}
+                      data-testid="customer-list-mobile-filter-chip"
+                      className={cn(
+                        statusSemantic.filterChip,
+                        "min-h-10 shrink-0 rounded-2xl px-3 py-2 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+                      )}
                       aria-label={`${chip.label} 필터 해제`}
                     >
                       <span className="min-w-0 whitespace-normal break-words leading-snug">

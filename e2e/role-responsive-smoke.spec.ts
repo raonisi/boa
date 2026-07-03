@@ -174,7 +174,7 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
       page.getByRole("button", { name: "전체 고객 보기" })
     ).toBeVisible();
     await page
-      .getByPlaceholder("고객명, 연락처를 검색하세요")
+      .getByPlaceholder("고객명, 연락처, 지역, 유입경로 검색")
       .fill("[TEST]");
     await expect(page.getByText("검색어: [TEST]").first()).toBeVisible();
     await expect(
@@ -243,13 +243,86 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
       page.getByText("현재 보기: 우선 연락 고객").first()
     ).toBeVisible();
     await page
-      .getByPlaceholder("고객명, 연락처를 검색하세요")
+      .getByPlaceholder("고객명, 연락처, 지역, 유입경로 검색")
       .fill("[TEST]");
     await expect(page.getByText("검색어: [TEST]").first()).toBeVisible();
     await expect(
       page.getByText("현재 보기: 우선 연락 고객").first()
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("mobile search filters nav and customer detail tabs keep touch targets", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.name.includes("mobile"),
+      "mobile-only search filter nav polish"
+    );
+    await setResponsiveViewport(page, "mobile360");
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+
+    await page.goto("/customers", { waitUntil: "domcontentloaded" });
+
+    const searchInput = page.getByPlaceholder(
+      "고객명, 연락처, 지역, 유입경로 검색"
+    );
+    await expect(searchInput).toBeVisible();
+    await expectMinimumHitTarget(searchInput, 40);
+    await searchInput.fill("[TEST]");
+
+    const clearSearch = page.getByTestId("customer-list-mobile-search-clear");
+    await expect(clearSearch).toBeVisible();
+    await expectMinimumHitTarget(clearSearch, 40);
+    await expect(
+      page.getByTestId("customer-list-active-filter-summary")
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+    await clearSearch.click();
+
+    const filterRow = page.getByTestId("customer-list-mobile-filter-row");
+    await expect(filterRow).toBeVisible();
+    const firstFilterChip = page
+      .getByTestId("customer-list-mobile-filter-chip")
+      .first();
+    await expectMinimumHitTarget(firstFilterChip, 40);
+    await page.getByTestId("customer-list-mobile-filter-chip").nth(1).click();
+    await expect(
+      page.getByTestId("customer-list-active-filter-summary")
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+
+    const mobileNav = page.getByTestId("mobile-nav");
+    await expect(mobileNav).toBeVisible();
+    const navItems = page.locator(
+      '[data-testid="mobile-nav-item"], [data-testid="mobile-nav-active-item"]'
+    );
+    await expect(navItems).toHaveCount(5);
+    await expectMinimumHitTarget(navItems.first(), 44);
+    await expect(page.getByTestId("mobile-nav-active-item")).toHaveCount(1);
+
+    await page.goto("/customers/101", { waitUntil: "domcontentloaded" });
+    const tabs = page.getByTestId("customer-detail-mobile-tabs");
+    await expect(tabs).toBeVisible();
+    const tabMetrics = await tabs.evaluate(element => {
+      const buttons = Array.from(element.querySelectorAll("button"));
+      return {
+        containerScrollWidth: element.scrollWidth,
+        containerClientWidth: element.clientWidth,
+        topCount: new Set(buttons.map(button => button.getBoundingClientRect().top)).size,
+      };
+    });
+    expect(tabMetrics.topCount).toBe(1);
+    expect(tabMetrics.containerScrollWidth).toBeGreaterThanOrEqual(
+      tabMetrics.containerClientWidth
+    );
+    await expectMinimumHitTarget(
+      page.getByTestId("customer-detail-mobile-tab").first(),
+      40
+    );
+    await expectNoHorizontalOverflow(page);
+    expect(errors, errors.join("\n")).toEqual([]);
   });
 
   test("member sees sensitive unavailable state for denied customer detail", async ({
