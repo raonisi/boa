@@ -36,15 +36,17 @@ async function expectForbiddenState(page: Page) {
 
 async function expectSensitiveUnavailableState(page: Page) {
   await expect(
-    page.getByText("고객 정보를 불러올 수 없습니다.").first()
+    page.getByText("세부 정보를 표시할 수 없습니다.").first()
   ).toBeVisible();
   await expect(
-    page.getByText(/다시 선택해 주세요/).first()
+    page.getByText(/목록으로 돌아가 다시 선택해 주세요/).first()
   ).toBeVisible();
   await expect(page.getByText("접근 권한이 없습니다")).toHaveCount(0);
   // 존재 여부·권한·담당 여부를 드러내는 문구가 없어야 한다.
   await expect(page.getByText("권한이 없습니다")).toHaveCount(0);
   await expect(page.getByText("다른 담당자")).toHaveCount(0);
+  await expect(page.getByText("고객 ID")).toHaveCount(0);
+  await expect(page.getByText("존재하지")).toHaveCount(0);
 }
 
 async function expectBlockedState(page: Page) {

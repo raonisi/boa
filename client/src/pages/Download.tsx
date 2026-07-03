@@ -17,6 +17,7 @@ import {
   LoadingMetric,
 } from "@/components/ui/empty-state";
 import { adminPanel } from "@/lib/adminDesignTokens";
+import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import {
@@ -303,7 +304,7 @@ export default function Download() {
         {previewQuery.isError ? (
           <ErrorState
             title="다운로드 정보를 불러오지 못했습니다."
-            description="잠시 후 다시 시도해 주세요. 다운로드 실행 전 대상 건수 확인이 필요합니다."
+            description={MOBILE_STATE_UX.downloads.loadErrorDescription}
             retryLabel="다시 시도"
             onRetry={() => void previewQuery.refetch()}
           />

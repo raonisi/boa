@@ -33,6 +33,7 @@ import ScheduleQuickCreateDialog, {
   type DetailedScheduleSeed,
 } from "@/components/schedule/ScheduleQuickCreateDialog";
 import { trpc } from "@/lib/trpc";
+import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,
@@ -845,7 +846,7 @@ export default function Calendar() {
   ) : isSchedulesError ? (
     <ErrorState
       title="일정을 불러오지 못했습니다."
-      description="네트워크 상태를 확인한 뒤 다시 시도해 주세요."
+      description={MOBILE_STATE_UX.calendar.loadErrorDescription}
       retryLabel="새로고침"
       onRetry={() => refetchSchedules()}
       fullPage
@@ -940,8 +941,8 @@ export default function Calendar() {
               <CardContent className="space-y-2">
                 {todaySchedules.length === 0 ? (
                   <ScheduleEmptyState
-                    title="오늘 예정된 일정이 없습니다."
-                    description="상담 예약이나 후속관리 일정을 등록해보세요."
+                    title={MOBILE_STATE_UX.calendar.todayEmptyTitle}
+                    description={MOBILE_STATE_UX.calendar.todayEmptyDescription}
                     onCreate={() => openQuickCreate()}
                   />
                 ) : (
@@ -1098,8 +1099,10 @@ export default function Calendar() {
                 {mobileList.length === 0 ? (
                   <div data-testid="calendar-mobile-empty-state">
                     <ScheduleEmptyState
-                      title="선택한 조건에 해당하는 일정이 없습니다."
-                      description="보기 필터를 바꾸거나 상담·계약·후속관리 일정을 등록하세요."
+                      title={MOBILE_STATE_UX.calendar.filteredEmptyTitle}
+                      description={
+                        MOBILE_STATE_UX.calendar.filteredEmptyDescription
+                      }
                       onCreate={() => openQuickCreate()}
                     />
                   </div>
@@ -1519,8 +1522,8 @@ export default function Calendar() {
                   <div className="space-y-2">
                     {getSchedulesForDay(currentDate).length === 0 ? (
                       <ScheduleEmptyState
-                        title="이 날 일정이 없습니다."
-                        description="상담 예약이나 후속관리 일정을 등록해보세요."
+                        title={MOBILE_STATE_UX.calendar.dayEmptyTitle}
+                        description={MOBILE_STATE_UX.calendar.todayEmptyDescription}
                         onCreate={() => openQuickCreate(currentDate)}
                       />
                     ) : (
@@ -1575,8 +1578,8 @@ export default function Calendar() {
                 </div>
                 {selectedDaySchedules.length === 0 ? (
                   <ScheduleEmptyState
-                    title="선택한 날짜에 일정이 없습니다."
-                    description="상담·계약·후속관리 일정을 등록하세요."
+                    title={MOBILE_STATE_UX.calendar.selectedDayEmptyTitle}
+                    description={MOBILE_STATE_UX.calendar.todayEmptyDescription}
                     onCreate={() => openQuickCreate(selectedDay)}
                   />
                 ) : (

@@ -57,6 +57,7 @@ import {
   toastUserFacingError,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
+import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
 
@@ -1074,7 +1075,9 @@ export function TodayWorkSection({
               <div className="md:col-span-4">
                 <ErrorState
                   title="현장 처리 업무를 불러오지 못했습니다."
-                  description="알림, 후속관리, 일정 수치를 0건으로 표시하지 않고 있습니다."
+                  description={
+                    MOBILE_STATE_UX.dashboard.workLoadErrorDescription
+                  }
                   retryLabel="다시 시도"
                   onRetry={retryTodayWork}
                   className="py-6"
@@ -1160,7 +1163,7 @@ export function TodayWorkSection({
           {isError ? (
             <ErrorState
               title="알림 업무를 불러오지 못했습니다."
-              description="읽지 않은 알림을 0건으로 표시하지 않고 있습니다. 다시 시도해 주세요."
+              description={MOBILE_STATE_UX.dashboard.workLoadErrorDescription}
               retryLabel="다시 시도"
               onRetry={retryTodayWork}
               className="py-6"
@@ -1179,8 +1182,8 @@ export function TodayWorkSection({
               }
             >
               {queuePriorityFilter === "all"
-                ? "즉시 처리할 읽지 않은 알림이 없습니다. 오늘 일정과 후속관리만 확인하면 됩니다."
-                : "선택한 우선순위 알림이 없습니다. 다른 우선순위 큐를 확인해보세요."}
+                ? MOBILE_STATE_UX.dashboard.notificationEmpty
+                : MOBILE_STATE_UX.dashboard.priorityNotificationEmpty}
             </EmptyState>
           ) : (
             sortedPendingNotifications.slice(0, 3).map(notification => {
@@ -1336,8 +1339,7 @@ export function TodayWorkSection({
                 </Button>
               }
             >
-              오늘 우선 연락 추천 고객이 없습니다. 고객 DB에서 미상담 또는 장기
-              미관리 고객을 확인하세요.
+              {MOBILE_STATE_UX.dashboard.priorityContactEmpty}
             </EmptyState>
           ) : (
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-5">
@@ -1432,7 +1434,7 @@ export function TodayWorkSection({
           {isError ? (
             <ErrorState
               title="오늘 일정을 불러오지 못했습니다."
-              description="일정이 없는 상태와 구분해 표시하고 있습니다."
+              description={MOBILE_STATE_UX.dashboard.workLoadErrorDescription}
               retryLabel="다시 시도"
               onRetry={retryTodayWork}
               className="py-6"
@@ -1450,8 +1452,7 @@ export function TodayWorkSection({
                 </Button>
               }
             >
-              오늘 예정된 일정이 없습니다. 상담 예약이나 후속관리 일정을
-              등록해보세요.
+              {MOBILE_STATE_UX.dashboard.scheduleEmpty}
             </EmptyState>
           ) : (
             data?.todaySchedules.slice(0, 5).map(schedule => (
@@ -1530,7 +1531,7 @@ export function TodayWorkSection({
           {isError ? (
             <ErrorState
               title="중요 알림을 불러오지 못했습니다."
-              description="알림이 없는 상태와 구분해 표시하고 있습니다."
+              description={MOBILE_STATE_UX.dashboard.workLoadErrorDescription}
               retryLabel="다시 시도"
               onRetry={retryTodayWork}
               className="py-6"
@@ -1548,7 +1549,7 @@ export function TodayWorkSection({
                 </Button>
               }
             >
-              읽지 않은 알림이 없습니다. 일정 알림은 설정한 시각에 표시됩니다.
+              {MOBILE_STATE_UX.dashboard.notificationEmpty}
             </EmptyState>
           ) : (
             data?.pendingNotifications.slice(0, 5).map(notification => (
@@ -1701,7 +1702,7 @@ export function TodayWorkSection({
           {isError ? (
             <ErrorState
               title="장기 미관리 고객을 불러오지 못했습니다."
-              description="고객이 없는 상태와 구분해 표시하고 있습니다."
+              description={MOBILE_STATE_UX.dashboard.workLoadErrorDescription}
               retryLabel="다시 시도"
               onRetry={retryTodayWork}
               className="py-6"
@@ -1720,7 +1721,7 @@ export function TodayWorkSection({
                 </Button>
               }
             >
-              장기 미관리 고객이 없습니다.
+              {MOBILE_STATE_UX.dashboard.longUnmanagedEmpty}
             </EmptyState>
           ) : (
             data?.longUnmanagedCustomers
@@ -1752,7 +1753,7 @@ export function TodayWorkSection({
           {isError ? (
             <ErrorState
               title="오늘 연락 대상을 불러오지 못했습니다."
-              description="연락 대상이 없는 상태와 구분해 표시하고 있습니다."
+              description={MOBILE_STATE_UX.dashboard.workLoadErrorDescription}
               retryLabel="다시 시도"
               onRetry={retryTodayWork}
               className="py-6"
@@ -1784,7 +1785,7 @@ export function TodayWorkSection({
                 </>
               }
             >
-              오늘 연락할 고객이 없습니다.
+              {MOBILE_STATE_UX.dashboard.todayFollowUpEmpty}
             </EmptyState>
           ) : (
             data?.todayFollowUps.slice(0, 5).map(followUp => (

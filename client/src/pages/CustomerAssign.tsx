@@ -46,6 +46,7 @@ import {
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
 import { getAssignmentCandidateAvailability } from "@/lib/customerAssignAvailability";
+import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import { toast } from "sonner";
 
 type CustomerRow = CustomerAssignRow;
@@ -562,8 +563,8 @@ function TeamLeaderAssign() {
         refetchCustomers={refetch}
         emptyAgentText="산하 팀원이 없습니다."
         selectPlaceholder="산하 팀원 선택"
-        emptyCustomerTitle="배정 가능한 팀 고객 DB가 없습니다."
-        emptyCustomerDescription="본인 팀 권한 범위의 고객 DB가 생기면 이곳에서 산하 팀원에게 배정할 수 있습니다."
+        emptyCustomerTitle={MOBILE_STATE_UX.customerAssign.emptyTitle}
+        emptyCustomerDescription={MOBILE_STATE_UX.customerAssign.emptyDescription}
         helperText={() =>
           "팀원에게 DB를 배정하면 해당 팀원이 고객 담당자로 자동 지정됩니다."
         }

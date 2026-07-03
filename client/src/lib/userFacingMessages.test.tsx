@@ -82,7 +82,7 @@ describe("getUserFacingErrorMessage", () => {
       },
     });
     expect(getUserFacingErrorMessage(error, undefined, "customer")).toBe(
-      USER_FACING_ERRORS.customerNotFound
+      "정보를 확인할 수 없습니다."
     );
   });
 
@@ -106,7 +106,9 @@ describe("getUserFacingErrorMessage", () => {
     expect(FORBIDDEN_UX.description).toBe(USER_FACING_ERRORS.permission);
     expect(CUSTOMER_ACCESS_UX.title).toBe("정보를 확인할 수 없습니다");
     expect(CUSTOMER_ACCESS_UX.description).toBe(
-      USER_FACING_ERRORS.customerNotFound
+      "목록으로 돌아가 다시 확인해 주세요."
     );
+    expect(CUSTOMER_ACCESS_UX.description).not.toContain("권한");
+    expect(CUSTOMER_ACCESS_UX.description).not.toContain("존재");
   });
 });
