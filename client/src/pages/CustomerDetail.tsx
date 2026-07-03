@@ -1707,35 +1707,92 @@ export default function CustomerDetail({ id }: { id: number }) {
               오늘 확인 → 상담 기록 → 진행 관리 → 계약·보장 → 상세 정보
             </p>
           </div>
-          <TabsList className="h-auto w-full justify-start overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 shadow-sm md:flex-wrap">
-            <TabsTrigger value="consult">
+          <TabsList
+            data-testid="customer-detail-mobile-tabs"
+            className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] md:flex-wrap [&::-webkit-scrollbar]:hidden"
+          >
+            <TabsTrigger
+              value="consult"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               상담 기록 ({consultations?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="tools">상담 도구</TabsTrigger>
-            <TabsTrigger value="timeline">
+            <TabsTrigger
+              value="tools"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
+              상담 도구
+            </TabsTrigger>
+            <TabsTrigger
+              value="timeline"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               활동 ({timelineData?.totalCount ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="contract">
+            <TabsTrigger
+              value="contract"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               계약·보장 ({contracts?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="info">상세 정보</TabsTrigger>
-            <TabsTrigger value="relationships">
+            <TabsTrigger
+              value="info"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
+              상세 정보
+            </TabsTrigger>
+            <TabsTrigger
+              value="relationships"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               연결 고객 ({customerRelationships?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="referrals">
+            <TabsTrigger
+              value="referrals"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               소개 흐름 ({customerReferrals?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="claim-guidance">
+            <TabsTrigger
+              value="claim-guidance"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               청구 안내 ({claimGuidanceCases?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="retention-risk">
+            <TabsTrigger
+              value="retention-risk"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               해지위험 ({retentionRiskCases?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="history">
+            <TabsTrigger
+              value="history"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               상태이력 ({statusHistoryData?.length ?? 0})
             </TabsTrigger>
-            <TabsTrigger value="consent">동의이력</TabsTrigger>
-            <TabsTrigger value="assign_history">
+            <TabsTrigger
+              value="consent"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
+              동의이력
+            </TabsTrigger>
+            <TabsTrigger
+              value="assign_history"
+              data-testid="customer-detail-mobile-tab"
+              className="min-h-11 shrink-0 px-3"
+            >
               배정이력 ({assignmentHistoryData?.length ?? 0})
             </TabsTrigger>
           </TabsList>
