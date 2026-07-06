@@ -265,6 +265,36 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
 
     await page.goto("/customers", { waitUntil: "domcontentloaded" });
 
+    const resultCard = page.getByTestId("customer-list-result-card").first();
+    await expect(resultCard).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-title")
+    ).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-status")
+    ).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-meta")
+    ).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-chip-row")
+    ).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-followup-chip")
+    ).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-schedule-chip")
+    ).toBeVisible();
+    await expect(
+      resultCard.getByTestId("customer-list-result-card-activity")
+    ).toBeVisible();
+    await expect(resultCard).not.toContainText("010-1000-2000");
+    await expect(resultCard).not.toContainText("1985-05-18");
+    await expectMinimumHitTarget(resultCard, 40);
+    await resultCard.click();
+    await expect(page).toHaveURL(/\/customers\/101$/);
+    await page.goto("/customers", { waitUntil: "domcontentloaded" });
+
     const searchInput = page.getByPlaceholder(
       "고객명, 연락처, 지역, 유입경로 검색"
     );

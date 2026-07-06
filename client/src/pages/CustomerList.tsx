@@ -20,6 +20,7 @@ import { CustomerListDesktopWorkspace } from "@/components/customers/CustomerLis
 import {
   buildListExecution,
   executionBadges,
+  formatCustomerRecentActivity,
   maskPhone,
   nextExecutionAction,
 } from "@/components/customers/customerListExecutionHelpers";
@@ -1430,13 +1431,31 @@ export default function CustomerList() {
                   const recommendation = recommendationByCustomerId.get(c.id);
                   const badges = executionBadges(c, recommendation);
                   const execution = buildListExecution(c, recommendation);
+                  const recentActivity = formatCustomerRecentActivity(
+                    c,
+                    recommendation
+                  );
+                  const openFollowUpCount = Number(
+                    (recommendation as any)?.openFollowUpCount ?? 0
+                  );
+                  const todayScheduleCount = Number(
+                    (recommendation as any)?.todayScheduleCount ?? 0
+                  );
+                  const followUpCount = Number.isFinite(openFollowUpCount)
+                    ? openFollowUpCount
+                    : 0;
+                  const scheduleCount = Number.isFinite(todayScheduleCount)
+                    ? todayScheduleCount
+                    : 0;
+                  const visibleBadges = badges.slice(0, 2);
                   return (
                     <Card
                       key={c.id}
-                      className="cursor-pointer overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45"
+                      data-testid="customer-list-result-card"
+                      className="cursor-pointer overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45 focus-within:ring-2 focus-within:ring-primary/20"
                       onClick={() => setLocation(`/customers/${c.id}`)}
                     >
-                      <CardContent className="p-4">
+                      <CardContent className="p-3.5">
                         <div className="flex items-start justify-between gap-3">
                           {(canReclaimCustomer || canBulkChangeAssignee) && (
                             <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
@@ -1454,10 +1473,15 @@ export default function CustomerList() {
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span className="min-w-0 truncate text-base font-semibold text-foreground">
+                              <span
+                                data-testid="customer-list-result-card-title"
+                                className="min-w-0 truncate text-base font-semibold text-foreground"
+                              >
                                 {c.name}
                               </span>
-                              <StatusBadge status={c.consultStatus} />
+                              <span data-testid="customer-list-result-card-status">
+                                <StatusBadge status={c.consultStatus} />
+                              </span>
                               {(c as any).priority && (
                                 <PriorityBadge priority={(c as any).priority} />
                               )}
@@ -1471,6 +1495,12 @@ export default function CustomerList() {
                                 execution.actionTitle ||
                                 "확인 필요"}
                             </p>
+                            <p
+                              data-testid="customer-list-result-card-activity"
+                              className="mt-1 text-xs text-muted-foreground"
+                            >
+                              {recentActivity}
+                            </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
                               담당{" "}
                               {formatUserWithRole(
@@ -1481,7 +1511,7 @@ export default function CustomerList() {
                                 : ""}
                             </p>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              {badges.slice(0, 2).map(badge => (
+                              {visibleBadges.map(badge => (
                                 <ExecutionBadge
                                   key={badge.label}
                                   label={badge.label}
@@ -1489,7 +1519,27 @@ export default function CustomerList() {
                                 />
                               ))}
                             </div>
-                            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                            <div
+                              data-testid="customer-list-result-card-chip-row"
+                              className="mt-2 flex flex-wrap gap-1.5"
+                            >
+                              <span
+                                data-testid="customer-list-result-card-followup-chip"
+                                className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700"
+                              >
+                                후속 {followUpCount}건
+                              </span>
+                              <span
+                                data-testid="customer-list-result-card-schedule-chip"
+                                className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700"
+                              >
+                                오늘 일정 {scheduleCount}건
+                              </span>
+                            </div>
+                            <div
+                              data-testid="customer-list-result-card-meta"
+                              className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+                            >
                               {c.phone && (
                                 <span className="flex items-center gap-1">
                                   <Phone className="h-3 w-3" />
@@ -1528,6 +1578,8 @@ export default function CustomerList() {
                               onClick={e => e.stopPropagation()}
                             >
                               <DropdownMenuItem
+                                data-testid="customer-list-result-card-action"
+                                className="min-h-10"
                                 onClick={() =>
                                   setLocation(`/customers/${c.id}`)
                                 }
