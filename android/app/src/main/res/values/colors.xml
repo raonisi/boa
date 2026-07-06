@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#1f2458</color>
+    <color name="colorPrimaryDark">#1f2458</color>
+    <color name="colorAccent">#b99b5f</color>
+    <color name="boa_shell_background">#f9f9f7</color>
+    <color name="boa_shell_navigation">#ffffff</color>
+</resources>
