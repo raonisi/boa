@@ -1,13 +1,13 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Redirect } from "wouter";
+import { AppShellLoading, AppShellRoot } from "./components/AppShell";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { BrandedLogin } from "./components/BrandedLogin";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
 import { getLoginUrlResult } from "./const";
 import { getLoginConfigurationNotice } from "./lib/loginConfigurationCopy";
-import { Loader2 } from "lucide-react";
 import { ForbiddenState } from "./components/ForbiddenState";
 import { RouteAccessGuard } from "./components/RouteAccessGuard";
 import { lazy, Suspense } from "react";
@@ -94,17 +94,10 @@ function RouteFallback() {
     <div className="min-h-screen bg-slate-50/70 px-4 py-6 md:px-6">
       <div className="mx-auto max-w-6xl space-y-4">
         <div className="rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <Loader2 className="h-5 w-5 animate-spin text-[#b99b5f]" />
-            <div>
-              <p className="text-sm font-semibold text-slate-950">
-                화면을 준비하고 있습니다
-              </p>
-              <p className="mt-1 text-xs text-slate-500">
-                권한 확인 후 필요한 관리 화면만 불러옵니다.
-              </p>
-            </div>
-          </div>
+          <AppShellLoading
+            className="min-h-0 bg-transparent p-0"
+            description="필요한 관리 화면을 준비하고 있습니다"
+          />
         </div>
         <div className="grid gap-3 md:grid-cols-3">
           {[0, 1, 2].map(item => (
@@ -144,14 +137,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-sm text-muted-foreground">로딩 중...</p>
-        </div>
-      </div>
-    );
+    return <AppShellLoading />;
   }
 
   if (!user) {
@@ -539,8 +525,10 @@ function App() {
     <ErrorBoundary>
       <ThemeProvider defaultTheme="light" switchable>
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <AppShellRoot>
+            <Toaster />
+            <Router />
+          </AppShellRoot>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
