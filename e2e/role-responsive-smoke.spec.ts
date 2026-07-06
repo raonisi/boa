@@ -139,6 +139,52 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     }
   });
 
+  test("mobile bulk import read-only guidance recommends PC review", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.name.includes("mobile"),
+      "mobile-only bulk import guidance smoke"
+    );
+    await setResponsiveViewport(page, "mobile390");
+    await mockBoaTrpc(page, "branch_admin");
+    const errors = collectPageErrors(page);
+
+    await page.goto("/customers/bulk-import", {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(
+      page.getByTestId("bulk-import-mobile-guidance-card")
+    ).toBeVisible();
+    await expect(
+      page.getByTestId("bulk-import-mobile-pc-recommended")
+    ).toContainText("PC 사용을 권장");
+    await expect(page.getByTestId("bulk-import-mobile-checklist")).toContainText(
+      "최종 등록은 PC 권장"
+    );
+    await expect(page.getByTestId("bulk-import-mobile-template-guide")).toHaveText(
+      "템플릿 확인"
+    );
+    await expect(page.getByTestId("bulk-import-mobile-preview-guide")).toHaveText(
+      "preview 확인"
+    );
+    await expect(
+      page.getByTestId("bulk-import-mobile-count-only-note")
+    ).toHaveText("처리 건수만 확인");
+    await expect(page.getByTestId("bulk-import-mobile-empty-state")).toContainText(
+      "파일을 선택하면 먼저 preview"
+    );
+    await expectMinimumHitTarget(
+      page.getByRole("button").filter({ hasText: /Excel/ }).first(),
+      44
+    );
+    await expect(page.getByText("010-1000-2000")).toHaveCount(0);
+    await expect(page.getByText("운영 고객")).toHaveCount(0);
+    await expectNoHorizontalOverflow(page);
+    expect(errors, errors.join("\n")).toEqual([]);
+  });
+
   test("resigned account is blocked across direct URLs", async ({ page }) => {
     await mockBoaTrpc(page, "member", { accountStatus: "resigned" });
 
