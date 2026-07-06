@@ -40,6 +40,9 @@ test.describe("CustomerDetail mobile action bar", () => {
       await expect(page.getByTestId("customer-360-priority-section")).toContainText(
         "오늘 먼저 확인할 것"
       );
+      await expect(
+        page.getByTestId("customer-detail-followup-summary")
+      ).toBeVisible();
       await expect(page.getByTestId("customer-360-followup-chip")).toContainText(
         /미처리 후속/
       );

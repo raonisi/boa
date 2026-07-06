@@ -91,7 +91,10 @@ export function TodayWorkExecutionQueue({
   const visibleItems = filterTodayWorkItems(items, filter).slice(0, limit);
 
   return (
-    <Card className={cn("crm-dashboard-card", className)}>
+    <Card
+      className={cn("crm-dashboard-card", className)}
+      data-testid="dashboard-mobile-followup-queue"
+    >
       <CardHeader className="flex-col items-stretch gap-3 border-b border-border/70 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
           <CardTitle className="text-base font-semibold tracking-tight">
@@ -120,6 +123,35 @@ export function TodayWorkExecutionQueue({
             </button>
           ))}
         </div>
+        {!isLoading && !isError ? (
+          <div
+            className="grid grid-cols-1 gap-2 rounded-xl border border-border/70 bg-muted/20 p-2 min-[380px]:grid-cols-3 sm:hidden"
+            data-testid="mobile-followup-summary"
+          >
+            <button
+              type="button"
+              className="min-h-11 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-900"
+              data-testid="mobile-followup-pending-chip"
+              onClick={() => onFilterChange("followup")}
+            >
+              미처리 후속 {counts.followup}건
+            </button>
+            <button
+              type="button"
+              className="min-h-11 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-xs font-semibold text-blue-900"
+              data-testid="mobile-followup-today-chip"
+              onClick={() => onFilterChange("schedule")}
+            >
+              오늘 일정 {counts.schedule}건
+            </button>
+            <span
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+              data-testid="mobile-followup-recent-chip"
+            >
+              최근 후속 {counts.followup > 0 ? "확인 필요" : "없음"}
+            </span>
+          </div>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-2 px-4 pb-5 sm:px-5">
         {isLoading ? (
@@ -149,7 +181,7 @@ export function TodayWorkExecutionQueue({
               : filter === "notification"
                 ? "오늘은 확인할 알림이 없습니다."
                 : filter === "followup"
-                  ? "지연된 후속관리가 없습니다."
+                  ? "확인할 후속이 없습니다."
                   : "오늘 예정된 일정이 없습니다."}
           </div>
         ) : (
@@ -159,6 +191,11 @@ export function TodayWorkExecutionQueue({
             return (
               <div
                 key={item.key}
+                data-testid={
+                  item.type === "followup"
+                    ? "mobile-followup-workflow-card"
+                    : undefined
+                }
                 className="crm-dashboard-card rounded-xl border border-border/80 p-3 shadow-sm sm:p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -208,6 +245,11 @@ export function TodayWorkExecutionQueue({
                       size="sm"
                       variant="outline"
                       className="min-h-11 justify-center sm:min-h-10"
+                      data-testid={
+                        item.type === "followup"
+                          ? "mobile-followup-action"
+                          : undefined
+                      }
                       onClick={() =>
                         onNavigate(
                           buildCustomerDetailPath(
@@ -221,7 +263,7 @@ export function TodayWorkExecutionQueue({
                         )
                       }
                     >
-                      고객 보기
+                      고객상세 보기
                     </Button>
                   ) : null}
                   {item.type === "followup" && item.customerId ? (
@@ -230,13 +272,14 @@ export function TodayWorkExecutionQueue({
                       size="sm"
                       variant="outline"
                       className="min-h-11 justify-center sm:min-h-10"
+                      data-testid="mobile-followup-calendar-action"
                       onClick={() =>
                         onNavigate(
                           `/calendar?customerId=${item.customerId}&action=quick-create`
                         )
                       }
                     >
-                      일정 등록
+                      일정 보기
                     </Button>
                   ) : null}
                   {item.type === "schedule" && item.customerId ? (

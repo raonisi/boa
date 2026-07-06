@@ -181,8 +181,32 @@ describe("todayWorkExecution", () => {
     expect(html).toContain('aria-label="오늘 업무 필터: 전체 1건"');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("오늘 업무 실행");
-    expect(html).toContain("고객 보기");
-    expect(html).toContain("일정 등록");
+    expect(html).toContain('data-testid="dashboard-mobile-followup-queue"');
+    expect(html).toContain('data-testid="mobile-followup-summary"');
+    expect(html).toContain("미처리 후속 1건");
+    expect(html).toContain("고객상세 보기");
+    expect(html).toContain("일정 보기");
     expect(html).toContain("바로 처리");
+  });
+
+  it("summarizes follow-up reasons without exposing the full memo", () => {
+    const items = buildTodayWorkItems(
+      {
+        todayFollowUps: [
+          {
+            id: 6,
+            customerId: 43,
+            customerName: "최고객",
+            nextContactDate: "2026-06-15T11:00",
+            nextAction: "전화",
+            reason: "고객이 긴 상담 메모를 남긴 상태",
+          },
+        ],
+      },
+      NOW
+    );
+
+    expect(items[0]?.description).toContain("후속 사유 기록 있음");
+    expect(items[0]?.description).not.toContain("긴 상담 메모");
   });
 });

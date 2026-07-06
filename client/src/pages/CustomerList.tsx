@@ -1525,13 +1525,13 @@ export default function CustomerList() {
                             >
                               <span
                                 data-testid="customer-list-result-card-followup-chip"
-                                className="rounded-full bg-blue-50 px-2 py-1 text-[11px] font-medium text-blue-700"
+                                className="inline-flex min-h-7 items-center rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700"
                               >
                                 후속 {followUpCount}건
                               </span>
                               <span
                                 data-testid="customer-list-result-card-schedule-chip"
-                                className="rounded-full bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-700"
+                                className="inline-flex min-h-7 items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700"
                               >
                                 오늘 일정 {scheduleCount}건
                               </span>

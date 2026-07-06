@@ -153,7 +153,9 @@ export function buildTodayWorkItems(
       customerId: followUp.customerId,
       customerName: followUp.customerName,
       title: followUp.customerName ?? `고객 #${followUp.customerId}`,
-      description: `${followUp.nextAction ?? "연락"} · ${followUp.reason ?? "후속관리"}`,
+      description: `${followUp.nextAction ?? "연락"} · ${
+        followUp.reason ? "후속 사유 기록 있음" : "후속관리"
+      }`,
       dueAt: followUp.nextContactDate,
       priorityRank: 10,
       priorityLabel: PRIORITY_LABELS.overdueFollowUp,
@@ -175,7 +177,9 @@ export function buildTodayWorkItems(
       customerId: followUp.customerId,
       customerName: followUp.customerName,
       title: followUp.customerName ?? `고객 #${followUp.customerId}`,
-      description: `${followUp.nextAction ?? "연락"} · ${followUp.reason ?? "후속관리"}`,
+      description: `${followUp.nextAction ?? "연락"} · ${
+        followUp.reason ? "후속 사유 기록 있음" : "후속관리"
+      }`,
       dueAt: followUp.nextContactDate,
       priorityRank: 20,
       priorityLabel: PRIORITY_LABELS.todayFollowUp,
