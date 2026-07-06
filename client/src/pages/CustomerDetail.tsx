@@ -3579,7 +3579,10 @@ function Customer360SummaryCard({
               고객 정보를 불러올 수 없습니다
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
+            <div
+              className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2"
+              data-testid="customer-detail-followup-summary"
+            >
               {chips.map(chip => (
                 <span
                   key={chip.testId}
@@ -3749,7 +3752,10 @@ function FollowUpPanel({
     item => item.status === "scheduled" || item.status === "postponed"
   );
   return (
-    <Card className="mt-4 border-slate-200/80 bg-white/95 shadow-sm">
+    <Card
+      className="mt-4 border-slate-200/80 bg-white/95 shadow-sm"
+      data-testid="customer-detail-followup-panel"
+    >
       <CardContent className="p-4 space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
@@ -3767,29 +3773,32 @@ function FollowUpPanel({
           </Button>
         </div>
         {openItems.length === 0 ? (
-          <EmptyState
-            icon={CalendarPlus}
-            title={MOBILE_STATE_UX.customerDetail.nextContactEmptyTitle}
-            description={
-              MOBILE_STATE_UX.customerDetail.nextContactEmptyDescription
-            }
-            action={
-              <Button
-                type="button"
-                size="sm"
-                className="min-h-12 md:min-h-8"
-                onClick={onCreate}
-              >
-                후속관리 등록
-              </Button>
-            }
-            className="py-6"
-          />
+          <div data-testid="mobile-followup-empty-state">
+            <EmptyState
+              icon={CalendarPlus}
+              title="확인할 후속이 없습니다."
+              description={
+                MOBILE_STATE_UX.customerDetail.nextContactEmptyDescription
+              }
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  className="min-h-12 md:min-h-8"
+                  onClick={onCreate}
+                >
+                  후속관리 등록
+                </Button>
+              }
+              className="py-6"
+            />
+          </div>
         ) : (
           <div className="space-y-2">
             {openItems.slice(0, 5).map(item => (
               <div
                 key={item.id}
+                data-testid="mobile-followup-workflow-card"
                 className="rounded-2xl border border-slate-200 bg-slate-50/70 p-3"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -3801,7 +3810,7 @@ function FollowUpPanel({
                       · {item.nextAction}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {item.reason}
+                      후속 사유가 기록되어 있습니다.
                     </p>
                   </div>
                   <span className="rounded-full bg-white px-2 py-1 text-xs text-slate-600 ring-1 ring-slate-200">

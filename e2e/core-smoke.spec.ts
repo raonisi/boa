@@ -136,6 +136,26 @@ test.describe("BOA CRM e2e smoke", () => {
 
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
+    const followUpQueue = page.getByTestId("dashboard-mobile-followup-queue");
+    await expect(followUpQueue).toBeVisible();
+    await expect(page.getByTestId("mobile-followup-summary")).toBeVisible();
+    await expect(page.getByTestId("mobile-followup-pending-chip")).toContainText(
+      /후속 1건/
+    );
+    await expect(page.getByTestId("mobile-followup-today-chip")).toContainText(
+      /오늘 일정 1건/
+    );
+    await expect(page.getByTestId("mobile-followup-recent-chip")).toBeVisible();
+    await expect(
+      page.getByTestId("mobile-followup-workflow-card").first()
+    ).toBeVisible();
+    await expect(page.getByTestId("mobile-followup-action").first()).toHaveText(
+      "고객상세 보기"
+    );
+    await expect(
+      page.getByTestId("mobile-followup-calendar-action").first()
+    ).toHaveText("일정 보기");
+    await expect(followUpQueue).not.toContainText("[E2E] follow-up");
     await expect(mobileNavButtons).toHaveCount(5);
     await expectStablePageShell(page, errors);
 
