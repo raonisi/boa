@@ -367,6 +367,56 @@ export default function CustomerBulkImport() {
             : " 등록된 고객은 내 고객으로 자동 배정됩니다."}
         </p>
 
+        <Card
+          data-testid="bulk-import-mobile-guidance-card"
+          className="border-sky-200/80 bg-sky-50/80 shadow-sm md:hidden dark:border-sky-800/50 dark:bg-sky-950/30"
+        >
+          <CardHeader className="space-y-3 pb-3">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-sky-700 dark:text-sky-300" />
+              <div className="space-y-1">
+                <CardTitle
+                  data-testid="bulk-import-mobile-pc-recommended"
+                  className="text-base"
+                >
+                  일괄등록은 PC 사용을 권장합니다
+                </CardTitle>
+                <CardDescription className="text-sm leading-6 text-sky-950/80 dark:text-sky-100/80">
+                  모바일에서는 파일 내용과 미리보기 결과를 먼저 검토하세요.
+                  고객정보와 상담기록이 함께 반영될 수 있으니 최종 등록 전
+                  담당자, 오류 건수, 중복 여부를 PC에서 한 번 더 확인해 주세요.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3 pt-0">
+            <div
+              data-testid="bulk-import-mobile-checklist"
+              className="flex gap-2 overflow-x-auto pb-1 text-xs"
+            >
+              {[
+                ["bulk-import-mobile-template-guide", "템플릿 확인"],
+                ["bulk-import-mobile-preview-guide", "preview 확인"],
+                ["bulk-import-mobile-final-check", "최종 등록은 PC 권장"],
+                ["bulk-import-mobile-count-only-note", "처리 건수만 확인"],
+              ].map(([testId, label]) => (
+                <span
+                  key={testId}
+                  data-testid={testId}
+                  className="shrink-0 rounded-full border border-sky-200 bg-white px-3 py-1.5 font-medium text-sky-900 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-100"
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
+            <ul className="space-y-1.5 text-xs leading-5 text-sky-950/80 dark:text-sky-100/80">
+              <li>고객 기본정보와 상담기록 입력 여부를 먼저 확인합니다.</li>
+              <li>담당자와 업로드 실행자 역할이 섞이지 않았는지 봅니다.</li>
+              <li>오류 행은 상세 고객정보 대신 처리/오류 건수 중심으로 확인합니다.</li>
+            </ul>
+          </CardContent>
+        </Card>
+
         {/* Stage: Upload */}
         {stage === "upload" && (
           <Card>
@@ -468,6 +518,14 @@ export default function CustomerBulkImport() {
                 </div>
               )}
 
+              <div
+                data-testid="bulk-import-mobile-empty-state"
+                className="rounded-lg border border-dashed border-sky-200 bg-sky-50/60 p-4 text-sm leading-6 text-sky-950/80 md:hidden dark:border-sky-800/50 dark:bg-sky-950/20 dark:text-sky-100/80"
+              >
+                파일을 선택하면 먼저 preview로 필수 항목, 담당자, 상담기록 입력
+                여부와 오류 건수를 확인할 수 있습니다.
+              </div>
+
               {/* File Upload */}
               <div
                 className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:bg-accent transition-colors"
@@ -530,6 +588,19 @@ export default function CustomerBulkImport() {
         {/* Stage: Preview */}
         {stage === "preview" && (
           <div className="space-y-6">
+            <div className="rounded-lg border border-sky-200 bg-sky-50/70 p-4 text-sm leading-6 text-sky-950/80 md:hidden dark:border-sky-800/50 dark:bg-sky-950/20 dark:text-sky-100/80">
+              <p
+                data-testid="bulk-import-mobile-preview-stage-guide"
+                className="font-medium text-sky-950 dark:text-sky-100"
+              >
+                preview에서 필수 항목과 오류 건수를 먼저 확인하세요.
+              </p>
+              <p className="mt-1">
+                최종 등록 전 담당자, 상담기록 입력 여부, 중복 고객을 PC에서 한
+                번 더 점검하는 흐름을 권장합니다.
+              </p>
+            </div>
+
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
