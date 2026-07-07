@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import superjson from "superjson";
 import App from "./App";
 import { getLoginUrlResult } from "./const";
+import { isAppSessionResumeRedirectSuppressed } from "./lib/appSessionResume";
 import "./index.css";
 
 const queryClient = new QueryClient();
@@ -17,6 +18,7 @@ const redirectToLoginIfUnauthorized = (error: unknown) => {
   const isUnauthorized = error.message === UNAUTHED_ERR_MSG;
 
   if (!isUnauthorized) return;
+  if (isAppSessionResumeRedirectSuppressed()) return;
 
   const loginUrl = getLoginUrlResult();
   if (loginUrl.ok) {
