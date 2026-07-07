@@ -1,6 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch, Redirect } from "wouter";
+import { AndroidBackButtonHandler } from "./components/app/AndroidBackButtonHandler";
 import { AppShellLoading, AppShellRoot } from "./components/AppShell";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { BrandedLogin } from "./components/BrandedLogin";
@@ -527,6 +528,7 @@ function App() {
         <TooltipProvider>
           <AppShellRoot>
             <Toaster />
+            <AndroidBackButtonHandler />
             <Router />
           </AppShellRoot>
         </TooltipProvider>
