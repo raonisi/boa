@@ -20,6 +20,25 @@ public class MainActivity extends BridgeActivity {
         );
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        dispatchBoaAppResume();
+    }
+
+    private void dispatchBoaAppResume() {
+        if (getBridge() == null || getBridge().getWebView() == null) {
+            return;
+        }
+
+        getBridge()
+            .getWebView()
+            .evaluateJavascript(
+                "(function(){try{if(window.__boaHandleAppResume){window.__boaHandleAppResume();}}catch(error){}})()",
+                null
+            );
+    }
+
     private void dispatchBoaAndroidBackButton() {
         if (getBridge() == null || getBridge().getWebView() == null) {
             return;
