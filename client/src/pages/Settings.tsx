@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/DashboardLayout";
+import { AppVersionCard } from "@/components/app/AppVersionCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -211,6 +212,8 @@ export default function Settings() {
             </TabsContent>
           ))}
         </Tabs>
+
+        <AppVersionCard />
       </div>
 
       {/* 항목 수정 모달 */}
