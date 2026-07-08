@@ -9,6 +9,7 @@ import { registerInternalPushSchedulerRoutes } from "../internalPushSchedulerRou
 import { registerMobileRoutes } from "../mobileRoutes";
 import { startPushReminderScheduler } from "../pushReminderScheduler";
 import { registerStorageProxy } from "./storageProxy";
+import { registerAppVersionRoutes } from "./appVersionRoutes";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -69,9 +70,7 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  app.get("/api/health", (_req, res) => {
-    res.status(200).json({ ok: true, service: "boa-crm" });
-  });
+  registerAppVersionRoutes(app);
 
   app.use((req, res, next) => {
     const incoming = req.headers["x-request-id"];
