@@ -13,6 +13,10 @@ import {
 } from "./onboarding";
 import { managementReportsRouter } from "./managementReports";
 import { customerDataQualityRouter } from "./customerDataQualityRouter";
+import {
+  getConversionDashboardDataForAgentIds,
+  type ConversionDashboardInput,
+} from "./conversionDashboard";
 import { actionPlansRouter } from "./actionPlans";
 import { customerRelationshipsRouter } from "./customerRelationships";
 import { customerReferralsRouter } from "./customerReferrals";
@@ -5651,6 +5655,74 @@ async function resolveCustomerListScopeFilter(user: any, input: CustomerListInpu
   }
 
   return { ...baseFilter, agentId: user.id };
+}
+
+const conversionDashboardInputSchema = z
+  .object({
+    preset: z.enum(["month", "last7", "last30", "custom"]).optional(),
+    dateFrom: z.string().optional(),
+    dateTo: z.string().optional(),
+    agentIdFilter: z.number().optional(),
+    teamIdFilter: z.number().optional(),
+  })
+  .optional();
+
+async function resolveConversionDashboardAgentIds(
+  user: {
+    id: number;
+    role: string;
+    accountStatus: string;
+    teamId?: number | null;
+    subBranchAdminId?: number | null;
+  },
+  input: ConversionDashboardInput = {}
+) {
+  const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+  const activeUsers = (allUsers as any[]).filter(
+    item => item.accountStatus === "active"
+  );
+  const activeUserIds = new Set(activeUsers.map(item => item.id));
+  const hierarchyIds =
+    user.role === "branch_admin"
+      ? activeUsers.map(item => item.id)
+      : ((await getHierarchyScopeUserIds(user)) ?? [user.id]);
+  let allowedIds = new Set(hierarchyIds.filter(id => activeUserIds.has(id)));
+
+  if (input.teamIdFilter != null) {
+    const team = (allTeams as any[]).find(item => item.id === input.teamIdFilter);
+    const teamUserIds = activeUsers
+      .filter(item => item.teamId === input.teamIdFilter)
+      .map(item => item.id);
+    const scopedTeamIds = teamUserIds.filter(id => allowedIds.has(id));
+    if (!team || scopedTeamIds.length === 0) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "조회 범위 밖 팀입니다.",
+      });
+    }
+    allowedIds = new Set(scopedTeamIds);
+  }
+
+  if (input.agentIdFilter != null) {
+    if (!allowedIds.has(input.agentIdFilter)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "조회 범위 밖 담당자입니다.",
+      });
+    }
+    return [input.agentIdFilter];
+  }
+
+  if (user.role === "member") return [user.id];
+  return Array.from(allowedIds);
+}
+
+async function getScopedConversionDashboard(
+  user: Parameters<typeof resolveConversionDashboardAgentIds>[0],
+  input: ConversionDashboardInput = {}
+) {
+  const agentIds = await resolveConversionDashboardAgentIds(user, input);
+  return getConversionDashboardDataForAgentIds(agentIds, input);
 }
 
 export const appRouter = router({
@@ -12500,6 +12572,81 @@ export const appRouter = router({
           input?.month ?? now.getMonth() + 1
         );
       }),
+  }),
+
+  conversionDashboard: router({
+    summary: activeUserProcedure
+      .input(conversionDashboardInputSchema)
+      .query(async ({ ctx, input }) => {
+        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        return {
+          period: dashboard.period,
+          scope: dashboard.scope,
+          summary: dashboard.summary,
+        };
+      }),
+
+    funnel: activeUserProcedure
+      .input(conversionDashboardInputSchema)
+      .query(async ({ ctx, input }) => {
+        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        return {
+          period: dashboard.period,
+          funnel: dashboard.funnel,
+        };
+      }),
+
+    byAgent: activeUserProcedure
+      .input(conversionDashboardInputSchema)
+      .query(async ({ ctx, input }) => {
+        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        return {
+          period: dashboard.period,
+          rows: dashboard.byAgent,
+        };
+      }),
+
+    staleDb: activeUserProcedure
+      .input(conversionDashboardInputSchema)
+      .query(async ({ ctx, input }) => {
+        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        return {
+          period: dashboard.period,
+          staleDb: dashboard.staleDb,
+        };
+      }),
+
+    filters: activeUserProcedure.query(async ({ ctx }) => {
+      const agentIds = await resolveConversionDashboardAgentIds(ctx.user, {});
+      const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+      const allowed = new Set(agentIds);
+      return {
+        presets: [
+          { value: "month", label: "이번 달" },
+          { value: "last7", label: "최근 7일" },
+          { value: "last30", label: "최근 30일" },
+          { value: "custom", label: "직접 기간 선택" },
+        ],
+        agents: (allUsers as any[])
+          .filter(user => allowed.has(user.id) && user.accountStatus === "active")
+          .map(user => ({
+            id: user.id,
+            name: user.name,
+            role: user.role,
+            teamId: user.teamId ?? null,
+          })),
+        teams: (allTeams as any[])
+          .filter(team =>
+            (allUsers as any[]).some(
+              user =>
+                allowed.has(user.id) &&
+                user.accountStatus === "active" &&
+                user.teamId === team.id
+            )
+          )
+          .map(team => ({ id: team.id, name: team.name })),
+      };
+    }),
   }),
 
   performance: router({

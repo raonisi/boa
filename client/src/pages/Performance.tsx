@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import { ConversionDashboardPanel } from "@/components/performance/ConversionDashboardPanel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -112,6 +113,9 @@ export default function Performance() {
   const [sourceFilter, setSourceFilter] = useState("");
   const [monthFilter, setMonthFilter] = useState(""); // YYYY-MM 형식
   const [scopeFilter, setScopeFilter] = useState<"all" | "mine">("all");
+  const [performanceView, setPerformanceView] = useState<
+    "performance" | "conversion"
+  >("performance");
 
   const { data: users } = trpc.users.list.useQuery();
   const { data: teams } = trpc.users.teams.useQuery();
@@ -153,6 +157,16 @@ export default function Performance() {
       scopeFilter,
       user?.role,
     ]
+  );
+  const conversionInput = useMemo(
+    () => ({
+      dateFrom: effectiveDateFrom,
+      dateTo: effectiveDateTo,
+      agentIdFilter:
+        agentIdFilter !== "all" ? Number(agentIdFilter) : undefined,
+      teamIdFilter: teamIdFilter !== "all" ? Number(teamIdFilter) : undefined,
+    }),
+    [effectiveDateFrom, effectiveDateTo, agentIdFilter, teamIdFilter]
   );
 
   const {
@@ -257,9 +271,37 @@ export default function Performance() {
                 계약 유지 상태는 GA 본사 전산 기준으로 확인
               </div>
             </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant={
+                  performanceView === "performance" ? "default" : "outline"
+                }
+                size="sm"
+                className="min-h-11 rounded-xl md:min-h-9"
+                onClick={() => setPerformanceView("performance")}
+              >
+                실적 요약
+              </Button>
+              <Button
+                type="button"
+                variant={
+                  performanceView === "conversion" ? "default" : "outline"
+                }
+                size="sm"
+                className="min-h-11 rounded-xl md:min-h-9"
+                onClick={() => setPerformanceView("conversion")}
+              >
+                DB 전환율
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
+        {performanceView === "conversion" ? (
+          <ConversionDashboardPanel input={conversionInput} />
+        ) : (
+          <>
         <Card className="border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -653,6 +695,8 @@ export default function Performance() {
             </ResponsiveContainer>
           </CardContent>
         </Card>
+          </>
+        )}
       </div>
     </DashboardLayout>
   );
