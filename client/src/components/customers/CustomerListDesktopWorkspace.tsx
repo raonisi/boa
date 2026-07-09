@@ -21,7 +21,12 @@ import {
   nextExecutionAction,
 } from "@/components/customers/customerListExecutionHelpers";
 import { formatUserWithRole } from "@/lib/userRole";
+import { cn } from "@/lib/utils";
 import { formatExpectedPremiumManwon } from "@shared/expectedPremium";
+import {
+  CUSTOMER_SEGMENT_LABELS,
+  type CustomerSegment,
+} from "@shared/customerSegment";
 import {
   CalendarPlus,
   Eye,
@@ -34,6 +39,32 @@ import {
   UserPlus,
   Zap,
 } from "lucide-react";
+
+function formatCurrencyNumber(value: unknown) {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount) || amount <= 0) return "0";
+  return amount.toLocaleString("ko-KR");
+}
+
+function formatShortDate(value: unknown) {
+  if (!value) return "-";
+  const date = new Date(value as string | Date);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function customerSegmentTone(segment?: CustomerSegment) {
+  if (segment === "contracted")
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (segment === "in_progress_db")
+    return "border-amber-200 bg-amber-50 text-amber-700";
+  return "border-slate-200 bg-slate-100 text-slate-700";
+}
+
+function customerSegmentLabel(customer: any) {
+  const segment = customer.customerSegment as CustomerSegment | undefined;
+  return segment ? CUSTOMER_SEGMENT_LABELS[segment] : "계약 없음";
+}
 
 type CustomerListDesktopWorkspaceProps = {
   customers: any[];
@@ -236,6 +267,15 @@ export function CustomerListDesktopWorkspace({
                         {customer.name}
                       </span>
                       <StatusBadge status={customer.consultStatus} />
+                      <span
+                        data-testid="customer-segment-badge"
+                        className={cn(
+                          "inline-flex min-h-6 items-center rounded-full border px-2 py-0.5 text-xs font-semibold",
+                          customerSegmentTone(customer.customerSegment)
+                        )}
+                      >
+                        {customerSegmentLabel(customer)}
+                      </span>
                       {customer.priority ? (
                         <PriorityBadge priority={customer.priority} />
                       ) : null}
@@ -293,6 +333,22 @@ export function CustomerListDesktopWorkspace({
                         {formatExpectedPremiumManwon(customer.expectedPremium)}
                       </p>
                     ) : null}
+                    {customer.customerSegment === "contracted" ? (
+                      <p className="text-xs font-semibold tabular-nums text-emerald-700">
+                        계약 {customer.contractCount ?? 0}건 · 월납{" "}
+                        {formatCurrencyNumber(customer.monthlyPremiumTotal)} ·
+                        최근 {formatShortDate(customer.recentContractDate)}
+                      </p>
+                    ) : customer.customerSegment === "in_progress_db" ? (
+                      <p className="text-xs font-semibold tabular-nums text-amber-700">
+                        상담 진행 · 최근 상담{" "}
+                        {formatShortDate(customer.recentConsultationAt)}
+                      </p>
+                    ) : (
+                      <p className="text-xs font-semibold tabular-nums text-slate-600">
+                        배정 DB · 배정일 {formatShortDate(customer.assignedDate)}
+                      </p>
+                    )}
                   </div>
 
                   <div className="min-w-0">

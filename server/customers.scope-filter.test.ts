@@ -88,6 +88,50 @@ describe("customers.list agent filter scope", () => {
     );
   });
 
+  it("passes customer segment filters without changing sub_branch_admin scope", async () => {
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([] as any);
+
+    await appRouter
+      .createCaller(createCtx({ role: "sub_branch_admin", id: 2 }))
+      .customers.list({ segment: "contracted" });
+
+    expect(getCustomersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subBranchAdminId: 2,
+        segment: "contracted",
+        withSegmentMeta: true,
+      })
+    );
+  });
+
+  it("returns segment counts using the same member scope", async () => {
+    const getCountsSpy = vi
+      .spyOn(db, "getCustomerSegmentCounts")
+      .mockResolvedValue({
+        all: 2,
+        db_only: 1,
+        in_progress_db: 0,
+        contracted: 1,
+      });
+
+    const result = await appRouter
+      .createCaller(createCtx({ role: "member", id: 4 }))
+      .customers.segmentCounts({ segment: "contracted" });
+
+    expect(result).toEqual({
+      all: 2,
+      db_only: 1,
+      in_progress_db: 0,
+      contracted: 1,
+    });
+    expect(getCountsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: 4 })
+    );
+    expect(getCountsSpy.mock.calls[0]?.[0]).not.toHaveProperty("segment");
+  });
+
   it("blocks sub_branch_admin from filtering by out-of-scope agent", async () => {
     const getCustomersSpy = vi
       .spyOn(db, "getCustomers")

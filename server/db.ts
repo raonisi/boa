@@ -10,6 +10,12 @@ import {
   or,
   sql,
 } from "drizzle-orm";
+import {
+  emptyCustomerSegmentCounts,
+  getConcreteCustomerSegment,
+  type CustomerSegment,
+  type CustomerSegmentCounts,
+} from "@shared/customerSegment";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   activityLogs,
@@ -1090,6 +1096,8 @@ export async function getCustomers(filter: {
   assignedDateFrom?: Date;
   assignedDateTo?: Date;
   limit?: number;
+  segment?: CustomerSegment;
+  withSegmentMeta?: boolean;
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -1186,7 +1194,163 @@ export async function getCustomers(filter: {
     query = query.limit(filter.limit) as typeof query;
   }
 
-  return query;
+  const rows = await query;
+  if (!filter.withSegmentMeta && (!filter.segment || filter.segment === "all")) {
+    return rows;
+  }
+
+  const rowsWithSegment = await attachCustomerSegmentMeta(rows);
+  if (!filter.segment || filter.segment === "all") return rowsWithSegment;
+  return rowsWithSegment.filter(row => row.customerSegment === filter.segment);
+}
+
+type CustomerSegmentMeta = {
+  customerSegment: Exclude<CustomerSegment, "all">;
+  contractCount: number;
+  monthlyPremiumTotal: number;
+  recentContractDate: Date | string | null;
+  consultationCount: number;
+  recentConsultationAt: Date | null;
+  followUpCount: number;
+  nextFollowUpAt: Date | null;
+  activityCount: number;
+  recentActivityAt: Date | null;
+};
+
+async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect>(
+  rows: T[]
+): Promise<(T & CustomerSegmentMeta)[]> {
+  if (rows.length === 0) return [];
+  const db = await getDb();
+  if (!db) {
+    return rows.map(row => ({
+      ...row,
+      customerSegment: getConcreteCustomerSegment({
+        nextAction: row.nextAction,
+      }),
+      contractCount: 0,
+      monthlyPremiumTotal: 0,
+      recentContractDate: null,
+      consultationCount: 0,
+      recentConsultationAt: null,
+      followUpCount: 0,
+      nextFollowUpAt: null,
+      activityCount: 0,
+      recentActivityAt: null,
+    }));
+  }
+
+  const customerIds = rows.map(row => row.id);
+  const [contractRows, consultationRows, followUpRows, activityRows] =
+    await Promise.all([
+      db
+        .select({
+          customerId: contracts.customerId,
+          contractCount: sql<number>`count(*)`,
+          monthlyPremiumTotal: sql<number>`coalesce(sum(${contracts.monthlyPremium}), 0)`,
+          recentContractDate: sql<Date | string | null>`max(${contracts.contractDate})`,
+        })
+        .from(contracts)
+        .where(
+          and(
+            inArray(contracts.customerId, customerIds),
+            eq(contracts.isActive, true),
+            isNull(contracts.deletedAt)
+          )
+        )
+        .groupBy(contracts.customerId),
+      db
+        .select({
+          customerId: consultations.customerId,
+          consultationCount: sql<number>`count(*)`,
+          recentConsultationAt: sql<Date | null>`max(${consultations.createdAt})`,
+        })
+        .from(consultations)
+        .where(
+          and(
+            inArray(consultations.customerId, customerIds),
+            eq(consultations.isActive, true),
+            isNull(consultations.deletedAt)
+          )
+        )
+        .groupBy(consultations.customerId),
+      db
+        .select({
+          customerId: followUps.customerId,
+          followUpCount: sql<number>`count(*)`,
+          nextFollowUpAt: sql<Date | null>`min(${followUps.nextContactDate})`,
+        })
+        .from(followUps)
+        .where(
+          and(inArray(followUps.customerId, customerIds), isNull(followUps.deletedAt))
+        )
+        .groupBy(followUps.customerId),
+      db
+        .select({
+          customerId: activityLogs.targetId,
+          activityCount: sql<number>`count(*)`,
+          recentActivityAt: sql<Date | null>`max(${activityLogs.createdAt})`,
+        })
+        .from(activityLogs)
+        .where(
+          and(
+            eq(activityLogs.targetType, "customer"),
+            inArray(activityLogs.targetId, customerIds)
+          )
+        )
+        .groupBy(activityLogs.targetId),
+    ]);
+
+  const contractByCustomer = new Map(contractRows.map(row => [row.customerId, row]));
+  const consultationByCustomer = new Map(
+    consultationRows.map(row => [row.customerId, row])
+  );
+  const followUpByCustomer = new Map(followUpRows.map(row => [row.customerId, row]));
+  const activityByCustomer = new Map(activityRows.map(row => [row.customerId, row]));
+
+  return rows.map(row => {
+    const contract = contractByCustomer.get(row.id);
+    const consultation = consultationByCustomer.get(row.id);
+    const followUp = followUpByCustomer.get(row.id);
+    const activity = activityByCustomer.get(row.id);
+    const contractCount = Number(contract?.contractCount ?? 0);
+    const consultationCount = Number(consultation?.consultationCount ?? 0);
+    const followUpCount = Number(followUp?.followUpCount ?? 0);
+    const activityCount = Number(activity?.activityCount ?? 0);
+
+    return {
+      ...row,
+      customerSegment: getConcreteCustomerSegment({
+        contractCount,
+        consultationCount,
+        followUpCount,
+        activityCount,
+        nextAction: row.nextAction,
+      }),
+      contractCount,
+      monthlyPremiumTotal: Number(contract?.monthlyPremiumTotal ?? 0),
+      recentContractDate: contract?.recentContractDate ?? null,
+      consultationCount,
+      recentConsultationAt: consultation?.recentConsultationAt ?? null,
+      followUpCount,
+      nextFollowUpAt: followUp?.nextFollowUpAt ?? null,
+      activityCount,
+      recentActivityAt: activity?.recentActivityAt ?? null,
+    };
+  });
+}
+
+export async function getCustomerSegmentCounts(
+  filter: Omit<Parameters<typeof getCustomers>[0], "segment" | "withSegmentMeta">
+): Promise<CustomerSegmentCounts> {
+  const rows = await getCustomers({ ...filter, withSegmentMeta: true });
+  const counts = emptyCustomerSegmentCounts();
+  for (const row of rows as Array<{ customerSegment?: CustomerSegment }>) {
+    const segment = row.customerSegment;
+    counts.all += 1;
+    if (segment && segment !== "all") counts[segment] += 1;
+  }
+  return counts;
 }
 
 const CONSULT_TA_OR_BEYOND = [

@@ -32,6 +32,7 @@ import {
 import { COOKIE_NAME } from "@shared/const";
 import { SCHEDULE_CALENDAR_CATEGORIES } from "@shared/scheduleCalendarCategory";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
+import { CUSTOMER_SEGMENTS } from "@shared/customerSegment";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
   activeUserProcedure,
@@ -102,6 +103,7 @@ import {
   getCustomerHandoffNotes,
   getCustomerTimeline,
   getCustomers,
+  getCustomerSegmentCounts,
   getSalesFunnelAggregates,
   getDeletedContracts,
   getDeletedCustomers,
@@ -5529,6 +5531,128 @@ function assertPushSchedulerSecret(inputSecret: string) {
   }
 }
 
+const customerListInputSchema = z.object({
+  search: z.string().optional(),
+  status: z.string().optional(),
+  unassigned: z.boolean().optional(),
+  assignmentStatus: z.string().optional(),
+  region: z.string().optional(),
+  source: z.string().optional(),
+  dbCompany: z.string().optional(),
+  priority: z.enum(CUSTOMER_PRIORITIES).optional(),
+  tag: z.enum(CUSTOMER_TAGS).optional(),
+  nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).optional(),
+  agentIdFilter: z.number().optional(),
+  assignedDateFrom: z.string().optional(),
+  assignedDateTo: z.string().optional(),
+  scope: z.enum(["all", "mine", "member"]).optional(),
+  selectedUserId: z.number().optional(),
+  segment: z.enum(CUSTOMER_SEGMENTS).optional(),
+});
+
+type CustomerListInput = z.infer<typeof customerListInputSchema>;
+
+function buildCustomerListBaseFilter(input: CustomerListInput) {
+  return {
+    search: input.search?.trim() || undefined,
+    status: input.status,
+    unassigned: input.unassigned,
+    assignmentStatus: input.assignmentStatus,
+    region: input.region,
+    source: input.source,
+    dbCompany: input.dbCompany,
+    priority: input.priority,
+    tag: input.tag,
+    nextAction: input.nextAction,
+    assignedDateFrom: input.assignedDateFrom
+      ? new Date(input.assignedDateFrom)
+      : undefined,
+    assignedDateTo: input.assignedDateTo
+      ? new Date(input.assignedDateTo)
+      : undefined,
+  };
+}
+
+async function resolveCustomerListScopeFilter(user: any, input: CustomerListInput) {
+  const baseFilter = buildCustomerListBaseFilter(input);
+
+  if (input.scope === "all" && user.role === "member") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "전체 DB는 지점장만 조회할 수 있습니다.",
+    });
+  }
+
+  if (input.scope === "member") {
+    if (input.selectedUserId == null) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Select a member to view.",
+      });
+    }
+    const target = await verifyTargetUserAccess(user, input.selectedUserId);
+    return { ...baseFilter, agentId: target.id };
+  }
+
+  if (input.scope === "mine") {
+    if (!["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role)) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "담당자만 해당 필터로 조회할 수 있습니다.",
+      });
+    }
+    return { ...baseFilter, agentId: user.id };
+  }
+
+  if (user.role === "branch_admin") {
+    return { ...baseFilter, agentId: input.agentIdFilter };
+  }
+
+  if (user.role === "sub_branch_admin" || user.role === "team_leader") {
+    if (input.agentIdFilter !== undefined) {
+      const target = await getUserById(input.agentIdFilter);
+      if (!target || target.accountStatus !== "active") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "조회할 담당자를 찾을 수 없습니다.",
+        });
+      }
+      if (
+        user.role === "sub_branch_admin" &&
+        target.role !== "team_leader" &&
+        target.role !== "member"
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "팀장 또는 팀원만 담당자 필터로 조회할 수 있습니다.",
+        });
+      }
+      if (user.role === "team_leader" && target.role !== "member") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "팀원만 담당자 필터로 조회할 수 있습니다.",
+        });
+      }
+      const allowedIds = (await getHierarchyScopeUserIds(user)) ?? [];
+      if (!allowedIds.includes(target.id)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "조회할 수 없는 담당자입니다.",
+        });
+      }
+      return { ...baseFilter, agentId: target.id };
+    }
+    if (user.role === "team_leader" && user.teamId)
+      return { ...baseFilter, teamId: user.teamId };
+    if (user.role === "sub_branch_admin")
+      return { ...baseFilter, subBranchAdminId: user.id };
+    const agentIds = (await getHierarchyScopeUserIds(user)) ?? [];
+    return { ...baseFilter, agentIds };
+  }
+
+  return { ...baseFilter, agentId: user.id };
+}
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -7513,105 +7637,27 @@ export const appRouter = router({
 
   customers: router({
     list: activeUserProcedure
-      .input(
-        z.object({
-          status: z.string().optional(),
-          search: z.string().optional(),
-          unassigned: z.boolean().optional(),
-          assignmentStatus: z
-            .enum(["unassigned", "assigned_to_sub_branch", "assigned_to_agent"])
-            .optional(),
-          region: z.string().optional(),
-          source: z.string().optional(),
-          dbCompany: z.string().optional(),
-          priority: z.enum(CUSTOMER_PRIORITIES).optional(),
-          tag: z.enum(CUSTOMER_TAGS).optional(),
-          nextAction: z.enum(CUSTOMER_NEXT_ACTIONS).optional(),
-          agentIdFilter: z.number().optional(),
-          assignedDateFrom: z.string().optional(),
-          assignedDateTo: z.string().optional(),
-          scope: z.enum(["all", "mine", "member"]).optional(),
-          selectedUserId: z.number().optional(),
-        })
-      )
+      .input(customerListInputSchema)
       .query(async ({ ctx, input }) => {
-        const user = ctx.user;
-        if (input.scope === "all" && user.role === "member") {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "전체 DB는 지점장만 조회할 수 있습니다.",
-          });
-        }
-        const baseFilter = {
-          search: input.search?.trim() || undefined,
-          status: input.status,
-          unassigned: input.unassigned,
-          assignmentStatus: input.assignmentStatus,
-          region: input.region,
-          source: input.source,
-          dbCompany: input.dbCompany,
-          priority: input.priority,
-          tag: input.tag,
-          nextAction: input.nextAction,
-          assignedDateFrom: input.assignedDateFrom
-            ? new Date(input.assignedDateFrom)
-            : undefined,
-          assignedDateTo: input.assignedDateTo
-            ? new Date(input.assignedDateTo)
-            : undefined,
-        };
-        if (input.scope === "member") {
-          if (input.selectedUserId == null) {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Select a member to view.",
-            });
-          }
-          const target = await verifyTargetUserAccess(
-            user,
-            input.selectedUserId
-          );
-          return getCustomers({ ...baseFilter, agentId: target.id });
-        }
-        if (user.role === "branch_admin") {
-          const scopedAgentId =
-            input.scope === "mine" ? user.id : input.agentIdFilter;
-          return getCustomers({ ...baseFilter, agentId: scopedAgentId });
-        }
-        if (user.role === "sub_branch_admin" || user.role === "team_leader") {
-          if (input.scope === "mine")
-            return getCustomers({ ...baseFilter, agentId: user.id });
-          if (input.agentIdFilter !== undefined) {
-            const target = await verifyTargetUserAccess(
-              user,
-              input.agentIdFilter
-            );
-            if (
-              user.role === "sub_branch_admin" &&
-              target.role !== "team_leader" &&
-              target.role !== "member"
-            ) {
-              throw new TRPCError({
-                code: "FORBIDDEN",
-                message: "팀장 또는 팀원만 담당자 필터로 조회할 수 있습니다.",
-              });
-            }
-            if (user.role === "team_leader" && target.role !== "member") {
-              throw new TRPCError({
-                code: "FORBIDDEN",
-                message: "팀원만 담당자 필터로 조회할 수 있습니다.",
-              });
-            }
-            return getCustomers({ ...baseFilter, agentId: target.id });
-          }
-          if (user.role === "team_leader" && user.teamId)
-            return getCustomers({ ...baseFilter, teamId: user.teamId });
-          if (user.role === "sub_branch_admin")
-            return getCustomers({ ...baseFilter, subBranchAdminId: user.id });
-          const agentIds = await getHierarchyScopeUserIds(user);
-          return getCustomers({ ...baseFilter, agentIds });
-        }
-        return getCustomers({ ...baseFilter, agentId: user.id });
+        const scopedFilter = await resolveCustomerListScopeFilter(
+          ctx.user,
+          input
+        );
+        return getCustomers({
+          ...scopedFilter,
+          segment: input.segment,
+          withSegmentMeta: true,
+        });
+      }),
+
+    segmentCounts: activeUserProcedure
+      .input(customerListInputSchema)
+      .query(async ({ ctx, input }) => {
+        const scopedFilter = await resolveCustomerListScopeFilter(
+          ctx.user,
+          input
+        );
+        return getCustomerSegmentCounts(scopedFilter);
       }),
 
     searchForSchedulePicker: activeUserProcedure

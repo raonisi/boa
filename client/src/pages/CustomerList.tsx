@@ -90,6 +90,11 @@ import {
   expectedPremiumStoredWonFromManwonInput,
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
+import {
+  CUSTOMER_SEGMENT_LABELS,
+  CUSTOMER_SEGMENTS,
+  type CustomerSegment,
+} from "@shared/customerSegment";
 import { hasCustomerBulkImportAccess } from "@shared/permissions";
 import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import { useIsMobile } from "@/hooks/useMobile";
@@ -126,6 +131,34 @@ type WorkspaceFilter =
   | "no_next_action"
   | "uncontacted"
   | "sla_overdue";
+
+const CUSTOMER_SEGMENT_OPTIONS = CUSTOMER_SEGMENTS;
+
+function formatCurrencyNumber(value: unknown) {
+  const amount = Number(value ?? 0);
+  if (!Number.isFinite(amount) || amount <= 0) return "0";
+  return amount.toLocaleString("ko-KR");
+}
+
+function formatShortDate(value: unknown) {
+  if (!value) return "-";
+  const date = new Date(value as string | Date);
+  if (Number.isNaN(date.getTime())) return "-";
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+}
+
+function customerSegmentTone(segment?: CustomerSegment) {
+  if (segment === "contracted")
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (segment === "in_progress_db")
+    return "bg-blue-50 text-blue-700 border-blue-200";
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
+function customerSegmentLabel(customer: any) {
+  const segment = customer.customerSegment as CustomerSegment | undefined;
+  return segment ? CUSTOMER_SEGMENT_LABELS[segment] : "계약 없음";
+}
 
 const CUSTOMER_TAGS = [
   "가격민감형",
@@ -179,6 +212,9 @@ export default function CustomerList() {
     useState<string>("all");
   const [workspaceFilter, setWorkspaceFilter] =
     useState<WorkspaceFilter>("all");
+  const [customerSegment, setCustomerSegment] =
+    useState<CustomerSegment>("all");
+  const segmentInitializedRef = useRef(false);
   const [assignedDateFrom, setAssignedDateFrom] = useState("");
   const [assignedDateTo, setAssignedDateTo] = useState("");
   const [showFilters, setShowFilters] = useState(false);
@@ -206,6 +242,12 @@ export default function CustomerList() {
     useState<CustomerListUrlPresetId | null>(null);
   const lastUrlPresetRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
+
+  useEffect(() => {
+    if (!user || segmentInitializedRef.current) return;
+    setCustomerSegment(user.role === "branch_admin" ? "all" : "db_only");
+    segmentInitializedRef.current = true;
+  }, [user]);
 
   const presetInUrl = useMemo(() => {
     return parseCustomerListUrlPreset(
@@ -345,18 +387,15 @@ export default function CustomerList() {
   }, [location]);
 
   const utils = trpc.useUtils();
-  const {
-    data: customers,
-    refetch,
-    isLoading: isCustomersLoading,
-    isError: isCustomersError,
-  } = trpc.customers.list.useQuery({
+  const customerListQueryInput = {
     search: search.trim() || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
     priority: priorityFilter === "all" ? undefined : (priorityFilter as any),
     tag: tagFilter === "all" ? undefined : (tagFilter as any),
     nextAction:
       nextActionFilter === "all" ? undefined : (nextActionFilter as any),
+    region: regionFilter || undefined,
+    source: sourceFilter || undefined,
     agentIdFilter:
       agentFilter !== "all" && agentFilter !== "unassigned"
         ? Number(agentFilter)
@@ -366,7 +405,21 @@ export default function CustomerList() {
     assignedDateFrom: assignedDateFrom || undefined,
     assignedDateTo: assignedDateTo || undefined,
     scope: user?.role === "branch_admin" ? scopeFilter : undefined,
+  };
+  const {
+    data: customers,
+    refetch,
+    isLoading: isCustomersLoading,
+    isError: isCustomersError,
+  } = trpc.customers.list.useQuery({
+    ...customerListQueryInput,
+    segment: customerSegment,
   });
+  const {
+    data: customerSegmentCounts,
+    isLoading: isSegmentCountsLoading,
+    isError: isSegmentCountsError,
+  } = trpc.customers.segmentCounts.useQuery(customerListQueryInput);
   const { data: allUsers } = trpc.users.list.useQuery({ activeOnly: true });
   const { data: priorityContacts } =
     trpc.recommendations.priorityContacts.useQuery({
@@ -1191,6 +1244,53 @@ export default function CustomerList() {
               </div>
             ) : null}
 
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground">
+                고객 분류
+              </p>
+              <div
+                data-testid="customer-segment-tabs"
+                className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                role="tablist"
+                aria-label="고객 분류"
+              >
+                {CUSTOMER_SEGMENT_OPTIONS.map(segment => {
+                  const active = customerSegment === segment;
+                  const count = customerSegmentCounts?.[segment] ?? 0;
+                  return (
+                    <button
+                      key={segment}
+                      type="button"
+                      role="tab"
+                      aria-selected={active}
+                      className={cn(
+                        "flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold transition",
+                        active
+                          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                          : "border-border bg-background text-muted-foreground hover:bg-muted/60"
+                      )}
+                      onClick={() => setCustomerSegment(segment)}
+                    >
+                      <span>{CUSTOMER_SEGMENT_LABELS[segment]}</span>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs tabular-nums",
+                          active
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {renderMetricValue(count, {
+                          isLoading: isSegmentCountsLoading,
+                          isError: isSegmentCountsError,
+                        })}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <p className="mb-2 text-xs font-semibold text-muted-foreground">
                 오늘 처리할 고객
@@ -1482,6 +1582,17 @@ export default function CustomerList() {
                               <span data-testid="customer-list-result-card-status">
                                 <StatusBadge status={c.consultStatus} />
                               </span>
+                              <span
+                                data-testid="customer-segment-badge"
+                                className={cn(
+                                  "inline-flex min-h-6 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                                  customerSegmentTone(
+                                    (c as any).customerSegment
+                                  )
+                                )}
+                              >
+                                {customerSegmentLabel(c)}
+                              </span>
                               {(c as any).priority && (
                                 <PriorityBadge priority={(c as any).priority} />
                               )}
@@ -1523,6 +1634,27 @@ export default function CustomerList() {
                               data-testid="customer-list-result-card-chip-row"
                               className="mt-2 flex flex-wrap gap-1.5"
                             >
+                              {(c as any).customerSegment === "contracted" ? (
+                                <>
+                                  <span className="inline-flex min-h-7 items-center rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                                    계약 {(c as any).contractCount ?? 0}건
+                                  </span>
+                                  <span className="inline-flex min-h-7 items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
+                                    월납{" "}
+                                    {formatCurrencyNumber(
+                                      (c as any).monthlyPremiumTotal
+                                    )}
+                                  </span>
+                                </>
+                              ) : (c as any).customerSegment ===
+                                "in_progress_db" ? (
+                                <span className="inline-flex min-h-7 items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
+                                  최근 상담{" "}
+                                  {formatShortDate(
+                                    (c as any).recentConsultationAt
+                                  )}
+                                </span>
+                              ) : null}
                               <span
                                 data-testid="customer-list-result-card-followup-chip"
                                 className="inline-flex min-h-7 items-center rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700"
