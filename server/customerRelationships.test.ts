@@ -234,6 +234,22 @@ describe("customerRelationships validation", () => {
     });
   });
 
+  it("allows sub_branch_admin helper access for directly assigned customers with stale sub branch metadata", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      ...ownCustomer,
+      agentId: 2,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+    });
+
+    await expect(
+      relationshipsAccess.assertCustomerAccessible(
+        createCtx("sub_branch_admin", { id: 2 }).user,
+        100
+      )
+    ).resolves.toMatchObject({ id: 100 });
+  });
+
   it("blocks self relationship", async () => {
     await expect(
       appRouter

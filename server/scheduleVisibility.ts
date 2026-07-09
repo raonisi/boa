@@ -94,9 +94,14 @@ async function canAccessCustomerSilent(
   const customer = await getCustomerById(customerId);
   if (!customer || !customer.isActive || customer.deletedAt) return false;
   if (user.role === "branch_admin") return true;
-  if (user.role === "sub_branch_admin")
-    return customer.subBranchAdminId === user.id;
+  if (user.role === "sub_branch_admin") {
+    if (customer.subBranchAdminId === user.id || customer.agentId === user.id)
+      return true;
+    const agent = customer.agentId ? await getUserById(customer.agentId) : null;
+    return !!agent && agent.subBranchAdminId === user.id;
+  }
   if (user.role === "team_leader") {
+    if (customer.agentId === user.id) return true;
     if (customer.assignedTeamId && customer.assignedTeamId === user.teamId)
       return true;
     const agent = customer.agentId ? await getUserById(customer.agentId) : null;

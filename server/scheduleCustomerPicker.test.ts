@@ -128,6 +128,21 @@ describe("schedule customer picker RBAC", () => {
     );
     expect(result.selectedCustomer).toBeNull();
   });
+
+  it("keeps sub_branch_admin selected customer access aligned with direct customer assignment", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      ...sampleCustomer,
+      agentId: 2,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+    });
+    const result = await searchCustomersForSchedulePicker(
+      createCtx("sub_branch_admin").user,
+      { selectedCustomerId: 101 }
+    );
+
+    expect(result.selectedCustomer?.id).toBe(101);
+  });
 });
 
 describe("schedule customer picker behavior", () => {

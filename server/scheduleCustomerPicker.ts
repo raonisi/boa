@@ -89,7 +89,11 @@ async function assertCustomerAccessible(
   }
   if (user.role === "branch_admin") return customer;
   if (user.role === "sub_branch_admin") {
-    if (customer.subBranchAdminId !== user.id) {
+    if (customer.subBranchAdminId === user.id || customer.agentId === user.id) {
+      return customer;
+    }
+    const agent = customer.agentId ? await getUserById(customer.agentId) : null;
+    if (!agent || agent.subBranchAdminId !== user.id) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "본인 산하 고객만 접근 가능합니다.",
@@ -98,6 +102,7 @@ async function assertCustomerAccessible(
     return customer;
   }
   if (user.role === "team_leader") {
+    if (customer.agentId === user.id) return customer;
     if (customer.assignedTeamId && customer.assignedTeamId === user.teamId) {
       return customer;
     }

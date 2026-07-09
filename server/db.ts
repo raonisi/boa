@@ -632,6 +632,10 @@ export async function executeUserHandoff(input: HandoffExecuteInput) {
     input.updateSourceAccountStatus === "keep"
       ? source.accountStatus
       : input.updateSourceAccountStatus;
+  const targetSubBranchAdminId =
+    target.role === "sub_branch_admin"
+      ? target.id
+      : (target.subBranchAdminId ?? null);
 
   return db.transaction(async tx => {
     const client = tx as DbExecutor;
@@ -663,7 +667,7 @@ export async function executeUserHandoff(input: HandoffExecuteInput) {
         .set({
           agentId: input.targetUserId,
           assignedTeamId: target.teamId ?? null,
-          subBranchAdminId: target.subBranchAdminId ?? null,
+          subBranchAdminId: targetSubBranchAdminId,
           assignmentStatus: "assigned_to_agent",
           assignedAt: now,
         })
@@ -695,7 +699,7 @@ export async function executeUserHandoff(input: HandoffExecuteInput) {
           {
             customerId: customer.id,
             previousSubBranchAdminId: customer.previousSubBranchAdminId ?? null,
-            newSubBranchAdminId: target.subBranchAdminId ?? null,
+            newSubBranchAdminId: targetSubBranchAdminId,
             previousTeamId: customer.previousTeamId ?? null,
             newTeamId: target.teamId ?? null,
             previousAgentId: customer.previousAgentId ?? null,

@@ -115,6 +115,40 @@ describe("scheduleVisibility", () => {
     expect(result.schedules[0]?.memo).toBe("[TEST] sensitive memo");
   });
 
+  it("allows sub_branch_admin to view detail links for directly assigned customer schedules", async () => {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(activeUsers);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue(teams);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([
+      baseSchedule({ id: 99, userId: 2, customerId: 100 }),
+    ] as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "[TEST] Direct Customer",
+      agentId: 2,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue(activeUsers[1]);
+
+    const result = await listCalendarSchedules(
+      {
+        id: 2,
+        role: "sub_branch_admin",
+        teamId: null,
+        subBranchAdminId: null,
+        accountStatus: "active",
+      },
+      { viewMode: "mine" }
+    );
+
+    expect(result.schedules[0]?.canViewCustomerDetail).toBe(true);
+    expect(result.schedules[0]?.customerDisplayName).toBe(
+      "[TEST] Direct Customer"
+    );
+  });
+
   it("allows a member to view another member's schedules as read-only", async () => {
     vi.spyOn(db, "getAllUsers").mockResolvedValue(activeUsers);
     vi.spyOn(db, "getAllTeams").mockResolvedValue(teams);

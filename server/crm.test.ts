@@ -3760,6 +3760,101 @@ describe("Branch admin DB reclaim", () => {
     ).resolves.toMatchObject({ id: 100 });
   });
 
+  it("keeps sub_branch_admin list and detail access aligned for directly assigned customers", async () => {
+    const directAssigned = assignedCustomer({
+      agentId: 20,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+    });
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([directAssigned] as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(directAssigned as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    const caller = appRouter.createCaller(
+      createCtx("sub_branch_admin", { userId: 20 })
+    );
+
+    await expect(caller.customers.list({})).resolves.toEqual([
+      expect.objectContaining({ id: 100 }),
+    ]);
+    expect(getCustomersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ subBranchAdminId: 20 })
+    );
+    await expect(caller.customers.get({ id: 100 })).resolves.toMatchObject({
+      id: 100,
+    });
+  });
+
+  it("allows sub_branch_admin detail access for subordinate assigned customers even when customer subBranchAdminId is stale", async () => {
+    const subordinateAssigned = assignedCustomer({
+      agentId: 44,
+      assignedTeamId: 10,
+      subBranchAdminId: null,
+    });
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(
+      subordinateAssigned as any
+    );
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 44,
+      role: "member",
+      teamId: 10,
+      subBranchAdminId: 20,
+      accountStatus: "active",
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("sub_branch_admin", { userId: 20 }))
+        .customers.get({ id: 100 })
+    ).resolves.toMatchObject({ id: 100 });
+  });
+
+  it("blocks sub_branch_admin direct detail access outside direct and subordinate scope", async () => {
+    const outOfScope = assignedCustomer({
+      agentId: 44,
+      assignedTeamId: 10,
+      subBranchAdminId: null,
+    });
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(outOfScope as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 44,
+      role: "member",
+      teamId: 10,
+      subBranchAdminId: 21,
+      accountStatus: "active",
+    } as any);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("sub_branch_admin", { userId: 20 }))
+        .customers.get({ id: 100 })
+    ).rejects.toThrow();
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it("allows team_leader detail access for directly assigned customers without team metadata", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(
+      assignedCustomer({
+        agentId: 3,
+        assignedTeamId: null,
+        subBranchAdminId: null,
+      }) as any
+    );
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("team_leader", { userId: 3, teamId: 10 }))
+        .customers.get({ id: 100 })
+    ).resolves.toMatchObject({ id: 100 });
+  });
+
   it("keeps active scoped customer get and update working", async () => {
     vi.spyOn(db, "getCustomerById").mockResolvedValue(
       assignedCustomer() as any
