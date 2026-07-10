@@ -267,9 +267,6 @@ export async function listCalendarSchedules(
   const filteredSchedules = rawSchedules.filter(schedule =>
     activeUserIds.has(schedule.userId)
   );
-  const detailedScheduleIds = new Set(
-    (await getAccessibleSchedules(viewer)).map(schedule => schedule.id)
-  );
   const schedules: CalendarScheduleItem[] = await Promise.all(
     filteredSchedules.map(async schedule => {
       const canEdit = canManageSchedule(viewer, schedule);
@@ -321,10 +318,7 @@ export async function listCalendarSchedules(
           SCHEDULE_CALENDAR_CATEGORY_LABELS[effectiveCategory],
       };
 
-      if (
-        (isOwnSchedule || detailedScheduleIds.has(schedule.id)) &&
-        schedule.memo
-      ) {
+      if (schedule.memo) {
         item.memo = schedule.memo;
       }
 

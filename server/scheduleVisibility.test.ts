@@ -187,7 +187,7 @@ describe("scheduleVisibility", () => {
     expect(result.schedules[0]?.canDelete).toBe(false);
     expect(result.schedules[0]?.customerDisplayName).toBe("고객 일정");
     expect(result.schedules[0]?.canViewCustomerDetail).toBe(false);
-    expect(result.schedules[0]?.memo).toBeUndefined();
+    expect(result.schedules[0]?.memo).toBe("[TEST] sensitive memo");
   });
 
   it("allows organization-wide schedule viewing for all active users", async () => {
@@ -212,6 +212,7 @@ describe("scheduleVisibility", () => {
           viewer.role === "branch_admin" || schedule.ownerUserId === viewer.id;
         expect(schedule.canEdit).toBe(canManage);
         expect(schedule.canDelete).toBe(canManage);
+        expect(schedule.memo).toBe("[TEST] sensitive memo");
       }
       expect(result.users.every(user => user.isActive)).toBe(true);
       expect(result.users.some(user => user.userId === 99)).toBe(false);
