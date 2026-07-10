@@ -51,6 +51,7 @@ export type ScheduleSyncContext = {
   customerReference?: string | null;
   segmentLabel?: string | null;
   customerContact?: string | null;
+  personalCalendarOwnerOnly?: boolean;
 };
 
 export type FollowUpSyncContext = {
@@ -383,6 +384,7 @@ async function syncPersonalActorEvents(input: {
   endTime?: Date | null;
   ownerUserId: number;
   createdBy?: number | null;
+  ownerOnly?: boolean;
   policy: ReturnType<typeof orgSettingsToPayloadPolicy>;
 }) {
   if (input.calendarType !== "consultation_followup") return;
@@ -395,6 +397,7 @@ async function syncPersonalActorEvents(input: {
   const actorUserIds = resolvePersonalCalendarActorUserIds({
     createdBy: input.createdBy ?? input.payloadBase.createdBy,
     ownerUserId: input.ownerUserId,
+    ownerOnly: input.ownerOnly,
   });
 
   for (const actorUserId of actorUserIds) {
@@ -615,6 +618,7 @@ export async function syncScheduleToGoogleCalendar(
       endTime: ctx.schedule.endTime,
       ownerUserId: ctx.schedule.userId,
       createdBy: ctx.schedule.createdBy,
+      ownerOnly: ctx.personalCalendarOwnerOnly,
       policy: built.policy,
     });
   } catch (error) {

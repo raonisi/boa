@@ -24,6 +24,14 @@ import { customerRelationshipsRouter } from "./customerRelationships";
 import { customerReferralsRouter } from "./customerReferrals";
 import { claimGuidanceRouter } from "./claimGuidance";
 import { retentionRiskRouter } from "./retentionRisk";
+import { scheduleChangeRequestsRouter } from "./scheduleChangeRequests";
+import {
+  descendantUserIdsFrom,
+  effectiveParentUserId,
+  ensureOrgUsers,
+  type OrgTeam,
+  type OrgUser,
+} from "./organizationHierarchy";
 import { googleCalendarRouter } from "./googleCalendar";
 import {
   triggerGoogleCalendarDeleteForSchedule,
@@ -2736,86 +2744,6 @@ function toMinimalUser(user: {
     accountStatus: user.accountStatus,
     createdAt: null,
   };
-}
-
-type OrgUser = {
-  id: number;
-  name: string | null;
-  role: string;
-  accountStatus: string;
-  parentUserId?: number | null;
-  teamId: number | null;
-  subBranchAdminId: number | null;
-};
-
-type OrgTeam = {
-  id: number;
-  managerId?: number | null;
-  subBranchAdminId?: number | null;
-};
-
-function effectiveParentUserId(
-  user: OrgUser,
-  usersList: OrgUser[],
-  teamsList: OrgTeam[]
-): number | null {
-  if (user.parentUserId !== undefined && user.parentUserId !== null)
-    return user.parentUserId;
-  if (user.role === "branch_admin") return null;
-  if (user.role === "sub_branch_admin") return null;
-  if (user.role === "team_leader") return user.subBranchAdminId ?? null;
-  if (user.role === "member") {
-    if (user.teamId !== null) {
-      const team = teamsList.find(item => item.id === user.teamId);
-      if (team?.managerId) return team.managerId;
-    }
-    if (user.subBranchAdminId !== null) return user.subBranchAdminId;
-  }
-  return null;
-}
-
-function ensureOrgUsers(
-  usersList: OrgUser[],
-  actor: { id: number; role: string; accountStatus?: string },
-  target?: OrgUser
-) {
-  const byId = new Map<number, OrgUser>();
-  for (const user of usersList) byId.set(user.id, user);
-  if (!byId.has(actor.id)) {
-    byId.set(actor.id, {
-      id: actor.id,
-      name: null,
-      role: actor.role,
-      accountStatus: actor.accountStatus ?? "active",
-      parentUserId: null,
-      teamId: null,
-      subBranchAdminId: null,
-    });
-  }
-  if (target && !byId.has(target.id)) byId.set(target.id, target);
-  return Array.from(byId.values());
-}
-
-function descendantUserIdsFrom(
-  rootUserId: number,
-  usersList: OrgUser[],
-  teamsList: OrgTeam[],
-  includeRoot = true
-): number[] {
-  const result = new Set<number>();
-  if (includeRoot) result.add(rootUserId);
-  const walk = (parentId: number) => {
-    for (const user of usersList) {
-      if (user.accountStatus !== "active") continue;
-      if (effectiveParentUserId(user, usersList, teamsList) !== parentId)
-        continue;
-      if (result.has(user.id)) continue;
-      result.add(user.id);
-      walk(user.id);
-    }
-  };
-  walk(rootUserId);
-  return Array.from(result);
 }
 
 export async function getHierarchyScopeUserIds(actor: {
@@ -11312,6 +11240,7 @@ export const appRouter = router({
           endTime: z.string().nullable().optional(),
           memo: z.string().optional(),
           description: z.string().optional(),
+          location: z.string().max(200).nullable().optional(),
           reminderDayBefore: z.boolean().default(true),
           reminderSameDay: z.boolean().default(true),
           reminderOneHourBefore: z.boolean().default(true),
@@ -11380,6 +11309,7 @@ export const appRouter = router({
           endTime: endTimeDate,
           memo: input.memo,
           description: input.description,
+          location: input.location,
           calendarCategory: resolvedCategory,
           reminderOffsetMinutes: input.reminderOffsetMinutes,
           ...reminderFlags,
@@ -11460,6 +11390,8 @@ export const appRouter = router({
           startTime: z.string().optional(),
           endTime: z.string().nullable().optional(),
           memo: z.string().optional(),
+          description: z.string().nullable().optional(),
+          location: z.string().max(200).nullable().optional(),
           reminderOffsetMinutes: z
             .union([
               z.literal(-1),
@@ -12970,6 +12902,7 @@ export const appRouter = router({
   onboardingAssignments: onboardingAssignmentsRouter,
   teamCoaching: teamCoachingRouter,
   actionPlans: actionPlansRouter,
+  scheduleChangeRequests: scheduleChangeRequestsRouter,
   customerRelationships: customerRelationshipsRouter,
   customerReferrals: customerReferralsRouter,
   claimGuidance: claimGuidanceRouter,

@@ -228,6 +228,13 @@ export const sidebarNavGroups: NavGroup[] = [
     description: "리스크·로그·병합·삭제 데이터",
     items: [
       {
+        icon: ClipboardCheck,
+        label: "일정 변경 요청",
+        description: "일정 요청 확인·관리",
+        path: "/schedule-change-requests",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
         icon: ShieldCheck,
         label: "운영 리스크",
         description: "오늘 확인이 필요한 위험 신호",
@@ -501,6 +508,13 @@ export const mobileMoreNavGroups: NavGroup[] = [
     label: "운영·감사",
     items: [
       {
+        icon: ClipboardCheck,
+        label: "일정 변경 요청",
+        description: "일정 요청 확인·관리",
+        path: "/schedule-change-requests",
+        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+      },
+      {
         icon: GitMerge,
         label: "중복 고객 관리",
         description: "중복 탐지·병합",
@@ -587,6 +601,7 @@ export const pageTitles: Array<{ prefix: string; title: string }> = [
   { prefix: "/onboarding-checklists", title: "온보딩 체크리스트" },
   { prefix: "/notification-preferences", title: "앱 알림 설정" },
   { prefix: "/push-notifications", title: "푸시 알림 운영" },
+  { prefix: "/schedule-change-requests", title: "일정 변경 요청" },
   { prefix: "/calendar", title: "일정" },
   { prefix: "/users/handoff", title: "인수인계 관리" },
   { prefix: "/organization", title: "조직 구조" },

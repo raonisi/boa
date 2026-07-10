@@ -7,6 +7,7 @@ import {
   varchar,
   boolean,
   date,
+  index,
   unique,
   json,
 } from "drizzle-orm/mysql-core";
@@ -756,6 +757,7 @@ export const schedules = mysqlTable("schedules", {
   customerId: int("customerId"),
   title: varchar("title", { length: 200 }).notNull(),
   description: text("description"),
+  location: varchar("location", { length: 200 }),
   type: mysqlEnum("type", [
     "고객상담",
     "재통화",
@@ -794,6 +796,68 @@ export const schedules = mysqlTable("schedules", {
 });
 export type Schedule = typeof schedules.$inferSelect;
 export type InsertSchedule = typeof schedules.$inferInsert;
+
+export const scheduleChangeRequests = mysqlTable(
+  "schedule_change_requests",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    requestType: mysqlEnum("requestType", ["create", "update", "delete"])
+      .notNull(),
+    scheduleId: int("scheduleId"),
+    requesterId: int("requesterId").notNull(),
+    targetUserId: int("targetUserId").notNull(),
+    status: mysqlEnum("status", [
+      "pending",
+      "approved",
+      "rejected",
+      "cancelled",
+      "conflict",
+      "failed",
+    ])
+      .default("pending")
+      .notNull(),
+    reason: varchar("reason", { length: 500 }).notNull(),
+    requestedPayload: json("requestedPayload").notNull(),
+    beforeSnapshot: json("beforeSnapshot"),
+    baseScheduleUpdatedAt: timestamp("baseScheduleUpdatedAt"),
+    pendingKey: varchar("pendingKey", { length: 100 }),
+    reviewedBy: int("reviewedBy"),
+    reviewedAt: timestamp("reviewedAt"),
+    reviewComment: varchar("reviewComment", { length: 500 }),
+    appliedAt: timestamp("appliedAt"),
+    cancelledAt: timestamp("cancelledAt"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  table => ({
+    uniquePendingKey: unique("uq_schedule_change_requests_pending_key").on(
+      table.pendingKey
+    ),
+    statusCreatedIndex: index("idx_scr_status_created").on(
+      table.status,
+      table.createdAt
+    ),
+    requesterStatusIndex: index("idx_scr_requester_status").on(
+      table.requesterId,
+      table.status
+    ),
+    targetStatusIndex: index("idx_scr_target_status").on(
+      table.targetUserId,
+      table.status
+    ),
+    scheduleStatusIndex: index("idx_scr_schedule_status").on(
+      table.scheduleId,
+      table.status
+    ),
+    reviewerReviewedIndex: index("idx_scr_reviewer_reviewed").on(
+      table.reviewedBy,
+      table.reviewedAt
+    ),
+  })
+);
+export type ScheduleChangeRequest = typeof scheduleChangeRequests.$inferSelect;
+export type InsertScheduleChangeRequest =
+  typeof scheduleChangeRequests.$inferInsert;
 
 // ─── Reminders ────────────────────────────────────────────────────────────────
 export const reminders = mysqlTable(

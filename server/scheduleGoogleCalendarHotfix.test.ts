@@ -11,6 +11,7 @@ import * as googleCalendarDb from "./googleCalendarDb";
 import * as googleCalendarClient from "./googleCalendarClient";
 import * as googleCalendarCredentialCrypto from "./googleCalendarCredentialCrypto";
 import * as googleCalendarSync from "./googleCalendarSync";
+import { triggerGoogleCalendarDeleteForSchedule } from "./googleCalendarHooks";
 import {
   buildGoogleCalendarTitle,
   resolveScheduleGoogleCalendarType,
@@ -70,6 +71,30 @@ afterEach(() => {
 });
 
 describe("PR22 hotfix schedule calendar category", () => {
+  it("deletes synced events even after the local schedule is soft-deleted", () => {
+    const deleteSpy = vi
+      .spyOn(googleCalendarSync, "fireAndForgetGoogleCalendarScheduleDelete")
+      .mockImplementation(() => undefined);
+
+    triggerGoogleCalendarDeleteForSchedule(
+      1,
+      {
+        id: 101,
+        userId: 4,
+        type: "고객상담",
+        customerId: 100,
+        calendarCategory: "consultation_followup",
+      },
+      "member"
+    );
+
+    expect(deleteSpy).toHaveBeenCalledWith(
+      { id: 1 },
+      "calendar_event",
+      101
+    );
+  });
+
   it("recommends consultation_followup for consultation schedule types", () => {
     expect(
       recommendScheduleCalendarCategory({ scheduleType: "고객상담" })

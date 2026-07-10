@@ -639,7 +639,13 @@ export function mapScheduleTypeToBoaEventType(
 export function resolvePersonalCalendarActorUserIds(input: {
   createdBy?: number | null;
   ownerUserId?: number | null;
+  ownerOnly?: boolean;
 }): number[] {
+  if (input.ownerOnly) {
+    return input.ownerUserId != null && input.ownerUserId > 0
+      ? [input.ownerUserId]
+      : [];
+  }
   const ids = [input.createdBy, input.ownerUserId].filter(
     (id): id is number => id != null && id > 0
   );

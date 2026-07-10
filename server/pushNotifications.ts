@@ -32,6 +32,7 @@ export type PushNotificationType =
   | "contract_365"
   | "long_unmanaged_90"
   | "contract_delete_request"
+  | "schedule_change_request"
   | "test";
 export type PushNotificationLogStatus =
   | "sent"
@@ -136,6 +137,31 @@ export const SAFE_PUSH_PAYLOADS = {
     title: "BOA \uCC98\uB9AC \uC694\uCCAD",
     body: "\uCC98\uB9AC\uD560 \uACC4\uC57D \uC0AD\uC81C \uC694\uCCAD\uC774 \uC788\uC2B5\uB2C8\uB2E4.",
   },
+  scheduleChangeRequestCreated: {
+    title: "BOA 일정 요청",
+    body: "새로운 일정 변경 요청이 있습니다.",
+    data: { type: "schedule_change_request" },
+  },
+  scheduleChangeRequestApproved: {
+    title: "BOA 일정 요청",
+    body: "일정 요청이 승인되어 반영되었습니다.",
+    data: { type: "schedule_change_request" },
+  },
+  scheduleChangeRequestRejected: {
+    title: "BOA 일정 요청",
+    body: "일정 요청이 반려되었습니다.",
+    data: { type: "schedule_change_request" },
+  },
+  scheduleChangeRequestConflict: {
+    title: "BOA 일정 요청",
+    body: "요청 이후 일정이 변경되어 자동 반영되지 않았습니다.",
+    data: { type: "schedule_change_request" },
+  },
+  scheduleChangeRequestFailed: {
+    title: "BOA 일정 요청",
+    body: "일정 요청을 자동 반영하지 못했습니다.",
+    data: { type: "schedule_change_request" },
+  },
   test: {
     title: "BOA \uD14C\uC2A4\uD2B8 \uC54C\uB9BC",
     body: "\uD478\uC2DC \uC54C\uB9BC \uC218\uC2E0 \uC900\uBE44\uAC00 \uC644\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
@@ -239,6 +265,8 @@ function isNotificationEnabled(
     type === "schedule_reminder" ||
     type === "schedule_incomplete"
   )
+    return preference.scheduleReminderEnabled;
+  if (type === "schedule_change_request")
     return preference.scheduleReminderEnabled;
   if (type === "contract_delete_request")
     return preference.deleteRequestEnabled;

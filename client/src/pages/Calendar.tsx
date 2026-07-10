@@ -32,6 +32,11 @@ import ScheduleCustomerLinkPicker from "@/components/schedule/ScheduleCustomerLi
 import ScheduleQuickCreateDialog, {
   type DetailedScheduleSeed,
 } from "@/components/schedule/ScheduleQuickCreateDialog";
+import {
+  ScheduleCreateRequestDialog,
+  ScheduleExistingChangeRequestDialog,
+  type RequestableCalendarSchedule,
+} from "@/components/schedule/ScheduleChangeRequestDialog";
 import { trpc } from "@/lib/trpc";
 import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
 import {
@@ -101,12 +106,15 @@ type CalendarSchedule = {
   startTime: string | Date;
   endTime?: string | Date | null;
   memo?: string | null;
+  description?: string | null;
+  location?: string | null;
   reminderOffsetMinutes?: number;
   customerId?: number | null;
   customerDisplayName?: string | null;
   canViewCustomerDetail?: boolean;
   canEdit?: boolean;
   canDelete?: boolean;
+  canRequestChange?: boolean;
   calendarCategory?: ScheduleCalendarCategory;
   calendarCategoryLabel?: string;
 };
@@ -569,6 +577,11 @@ export default function Calendar() {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [showModal, setShowModal] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
+  const [showRequestCreateModal, setShowRequestCreateModal] = useState(false);
+  const [requestAction, setRequestAction] = useState<{
+    mode: "update" | "delete";
+    schedule: CalendarSchedule;
+  } | null>(null);
   const [detailedSeed, setDetailedSeed] = useState<DetailedScheduleSeed | null>(
     null
   );
@@ -594,6 +607,8 @@ export default function Calendar() {
   >("all");
   const { user } = useAuth();
   const userRole = user?.role ?? "member";
+  const canCreateScheduleRequest =
+    userRole === "sub_branch_admin" || userRole === "team_leader";
 
   const utils = trpc.useUtils();
   const scheduleListInput = useMemo(() => {
@@ -628,6 +643,9 @@ export default function Calendar() {
   } = trpc.schedules.list.useQuery(scheduleListInput);
   const schedules = (scheduleListData?.schedules ?? []) as CalendarSchedule[];
   const scheduleViewUsers = scheduleListData?.users ?? [];
+  const requestableScheduleUsers = scheduleViewUsers.filter(
+    scheduleUser => scheduleUser.canRequestScheduleChange
+  );
   const scheduleViewTeams = scheduleListData?.teams ?? [];
   const organizationViewWarning = scheduleListData?.organizationViewWarning;
   const showOwnerName = ownerViewMode !== "mine";
@@ -715,6 +733,57 @@ export default function Calendar() {
         )
       ),
   });
+  const requestCreateMutation =
+    trpc.scheduleChangeRequests.requestCreate.useMutation({
+      onSuccess: () => {
+        toast.success("신규 일정 요청을 보냈습니다.");
+        setShowRequestCreateModal(false);
+        utils.scheduleChangeRequests.listMy.invalidate();
+        utils.scheduleChangeRequests.summary.invalidate();
+        utils.notifications.list.invalidate();
+      },
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(
+            error,
+            "일정 요청을 보내지 못했습니다. 다시 시도해 주세요."
+          )
+        ),
+    });
+  const requestUpdateMutation =
+    trpc.scheduleChangeRequests.requestUpdate.useMutation({
+      onSuccess: () => {
+        toast.success("일정 변경 요청을 보냈습니다.");
+        setRequestAction(null);
+        utils.scheduleChangeRequests.listMy.invalidate();
+        utils.scheduleChangeRequests.summary.invalidate();
+        utils.notifications.list.invalidate();
+      },
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(
+            error,
+            "일정 변경 요청을 보내지 못했습니다. 다시 시도해 주세요."
+          )
+        ),
+    });
+  const requestDeleteMutation =
+    trpc.scheduleChangeRequests.requestDelete.useMutation({
+      onSuccess: () => {
+        toast.success("일정 삭제 요청을 보냈습니다.");
+        setRequestAction(null);
+        utils.scheduleChangeRequests.listMy.invalidate();
+        utils.scheduleChangeRequests.summary.invalidate();
+        utils.notifications.list.invalidate();
+      },
+      onError: error =>
+        toast.error(
+          getUserFacingErrorMessage(
+            error,
+            "일정 삭제 요청을 보내지 못했습니다. 다시 시도해 주세요."
+          )
+        ),
+    });
 
   const getSchedulesForDay = (day: Date) =>
     (schedules ?? []).filter(s => isSameKstDate(s.startTime, day));
@@ -877,13 +946,26 @@ export default function Calendar() {
                     오늘과 이번주 업무 흐름을 먼저 확인합니다.
                   </p>
                 </div>
-                <Button
-                  size="sm"
-                  className="min-h-12 shrink-0"
-                  onClick={() => openQuickCreate()}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> 일정 추가
-                </Button>
+                <div className="grid shrink-0 gap-2">
+                  <Button
+                    size="sm"
+                    className="min-h-12"
+                    onClick={() => openQuickCreate()}
+                  >
+                    <Plus className="mr-1 h-4 w-4" /> 일정 추가
+                  </Button>
+                  {canCreateScheduleRequest &&
+                  requestableScheduleUsers.length > 0 ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="min-h-12"
+                      onClick={() => setShowRequestCreateModal(true)}
+                    >
+                      신규 요청
+                    </Button>
+                  ) : null}
+                </div>
               </CardContent>
             </Card>
 
@@ -1204,16 +1286,45 @@ export default function Calendar() {
           users={users}
           userRole={userRole}
         />
+        <ScheduleCreateRequestDialog
+          open={showRequestCreateModal}
+          users={requestableScheduleUsers}
+          loading={requestCreateMutation.isPending}
+          onClose={() => setShowRequestCreateModal(false)}
+          onSubmit={input => requestCreateMutation.mutate(input)}
+        />
+        <ScheduleExistingChangeRequestDialog
+          open={Boolean(requestAction)}
+          mode={requestAction?.mode ?? "update"}
+          schedule={
+            (requestAction?.schedule as RequestableCalendarSchedule) ?? null
+          }
+          loading={
+            requestUpdateMutation.isPending || requestDeleteMutation.isPending
+          }
+          onClose={() => setRequestAction(null)}
+          onSubmitUpdate={input => requestUpdateMutation.mutate(input)}
+          onSubmitDelete={input => requestDeleteMutation.mutate(input)}
+        />
         {selectedSchedule && (
           <ScheduleDetailModal
             schedule={selectedSchedule}
             customerName={getScheduleCustomerLabel(selectedSchedule)}
             canEdit={selectedSchedule.canEdit ?? false}
             canDelete={selectedSchedule.canDelete ?? false}
+            canRequestChange={selectedSchedule.canRequestChange ?? false}
             canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
             userRole={userRole}
             onViewCustomer={() => openCustomerDetail(selectedSchedule)}
             onClose={() => setSelectedSchedule(null)}
+            onRequestUpdate={() => {
+              setRequestAction({ mode: "update", schedule: selectedSchedule });
+              setSelectedSchedule(null);
+            }}
+            onRequestDelete={() => {
+              setRequestAction({ mode: "delete", schedule: selectedSchedule });
+              setSelectedSchedule(null);
+            }}
             onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
             onUpdate={data =>
               updateMutation.mutate({ id: selectedSchedule.id, ...data })
@@ -1245,7 +1356,7 @@ export default function Calendar() {
                   상담·계약·후속관리 일정을 업무 흐름으로 확인합니다.
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-end gap-2">
                 <div className="flex rounded-lg border overflow-hidden">
                   {(["month", "week", "day"] as ViewMode[]).map(v => (
                     <button
@@ -1257,6 +1368,17 @@ export default function Calendar() {
                     </button>
                   ))}
                 </div>
+                {canCreateScheduleRequest &&
+                requestableScheduleUsers.length > 0 ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="min-h-10"
+                    onClick={() => setShowRequestCreateModal(true)}
+                  >
+                    신규 일정 요청
+                  </Button>
+                ) : null}
                 <Button size="sm" onClick={() => openQuickCreate()}>
                   <Plus className="h-4 w-4 mr-1" /> 상담·계약·후속관리 일정 등록
                 </Button>
@@ -1638,16 +1760,45 @@ export default function Calendar() {
         users={users}
         userRole={userRole}
       />
+      <ScheduleCreateRequestDialog
+        open={showRequestCreateModal}
+        users={requestableScheduleUsers}
+        loading={requestCreateMutation.isPending}
+        onClose={() => setShowRequestCreateModal(false)}
+        onSubmit={input => requestCreateMutation.mutate(input)}
+      />
+      <ScheduleExistingChangeRequestDialog
+        open={Boolean(requestAction)}
+        mode={requestAction?.mode ?? "update"}
+        schedule={
+          (requestAction?.schedule as RequestableCalendarSchedule) ?? null
+        }
+        loading={
+          requestUpdateMutation.isPending || requestDeleteMutation.isPending
+        }
+        onClose={() => setRequestAction(null)}
+        onSubmitUpdate={input => requestUpdateMutation.mutate(input)}
+        onSubmitDelete={input => requestDeleteMutation.mutate(input)}
+      />
       {selectedSchedule && (
         <ScheduleDetailModal
           schedule={selectedSchedule}
           customerName={getScheduleCustomerLabel(selectedSchedule)}
           canEdit={selectedSchedule.canEdit ?? false}
           canDelete={selectedSchedule.canDelete ?? false}
+          canRequestChange={selectedSchedule.canRequestChange ?? false}
           canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
           userRole={userRole}
           onViewCustomer={() => openCustomerDetail(selectedSchedule)}
           onClose={() => setSelectedSchedule(null)}
+          onRequestUpdate={() => {
+            setRequestAction({ mode: "update", schedule: selectedSchedule });
+            setSelectedSchedule(null);
+          }}
+          onRequestDelete={() => {
+            setRequestAction({ mode: "delete", schedule: selectedSchedule });
+            setSelectedSchedule(null);
+          }}
           onDelete={() => deleteMutation.mutate({ id: selectedSchedule.id })}
           onUpdate={data =>
             updateMutation.mutate({ id: selectedSchedule.id, ...data })
@@ -1695,6 +1846,8 @@ function ScheduleModal({
     status: "예정" as string,
     startTime: defaultStart,
     endTime: "",
+    description: "",
+    location: "",
     memo: "",
     targetUserId: "self",
     reminderOffsetMinutes: "30",
@@ -1722,6 +1875,8 @@ function ScheduleModal({
       status: "예정",
       startTime: seed?.startTime ?? defaultStart,
       endTime: seed?.endTime ?? "",
+      description: "",
+      location: "",
       memo: seed?.memo ?? "",
       targetUserId: "self",
       reminderOffsetMinutes: "30",
@@ -1754,6 +1909,8 @@ function ScheduleModal({
       status: form.status,
       startTime: form.startTime,
       endTime: form.endTime || undefined,
+      description: form.description || undefined,
+      location: form.location || undefined,
       memo: form.memo || undefined,
       reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
       targetUserId:
@@ -1905,6 +2062,24 @@ function ScheduleModal({
             disabled={loading}
           />
           <div>
+            <Label className="text-xs">장소</Label>
+            <Input
+              value={form.location}
+              onChange={e => setForm({ ...form, location: e.target.value })}
+              className="mt-1 min-h-12 md:min-h-9"
+            />
+          </div>
+          <div>
+            <Label className="text-xs">상담내용·설명</Label>
+            <textarea
+              value={form.description}
+              onChange={e =>
+                setForm({ ...form, description: e.target.value })
+              }
+              className="mt-1 h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
             <Label className="text-xs">메모</Label>
             <textarea
               value={form.memo}
@@ -1941,10 +2116,13 @@ function ScheduleDetailModal({
   customerName,
   canEdit,
   canDelete,
+  canRequestChange,
   canViewCustomerDetail,
   userRole,
   onViewCustomer,
   onClose,
+  onRequestUpdate,
+  onRequestDelete,
   onDelete,
   onUpdate,
   loading,
@@ -1953,10 +2131,13 @@ function ScheduleDetailModal({
   customerName?: string | null;
   canEdit: boolean;
   canDelete: boolean;
+  canRequestChange: boolean;
   canViewCustomerDetail: boolean;
   userRole?: string;
   onViewCustomer: () => void;
   onClose: () => void;
+  onRequestUpdate: () => void;
+  onRequestDelete: () => void;
   onDelete: () => void;
   onUpdate: (data: any) => void;
   loading: boolean;
@@ -1986,6 +2167,8 @@ function ScheduleDetailModal({
     status: schedule.status,
     startTime: formatDateTimeLocal(schedule.startTime),
     endTime: formatDateTimeLocal(schedule.endTime),
+    description: schedule.description ?? "",
+    location: schedule.location ?? "",
     memo: schedule.memo ?? "",
     reminderOffsetMinutes: scheduleDefaultReminderOffset(schedule),
     customerId: schedule.customerId ? String(schedule.customerId) : "none",
@@ -2007,6 +2190,8 @@ function ScheduleDetailModal({
       status: schedule.status,
       startTime: formatDateTimeLocal(schedule.startTime),
       endTime: formatDateTimeLocal(schedule.endTime),
+      description: schedule.description ?? "",
+      location: schedule.location ?? "",
       memo: schedule.memo ?? "",
       reminderOffsetMinutes: scheduleDefaultReminderOffset(schedule),
       customerId: schedule.customerId ? String(schedule.customerId) : "none",
@@ -2038,6 +2223,8 @@ function ScheduleDetailModal({
       status: form.status,
       startTime: form.startTime,
       endTime: form.endTime || null,
+      description: form.description || null,
+      location: form.location || null,
       memo: form.memo,
       reminderOffsetMinutes: Number(form.reminderOffsetMinutes),
       customerId: form.customerId === "none" ? null : Number(form.customerId),
@@ -2075,7 +2262,9 @@ function ScheduleDetailModal({
           </div>
           {!canEdit ? (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              이 일정은 조회만 가능합니다.
+              {canRequestChange
+                ? "이 일정은 조회할 수 있으며, 변경이 필요하면 지점장에게 요청할 수 있습니다."
+                : "이 일정은 조회만 가능합니다."}
             </p>
           ) : null}
           <div>
@@ -2096,6 +2285,22 @@ function ScheduleDetailModal({
               </p>
             </div>
           )}
+          {schedule.location ? (
+            <div>
+              <p className="text-xs text-muted-foreground">장소</p>
+              <p className="whitespace-pre-wrap break-words">
+                {schedule.location}
+              </p>
+            </div>
+          ) : null}
+          {schedule.description ? (
+            <div>
+              <p className="text-xs text-muted-foreground">상담내용·설명</p>
+              <p className="whitespace-pre-wrap break-words">
+                {schedule.description}
+              </p>
+            </div>
+          ) : null}
           <div>
             <p className="text-xs text-muted-foreground">알림 설정</p>
             <p className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
@@ -2271,6 +2476,26 @@ function ScheduleDetailModal({
                 disabled={loading}
               />
               <div>
+                <Label className="text-xs">장소</Label>
+                <Input
+                  value={form.location}
+                  onChange={e =>
+                    setForm({ ...form, location: e.target.value })
+                  }
+                  className="mt-1 h-9"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">상담내용·설명</Label>
+                <textarea
+                  value={form.description}
+                  onChange={e =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                  className="mt-1 h-20 w-full resize-y rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
                 <Label className="text-xs">메모</Label>
                 <textarea
                   value={form.memo}
@@ -2336,6 +2561,27 @@ function ScheduleDetailModal({
                       </Button>
                     </div>
                   ) : null}
+                </div>
+              ) : canRequestChange ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12"
+                    onClick={onRequestUpdate}
+                    disabled={loading}
+                  >
+                    변경 요청
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-12 border-red-200 text-destructive hover:bg-red-50"
+                    onClick={onRequestDelete}
+                    disabled={loading}
+                  >
+                    삭제 요청
+                  </Button>
                 </div>
               ) : null}
             </>

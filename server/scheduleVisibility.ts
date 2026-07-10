@@ -14,6 +14,7 @@ import {
   getUserById,
 } from "./db";
 import { getHierarchyScopeUserIds } from "./routers";
+import { getScheduleRequestTargetUserIds } from "./scheduleChangeRequestScope";
 
 export type ScheduleViewMode = "mine" | "user" | "team" | "organization";
 
@@ -42,6 +43,9 @@ export type CalendarScheduleItem = {
   canViewCustomerDetail: boolean;
   canEdit: boolean;
   canDelete: boolean;
+  canRequestChange: boolean;
+  description?: string | null;
+  location?: string | null;
   memo?: string | null;
   calendarCategory: ScheduleCalendarCategory;
   calendarCategoryLabel: string;
@@ -54,6 +58,7 @@ export type ScheduleViewUser = {
   teamId: number | null;
   teamName: string | null;
   isActive: true;
+  canRequestScheduleChange: boolean;
 };
 
 export type ScheduleViewTeam = {
@@ -267,6 +272,18 @@ export async function listCalendarSchedules(
   const filteredSchedules = rawSchedules.filter(schedule =>
     activeUserIds.has(schedule.userId)
   );
+  const requestActor = activeUsers.find(user => user.id === viewer.id) ?? {
+    id: viewer.id,
+    name: null,
+    role: viewer.role,
+    accountStatus: viewer.accountStatus,
+    parentUserId: null,
+    teamId: viewer.teamId,
+    subBranchAdminId: viewer.subBranchAdminId ?? null,
+  };
+  const requestTargetIds = new Set(
+    getScheduleRequestTargetUserIds(requestActor, activeUsers, allTeams)
+  );
   const schedules: CalendarScheduleItem[] = await Promise.all(
     filteredSchedules.map(async schedule => {
       const canEdit = canManageSchedule(viewer, schedule);
@@ -313,6 +330,9 @@ export async function listCalendarSchedules(
         canViewCustomerDetail,
         canEdit,
         canDelete,
+        canRequestChange: requestTargetIds.has(schedule.userId),
+        description: schedule.description ?? null,
+        location: schedule.location ?? null,
         calendarCategory: effectiveCategory,
         calendarCategoryLabel:
           SCHEDULE_CALENDAR_CATEGORY_LABELS[effectiveCategory],
@@ -348,6 +368,7 @@ export async function listCalendarSchedules(
     teamId: user.teamId ?? null,
     teamName: user.teamId ? (teamNameById.get(user.teamId) ?? null) : null,
     isActive: true as const,
+    canRequestScheduleChange: requestTargetIds.has(user.id),
   }));
 
   const teams: ScheduleViewTeam[] = allTeams

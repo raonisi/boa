@@ -59,8 +59,20 @@ const activeUsers = [
 ] as any;
 
 const teams = [
-  { id: 10, name: "[TEST] Team A", isActive: true },
-  { id: 20, name: "[TEST] Team B", isActive: true },
+  {
+    id: 10,
+    name: "[TEST] Team A",
+    managerId: 3,
+    subBranchAdminId: 2,
+    isActive: true,
+  },
+  {
+    id: 20,
+    name: "[TEST] Team B",
+    managerId: null,
+    subBranchAdminId: 2,
+    isActive: true,
+  },
 ] as any;
 
 const baseSchedule = (overrides: Record<string, unknown> = {}) => ({
@@ -213,6 +225,17 @@ describe("scheduleVisibility", () => {
         expect(schedule.canEdit).toBe(canManage);
         expect(schedule.canDelete).toBe(canManage);
         expect(schedule.memo).toBe("[TEST] sensitive memo");
+      }
+      if (viewer.id === 2 || viewer.id === 3) {
+        expect(
+          result.schedules.find(item => item.ownerUserId === 4)
+            ?.canRequestChange
+        ).toBe(true);
+      } else {
+        expect(
+          result.schedules.find(item => item.ownerUserId === 4)
+            ?.canRequestChange
+        ).toBe(false);
       }
       expect(result.users.every(user => user.isActive)).toBe(true);
       expect(result.users.some(user => user.userId === 99)).toBe(false);

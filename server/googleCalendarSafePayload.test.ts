@@ -253,6 +253,16 @@ describe("googleCalendarSafePayload contact policy (legacy safe mode)", () => {
     ).toEqual([4]);
   });
 
+  it("targets only the schedule owner for approved request creation", () => {
+    expect(
+      resolvePersonalCalendarActorUserIds({
+        createdBy: 1,
+        ownerUserId: 4,
+        ownerOnly: true,
+      })
+    ).toEqual([4]);
+  });
+
   it("blocks disease and premium in personal description even with contact allowed", () => {
     const description = buildSafeGoogleCalendarDescription({
       targetType: "actor_personal_calendar",

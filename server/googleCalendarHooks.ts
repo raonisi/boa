@@ -14,7 +14,8 @@ import type { Schedule } from "../drizzle/schema";
 
 export async function triggerGoogleCalendarSyncForScheduleId(
   actorId: number,
-  scheduleId: number
+  scheduleId: number,
+  options?: { personalCalendarOwnerOnly?: boolean }
 ) {
   const schedule = await getScheduleById(scheduleId);
   if (!schedule?.isActive || schedule.deletedAt) return;
@@ -30,6 +31,8 @@ export async function triggerGoogleCalendarSyncForScheduleId(
         : null,
       segmentLabel: schedule.type,
       customerContact,
+      personalCalendarOwnerOnly:
+        options?.personalCalendarOwnerOnly ?? false,
     }
   );
 }
@@ -46,7 +49,6 @@ export function triggerGoogleCalendarDeleteForSchedule(
     scheduleType: schedule.type,
     customerId: schedule.customerId,
     ownerRole,
-    status: "취소",
     calendarCategory: schedule.calendarCategory,
   });
   if (calendarType === "skipped") return;

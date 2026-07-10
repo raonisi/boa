@@ -37,6 +37,7 @@ describe("canAccessRoutePath", () => {
     "/admin/team-coaching",
     "/admin/operations-center",
     "/management-reports",
+    "/schedule-change-requests",
   ] as const;
 
   const adminRoutes = [
@@ -173,6 +174,11 @@ describe("getRouteAccessRoles", () => {
       "team_leader",
     ]);
     expect(getRouteAccessRoles("/logs")?.sort()).toEqual([
+      "branch_admin",
+      "sub_branch_admin",
+      "team_leader",
+    ]);
+    expect(getRouteAccessRoles("/schedule-change-requests")?.sort()).toEqual([
       "branch_admin",
       "sub_branch_admin",
       "team_leader",

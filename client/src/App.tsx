@@ -90,6 +90,9 @@ const ClaimGuidanceManagement = lazy(
 const RetentionRiskManagement = lazy(
   () => import("./pages/RetentionRiskManagement")
 );
+const ScheduleChangeRequests = lazy(
+  () => import("./pages/ScheduleChangeRequests")
+);
 
 function RouteFallback() {
   return (
@@ -310,6 +313,15 @@ function Router() {
       <Route path="/calendar">
         <AuthGuard>
           <Calendar />
+        </AuthGuard>
+      </Route>
+      <Route path="/schedule-change-requests">
+        <AuthGuard>
+          <RouteAccessGuard path="/schedule-change-requests">
+            <LazyRoute>
+              <ScheduleChangeRequests />
+            </LazyRoute>
+          </RouteAccessGuard>
         </AuthGuard>
       </Route>
       <Route path="/users/handoff">
