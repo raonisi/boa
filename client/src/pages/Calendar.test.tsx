@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCalendarDayA11yLabel,
   CALENDAR_MOBILE_VIEW_HINT,
+  canSelectScheduleOwner,
 } from "./Calendar";
 
 describe("Calendar day accessibility labels", () => {
@@ -123,5 +124,14 @@ describe("Calendar mobile view hint", () => {
     expect(/[가-힣]/.test(CALENDAR_MOBILE_VIEW_HINT)).toBe(true);
     expect(CALENDAR_MOBILE_VIEW_HINT.length).toBeLessThanOrEqual(40);
     expect(CALENDAR_MOBILE_VIEW_HINT).toContain("목록");
+  });
+});
+
+describe("Calendar schedule owner controls", () => {
+  it("shows delegated owner selection only to branch_admin", () => {
+    expect(canSelectScheduleOwner("branch_admin")).toBe(true);
+    expect(canSelectScheduleOwner("sub_branch_admin")).toBe(false);
+    expect(canSelectScheduleOwner("team_leader")).toBe(false);
+    expect(canSelectScheduleOwner("member")).toBe(false);
   });
 });

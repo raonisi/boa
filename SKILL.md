@@ -84,7 +84,8 @@ Deputy branch manager.
 May only access:
 
 - DB distributed to them by `branch_admin`.
-- Customers, contracts, consultations, schedules, performance, and notifications for subordinate users.
+- Customers, contracts, consultations, performance, and notifications for subordinate users.
+- Organization-wide active-user schedule visibility, with direct mutation limited to own schedules.
 - DB assignment from their assigned pool to their subordinate team leaders/members.
 
 Must not:
@@ -103,7 +104,8 @@ Team leader.
 
 May only access:
 
-- Own team’s customers, contracts, consultations, schedules, performance, notifications.
+- Own team’s customers, contracts, consultations, performance, notifications.
+- Organization-wide active-user schedule visibility, with direct mutation limited to own schedules.
 - Contract input for own/team-member customers when allowed by existing policy.
 
 Must not:
@@ -125,7 +127,8 @@ May only access:
 - Own assigned customers.
 - Own customer consultation records.
 - Own customer contract input.
-- Own schedules.
+- Organization-wide active-user schedule visibility.
+- Create, update, complete, cancel, and delete own schedules only.
 - Own performance.
 - Own notifications.
 
@@ -616,8 +619,8 @@ Critical:
 
 Must support:
 
-- Member self schedule registration.
-- Manager/admin schedule registration within authorized scope.
+- Self schedule registration for every active role.
+- `branch_admin` schedule registration for any active user.
 - Internal calendar.
 - No customer link required.
 - Internal notifications.
@@ -625,16 +628,22 @@ Must support:
 - Incomplete schedule notification.
 - Mobile-friendly schedule view.
 
-Permissions:
+Visibility:
 
-- `branch_admin`: all active users.
-- `sub_branch_admin`: subordinate active users.
-- `team_leader`: own team active users.
-- `member`: self only.
+- Every active role may view schedules owned by all active users in the organization.
+- Schedule visibility does not grant mutation permission.
+
+Mutation permissions:
+
+- `branch_admin`: create for any active user and update/delete every schedule.
+- `sub_branch_admin`, `team_leader`, `member`: create/update/delete schedules only when `schedules.userId` equals the actor id.
+- `schedules.userId` is the ownership field. `createdBy` is audit metadata only.
+- One BOA CRM production database and Railway environment serves one independent organization.
 
 Critical:
 
-- `schedules.create targetUserId` must be server-validated.
+- `schedules.create targetUserId` allows another user only for `branch_admin`.
+- Update/delete must require `branch_admin` or `schedules.userId === actor.id`.
 - Cannot schedule for inactive/resigned users.
 - Out-of-scope targetUserId returns `FORBIDDEN`.
 

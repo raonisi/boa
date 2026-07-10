@@ -78,6 +78,48 @@ type ScheduleViewer = {
   accountStatus: string;
 };
 
+type ScheduleMutationActor = Pick<ScheduleViewer, "id" | "role">;
+type ScheduleOwner = { userId: number };
+
+export function canCreateScheduleForUser(
+  actor: ScheduleMutationActor,
+  targetUserId: number
+) {
+  return actor.role === "branch_admin" || targetUserId === actor.id;
+}
+
+export function assertCanCreateScheduleForUser(
+  actor: ScheduleMutationActor,
+  targetUserId: number
+) {
+  if (!canCreateScheduleForUser(actor, targetUserId)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "본인 명의의 일정만 생성할 수 있습니다.",
+    });
+  }
+}
+
+export function canManageSchedule(
+  actor: ScheduleMutationActor,
+  schedule: ScheduleOwner
+) {
+  return actor.role === "branch_admin" || schedule.userId === actor.id;
+}
+
+export function assertScheduleMutationAccess(
+  actor: ScheduleMutationActor,
+  schedule: ScheduleOwner
+) {
+  if (!canManageSchedule(actor, schedule)) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "본인 소유 일정만 수정하거나 삭제할 수 있습니다.",
+    });
+  }
+}
+
+/** Hierarchy-scoped reporting helper. Do not use for schedule mutations. */
 export async function getAccessibleSchedules(user: ScheduleViewer) {
   if (user.role === "branch_admin") return getSchedules({});
   if (user.role === "sub_branch_admin" || user.role === "team_leader") {
@@ -225,13 +267,12 @@ export async function listCalendarSchedules(
   const filteredSchedules = rawSchedules.filter(schedule =>
     activeUserIds.has(schedule.userId)
   );
-  const mutableScheduleIds = new Set(
+  const detailedScheduleIds = new Set(
     (await getAccessibleSchedules(viewer)).map(schedule => schedule.id)
   );
-
   const schedules: CalendarScheduleItem[] = await Promise.all(
     filteredSchedules.map(async schedule => {
-      const canEdit = mutableScheduleIds.has(schedule.id);
+      const canEdit = canManageSchedule(viewer, schedule);
       const canDelete = canEdit;
       const isOwnSchedule = schedule.userId === viewer.id;
 
@@ -280,7 +321,10 @@ export async function listCalendarSchedules(
           SCHEDULE_CALENDAR_CATEGORY_LABELS[effectiveCategory],
       };
 
-      if ((isOwnSchedule || canEdit) && schedule.memo) {
+      if (
+        (isOwnSchedule || detailedScheduleIds.has(schedule.id)) &&
+        schedule.memo
+      ) {
         item.memo = schedule.memo;
       }
 

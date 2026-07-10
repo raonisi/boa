@@ -77,6 +77,8 @@ calendarId가 비활성/미등록이면 `SKIPPED_MISSING_CALENDAR`로 기록하�
 - 일정 등록자(`createdBy`)는 본인이 등록한 일정의 고객 연락처를 볼 수 있습니다.
 - 일정 담당자(`userId` / owner)는 본인 담당 일정의 고객 연락처를 볼 수 있습니다.
 - `inactive` / `resigned`는 접근 차단됩니다.
+- CRM 일정의 공식 소유권은 `schedules.userId`입니다. `createdBy`는 감사 정보이며 수정·삭제 권한을 부여하지 않습니다.
+- 자동 Google Calendar 동기화는 CRM 일정 mutation 권한 검증이 성공한 뒤 실행합니다. 수동 재동기화와 Google 이벤트 삭제는 `branch_admin` 전용입니다.
 
 ### Google Calendar (안전 모드)
 

@@ -4,6 +4,8 @@ import { buildFirstContactSlaInsights } from "./sla";
 import { buildTeamCompletionInsights } from "./teamCompletion";
 import { teamCoachingRouter } from "./teamCoaching";
 import {
+  assertCanCreateScheduleForUser,
+  assertScheduleMutationAccess,
   getAccessibleSchedules,
   listCalendarSchedules,
 } from "./scheduleVisibility";
@@ -3266,9 +3268,7 @@ async function prepareLinkedCustomerScheduleFromWork(params: {
   }
 
   const targetUserId = customer.agentId ?? actor.id;
-  if (targetUserId !== actor.id) {
-    await verifyTargetUserAccess(actor, targetUserId);
-  }
+  assertCanCreateScheduleForUser(actor, targetUserId);
   await assertActiveScheduleTarget(targetUserId);
 
   const startTimeDate = parseScheduleDateTime(startTime, "일정 시작 시간");
@@ -11326,6 +11326,7 @@ export const appRouter = router({
               z.literal(1440),
             ])
             .default(30),
+          userId: z.never().optional(),
           targetUserId: z.number().optional(),
           customerId: z.number().optional(),
           calendarCategory: z.enum(SCHEDULE_CALENDAR_CATEGORIES).optional(),
@@ -11334,8 +11335,8 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
         let targetUserId = user.id;
-        if (input.targetUserId) {
-          await verifyTargetUserAccess(user, input.targetUserId);
+        if (input.targetUserId !== undefined) {
+          assertCanCreateScheduleForUser(user, input.targetUserId);
           await assertActiveScheduleTarget(input.targetUserId);
           targetUserId = input.targetUserId;
         }
@@ -11471,6 +11472,8 @@ export const appRouter = router({
             ])
             .optional(),
           customerId: z.number().nullable().optional(),
+          userId: z.never().optional(),
+          targetUserId: z.never().optional(),
           calendarCategory: z.enum(SCHEDULE_CALENDAR_CATEGORIES).optional(),
         })
       )
@@ -11487,15 +11490,13 @@ export const appRouter = router({
         } = input;
         const user = ctx.user;
 
-        // 역할별 범위 조회로 소유권 검증 (조건 3 수정)
-        const allSchedulesList = await getAccessibleSchedules(user);
-
-        const existing = allSchedulesList.find(s => s.id === id);
-        if (!existing)
+        const existing = await getScheduleById(id);
+        if (!existing || !existing.isActive || existing.deletedAt)
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "해당 일정에 접근 권한이 없습니다.",
           });
+        assertScheduleMutationAccess(user, existing);
 
         if (existing.userId !== user.id)
           await assertActiveScheduleTarget(existing.userId);
@@ -11645,14 +11646,13 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const user = ctx.user;
-        const allSchedulesList = await getAccessibleSchedules(user);
-
-        const existing = allSchedulesList.find(s => s.id === input.id);
-        if (!existing)
+        const existing = await getScheduleById(input.id);
+        if (!existing || !existing.isActive || existing.deletedAt)
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "해당 일정에 접근 권한이 없습니다.",
           });
+        assertScheduleMutationAccess(user, existing);
 
         await softDeleteSchedule(input.id);
         await cancelScheduleTimingNotifications(existing.userId, input.id);

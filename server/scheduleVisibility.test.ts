@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as db from "./db";
 import {
+  canCreateScheduleForUser,
+  canManageSchedule,
   listCalendarSchedules,
   getAccessibleSchedules,
 } from "./scheduleVisibility";
@@ -198,20 +200,57 @@ describe("scheduleVisibility", () => {
     ] as any);
     vi.spyOn(db, "getCustomerById").mockResolvedValue(null);
 
+    for (const viewer of activeUsers.slice(0, 4)) {
+      const result = await listCalendarSchedules(
+        viewer,
+        { viewMode: "organization" }
+      );
+
+      expect(result.schedules.map(item => item.ownerUserId)).toEqual([4, 3]);
+      for (const schedule of result.schedules) {
+        const canManage =
+          viewer.role === "branch_admin" || schedule.ownerUserId === viewer.id;
+        expect(schedule.canEdit).toBe(canManage);
+        expect(schedule.canDelete).toBe(canManage);
+      }
+      expect(result.users.every(user => user.isActive)).toBe(true);
+      expect(result.users.some(user => user.userId === 99)).toBe(false);
+    }
+  });
+
+  it("preserves subordinate customer and memo visibility without granting mutation access", async () => {
+    vi.spyOn(db, "getAllUsers").mockResolvedValue(activeUsers);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue(teams);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([
+      baseSchedule({ userId: 4 }),
+    ] as any);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      name: "[TEST] Subordinate Customer",
+      agentId: 4,
+      assignedTeamId: 10,
+      subBranchAdminId: 2,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+
     const result = await listCalendarSchedules(
       {
-        id: 4,
-        role: "member",
-        teamId: 10,
-        subBranchAdminId: 2,
+        id: 2,
+        role: "sub_branch_admin",
+        teamId: null,
+        subBranchAdminId: null,
         accountStatus: "active",
       },
       { viewMode: "organization" }
     );
 
-    expect(result.schedules.map(item => item.ownerUserId)).toEqual([4, 3]);
-    expect(result.users.every(user => user.isActive)).toBe(true);
-    expect(result.users.some(user => user.userId === 99)).toBe(false);
+    expect(result.schedules[0]).toMatchObject({
+      customerDisplayName: "[TEST] Subordinate Customer",
+      memo: "[TEST] sensitive memo",
+      canEdit: false,
+      canDelete: false,
+    });
   });
 
   it("filters schedules by team for team view mode", async () => {
@@ -236,7 +275,7 @@ describe("scheduleVisibility", () => {
     expect(result.schedules).toHaveLength(2);
   });
 
-  it("keeps mutation scope limited to hierarchy for managers and self for members", async () => {
+  it("keeps hierarchy reporting scope separate from mutation ownership", async () => {
     vi.spyOn(db, "getSchedules").mockImplementation(async filter => {
       if (filter.userId === 4) return [baseSchedule()] as any;
       if (filter.userIds?.includes(4)) return [baseSchedule()] as any;
@@ -265,5 +304,27 @@ describe("scheduleVisibility", () => {
       accountStatus: "active",
     });
     expect(leaderAccessible.length).toBeGreaterThan(0);
+    expect(
+      canManageSchedule({ id: 3, role: "team_leader" }, { userId: 4 })
+    ).toBe(false);
+  });
+
+  it.each(["sub_branch_admin", "team_leader", "member"])(
+    "allows %s to manage and create only own schedules",
+    role => {
+      expect(canManageSchedule({ id: 4, role }, { userId: 4 })).toBe(true);
+      expect(canManageSchedule({ id: 4, role }, { userId: 5 })).toBe(false);
+      expect(canCreateScheduleForUser({ id: 4, role }, 4)).toBe(true);
+      expect(canCreateScheduleForUser({ id: 4, role }, 5)).toBe(false);
+    }
+  );
+
+  it("allows branch_admin to create and manage schedules for other active users", () => {
+    expect(
+      canManageSchedule({ id: 1, role: "branch_admin" }, { userId: 4 })
+    ).toBe(true);
+    expect(canCreateScheduleForUser({ id: 1, role: "branch_admin" }, 4)).toBe(
+      true
+    );
   });
 });

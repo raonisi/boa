@@ -9,7 +9,8 @@
 - [ ] Bulk import normalizes phone numbers and blocks duplicates.
 - [ ] Bulk import server revalidates before saving.
 - [ ] Notification mutations verify scope.
-- [ ] `schedules.create targetUserId` verifies scope.
+- [ ] `schedules.create targetUserId` allows another active user only for `branch_admin`.
+- [ ] Schedule update/delete requires `branch_admin` or `schedules.userId === actor.id`.
 - [ ] `contracts.contractHistory` verifies scope.
 - [ ] `performance.agentStats` verifies scope.
 - [ ] No 주민등록번호 field.

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
@@ -365,6 +365,32 @@ describe("Schedules - datetime and reminder persistence", () => {
     ...overrides,
   });
 
+  beforeEach(() => {
+    vi.spyOn(db, "getScheduleById").mockImplementation(async id => {
+      const rows = await db.getSchedules({});
+      return rows.find(schedule => schedule.id === id);
+    });
+  });
+
+  function mockScheduleMutationSideEffects() {
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(
+      notifications,
+      "cancelScheduleTimingNotifications"
+    ).mockResolvedValue(undefined);
+    vi.spyOn(
+      notifications,
+      "cancelScheduleIncompleteNotification"
+    ).mockResolvedValue(undefined);
+    vi.spyOn(notifications, "createScheduleReminderByOffset").mockResolvedValue(
+      undefined
+    );
+    vi.spyOn(
+      notifications,
+      "createScheduleIncompleteReminder"
+    ).mockResolvedValue(undefined);
+  }
+
   it("preserves KST local datetime when creating schedules", async () => {
     const startTime = kst("2026-05-22T12:00:00");
     vi.spyOn(db, "createSchedule").mockResolvedValue(undefined);
@@ -646,9 +672,9 @@ describe("Schedules - datetime and reminder persistence", () => {
   it("blocks schedule updates when the existing schedule target is inactive or resigned", async () => {
     for (const accountStatus of ["inactive", "resigned"] as const) {
       vi.restoreAllMocks();
-      vi.spyOn(db, "getSchedules").mockResolvedValue([
-        baseSchedule({ userId: 5 }),
-      ] as any);
+      vi.spyOn(db, "getScheduleById").mockResolvedValue(
+        baseSchedule({ userId: 5 }) as any
+      );
       vi.spyOn(db, "getUserById").mockResolvedValue({
         id: 5,
         role: "member",
@@ -966,13 +992,9 @@ describe("Schedules - datetime and reminder persistence", () => {
       .spyOn(db, "updateSchedule")
       .mockResolvedValue(undefined);
 
-    vi.spyOn(db, "getSchedules")
-      .mockResolvedValueOnce([
-        baseSchedule({ startTime: kst("2026-05-23T14:00:00") }),
-      ] as any)
-      .mockResolvedValueOnce([
-        baseSchedule({ startTime: kst("2026-05-23T14:00:00") }),
-      ] as any);
+    vi.spyOn(db, "getScheduleById").mockResolvedValue(
+      baseSchedule({ startTime: kst("2026-05-23T14:00:00") }) as any
+    );
 
     await appRouter.createCaller(createCtx("member")).schedules.update({
       id: 77,
@@ -988,6 +1010,240 @@ describe("Schedules - datetime and reminder persistence", () => {
     expect(formatKstLocalDateTime(dateOnlyChange)).toBe("2026-05-24T14:00:00");
     expect(formatKstLocalDateTime(timeOnlyChange)).toBe("2026-05-23T18:30:00");
   });
+
+  it.each([
+    ["branch_admin", 1],
+    ["sub_branch_admin", 2],
+    ["team_leader", 3],
+    ["member", 4],
+  ] as const)(
+    "allows active %s to create an own schedule",
+    async (role, userId) => {
+      const createSpy = vi
+        .spyOn(db, "createSchedule")
+        .mockResolvedValue(undefined);
+      vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+      vi.spyOn(db, "getUserById").mockResolvedValue({
+        id: userId,
+        role,
+        accountStatus: "active",
+      } as any);
+      vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+      await expect(
+        appRouter.createCaller(createCtx(role, { userId })).schedules.create({
+          title: "[TEST] own schedule",
+          type: "기타",
+          startTime: "2026-06-10T10:00:00",
+        })
+      ).resolves.toEqual({ success: true });
+
+      expect(createSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ userId, createdBy: userId })
+      );
+    }
+  );
+
+  it("allows branch_admin to create for another active user with distinct owner and creator", async () => {
+    const createSpy = vi
+      .spyOn(db, "createSchedule")
+      .mockResolvedValue(undefined);
+    vi.spyOn(db, "getSchedules").mockResolvedValue([] as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 5,
+      role: "member",
+      accountStatus: "active",
+    } as any);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("branch_admin", { userId: 1 }))
+        .schedules.create({
+          title: "[TEST] delegated schedule",
+          type: "기타",
+          startTime: "2026-06-10T10:00:00",
+          targetUserId: 5,
+        })
+    ).resolves.toEqual({ success: true });
+
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: 5, createdBy: 1 })
+    );
+  });
+
+  it.each([
+    ["sub_branch_admin", 2, 4],
+    ["team_leader", 3, 4],
+    ["member", 4, 5],
+  ] as const)(
+    "blocks %s from creating a schedule for user %i",
+    async (role, actorId, targetUserId) => {
+      const createSpy = vi
+        .spyOn(db, "createSchedule")
+        .mockResolvedValue(undefined);
+
+      await expect(
+        appRouter
+          .createCaller(createCtx(role, { userId: actorId, teamId: 10 }))
+          .schedules.create({
+            title: "[TEST] forbidden delegated schedule",
+            type: "기타",
+            startTime: "2026-06-10T10:00:00",
+            targetUserId,
+          })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(createSpy).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ["branch_admin", 1],
+    ["sub_branch_admin", 2],
+    ["team_leader", 3],
+    ["member", 4],
+  ] as const)(
+    "allows active %s to update and delete an own schedule",
+    async (role, userId) => {
+      const owned = baseSchedule({ userId });
+      vi.spyOn(db, "getScheduleById").mockResolvedValue(owned as any);
+      const updateSpy = vi
+        .spyOn(db, "updateSchedule")
+        .mockResolvedValue(undefined);
+      const deleteSpy = vi
+        .spyOn(db, "softDeleteSchedule")
+        .mockResolvedValue(undefined);
+      mockScheduleMutationSideEffects();
+
+      const caller = appRouter.createCaller(createCtx(role, { userId }));
+      await expect(
+        caller.schedules.update({ id: owned.id, title: "[TEST] updated" })
+      ).resolves.toEqual({ success: true });
+      await expect(caller.schedules.delete({ id: owned.id })).resolves.toEqual({
+        success: true,
+      });
+
+      expect(updateSpy).toHaveBeenCalledWith(
+        owned.id,
+        expect.objectContaining({ title: "[TEST] updated" })
+      );
+      expect(deleteSpy).toHaveBeenCalledWith(owned.id);
+    }
+  );
+
+  it("allows branch_admin to update and delete another user's schedule", async () => {
+    const otherSchedule = baseSchedule({ userId: 5 });
+    vi.spyOn(db, "getScheduleById").mockResolvedValue(otherSchedule as any);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 5,
+      role: "member",
+      accountStatus: "active",
+    } as any);
+    const updateSpy = vi
+      .spyOn(db, "updateSchedule")
+      .mockResolvedValue(undefined);
+    const deleteSpy = vi
+      .spyOn(db, "softDeleteSchedule")
+      .mockResolvedValue(undefined);
+    mockScheduleMutationSideEffects();
+
+    const caller = appRouter.createCaller(
+      createCtx("branch_admin", { userId: 1 })
+    );
+    await expect(
+      caller.schedules.update({ id: otherSchedule.id, status: "완료" })
+    ).resolves.toEqual({ success: true });
+    await expect(
+      caller.schedules.delete({ id: otherSchedule.id })
+    ).resolves.toEqual({ success: true });
+
+    expect(updateSpy).toHaveBeenCalled();
+    expect(deleteSpy).toHaveBeenCalledWith(otherSchedule.id);
+  });
+
+  it.each([
+    ["sub_branch_admin", 2, 4],
+    ["team_leader", 3, 4],
+    ["member", 4, 5],
+  ] as const)(
+    "blocks %s from updating or deleting user %i's schedule",
+    async (role, actorId, ownerUserId) => {
+      const otherSchedule = baseSchedule({ userId: ownerUserId });
+      vi.spyOn(db, "getScheduleById").mockResolvedValue(otherSchedule as any);
+      const updateSpy = vi
+        .spyOn(db, "updateSchedule")
+        .mockResolvedValue(undefined);
+      const deleteSpy = vi
+        .spyOn(db, "softDeleteSchedule")
+        .mockResolvedValue(undefined);
+
+      const caller = appRouter.createCaller(
+        createCtx(role, { userId: actorId, teamId: 10 })
+      );
+      await expect(
+        caller.schedules.update({ id: otherSchedule.id, status: "완료" })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(
+        caller.schedules.update({
+          id: otherSchedule.id,
+          startTime: "2026-06-10T12:00:00",
+        })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(
+        caller.schedules.delete({ id: otherSchedule.id })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+      expect(updateSpy).not.toHaveBeenCalled();
+      expect(deleteSpy).not.toHaveBeenCalled();
+    }
+  );
+
+  it("rejects ownership fields injected into schedule create and update payloads", async () => {
+    const createSpy = vi
+      .spyOn(db, "createSchedule")
+      .mockResolvedValue(undefined);
+    const updateSpy = vi
+      .spyOn(db, "updateSchedule")
+      .mockResolvedValue(undefined);
+    const caller = appRouter.createCaller(createCtx("member", { userId: 4 }));
+
+    await expect(
+      caller.schedules.create({
+        title: "[TEST] injected owner",
+        type: "기타",
+        startTime: "2026-06-10T10:00:00",
+        userId: 5,
+      } as any)
+    ).rejects.toThrow();
+    await expect(
+      caller.schedules.update({ id: 77, userId: 5 } as any)
+    ).rejects.toThrow();
+
+    expect(createSpy).not.toHaveBeenCalled();
+    expect(updateSpy).not.toHaveBeenCalled();
+  });
+
+  it.each(["inactive", "resigned"] as const)(
+    "blocks %s users from creating, updating, and deleting schedules",
+    async accountStatus => {
+      const caller = appRouter.createCaller(
+        createCtx("member", { userId: 4, accountStatus })
+      );
+      await expect(
+        caller.schedules.create({
+          title: "[TEST] blocked account",
+          type: "기타",
+          startTime: "2026-06-10T10:00:00",
+        })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(
+        caller.schedules.update({ id: 77, status: "완료" })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(caller.schedules.delete({ id: 77 })).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    }
+  );
 
   it("uses the preserved KST wall-clock time for 30 minute reminder dueAt", async () => {
     vi.useFakeTimers({ now: new Date("2026-05-01T00:00:00.000Z") });
@@ -1114,6 +1370,33 @@ describe("Follow-ups - KST local date policy", () => {
       "[TEST] follow schedule",
       30
     );
+  });
+
+  it("blocks managers from creating linked schedules for subordinate customer owners", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(customer);
+    const followUpSpy = vi
+      .spyOn(db, "createFollowUp")
+      .mockResolvedValue(undefined);
+    const scheduleSpy = vi
+      .spyOn(db, "createSchedule")
+      .mockResolvedValue(undefined);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("sub_branch_admin", { userId: 2 }))
+        .followUps.create({
+          customerId: 100,
+          nextContactDate: "2026-05-22T10:00:00",
+          reason: "[TEST] subordinate follow",
+          nextAction: "전화",
+          calendarSchedule: {
+            title: "[TEST] forbidden subordinate schedule",
+          },
+        })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    expect(followUpSpy).not.toHaveBeenCalled();
+    expect(scheduleSpy).not.toHaveBeenCalled();
   });
 
   it("preserves the selected next contact local datetime when postponing follow-ups", async () => {
@@ -10701,7 +10984,7 @@ describe("PR4 mobile three-touch task completion APIs", () => {
       deletedAt: null,
       reminderOffsetMinutes: 30,
     } as any;
-    vi.spyOn(db, "getSchedules").mockResolvedValue([schedule]);
+    vi.spyOn(db, "getScheduleById").mockResolvedValue(schedule);
     const updateSpy = vi
       .spyOn(db, "updateSchedule")
       .mockResolvedValue(undefined);

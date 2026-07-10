@@ -326,6 +326,10 @@ export function buildCalendarDayA11yLabel(input: {
 export const CALENDAR_MOBILE_VIEW_HINT =
   "모바일에서는 선택한 기간의 일정을 목록으로 표시합니다.";
 
+export function canSelectScheduleOwner(userRole?: string) {
+  return userRole === "branch_admin";
+}
+
 function scheduleDefaultReminderOffset(schedule: any) {
   return scheduleReminderOffset(schedule);
 }
@@ -1204,8 +1208,8 @@ export default function Calendar() {
           <ScheduleDetailModal
             schedule={selectedSchedule}
             customerName={getScheduleCustomerLabel(selectedSchedule)}
-            canEdit={selectedSchedule.canEdit ?? true}
-            canDelete={selectedSchedule.canDelete ?? true}
+            canEdit={selectedSchedule.canEdit ?? false}
+            canDelete={selectedSchedule.canDelete ?? false}
             canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
             userRole={userRole}
             onViewCustomer={() => openCustomerDetail(selectedSchedule)}
@@ -1536,7 +1540,7 @@ export default function Calendar() {
                           }
                           ownerName={s.ownerName}
                           showOwnerName={showOwnerName}
-                          readOnly={!(s.canEdit ?? true)}
+                          readOnly={!(s.canEdit ?? false)}
                           onCustomerClick={
                             canOpenCustomerDetail(s)
                               ? () => openCustomerDetail(s)
@@ -1591,7 +1595,7 @@ export default function Calendar() {
                         customerName={getScheduleCustomerLabel(s) ?? undefined}
                         ownerName={s.ownerName}
                         showOwnerName={showOwnerName}
-                        readOnly={!(s.canEdit ?? true)}
+                        readOnly={!(s.canEdit ?? false)}
                         onCustomerClick={
                           canOpenCustomerDetail(s)
                             ? () => openCustomerDetail(s)
@@ -1638,8 +1642,8 @@ export default function Calendar() {
         <ScheduleDetailModal
           schedule={selectedSchedule}
           customerName={getScheduleCustomerLabel(selectedSchedule)}
-          canEdit={selectedSchedule.canEdit ?? true}
-          canDelete={selectedSchedule.canDelete ?? true}
+          canEdit={selectedSchedule.canEdit ?? false}
+          canDelete={selectedSchedule.canDelete ?? false}
           canViewCustomerDetail={canOpenCustomerDetail(selectedSchedule)}
           userRole={userRole}
           onViewCustomer={() => openCustomerDetail(selectedSchedule)}
@@ -1867,7 +1871,7 @@ function ScheduleModal({
               />
             </div>
           </div>
-          {users && users.length > 0 && (
+          {canSelectScheduleOwner(userRole) && users && users.length > 0 && (
             <div>
               <Label className="text-xs">대상 (팀원 지정 시)</Label>
               <Select
