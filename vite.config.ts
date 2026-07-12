@@ -206,6 +206,7 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: path.resolve(import.meta.dirname, "dist/public"),
       emptyOutDir: true,
+      manifest: true,
       chunkSizeWarningLimit: 900,
       rollupOptions: {
         output: {

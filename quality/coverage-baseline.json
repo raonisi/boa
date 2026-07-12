@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "baseSha": "04be56729546f56c2f668b33ec4da19e19fbf25e",
+  "measuredAt": "2026-07-12T11:31:00.000Z",
+  "provider": "@vitest/coverage-v8@2.1.9",
+  "scope": [
+    "server/**/*.ts",
+    "client/src/**/*.{ts,tsx}",
+    "shared/**/*.ts"
+  ],
+  "measured": {
+    "statements": 33.79,
+    "branches": 70.07,
+    "functions": 47.52,
+    "lines": 33.79
+  },
+  "thresholds": {
+    "statements": 33.7,
+    "branches": 70,
+    "functions": 47.5,
+    "lines": 33.7
+  }
+}

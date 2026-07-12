@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "baseSha": "04be56729546f56c2f668b33ec4da19e19fbf25e",
+  "measuredAt": "2026-07-12T11:31:52.804Z",
+  "budgets": {
+    "relativeIncrease": 0.05,
+    "entryJsGzipAbsoluteIncrease": 51200,
+    "largestJsChunkGzipAbsoluteIncrease": 51200,
+    "totalJsGzipAbsoluteIncrease": 102400,
+    "totalCssGzipAbsoluteIncrease": 20480
+  },
+  "metrics": {
+    "entryJs": {
+      "raw": 906515,
+      "gzip": 169798
+    },
+    "largestJsChunk": {
+      "file": "assets/vendor-BXzwzPcT.js",
+      "raw": 715764,
+      "gzip": 238345
+    },
+    "totalJs": {
+      "raw": 3284491,
+      "gzip": 805581
+    },
+    "totalCss": {
+      "raw": 238177,
+      "gzip": 33264
+    }
+  }
+}

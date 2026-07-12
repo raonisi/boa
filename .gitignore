@@ -80,6 +80,7 @@ coverage/
 test-results/
 playwright-report/
 e2e/.auth/
+quality-results/
 
 # nyc test coverage
 .nyc_output
