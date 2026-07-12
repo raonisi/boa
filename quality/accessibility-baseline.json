@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "baseSha": "04be56729546f56c2f668b33ec4da19e19fbf25e",
+  "measuredAt": "2026-07-12T11:50:47.051Z",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa"
+  ],
+  "blockingImpacts": [
+    "critical",
+    "serious"
+  ],
+  "scenarios": {
+    "accessibility-desktop:calendar": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".bg-slate-100#80f9f58ab3ee"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".text-white#a8da7fd9380e"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "button[aria-label=\"<redacted>\"]#3c8aa7df687e"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "button[aria-label=\"<redacted>\"]#42e661a1a7ef"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "button[aria-label=\"<redacted>\"]#863501047c5b"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .leading-snug.text-sidebar-foreground\\/40#0006c0048207"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .leading-snug.text-sidebar-foreground\\/40#63121cac2ab4"
+      }
+    ],
+    "accessibility-desktop:customer-detail": [
+      {
+        "rule": "button-name",
+        "impact": "critical",
+        "target": "button[aria-controls=\"radix-_r_1h_\"]#52f563f0c9e3"
+      },
+      {
+        "rule": "button-name",
+        "impact": "critical",
+        "target": "button[aria-controls=\"radix-_r_1i_\"]#bb4763405b5f"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#39d0b22c4281"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
+      }
+    ],
+    "accessibility-desktop:customer-list": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.text-sidebar-foreground\\/40.leading-snug#5653b7a73851"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.text-sidebar-foreground\\/40.leading-snug#270155606c69"
+      }
+    ],
+    "accessibility-desktop:dashboard": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#39d0b22c4281"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
+      }
+    ],
+    "accessibility-desktop:login": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".text-slate-400#2ea03e5deb68"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".tracking-\\[0\\.24em\\]#0b3573ebc22e"
+      }
+    ],
+    "accessibility-desktop:schedule-change-requests": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#39d0b22c4281"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
+      }
+    ],
+    "accessibility-mobile390:calendar": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".flex-1.min-w-0[data-testid=\"calendar-mobile-agenda-item\"] > .line-clamp-2.leading-5.text-sm#3852d35eba94"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".mt-2#1e0ae089e7c9"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".opacity-80#128941423a66"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".opacity-90#83c73a2c1e9b"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".w-10.font-bold.shrink-0#7ecf4f58cc6b"
+      }
+    ],
+    "accessibility-mobile390:customer-detail": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "button[data-testid=\"customer-quick-action-calendar\"]#5bde291806b7"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": "button[data-testid=\"customer-quick-action-followup\"]#2f22d81f58a5"
+      }
+    ],
+    "accessibility-mobile390:customer-list": [],
+    "accessibility-mobile390:dashboard": [],
+    "accessibility-mobile390:login": [
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".text-slate-400#2ea03e5deb68"
+      },
+      {
+        "rule": "color-contrast",
+        "impact": "serious",
+        "target": ".tracking-\\[0\\.24em\\]#0b3573ebc22e"
+      }
+    ],
+    "accessibility-mobile390:schedule-change-requests": []
+  }
+}

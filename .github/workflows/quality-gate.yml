@@ -218,8 +218,8 @@ jobs:
         run: pnpm db:migrate
       - name: Seed synthetic role and customer fixtures
         run: pnpm e2e:critical:seed
-      - name: Measure core-page accessibility baseline
-        run: pnpm test:e2e:accessibility:update
+      - name: Enforce core-page accessibility ratchet
+        run: pnpm test:e2e:accessibility
       - name: Remove credentials from failure artifacts
         id: sanitize-accessibility
         if: always()
@@ -227,6 +227,7 @@ jobs:
           python scripts/sanitize-e2e-artifacts.py
           test-results/accessibility
           playwright-report/accessibility
+          quality-results/accessibility
       - name: Upload safe accessibility summary
         if: ${{ always() && steps.sanitize-accessibility.outcome == 'success' }}
         uses: actions/upload-artifact@v4

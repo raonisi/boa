@@ -72,6 +72,29 @@ function sortSignatures(signatures: ViolationSignature[]) {
   );
 }
 
+function signatureKey(signature: ViolationSignature) {
+  return `${signature.rule}|${signature.impact}|${signature.target}`;
+}
+
+function findNewOrIncreasedViolations(
+  current: ViolationSignature[],
+  baseline: ViolationSignature[]
+) {
+  const allowance = new Map<string, number>();
+  for (const signature of baseline) {
+    const key = signatureKey(signature);
+    allowance.set(key, (allowance.get(key) ?? 0) + 1);
+  }
+
+  return current.filter(signature => {
+    const key = signatureKey(signature);
+    const remaining = allowance.get(key) ?? 0;
+    if (remaining === 0) return true;
+    allowance.set(key, remaining - 1);
+    return false;
+  });
+}
+
 async function readBaseline(): Promise<AccessibilityBaseline> {
   return JSON.parse(await readFile(BASELINE_PATH, "utf8"));
 }
@@ -115,8 +138,13 @@ async function scanStablePage(page: Page, scenario: string, project: string) {
   if (process.env.UPDATE_ACCESSIBILITY_BASELINE !== "true") {
     const baseline = await readBaseline();
     const key = `${project}:${scenario}`;
-    expect(blocking, `Accessibility baseline changed for ${key}`).toEqual(
-      baseline.scenarios[key]
+    const expected = baseline.scenarios[key];
+    expect(expected, `Missing accessibility baseline for ${key}`).toBeDefined();
+    expect(
+      findNewOrIncreasedViolations(blocking, expected ?? []),
+      `New or increased critical/serious violations for ${key}`
+    ).toEqual(
+      []
     );
   }
 }

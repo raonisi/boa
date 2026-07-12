@@ -9,6 +9,16 @@ BOA CRM pull requests must pass these stable GitHub Actions checks before merge:
 - `build`
 - `e2e-critical`
 
+PR-QA-GATE-02 also adds these blocking workflow jobs:
+
+- `coverage`
+- `bundle-budget`
+- `accessibility`
+
+Use `coverage` and `bundle-budget` as required checks after merge. Promote
+`accessibility` to a required check after three consecutive green `main` runs
+confirm that the page-level baseline remains stable in hosted Chromium.
+
 The same workflow runs after a push to `main`. The workflow uses read-only
 repository permissions and does not use `pull_request_target` or production
 secrets.
@@ -52,5 +62,6 @@ schedule-change requests, branch-admin approval and automatic application,
 duplicate approval denial, and optimistic-concurrency conflict handling.
 
 Full browser matrices, Android devices, production OAuth, Google Calendar,
-Firebase delivery, accessibility blocking, and production database tests are
-separate release activities and are not part of this gate.
+Firebase delivery, Android accessibility automation, and production database
+tests are separate release activities and are not part of this gate. Core web
+accessibility is governed by [Quality Budget Policy](./QUALITY_BUDGET_POLICY.md).
