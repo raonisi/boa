@@ -77,12 +77,15 @@ async function readBaseline(): Promise<AccessibilityBaseline> {
 }
 
 async function scanStablePage(page: Page, scenario: string, project: string) {
-  await page.locator("[data-loading='true']").waitFor({ state: "detached" }).catch(() => {});
-  await page.evaluate(async () => {
-    await document.fonts.ready;
-    const animations = document.getAnimations();
-    await Promise.allSettled(animations.map(animation => animation.finished));
+  await page
+    .locator("[data-loading='true']")
+    .waitFor({ state: "detached" })
+    .catch(() => {});
+  await page.addStyleTag({
+    content:
+      "*,*::before,*::after{animation-duration:0s!important;transition-duration:0s!important;scroll-behavior:auto!important}",
   });
+  await page.evaluate(async () => document.fonts.ready);
 
   const results = await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze();
   const violations = results.violations.map(violation => ({
