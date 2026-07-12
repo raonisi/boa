@@ -9541,8 +9541,8 @@ describe("PR12 recommendations", () => {
 });
 
 describe("PR14 work rhythm report", () => {
-  const dateFrom = "2026-05-01T00:00:00";
-  const dateTo = "2026-05-31T23:59:59";
+  const dateFrom = "2026-05-01T00:00:00+09:00";
+  const dateTo = "2026-05-31T23:59:59+09:00";
   const customers = [
     {
       id: 100,

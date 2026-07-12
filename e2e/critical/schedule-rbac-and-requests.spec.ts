@@ -62,10 +62,11 @@ async function trpcCall(
       const body = await response.json();
       const item = Array.isArray(body) ? body[0] : body;
       if (item?.error) {
+        const error = item.error.json ?? item.error;
         return {
           ok: false as const,
-          code: item.error.data?.code,
-          message: item.error.message,
+          code: error.data?.code,
+          message: error.message,
         };
       }
       return { ok: true as const, data: item?.result?.data?.json };
@@ -130,11 +131,12 @@ test.describe("critical schedule RBAC and approval flow", () => {
         .getByText("[TEST] 팀원 고객 일정", { exact: true })
         .first()
         .click();
+      const detailDialog = page.getByRole("dialog");
       await expect(
-        page.getByText("[TEST] E2E 고객 A", { exact: true })
+        detailDialog.getByText("[TEST] E2E 고객 A", { exact: true })
       ).toBeVisible();
       await expect(
-        page.getByText("[TEST] 합성 상담내용", { exact: true })
+        detailDialog.getByText("[TEST] 합성 상담내용", { exact: true })
       ).toBeVisible();
       await context.close();
     }
@@ -153,15 +155,18 @@ test.describe("critical schedule RBAC and approval flow", () => {
       .getByText("[TEST] 팀원 고객 일정", { exact: true })
       .first()
       .click();
-    await expect(page.getByText("조회 전용", { exact: true })).toBeVisible();
+    const detailDialog = page.getByRole("dialog");
     await expect(
-      page.getByRole("button", { name: "수정", exact: true })
+      detailDialog.getByText("조회 전용", { exact: true })
+    ).toBeVisible();
+    await expect(
+      detailDialog.getByRole("button", { name: "수정", exact: true })
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "삭제", exact: true })
+      detailDialog.getByRole("button", { name: "삭제", exact: true })
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "변경 요청", exact: true })
+      detailDialog.getByRole("button", { name: "변경 요청", exact: true })
     ).toBeVisible();
 
     expectTrpcError(
@@ -263,12 +268,15 @@ test.describe("critical schedule RBAC and approval flow", () => {
     );
     await page.getByRole("button", { name: "전체 일정" }).click();
     await page.getByText("[TEST] 팀장 일정", { exact: true }).first().click();
-    await expect(page.getByText("조회 전용", { exact: true })).toBeVisible();
+    const detailDialog = page.getByRole("dialog");
     await expect(
-      page.getByRole("button", { name: "변경 요청", exact: true })
+      detailDialog.getByText("조회 전용", { exact: true })
+    ).toBeVisible();
+    await expect(
+      detailDialog.getByRole("button", { name: "변경 요청", exact: true })
     ).toHaveCount(0);
     await expect(
-      page.getByRole("button", { name: "삭제 요청", exact: true })
+      detailDialog.getByRole("button", { name: "삭제 요청", exact: true })
     ).toHaveCount(0);
 
     expectTrpcError(
