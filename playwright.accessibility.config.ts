@@ -1,6 +1,10 @@
 import { defineConfig, devices } from "@playwright/test";
 import criticalConfig from "./playwright.critical.config";
 
+const inheritedWebServer = Array.isArray(criticalConfig.webServer)
+  ? criticalConfig.webServer[0]
+  : criticalConfig.webServer;
+
 export default defineConfig({
   ...criticalConfig,
   testDir: "./e2e/accessibility",
@@ -15,6 +19,13 @@ export default defineConfig({
         ],
       ]
     : "list",
+  webServer: {
+    ...(inheritedWebServer ?? {}),
+    env: {
+      ...(inheritedWebServer?.env ?? {}),
+      VITE_GOOGLE_CLIENT_ID: "boa-e2e-synthetic-client",
+    },
+  },
   projects: [
     {
       name: "accessibility-desktop",

@@ -125,6 +125,9 @@ test.describe("public login accessibility", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
   test("login", async ({ page }, testInfo) => {
+    await page.addInitScript(() => {
+      window.__boaSuppressAuthRedirect = true;
+    });
     await page.goto("/");
     await expect(
       page.getByRole("button", { name: "Google 계정으로 로그인" })
