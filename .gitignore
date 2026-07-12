@@ -79,6 +79,7 @@ coverage/
 *.lcov
 test-results/
 playwright-report/
+e2e/.auth/
 
 # nyc test coverage
 .nyc_output

@@ -1,0 +1,128 @@
+name: Quality Gate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+
+  unit-test:
+    name: unit-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_APP_ID: boa-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+
+  e2e-critical:
+    name: e2e-critical
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      DATABASE_URL: mysql://root:boa_e2e_password@127.0.0.1:3306/boa_e2e
+      JWT_SECRET: boa-e2e-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.sha }}
+      VITE_APP_ID: boa-e2e
+      E2E_TEST_MODE: "true"
+      E2E_PORT: "3187"
+      PUSH_REMINDER_SCHEDULER_ENABLED: "false"
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: boa_e2e
+          MYSQL_ROOT_PASSWORD: boa_e2e_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pboa_e2e_password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium and Linux dependencies
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Apply migrations to disposable MySQL
+        run: pnpm db:migrate
+      - name: Seed synthetic role and schedule fixtures
+        run: pnpm e2e:critical:seed
+      - name: Run critical browser gate
+        run: pnpm test:e2e:critical
+      - name: Remove credentials from failure artifacts
+        id: sanitize
+        if: always()
+        run: >-
+          python scripts/sanitize-e2e-artifacts.py
+          test-results/critical
+          playwright-report/critical
+      - name: Upload Playwright HTML report
+        if: ${{ always() && steps.sanitize.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-critical
+          path: playwright-report/critical
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload traces, screenshots, videos, and results
+        if: ${{ always() && steps.sanitize.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results-critical
+          path: test-results/critical
+          if-no-files-found: warn
+          retention-days: 7
