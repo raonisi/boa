@@ -45,6 +45,7 @@ import {
   resolveCalendarCategoryForSave,
 } from "./scheduleCalendarCategory";
 import { assertScheduleRequestScope } from "./scheduleChangeRequestScope";
+import { approveScheduleChangeRequest } from "./scheduleApprovalService";
 import type { OrgTeam, OrgUser } from "./organizationHierarchy";
 import {
   SAFE_PUSH_PAYLOADS,
@@ -818,296 +819,6 @@ async function markFailedAfterRollback(requestId: number, reviewerId: number) {
   });
 }
 
-async function approveRequest(requestId: number, approverId: number) {
-  const db = await getDb();
-  if (!db) throw dbUnavailable();
-  let sideEffects:
-    | {
-        actorId: number;
-        requestType: "create" | "update" | "delete";
-        scheduleId: number;
-        previousSchedule?: Schedule;
-        notifyUserIds: number[];
-        status: ScheduleChangeRequestStatus;
-      }
-    | undefined;
-  try {
-    sideEffects = await db.transaction(async rawTx => {
-      const tx = rawTx as DbExecutor;
-      const request = await getRequestById(tx, requestId);
-      if (!request) throw new TRPCError({ code: "NOT_FOUND" });
-      if (request.status !== "pending") {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "이미 처리된 일정 요청입니다.",
-        });
-      }
-      const now = new Date();
-      await claimPendingRequest(tx, requestId, approverId, now);
-      const organization = await loadOrganization(tx);
-      let requester: OrgUser;
-      let target: OrgUser;
-      try {
-        requester = requireUser(organization.users, request.requesterId);
-        target = requireUser(organization.users, request.targetUserId);
-        assertScheduleRequestScope(
-          requester,
-          target,
-          organization.users,
-          organization.teams
-        );
-        const customerId = (request.requestedPayload as any)?.customerId;
-        if (customerId) {
-          await assertCustomerAccessibleInTransaction(
-            tx,
-            requester,
-            customerId,
-            organization.users
-          );
-        }
-      } catch {
-        await setClaimedRequestStatus(
-          tx,
-          requestId,
-          "failed",
-          approverId,
-          "승인 시점 권한 또는 대상 상태 검증에 실패했습니다.",
-          now
-        );
-        await insertActivity(
-          tx,
-          approverId,
-          "SCHEDULE_CHANGE_REQUEST_FAILED",
-          requestId,
-          {
-            requestId,
-            requestType: request.requestType,
-            scheduleId: request.scheduleId,
-            requesterId: request.requesterId,
-            targetUserId: request.targetUserId,
-            status: "failed",
-          }
-        );
-        await insertInternalNotifications(
-          tx,
-          [request.requesterId],
-          requestId,
-          "일정 요청 반영 실패",
-          "승인 시점의 권한 또는 대상 상태가 변경되어 반영되지 않았습니다."
-        );
-        return {
-          actorId: approverId,
-          requestType: request.requestType,
-          scheduleId: request.scheduleId ?? 0,
-          notifyUserIds: [request.requesterId],
-          status: "failed" as const,
-        };
-      }
-
-      let currentSchedule: Schedule | undefined;
-      if (request.requestType !== "create") {
-        const scheduleRows = await tx
-          .select()
-          .from(schedules)
-          .where(eq(schedules.id, request.scheduleId!))
-          .limit(1);
-        currentSchedule = scheduleRows[0];
-        if (
-          !currentSchedule ||
-          !currentSchedule.isActive ||
-          currentSchedule.deletedAt ||
-          currentSchedule.userId !== request.targetUserId ||
-          !datesMatch(
-            currentSchedule.updatedAt,
-            request.baseScheduleUpdatedAt
-          ) ||
-          !scheduleMatchesSnapshot(currentSchedule, request.beforeSnapshot)
-        ) {
-          await setClaimedRequestStatus(
-            tx,
-            requestId,
-            "conflict",
-            approverId,
-            "요청 이후 원본 일정이 변경되었습니다.",
-            now
-          );
-          const branchAdminIds = organization.users
-            .filter(
-              user =>
-                user.role === "branch_admin" &&
-                user.accountStatus === "active"
-            )
-            .map(user => user.id);
-          await insertActivity(
-            tx,
-            approverId,
-            "SCHEDULE_CHANGE_REQUEST_CONFLICT",
-            requestId,
-            {
-              requestId,
-              requestType: request.requestType,
-              scheduleId: request.scheduleId,
-              requesterId: request.requesterId,
-              targetUserId: request.targetUserId,
-              status: "conflict",
-            }
-          );
-          await insertInternalNotifications(
-            tx,
-            [...branchAdminIds, request.requesterId],
-            requestId,
-            "일정 요청 충돌",
-            "요청 이후 일정이 변경되어 자동 반영되지 않았습니다."
-          );
-          return {
-            actorId: approverId,
-            requestType: request.requestType,
-            scheduleId: request.scheduleId ?? 0,
-            previousSchedule: currentSchedule,
-            notifyUserIds: [...branchAdminIds, request.requesterId],
-            status: "conflict" as const,
-          };
-        }
-      }
-
-      let appliedScheduleId = request.scheduleId ?? 0;
-      let applied = true;
-      if (request.requestType === "create") {
-        appliedScheduleId = await applyCreateRequest(
-          tx,
-          request,
-          approverId,
-          target!
-        );
-      } else if (request.requestType === "update") {
-        applied = await applyUpdateRequest(tx, request, currentSchedule!);
-      } else {
-        applied = await applyDeleteRequest(tx, request, currentSchedule!, now);
-      }
-
-      if (!applied) {
-        await setClaimedRequestStatus(
-          tx,
-          requestId,
-          "conflict",
-          approverId,
-          "승인 직전 원본 일정이 변경되었습니다.",
-          now
-        );
-        await insertActivity(
-          tx,
-          approverId,
-          "SCHEDULE_CHANGE_REQUEST_CONFLICT",
-          requestId,
-          {
-            requestId,
-            requestType: request.requestType,
-            scheduleId: request.scheduleId,
-            requesterId: request.requesterId,
-            targetUserId: request.targetUserId,
-            status: "conflict",
-          }
-        );
-        await insertInternalNotifications(
-          tx,
-          [request.requesterId, approverId],
-          requestId,
-          "일정 요청 충돌",
-          "요청 이후 일정이 변경되어 자동 반영되지 않았습니다."
-        );
-        return {
-          actorId: approverId,
-          requestType: request.requestType,
-          scheduleId: request.scheduleId ?? 0,
-          previousSchedule: currentSchedule,
-          notifyUserIds: [request.requesterId, approverId],
-          status: "conflict" as const,
-        };
-      }
-
-      const finalizeResult = await tx
-        .update(scheduleChangeRequests)
-        .set({
-          scheduleId: appliedScheduleId,
-          pendingKey: null,
-          appliedAt: now,
-        })
-        .where(
-          and(
-            eq(scheduleChangeRequests.id, requestId),
-            eq(scheduleChangeRequests.status, "approved"),
-            eq(scheduleChangeRequests.reviewedBy, approverId)
-          )
-        );
-      if (affectedRows(finalizeResult) !== 1) {
-        throw new Error("schedule_request_approval_finalize_failed");
-      }
-      await insertActivity(
-        tx,
-        approverId,
-        "SCHEDULE_CHANGE_REQUEST_APPROVED",
-        requestId,
-        {
-          requestId,
-          requestType: request.requestType,
-          scheduleId: appliedScheduleId,
-          requesterId: request.requesterId,
-          targetUserId: request.targetUserId,
-          changedFieldNames: Object.keys(
-            (request.requestedPayload ?? {}) as Record<string, unknown>
-          ),
-          status: "approved",
-        }
-      );
-      await insertInternalNotifications(
-        tx,
-        [request.requesterId, request.targetUserId],
-        requestId,
-        "일정 요청 승인",
-        "일정 요청이 승인되어 반영되었습니다."
-      );
-      return {
-        actorId: approverId,
-        requestType: request.requestType,
-        scheduleId: appliedScheduleId,
-        previousSchedule: currentSchedule,
-        notifyUserIds: [request.requesterId, request.targetUserId],
-        status: "approved" as const,
-      };
-    });
-  } catch (error) {
-    if (error instanceof TRPCError) throw error;
-    await markFailedAfterRollback(requestId, approverId);
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "일정 요청을 자동 반영하지 못했습니다.",
-    });
-  }
-
-  if (!sideEffects) throw dbUnavailable();
-  if (sideEffects.status === "approved") {
-    await scheduleAfterApprovalSideEffects(sideEffects).catch(() => undefined);
-    await sendRequestPush(
-      sideEffects.notifyUserIds,
-      requestId,
-      "approved"
-    ).catch(() => undefined);
-  } else if (sideEffects.status === "conflict") {
-    await sendRequestPush(
-      sideEffects.notifyUserIds,
-      requestId,
-      "conflict"
-    ).catch(() => undefined);
-  } else if (sideEffects.status === "failed") {
-    await sendRequestPush(
-      sideEffects.notifyUserIds,
-      requestId,
-      "failed"
-    ).catch(() => undefined);
-  }
-  return { success: sideEffects.status === "approved", status: sideEffects.status };
-}
-
 async function transitionPendingRequest(params: {
   requestId: number;
   actorId: number;
@@ -1289,6 +1000,26 @@ async function buildRequestViews(
   }));
 }
 
+const scheduleApprovalDependencies = {
+  getRequestById,
+  claimPendingRequest,
+  loadOrganization,
+  requireUser,
+  assertCustomerAccessibleInTransaction,
+  setClaimedRequestStatus,
+  insertActivity,
+  insertInternalNotifications,
+  datesMatch,
+  scheduleMatchesSnapshot,
+  applyCreateRequest,
+  applyUpdateRequest,
+  applyDeleteRequest,
+  affectedRows,
+  markFailedAfterRollback,
+  scheduleAfterApprovalSideEffects,
+  sendRequestPush,
+};
+
 export const scheduleChangeRequestsRouter = router({
   requestCreate: activeUserProcedure
     .input(createRequestInputSchema)
@@ -1456,7 +1187,13 @@ export const scheduleChangeRequestsRouter = router({
 
   approve: branchAdminProcedure
     .input(z.object({ id: z.number().int().positive() }).strict())
-    .mutation(({ ctx, input }) => approveRequest(input.id, ctx.user.id)),
+    .mutation(({ ctx, input }) =>
+      approveScheduleChangeRequest(
+        input.id,
+        ctx.user.id,
+        scheduleApprovalDependencies
+      )
+    ),
 
   reject: branchAdminProcedure
     .input(
