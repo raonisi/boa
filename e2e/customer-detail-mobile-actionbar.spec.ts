@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
 import { mockBoaTrpc } from "./fixtures/mock-trpc";
@@ -160,5 +161,128 @@ test.describe("CustomerDetail mobile action bar", () => {
     await page.goto("/customers/101");
     await page.getByTestId("customer-quick-action-notifications").click();
     await expect(page).toHaveURL(/\/notifications/);
+  });
+
+  test("keeps five task tabs in URL state across reload and browser history", async ({
+    page,
+  }) => {
+    await setResponsiveViewport(page, "mobile390");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101");
+
+    const tabs = page.getByRole("tab");
+    await expect(tabs).toHaveCount(5);
+    await expect(page.getByRole("tab", { name: "요약", exact: true })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+
+    await page.getByRole("tab", { name: /상담·후속관리/ }).click();
+    await expect(page).toHaveURL(/\/customers\/101\?tab=consultation/);
+    await expect(page.getByRole("tab", { name: /상담·후속관리/ })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+
+    await page.reload();
+    await expect(page.getByRole("tab", { name: /상담·후속관리/ })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+
+    await page.getByRole("tab", { name: /계약/ }).click();
+    await expect(page).toHaveURL(/\/customers\/101\?tab=contracts/);
+    await page.goBack();
+    await expect(page.getByRole("tab", { name: /상담·후속관리/ })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+  });
+
+  test("falls back to summary for invalid tabs and supports keyboard navigation", async ({
+    page,
+  }) => {
+    await setResponsiveViewport(page, "mobile360");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101?tab=not-a-real-tab");
+
+    const summaryTab = page.getByRole("tab", { name: "요약", exact: true });
+    await expect(summaryTab).toHaveAttribute("aria-selected", "true");
+    await summaryTab.focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(page.getByRole("tab", { name: /상담·후속관리/ })).toHaveAttribute(
+      "aria-selected",
+      "true"
+    );
+    await expect(page).toHaveURL(/tab=consultation/);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("does not repeat a handled quick action when the user changes tabs", async ({
+    page,
+  }) => {
+    await setResponsiveViewport(page, "mobile390");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101?action=consult");
+
+    const dialog = page.getByRole("dialog", { name: "상담기록 추가" });
+    await expect(dialog).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(dialog).toBeHidden();
+
+    await page.getByRole("tab", { name: /계약/ }).click();
+    await expect(page).toHaveURL(/action=consult.*tab=contracts/);
+    await expect(dialog).toBeHidden();
+  });
+
+  test("opens schedule and notification workspaces from the schedule tab", async ({
+    page,
+  }) => {
+    await setResponsiveViewport(page, "mobile390");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101?tab=schedule");
+
+    await expect(page.getByRole("heading", { name: "고객 연결 일정" })).toBeVisible();
+    await page
+      .getByRole("tabpanel")
+      .getByRole("button", { name: "일정 등록", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/calendar\?customerId=101&action=quick-create/);
+
+    await page.goto("/customers/101?tab=schedule");
+    await page
+      .getByRole("tabpanel")
+      .getByRole("button", { name: "알림 확인", exact: true })
+      .click();
+    await expect(page).toHaveURL(/\/notifications/);
+  });
+
+  test("keeps every task tab free of critical and serious accessibility violations", async ({
+    page,
+  }) => {
+    await setResponsiveViewport(page, "mobile390");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101");
+
+    for (const tabName of [
+      "요약",
+      "상담·후속관리",
+      "계약",
+      "일정·알림",
+      "히스토리·인수인계",
+    ]) {
+      await page.getByRole("tab", { name: new RegExp(tabName) }).click();
+      const panelId = await page.getByRole("tabpanel").getAttribute("id");
+      expect(panelId).toBeTruthy();
+      const results = await new AxeBuilder({ page })
+        .include('[data-testid="customer-detail-mobile-tabs"]')
+        .include(`#${panelId}`)
+        .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+        .analyze();
+      const blocking = results.violations.filter(violation =>
+        ["critical", "serious"].includes(violation.impact ?? "")
+      );
+      expect(blocking, `${tabName} accessibility violations`).toEqual([]);
+    }
   });
 });

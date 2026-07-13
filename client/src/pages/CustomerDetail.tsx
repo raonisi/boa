@@ -43,7 +43,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Collapsible,
@@ -80,6 +80,8 @@ import {
 import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
 import FollowUpModal from "@/components/followups/FollowUpModal";
 import { CustomerRelationshipsPanel } from "@/components/customers/CustomerRelationshipsPanel";
+import { CustomerDetailTabNavigation } from "@/components/customers/CustomerDetailTabNavigation";
+import { CustomerDetailSchedulePanel } from "@/components/customers/CustomerDetailSchedulePanel";
 import { CustomerReferralFlowsPanel } from "@/components/referrals/CustomerReferralFlowsPanel";
 import { CustomerClaimGuidancePanel } from "@/components/claimGuidance/CustomerClaimGuidancePanel";
 import { CustomerRetentionRiskPanel } from "@/components/retentionRisk/CustomerRetentionRiskPanel";
@@ -105,19 +107,24 @@ import {
   Zap,
   Bell,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import {
   applyCustomerDetailAction,
   parseCustomerDetailAction,
 } from "@/lib/customerDetailActions";
 import {
+  buildCustomerDetailTabLocation,
+  getCustomerDetailTabFromLocation,
+  type CustomerDetailTab,
+} from "@/lib/customerDetailTabs";
+import {
   canLoadCustomerDetailDependencies,
   isValidCustomerDetailId,
   shouldShowCustomerDetailLoadingShell,
   shouldShowCustomerDetailUnavailable,
 } from "@/lib/customerDetailQueryGating";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 import {
   formatKstLocalDateTime,
@@ -291,6 +298,10 @@ function isSameLocalDate(value?: string | Date | null) {
 
 export default function CustomerDetail({ id }: { id: number }) {
   const [location, setLocation] = useLocation();
+  const search = useSearch();
+  const hash = typeof window === "undefined" ? "" : window.location.hash;
+  const customerDetailLocation = `${location}${search ? `?${search}` : ""}${hash}`;
+  const handledActionKeyRef = useRef<string | null>(null);
   const { user } = useAuth();
   const [showQuickConsultModal, setShowQuickConsultModal] = useState(false);
   const [showConsultModal, setShowConsultModal] = useState(false);
@@ -316,7 +327,9 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(
     null
   );
-  const [activeTab, setActiveTab] = useState("consult");
+  const [activeTab, setActiveTab] = useState<CustomerDetailTab>(() =>
+    getCustomerDetailTabFromLocation(customerDetailLocation)
+  );
   const isMobile = useIsMobile();
   const [timelineFilter, setTimelineFilter] =
     useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
@@ -343,8 +356,21 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [reclaimReason, setReclaimReason] = useState("");
   const [selectedScriptId, setSelectedScriptId] = useState<string>("");
 
+  const selectCustomerDetailTab = (tab: CustomerDetailTab) => {
+    setActiveTab(tab);
+    const nextLocation = buildCustomerDetailTabLocation(
+      customerDetailLocation,
+      tab
+    );
+    if (nextLocation !== customerDetailLocation) setLocation(nextLocation);
+  };
+
   useEffect(() => {
-    const query = location.split("?")[1]?.split("#")[0];
+    setActiveTab(getCustomerDetailTabFromLocation(customerDetailLocation));
+  }, [id, customerDetailLocation]);
+
+  useEffect(() => {
+    const query = customerDetailLocation.split("?")[1]?.split("#")[0];
     if (!query) return;
 
     const action = parseCustomerDetailAction(
@@ -352,15 +378,22 @@ export default function CustomerDetail({ id }: { id: number }) {
     );
     if (action === "invalid") return;
 
-    if (!action) return;
+    if (!action) {
+      handledActionKeyRef.current = null;
+      return;
+    }
+
+    const actionKey = `${id}:${action}`;
+    if (handledActionKeyRef.current === actionKey) return;
+    handledActionKeyRef.current = actionKey;
 
     applyCustomerDetailAction(action, {
       onConsult: () => setShowConsultModal(true),
       onQuickFollowup: () => setShowFollowUpQuickModal(true),
       onContract: () => setShowContractModal(true),
-      onMessage: () => setActiveTab("tools"),
+      onMessage: () => selectCustomerDetailTab("consultation"),
     });
-  }, [location]);
+  }, [customerDetailLocation, id]);
 
   const utils = trpc.useUtils();
   const {
@@ -912,6 +945,15 @@ export default function CustomerDetail({ id }: { id: number }) {
     (item: any) =>
       item.source === "schedules" && isSameLocalDate(item.occurredAt)
   ).length;
+  const customerScheduleItems = (timelineData?.items ?? []).filter(
+    (item: any) => item.source === "schedules"
+  );
+  const nextCustomerSchedule = customerScheduleItems
+    .filter((item: any) => new Date(item.occurredAt).getTime() >= now.getTime())
+    .sort(
+      (a: any, b: any) =>
+        new Date(a.occurredAt).getTime() - new Date(b.occurredAt).getTime()
+    )[0];
   const isCustomer360Loading =
     isConsultationsLoading || isFollowUpsLoading || isTimelineLoading;
   const isCustomer360Error =
@@ -1238,8 +1280,10 @@ export default function CustomerDetail({ id }: { id: number }) {
             daysFromLatestConsult={daysFromLatestConsult}
             isLoading={isCustomer360Loading}
             isError={isCustomer360Error}
-            onShowConsultations={() => setActiveTab("consult")}
-            onShowFollowUps={() => setActiveTab("info")}
+            onShowConsultations={() =>
+              selectCustomerDetailTab("consultation")
+            }
+            onShowFollowUps={() => selectCustomerDetailTab("consultation")}
             onShowCalendar={() =>
               setLocation(
                 `/calendar?customerId=${customer.id}&action=quick-create`
@@ -1250,8 +1294,10 @@ export default function CustomerDetail({ id }: { id: number }) {
 
         {isMobile ? (
           <CustomerQuickActionHub
-            onShowConsultations={() => setActiveTab("consult")}
-            onShowFollowUps={() => setActiveTab("info")}
+            onShowConsultations={() =>
+              selectCustomerDetailTab("consultation")
+            }
+            onShowFollowUps={() => selectCustomerDetailTab("consultation")}
             onShowCalendar={() =>
               setLocation(
                 `/calendar?customerId=${customer.id}&action=quick-create`
@@ -1371,12 +1417,12 @@ export default function CustomerDetail({ id }: { id: number }) {
           hasRelationships={(customerRelationships ?? []).length > 0}
           onConsultRecord={() => setShowConsultModal(true)}
           onFollowUpCreate={() => setShowFollowUpQuickModal(true)}
-          onOpenTemplates={() => setActiveTab("tools")}
-          onOpenChecklist={() => setActiveTab("tools")}
-          onOpenTimeline={() => setActiveTab("timeline")}
-          onOpenHandoff={() => setActiveTab("consult")}
-          onOpenRelationships={() => setActiveTab("relationships")}
-          onOpenReferrals={() => setActiveTab("referrals")}
+          onOpenTemplates={() => selectCustomerDetailTab("consultation")}
+          onOpenChecklist={() => selectCustomerDetailTab("consultation")}
+          onOpenTimeline={() => selectCustomerDetailTab("history")}
+          onOpenHandoff={() => selectCustomerDetailTab("history")}
+          onOpenRelationships={() => selectCustomerDetailTab("history")}
+          onOpenReferrals={() => selectCustomerDetailTab("history")}
         />
 
         <Card className="border-primary/15 bg-white/95 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-white/90 md:sticky md:top-[4.6rem] md:z-20">
@@ -1466,7 +1512,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <Button
                   variant="ghost"
                   className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                  onClick={() => setActiveTab("tools")}
+                  onClick={() => selectCustomerDetailTab("consultation")}
                 >
                   <Copy className="h-4 w-4" /> 메시지 문구
                 </Button>
@@ -1674,7 +1720,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setActiveTab("tools")}
+                    onClick={() => selectCustomerDetailTab("consultation")}
                   >
                     <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
                   </Button>
@@ -1696,109 +1742,28 @@ export default function CustomerDetail({ id }: { id: number }) {
 
         <Tabs
           value={activeTab}
-          onValueChange={setActiveTab}
+          onValueChange={value =>
+            selectCustomerDetailTab(value as CustomerDetailTab)
+          }
           className="space-y-4"
         >
           <div className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
             <p className="text-xs font-semibold text-muted-foreground">
-              상담 흐름
+              고객 업무 영역
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              오늘 확인 → 상담 기록 → 진행 관리 → 계약·보장 → 상세 정보
+              요약에서 현재 상태를 확인하고 필요한 업무 탭으로 이동하세요.
             </p>
           </div>
-          <TabsList
-            data-testid="customer-detail-mobile-tabs"
-            className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 shadow-sm [-ms-overflow-style:none] [scrollbar-width:none] md:flex-wrap [&::-webkit-scrollbar]:hidden"
-          >
-            <TabsTrigger
-              value="consult"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              상담 기록 ({consultations?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="tools"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              상담 도구
-            </TabsTrigger>
-            <TabsTrigger
-              value="timeline"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              활동 ({timelineData?.totalCount ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="contract"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              계약·보장 ({contracts?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="info"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              상세 정보
-            </TabsTrigger>
-            <TabsTrigger
-              value="relationships"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              연결 고객 ({customerRelationships?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="referrals"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              소개 흐름 ({customerReferrals?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="claim-guidance"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              청구 안내 ({claimGuidanceCases?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="retention-risk"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              해지위험 ({retentionRiskCases?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              상태이력 ({statusHistoryData?.length ?? 0})
-            </TabsTrigger>
-            <TabsTrigger
-              value="consent"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              동의이력
-            </TabsTrigger>
-            <TabsTrigger
-              value="assign_history"
-              data-testid="customer-detail-mobile-tab"
-              className="min-h-11 shrink-0 px-3"
-            >
-              배정이력 ({assignmentHistoryData?.length ?? 0})
-            </TabsTrigger>
-          </TabsList>
+          <CustomerDetailTabNavigation
+            consultationCount={consultations?.length ?? 0}
+            contractCount={contracts?.length ?? 0}
+            scheduleCount={todayScheduleCount}
+            historyCount={timelineData?.totalCount ?? 0}
+          />
 
           {/* 기본정보 */}
-          <TabsContent value="info">
+          <TabsContent value="summary" className="space-y-4">
             <Card>
               <CardContent className="p-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -1884,6 +1849,101 @@ export default function CustomerDetail({ id }: { id: number }) {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* 상담기록 */}
+          <TabsContent value="consultation" className="space-y-6">
+            <section aria-labelledby="customer-consultation-records-heading">
+              <h2 id="customer-consultation-records-heading" className="sr-only">
+                상담 기록
+              </h2>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                  총 {consultations?.length ?? 0}건
+                </p>
+                <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> 상담기록 추가
+                </Button>
+              </div>
+              {(consultations ?? []).length === 0 ? (
+                  <EmptyState
+                    icon={MessageSquare}
+                  title={
+                    MOBILE_STATE_UX.customerDetail.consultationEmptyTitle
+                  }
+                  description={
+                    MOBILE_STATE_UX.customerDetail.consultationEmptyDescription
+                  }
+                  action={
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setShowConsultModal(true)}
+                    >
+                      상담기록 추가
+                    </Button>
+                  }
+                />
+              ) : (
+                (consultations ?? []).map(c => (
+                  <Card key={c.id}>
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <StatusBadge status={c.status} />
+                            {(c as any).consultationType && (
+                              <span className="text-xs rounded-full border px-2 py-0.5">
+                                {(c as any).consultationType}
+                              </span>
+                            )}
+                            {(c as any).customerNeed && (
+                              <span className="text-xs rounded-full bg-secondary px-2 py-0.5">
+                                {(c as any).customerNeed}
+                              </span>
+                            )}
+                            {(c as any).nextAction && (
+                              <span className="text-xs rounded-full border px-2 py-0.5">
+                                다음: {(c as any).nextAction}
+                              </span>
+                            )}
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(c.createdAt).toLocaleString("ko-KR")}
+                            </span>
+                          </div>
+                          {(c as any).summary && (
+                            <p className="text-sm font-medium mb-1">
+                              {(c as any).summary}
+                            </p>
+                          )}
+                          <p className="text-sm whitespace-pre-wrap">
+                            {c.content ?? "(내용 없음)"}
+                          </p>
+                          {c.nextContactAt && (
+                            <p className="text-xs text-primary mt-2">
+                              재상담 예정:{" "}
+                              {new Date(c.nextContactAt).toLocaleString(
+                                "ko-KR"
+                              )}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs shrink-0"
+                          onClick={() => setEditingConsultId(c.id)}
+                        >
+                          <Edit2 className="h-3 w-3 mr-1" /> 수정
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+            </section>
             <FollowUpPanel
               followUps={followUps ?? []}
               onCreate={() => setShowFollowUpQuickModal(true)}
@@ -1900,6 +1960,406 @@ export default function CustomerDetail({ id }: { id: number }) {
                 cancelFollowUpMutation.isPending
               }
             />
+            <section
+              aria-labelledby="customer-consultation-tools-heading"
+              className="space-y-3 border-t border-slate-200 pt-5"
+            >
+              <div>
+                <h2
+                  id="customer-consultation-tools-heading"
+                  className="text-base font-semibold text-slate-950"
+                >
+                  상담 도구
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  체크리스트, 안내 문구, 상담 스크립트를 한곳에서 확인합니다.
+                </p>
+              </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold">상담 체크리스트</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      상담 전/중/후 확인 항목을 체크하고 필요한 메모만 남깁니다.
+                    </p>
+                  </div>
+                  {(["before", "during", "after"] as const).map(phase => {
+                    const templates = checklistTemplates.filter(
+                      template => template.phase === phase
+                    );
+                    return (
+                      <div key={phase} className="space-y-2">
+                        <div className="text-sm font-medium">
+                          {checklistPhaseLabels[phase]}
+                        </div>
+                        {templates.length === 0 ? (
+                          <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                            등록된 항목이 없습니다.
+                          </div>
+                        ) : (
+                          templates.map(template => {
+                            const result = checklistResultsById.get(
+                              template.id
+                            );
+                            return (
+                              <div
+                                key={template.id}
+                                className="rounded-md border p-3 space-y-2"
+                              >
+                                <label className="flex items-start gap-2 text-sm">
+                                  <Checkbox
+                                    checked={Boolean(result?.checked)}
+                                    disabled={
+                                      updateChecklistResultMutation.isPending
+                                    }
+                                    onCheckedChange={checked =>
+                                      updateChecklistResultMutation.mutate({
+                                        checklistId: template.id,
+                                        customerId: id,
+                                        checked: checked === true,
+                                        memo: result?.memo ?? undefined,
+                                      })
+                                    }
+                                  />
+                                  <span>
+                                    <span className="font-medium">
+                                      {template.title}
+                                    </span>
+                                    {template.isRequired ? (
+                                      <span className="ml-1 text-xs text-red-500">
+                                        필수
+                                      </span>
+                                    ) : null}
+                                    {template.description ? (
+                                      <span className="block text-xs text-muted-foreground mt-1">
+                                        {template.description}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                </label>
+                                <Input
+                                  value={result?.memo ?? ""}
+                                  placeholder="체크 메모"
+                                  className="h-8 text-xs"
+                                  disabled={
+                                    updateChecklistResultMutation.isPending
+                                  }
+                                  onChange={event =>
+                                    updateChecklistResultMutation.mutate({
+                                      checklistId: template.id,
+                                      customerId: id,
+                                      checked: Boolean(result?.checked),
+                                      memo: event.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    );
+                  })}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold">카톡·문자 후속 문구</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      민감정보, 확정 표현, 가입 강요 표현은 문구에 넣지 마세요.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">문구 템플릿</Label>
+                    <Select
+                      value={selectedTemplateId}
+                      onValueChange={setSelectedTemplateId}
+                    >
+                      <SelectTrigger aria-label="문구 템플릿">
+                        <SelectValue placeholder="상황별 문구 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(messageTemplates ?? []).map(template => (
+                          <SelectItem
+                            key={template.id}
+                            value={String(template.id)}
+                          >
+                            {template.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">다음 연락일</Label>
+                      <Input
+                        type="date"
+                        aria-label="다음 연락일"
+                        value={messageNextContactDate}
+                        onChange={event =>
+                          setMessageNextContactDate(event.target.value)
+                        }
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">상담주제</Label>
+                      <Input
+                        value={messageTopic}
+                        onChange={event => setMessageTopic(event.target.value)}
+                        placeholder="예: 보장 점검"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs">미리보기</Label>
+                    <Textarea
+                      readOnly
+                      value={renderedMessage?.body ?? ""}
+                      placeholder="템플릿을 선택하면 고객명과 담당자명이 반영된 문구를 확인할 수 있습니다."
+                      className="mt-1 min-h-48 text-sm"
+                    />
+                  </div>
+                  {selectedTemplate?.complianceNote ? (
+                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+                      {selectedTemplate.complianceNote}
+                    </div>
+                  ) : null}
+                  <Button
+                    type="button"
+                    disabled={!renderedMessage?.body}
+                    onClick={async () => {
+                      if (!renderedMessage?.body) return;
+                      await navigator.clipboard.writeText(renderedMessage.body);
+                      logMessageCopyMutation.mutate({
+                        templateId: Number(selectedTemplateId),
+                        customerId: id,
+                        channel: renderedMessage.channel as any,
+                      });
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" /> 문구 복사
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-4 space-y-4">
+                  <div>
+                    <h3 className="font-semibold">상담 스크립트</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      통화와 상담 흐름을 참고할 수 있는 내부용 스크립트입니다.
+                      고객 상황에 맞게 조정해서 사용하세요.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">스크립트 선택</Label>
+                    <Select
+                      value={selectedScriptId}
+                      onValueChange={setSelectedScriptId}
+                    >
+                      <SelectTrigger aria-label="상담 스크립트">
+                        <SelectValue placeholder="상황별 상담 스크립트 선택" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {(consultationScripts ?? []).map(script => (
+                          <SelectItem key={script.id} value={String(script.id)}>
+                            {script.title}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label className="text-xs">미리보기</Label>
+                    <Textarea
+                      readOnly
+                      value={selectedScript?.scriptBody ?? ""}
+                      placeholder="스크립트를 선택하면 상담 흐름을 확인할 수 있습니다."
+                      className="mt-1 min-h-48 text-sm"
+                    />
+                  </div>
+                  {selectedScript?.complianceNote ? (
+                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+                      {selectedScript.complianceNote}
+                    </div>
+                  ) : (
+                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+                      가입 강요, 공포마케팅, 확정 표현은 사용하지 마세요. 고객
+                      상황 확인과 기준 정리 중심으로 활용하세요.
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    disabled={!selectedScript?.scriptBody}
+                    onClick={async () => {
+                      if (!selectedScript?.scriptBody) return;
+                      await navigator.clipboard.writeText(
+                        selectedScript.scriptBody
+                      );
+                      logScriptCopyMutation.mutate({
+                        scriptId: Number(selectedScriptId),
+                        customerId: id,
+                      });
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-2" /> 스크립트 복사
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="contracts">
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                  총 {contracts?.length ?? 0}건
+                </p>
+                <Button size="sm" onClick={() => setShowContractModal(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> 계약 등록
+                </Button>
+              </div>
+              {(contracts ?? []).length === 0 ? (
+                <EmptyState
+                  icon={FilePlus2}
+                  title="계약 정보가 없습니다."
+                  description="상담이 계약으로 이어졌다면 계약 정보를 등록해 실적과 후속관리를 연결하세요."
+                  action={
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setShowContractModal(true)}
+                    >
+                      계약 등록
+                    </Button>
+                  }
+                />
+              ) : (
+                (contracts ?? []).map(c => (
+                  <Card key={c.id}>
+                    <CardContent className="p-4">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            보험사
+                          </p>
+                          <p className="font-medium">{c.company ?? "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            상품명
+                          </p>
+                          <p className="font-medium">{c.productName ?? "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            상품군
+                          </p>
+                          <p className="font-medium">{c.productGroup ?? "-"}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            계약일
+                          </p>
+                          <p className="font-medium">
+                            {c.contractDate
+                              ? new Date(c.contractDate).toLocaleDateString(
+                                  "ko-KR"
+                                )
+                              : "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            월보험료
+                          </p>
+                          <p className="font-medium">
+                            {c.monthlyPremium
+                              ? `${c.monthlyPremium.toLocaleString()}원`
+                              : "-"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            납입상태
+                          </p>
+                          <StatusBadge status={c.paymentStatus ?? "정상"} />
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            계약상태
+                          </p>
+                          <StatusBadge status={c.contractStatus ?? "청약"} />
+                        </div>
+                      </div>
+                      {c.memo && (
+                        <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
+                          {c.memo}
+                        </p>
+                      )}
+                      <div className="mt-3 flex justify-end gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setEditingContractId(c.id)}
+                        >
+                          <Edit2 className="h-3 w-3 mr-1" /> 수정
+                        </Button>
+                        {canDeactivateContract && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                            onClick={() => setDeleteContractId(c.id)}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" /> 계약 삭제
+                          </Button>
+                        )}
+                        {canRequestContractDelete && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setRequestContractId(c.id)}
+                          >
+                            삭제 요청
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+
+          <TabsContent value="schedule">
+            <CustomerDetailSchedulePanel
+              todayScheduleCount={todayScheduleCount}
+              totalScheduleCount={customerScheduleItems.length}
+              nextScheduleAt={nextCustomerSchedule?.occurredAt}
+              onCreateSchedule={() =>
+                setLocation(`/calendar?customerId=${id}&action=quick-create`)
+              }
+              onOpenCalendar={() => setLocation(`/calendar?customerId=${id}`)}
+              onOpenNotifications={() => setLocation("/notifications")}
+            />
+          </TabsContent>
+
+          <TabsContent value="history" className="space-y-6">
+            <section aria-labelledby="customer-handoff-heading" className="space-y-3">
+              <h2 id="customer-handoff-heading" className="sr-only">
+                인수인계 메모
+              </h2>
             <Card>
               <CardContent className="p-4 space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -2036,465 +2496,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* 상담기록 */}
-          <TabsContent value="consult">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                  총 {consultations?.length ?? 0}건
+            </section>
+            <section aria-labelledby="customer-timeline-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-timeline-heading" className="text-base font-semibold text-slate-950">
+                  통합 타임라인
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  고객과 관련된 주요 활동을 시간순으로 확인합니다.
                 </p>
-                <Button size="sm" onClick={() => setShowConsultModal(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> 상담기록 추가
-                </Button>
               </div>
-              {(consultations ?? []).length === 0 ? (
-                  <EmptyState
-                    icon={MessageSquare}
-                  title={
-                    MOBILE_STATE_UX.customerDetail.consultationEmptyTitle
-                  }
-                  description={
-                    MOBILE_STATE_UX.customerDetail.consultationEmptyDescription
-                  }
-                  action={
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setShowConsultModal(true)}
-                    >
-                      상담기록 추가
-                    </Button>
-                  }
-                />
-              ) : (
-                (consultations ?? []).map(c => (
-                  <Card key={c.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <StatusBadge status={c.status} />
-                            {(c as any).consultationType && (
-                              <span className="text-xs rounded-full border px-2 py-0.5">
-                                {(c as any).consultationType}
-                              </span>
-                            )}
-                            {(c as any).customerNeed && (
-                              <span className="text-xs rounded-full bg-secondary px-2 py-0.5">
-                                {(c as any).customerNeed}
-                              </span>
-                            )}
-                            {(c as any).nextAction && (
-                              <span className="text-xs rounded-full border px-2 py-0.5">
-                                다음: {(c as any).nextAction}
-                              </span>
-                            )}
-                            <span className="text-xs text-muted-foreground">
-                              {new Date(c.createdAt).toLocaleString("ko-KR")}
-                            </span>
-                          </div>
-                          {(c as any).summary && (
-                            <p className="text-sm font-medium mb-1">
-                              {(c as any).summary}
-                            </p>
-                          )}
-                          <p className="text-sm whitespace-pre-wrap">
-                            {c.content ?? "(내용 없음)"}
-                          </p>
-                          {c.nextContactAt && (
-                            <p className="text-xs text-primary mt-2">
-                              재상담 예정:{" "}
-                              {new Date(c.nextContactAt).toLocaleString(
-                                "ko-KR"
-                              )}
-                            </p>
-                          )}
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs shrink-0"
-                          onClick={() => setEditingConsultId(c.id)}
-                        >
-                          <Edit2 className="h-3 w-3 mr-1" /> 수정
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          {/* 계약정보 */}
-          <TabsContent value="contract">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                  총 {contracts?.length ?? 0}건
-                </p>
-                <Button size="sm" onClick={() => setShowContractModal(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> 계약 등록
-                </Button>
-              </div>
-              {(contracts ?? []).length === 0 ? (
-                <EmptyState
-                  icon={FilePlus2}
-                  title="계약 정보가 없습니다."
-                  description="상담이 계약으로 이어졌다면 계약 정보를 등록해 실적과 후속관리를 연결하세요."
-                  action={
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setShowContractModal(true)}
-                    >
-                      계약 등록
-                    </Button>
-                  }
-                />
-              ) : (
-                (contracts ?? []).map(c => (
-                  <Card key={c.id}>
-                    <CardContent className="p-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            보험사
-                          </p>
-                          <p className="font-medium">{c.company ?? "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            상품명
-                          </p>
-                          <p className="font-medium">{c.productName ?? "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            상품군
-                          </p>
-                          <p className="font-medium">{c.productGroup ?? "-"}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            계약일
-                          </p>
-                          <p className="font-medium">
-                            {c.contractDate
-                              ? new Date(c.contractDate).toLocaleDateString(
-                                  "ko-KR"
-                                )
-                              : "-"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            월보험료
-                          </p>
-                          <p className="font-medium">
-                            {c.monthlyPremium
-                              ? `${c.monthlyPremium.toLocaleString()}원`
-                              : "-"}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            납입상태
-                          </p>
-                          <StatusBadge status={c.paymentStatus ?? "정상"} />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            계약상태
-                          </p>
-                          <StatusBadge status={c.contractStatus ?? "청약"} />
-                        </div>
-                      </div>
-                      {c.memo && (
-                        <p className="text-xs text-muted-foreground mt-2 pt-2 border-t">
-                          {c.memo}
-                        </p>
-                      )}
-                      <div className="mt-3 flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-xs"
-                          onClick={() => setEditingContractId(c.id)}
-                        >
-                          <Edit2 className="h-3 w-3 mr-1" /> 수정
-                        </Button>
-                        {canDeactivateContract && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
-                            onClick={() => setDeleteContractId(c.id)}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" /> 계약 삭제
-                          </Button>
-                        )}
-                        {canRequestContractDelete && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-7 text-xs"
-                            onClick={() => setRequestContractId(c.id)}
-                          >
-                            삭제 요청
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
-
-          <TabsContent value="tools">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardContent className="p-4 space-y-4">
-                  <div>
-                    <h3 className="font-semibold">상담 체크리스트</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      상담 전/중/후 확인 항목을 체크하고 필요한 메모만 남깁니다.
-                    </p>
-                  </div>
-                  {(["before", "during", "after"] as const).map(phase => {
-                    const templates = checklistTemplates.filter(
-                      template => template.phase === phase
-                    );
-                    return (
-                      <div key={phase} className="space-y-2">
-                        <div className="text-sm font-medium">
-                          {checklistPhaseLabels[phase]}
-                        </div>
-                        {templates.length === 0 ? (
-                          <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                            등록된 항목이 없습니다.
-                          </div>
-                        ) : (
-                          templates.map(template => {
-                            const result = checklistResultsById.get(
-                              template.id
-                            );
-                            return (
-                              <div
-                                key={template.id}
-                                className="rounded-md border p-3 space-y-2"
-                              >
-                                <label className="flex items-start gap-2 text-sm">
-                                  <Checkbox
-                                    checked={Boolean(result?.checked)}
-                                    disabled={
-                                      updateChecklistResultMutation.isPending
-                                    }
-                                    onCheckedChange={checked =>
-                                      updateChecklistResultMutation.mutate({
-                                        checklistId: template.id,
-                                        customerId: id,
-                                        checked: checked === true,
-                                        memo: result?.memo ?? undefined,
-                                      })
-                                    }
-                                  />
-                                  <span>
-                                    <span className="font-medium">
-                                      {template.title}
-                                    </span>
-                                    {template.isRequired ? (
-                                      <span className="ml-1 text-xs text-red-500">
-                                        필수
-                                      </span>
-                                    ) : null}
-                                    {template.description ? (
-                                      <span className="block text-xs text-muted-foreground mt-1">
-                                        {template.description}
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                </label>
-                                <Input
-                                  value={result?.memo ?? ""}
-                                  placeholder="체크 메모"
-                                  className="h-8 text-xs"
-                                  disabled={
-                                    updateChecklistResultMutation.isPending
-                                  }
-                                  onChange={event =>
-                                    updateChecklistResultMutation.mutate({
-                                      checklistId: template.id,
-                                      customerId: id,
-                                      checked: Boolean(result?.checked),
-                                      memo: event.target.value,
-                                    })
-                                  }
-                                />
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4 space-y-4">
-                  <div>
-                    <h3 className="font-semibold">카톡·문자 후속 문구</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      민감정보, 확정 표현, 가입 강요 표현은 문구에 넣지 마세요.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">문구 템플릿</Label>
-                    <Select
-                      value={selectedTemplateId}
-                      onValueChange={setSelectedTemplateId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="상황별 문구 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(messageTemplates ?? []).map(template => (
-                          <SelectItem
-                            key={template.id}
-                            value={String(template.id)}
-                          >
-                            {template.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid gap-2 sm:grid-cols-2">
-                    <div>
-                      <Label className="text-xs">다음 연락일</Label>
-                      <Input
-                        type="date"
-                        value={messageNextContactDate}
-                        onChange={event =>
-                          setMessageNextContactDate(event.target.value)
-                        }
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">상담주제</Label>
-                      <Input
-                        value={messageTopic}
-                        onChange={event => setMessageTopic(event.target.value)}
-                        placeholder="예: 보장 점검"
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs">미리보기</Label>
-                    <Textarea
-                      readOnly
-                      value={renderedMessage?.body ?? ""}
-                      placeholder="템플릿을 선택하면 고객명과 담당자명이 반영된 문구를 확인할 수 있습니다."
-                      className="mt-1 min-h-48 text-sm"
-                    />
-                  </div>
-                  {selectedTemplate?.complianceNote ? (
-                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-                      {selectedTemplate.complianceNote}
-                    </div>
-                  ) : null}
-                  <Button
-                    type="button"
-                    disabled={!renderedMessage?.body}
-                    onClick={async () => {
-                      if (!renderedMessage?.body) return;
-                      await navigator.clipboard.writeText(renderedMessage.body);
-                      logMessageCopyMutation.mutate({
-                        templateId: Number(selectedTemplateId),
-                        customerId: id,
-                        channel: renderedMessage.channel as any,
-                      });
-                    }}
-                  >
-                    <Copy className="h-4 w-4 mr-2" /> 문구 복사
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-4 space-y-4">
-                  <div>
-                    <h3 className="font-semibold">상담 스크립트</h3>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      통화와 상담 흐름을 참고할 수 있는 내부용 스크립트입니다.
-                      고객 상황에 맞게 조정해서 사용하세요.
-                    </p>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs">스크립트 선택</Label>
-                    <Select
-                      value={selectedScriptId}
-                      onValueChange={setSelectedScriptId}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="상황별 상담 스크립트 선택" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(consultationScripts ?? []).map(script => (
-                          <SelectItem key={script.id} value={String(script.id)}>
-                            {script.title}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs">미리보기</Label>
-                    <Textarea
-                      readOnly
-                      value={selectedScript?.scriptBody ?? ""}
-                      placeholder="스크립트를 선택하면 상담 흐름을 확인할 수 있습니다."
-                      className="mt-1 min-h-48 text-sm"
-                    />
-                  </div>
-                  {selectedScript?.complianceNote ? (
-                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-                      {selectedScript.complianceNote}
-                    </div>
-                  ) : (
-                    <div className="rounded-md bg-amber-50 p-3 text-xs text-amber-800">
-                      가입 강요, 공포마케팅, 확정 표현은 사용하지 마세요. 고객
-                      상황 확인과 기준 정리 중심으로 활용하세요.
-                    </div>
-                  )}
-                  <Button
-                    type="button"
-                    disabled={!selectedScript?.scriptBody}
-                    onClick={async () => {
-                      if (!selectedScript?.scriptBody) return;
-                      await navigator.clipboard.writeText(
-                        selectedScript.scriptBody
-                      );
-                      logScriptCopyMutation.mutate({
-                        scriptId: Number(selectedScriptId),
-                        customerId: id,
-                      });
-                    }}
-                  >
-                    <Copy className="h-4 w-4 mr-2" /> 스크립트 복사
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="timeline">
             <CustomerTimelinePanel
               timeline={timelineData}
               filter={timelineFilter}
@@ -2502,9 +2513,16 @@ export default function CustomerDetail({ id }: { id: number }) {
               onFilterChange={setTimelineFilter}
               onRangeChange={setTimelineRange}
             />
-          </TabsContent>
-
-          <TabsContent value="relationships">
+            </section>
+            <section aria-labelledby="customer-relationships-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-relationships-heading" className="text-base font-semibold text-slate-950">
+                  연결 고객
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  가족과 관계 고객의 연결 정보를 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-4">
                 <CustomerRelationshipsPanel
@@ -2513,9 +2531,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="referrals">
+            </section>
+            <section aria-labelledby="customer-referrals-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-referrals-heading" className="text-base font-semibold text-slate-950">
+                  소개 흐름
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  소개 관계와 진행 상태를 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-4">
                 <CustomerReferralFlowsPanel
@@ -2528,9 +2553,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="claim-guidance">
+            </section>
+            <section aria-labelledby="customer-claim-guidance-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-claim-guidance-heading" className="text-base font-semibold text-slate-950">
+                  청구 안내
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  고객에게 제공한 청구 안내를 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-4">
                 <CustomerClaimGuidancePanel
@@ -2543,9 +2575,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="retention-risk">
+            </section>
+            <section aria-labelledby="customer-retention-risk-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-retention-risk-heading" className="text-base font-semibold text-slate-950">
+                  해지 위험
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  계약 유지에 필요한 위험 신호를 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-4">
                 <CustomerRetentionRiskPanel
@@ -2558,10 +2597,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* 상태 변경 이력 */}
-          <TabsContent value="history">
+            </section>
+            <section aria-labelledby="customer-history-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-history-heading" className="text-base font-semibold text-slate-950">
+                  상태 변경 이력
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  고객 상담 상태의 변경 기록을 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-0">
                 {(statusHistoryData ?? []).length === 0 ? (
@@ -2599,10 +2644,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* 배정 이력 */}
-          <TabsContent value="assign_history">
+            </section>
+            <section aria-labelledby="customer-assign-history-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-assign-history-heading" className="text-base font-semibold text-slate-950">
+                  배정 이력
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  담당 조직과 담당자 변경 기록을 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-0">
                 {(assignmentHistoryData ?? []).length === 0 ? (
@@ -2682,10 +2733,16 @@ export default function CustomerDetail({ id }: { id: number }) {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* 동의 이력 */}
-          <TabsContent value="consent">
+            </section>
+            <section aria-labelledby="customer-consent-heading" className="space-y-3">
+              <div>
+                <h2 id="customer-consent-heading" className="text-base font-semibold text-slate-950">
+                  동의 이력
+                </h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  개인정보와 마케팅 수신 동의 변경 기록을 확인합니다.
+                </p>
+              </div>
             <Card>
               <CardContent className="p-0">
                 {(consentLogsData ?? []).length === 0 ? (
@@ -2727,7 +2784,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                 )}
               </CardContent>
             </Card>
+            </section>
           </TabsContent>
+
         </Tabs>
       </div>
 
@@ -3414,7 +3473,7 @@ function CustomerTimelinePanel({
                 onRangeChange(value as "all" | "30" | "90")
               }
             >
-              <SelectTrigger className="w-36 h-8 text-xs">
+              <SelectTrigger aria-label="타임라인 기간" className="w-36 h-8 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
