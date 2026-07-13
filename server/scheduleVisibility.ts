@@ -13,8 +13,16 @@ import {
   getSchedules,
   getUserById,
 } from "./db";
-import { getHierarchyScopeUserIds } from "./routers";
+import { getHierarchyScopeUserIds } from "./organizationScope";
+import { canManageSchedule } from "./scheduleAuthorization";
 import { getScheduleRequestTargetUserIds } from "./scheduleChangeRequestScope";
+
+export {
+  assertCanCreateScheduleForUser,
+  assertScheduleMutationAccess,
+  canCreateScheduleForUser,
+  canManageSchedule,
+} from "./scheduleAuthorization";
 
 export type ScheduleViewMode = "mine" | "user" | "team" | "organization";
 
@@ -82,47 +90,6 @@ type ScheduleViewer = {
   subBranchAdminId?: number | null;
   accountStatus: string;
 };
-
-type ScheduleMutationActor = Pick<ScheduleViewer, "id" | "role">;
-type ScheduleOwner = { userId: number };
-
-export function canCreateScheduleForUser(
-  actor: ScheduleMutationActor,
-  targetUserId: number
-) {
-  return actor.role === "branch_admin" || targetUserId === actor.id;
-}
-
-export function assertCanCreateScheduleForUser(
-  actor: ScheduleMutationActor,
-  targetUserId: number
-) {
-  if (!canCreateScheduleForUser(actor, targetUserId)) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "본인 명의의 일정만 생성할 수 있습니다.",
-    });
-  }
-}
-
-export function canManageSchedule(
-  actor: ScheduleMutationActor,
-  schedule: ScheduleOwner
-) {
-  return actor.role === "branch_admin" || schedule.userId === actor.id;
-}
-
-export function assertScheduleMutationAccess(
-  actor: ScheduleMutationActor,
-  schedule: ScheduleOwner
-) {
-  if (!canManageSchedule(actor, schedule)) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "본인 소유 일정만 수정하거나 삭제할 수 있습니다.",
-    });
-  }
-}
 
 /** Hierarchy-scoped reporting helper. Do not use for schedule mutations. */
 export async function getAccessibleSchedules(user: ScheduleViewer) {
