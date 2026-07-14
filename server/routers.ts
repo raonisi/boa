@@ -32,6 +32,7 @@ import { claimGuidanceRouter } from "./claimGuidance";
 import { retentionRiskRouter } from "./retentionRisk";
 import { scheduleChangeRequestsRouter } from "./scheduleChangeRequests";
 import { createSchedulesRouter } from "./schedulesRouter";
+import { recordContractLifecycleEvent } from "./contractLifecycle";
 import {
   descendantUserIdsFrom,
   effectiveParentUserId,
@@ -84,7 +85,6 @@ import {
   createSchedule,
   createStatusHistory,
   createTeam,
-  deactivateContract,
   deactivateContractWithClient,
   deactivatePerformanceGoal,
   deactivateTeam,
@@ -106,6 +106,7 @@ import {
   getContractById,
   getContractPermanentDeleteBlockers,
   getContractHistory,
+  getContractLifecycleEventsByCustomer,
   getContractsByCustomer,
   getContractsByCustomerIncludingInactive,
   getCustomerPermanentDeleteBlockers,
@@ -10035,6 +10036,13 @@ export const appRouter = router({
         return getContractsByCustomerIncludingInactive(input.customerId);
       }),
 
+    lifecycleByCustomer: activeUserProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getContractLifecycleEventsByCustomer(input.customerId);
+      }),
+
     list: activeUserProcedure
       .input(z.object({ scope: z.enum(["all", "mine"]).optional() }).optional())
       .query(async ({ ctx, input }) => {
@@ -10108,46 +10116,73 @@ export const appRouter = router({
         const contractDateObj = contractDate
           ? new Date(contractDate)
           : undefined;
-        await createContract({
-          ...rest,
-          agentId: finalAgentId,
-          contractDate: contractDateObj,
-          createdBy: ctx.user.id,
-        });
-        const allContracts = await getContractsByCustomer(input.customerId);
-        const newContract = allContracts[0];
-        await log(
-          ctx.user.id,
-          "CONTRACT_CREATED",
-          "contract",
-          newContract?.id,
-          logDetails({
-            actor: ctx.user.id,
-            targetId: newContract?.id ?? null,
-            targetType: "contract",
-            beforeValue: null,
-            afterValue: {
-              customerId: input.customerId,
+        const effectiveAt = new Date();
+        const newContractId = await runDbTransaction(async tx => {
+          const contractId = await createContract(
+            {
+              ...rest,
               agentId: finalAgentId,
-              teamId: finalAgent.teamId ?? null,
-              subBranchAdminId: finalAgent.subBranchAdminId ?? null,
-              company: input.company ?? null,
-              productGroup: input.productGroup ?? null,
+              contractDate: contractDateObj,
+              createdBy: ctx.user.id,
+            },
+            tx
+          );
+          if (!contractId)
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "계약을 저장하지 못했습니다.",
+            });
+          await recordContractLifecycleEvent(tx, {
+            contractId,
+            actorId: ctx.user.id,
+            eventType: "created",
+            effectiveAt,
+            sourceType: "contract",
+            sourceId: contractId,
+            dedupeKey: `contract-created:${contractId}`,
+            metadata: {
               contractStatus: input.contractStatus,
               paymentStatus: input.paymentStatus,
             },
-          })
-        );
+          });
+          await log(
+            ctx.user.id,
+            "CONTRACT_CREATED",
+            "contract",
+            contractId,
+            logDetails({
+              actor: ctx.user.id,
+              targetId: contractId,
+              targetType: "contract",
+              beforeValue: null,
+              afterValue: {
+                customerId: input.customerId,
+                agentId: finalAgentId,
+                teamId: finalAgent.teamId ?? null,
+                subBranchAdminId: finalAgent.subBranchAdminId ?? null,
+                company: input.company ?? null,
+                productGroup: input.productGroup ?? null,
+                contractStatus: input.contractStatus,
+                paymentStatus: input.paymentStatus,
+              },
+            }),
+            tx
+          );
+          return contractId;
+        });
+        if (!newContractId)
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "계약을 저장하지 못했습니다.",
+          });
 
-        if (contractDateObj) {
-          if (newContract)
-            await createContractReminders(
-              newContract.id,
-              finalAgentId,
-              contractDateObj,
-              customer.name
-            );
-        }
+        if (contractDateObj)
+          await createContractReminders(
+            newContractId,
+            finalAgentId,
+            contractDateObj,
+            customer.name
+          );
         return { success: true };
       }),
 
@@ -10173,6 +10208,11 @@ export const appRouter = router({
         const existing = await getContractById(id);
         if (!existing) throw new TRPCError({ code: "NOT_FOUND" });
         await verifyCustomerAccess(ctx.user, existing.customerId);
+        if (!existing.isActive || existing.deletedAt)
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "삭제 처리된 계약은 수정할 수 없습니다.",
+          });
 
         let verifiedNewAgent:
           | Awaited<ReturnType<typeof verifyAgentTarget>>
@@ -10181,7 +10221,7 @@ export const appRouter = router({
           verifiedNewAgent = await verifyAgentTarget(ctx.user, newAgentId);
         }
 
-        // contract_history 기록
+        // 계약 변경과 기존 필드 이력도 같은 트랜잭션에서 기록한다.
         const fieldsToCheck: (keyof typeof rest)[] = [
           "company",
           "productName",
@@ -10190,12 +10230,19 @@ export const appRouter = router({
           "contractStatus",
           "memo",
         ];
+        const historyEntries: Array<{
+          contractId: number;
+          changedBy: number;
+          fieldName: string;
+          beforeValue: string;
+          afterValue: string;
+        }> = [];
         for (const field of fieldsToCheck) {
           if (
             rest[field] !== undefined &&
             String((existing as any)[field] ?? "") !== String(rest[field] ?? "")
           ) {
-            await createContractHistoryEntry({
+            historyEntries.push({
               contractId: id,
               changedBy: ctx.user.id,
               fieldName: field,
@@ -10205,7 +10252,7 @@ export const appRouter = router({
           }
         }
         if (paymentStatus && paymentStatus !== existing.paymentStatus) {
-          await createContractHistoryEntry({
+          historyEntries.push({
             contractId: id,
             changedBy: ctx.user.id,
             fieldName: "paymentStatus",
@@ -10214,37 +10261,86 @@ export const appRouter = router({
           });
         }
         if (newAgentId && newAgentId !== existing.agentId) {
-          await createContractHistoryEntry({
+          historyEntries.push({
             contractId: id,
             changedBy: ctx.user.id,
             fieldName: "agentId",
             beforeValue: String(existing.agentId),
             afterValue: String(newAgentId),
           });
-          await log(
-            ctx.user.id,
-            "CONTRACT_OWNER_CHANGED",
-            "contract",
-            id,
-            logDetails({
-              actor: ctx.user.id,
-              targetId: id,
-              targetType: "contract",
-              beforeValue: { previousAgentId: existing.agentId },
-              afterValue: {
-                newAgentId,
-                newTeamId: verifiedNewAgent?.teamId ?? null,
-                newSubBranchAdminId: verifiedNewAgent?.subBranchAdminId ?? null,
-              },
-            })
-          );
         }
 
-        await updateContract(id, {
-          ...rest,
-          paymentStatus,
-          agentId: newAgentId ?? existing.agentId,
-          contractDate: contractDate ? new Date(contractDate) : undefined,
+        const changedFields = fieldsToCheck
+          .filter(
+            field =>
+              rest[field] !== undefined &&
+              String((existing as any)[field] ?? "") !==
+                String(rest[field] ?? "")
+          )
+          .map(String);
+        if (paymentStatus && paymentStatus !== existing.paymentStatus)
+          changedFields.push("paymentStatus");
+        if (newAgentId && newAgentId !== existing.agentId)
+          changedFields.push("agentId");
+        if (
+          contractDate !== undefined &&
+          String(existing.contractDate ?? "") !== String(contractDate)
+        )
+          changedFields.push("contractDate");
+
+        const effectiveAt = new Date();
+        await runDbTransaction(async tx => {
+          for (const historyEntry of historyEntries) {
+            await createContractHistoryEntry(historyEntry, tx);
+          }
+          if (newAgentId && newAgentId !== existing.agentId) {
+            await log(
+              ctx.user.id,
+              "CONTRACT_OWNER_CHANGED",
+              "contract",
+              id,
+              logDetails({
+                actor: ctx.user.id,
+                targetId: id,
+                targetType: "contract",
+                beforeValue: { previousAgentId: existing.agentId },
+                afterValue: {
+                  newAgentId,
+                  newTeamId: verifiedNewAgent?.teamId ?? null,
+                  newSubBranchAdminId:
+                    verifiedNewAgent?.subBranchAdminId ?? null,
+                },
+              }),
+              tx
+            );
+          }
+          await updateContract(
+            id,
+            {
+              ...rest,
+              paymentStatus,
+              agentId: newAgentId ?? existing.agentId,
+              contractDate: contractDate ? new Date(contractDate) : undefined,
+            },
+            tx
+          );
+          if (changedFields.length > 0) {
+            await recordContractLifecycleEvent(tx, {
+              contractId: id,
+              actorId: ctx.user.id,
+              eventType: "updated",
+              effectiveAt,
+              sourceType: "contract",
+              sourceId: id,
+              metadata: {
+                changedFields,
+                contractStatus:
+                  input.contractStatus ?? existing.contractStatus ?? "",
+                paymentStatus:
+                  paymentStatus ?? existing.paymentStatus ?? "",
+              },
+            });
+          }
         });
         await log(
           ctx.user.id,
@@ -10295,32 +10391,52 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         const existing = await verifyContractDeleteAccess(ctx.user, input.id);
-        await createContractHistoryEntry({
-          contractId: input.id,
-          changedBy: ctx.user.id,
-          fieldName: "isActive",
-          beforeValue: String(existing.isActive),
-          afterValue: "false",
-        });
-        await deactivateContract(input.id);
-        await log(
-          ctx.user.id,
-          "CONTRACT_DEACTIVATED",
-          "contract",
-          input.id,
-          logDetails({
-            actor: ctx.user.id,
-            targetId: input.id,
-            targetType: "contract",
-            beforeValue: {
-              isActive: existing.isActive,
-              deletedAt: (existing as any).deletedAt ?? null,
-              contractStatus: existing.contractStatus,
+        const effectiveAt = new Date();
+        await runDbTransaction(async tx => {
+          await createContractHistoryEntry(
+            {
+              contractId: input.id,
+              changedBy: ctx.user.id,
+              fieldName: "isActive",
+              beforeValue: String(existing.isActive),
+              afterValue: "false",
             },
-            afterValue: { isActive: false },
-            metadata: { deleteMode: "soft" },
-          })
-        );
+            tx
+          );
+          await deactivateContractWithClient(input.id, tx, effectiveAt);
+          await recordContractLifecycleEvent(tx, {
+            contractId: input.id,
+            actorId: ctx.user.id,
+            eventType: "deleted",
+            effectiveAt,
+            sourceType: "contract",
+            sourceId: input.id,
+            dedupeKey: `contract-deactivated:${input.id}:${effectiveAt.toISOString()}`,
+            metadata: {
+              contractStatus: existing.contractStatus ?? "",
+              paymentStatus: existing.paymentStatus ?? "",
+            },
+          });
+          await log(
+            ctx.user.id,
+            "CONTRACT_DEACTIVATED",
+            "contract",
+            input.id,
+            logDetails({
+              actor: ctx.user.id,
+              targetId: input.id,
+              targetType: "contract",
+              beforeValue: {
+                isActive: existing.isActive,
+                deletedAt: (existing as any).deletedAt ?? null,
+                contractStatus: existing.contractStatus,
+              },
+              afterValue: { isActive: false, deletedAt: effectiveAt },
+              metadata: { deleteMode: "soft" },
+            }),
+            tx
+          );
+        });
         return { success: true };
       }),
   }),
@@ -10408,6 +10524,7 @@ export const appRouter = router({
             message: "연결 고객이 비활성 상태라 계약을 복구할 수 없습니다.",
           });
         }
+        const effectiveAt = new Date();
         await runDbTransaction(async tx => {
           await restoreContract(input.id, tx);
           await createContractHistoryEntry(
@@ -10420,6 +10537,20 @@ export const appRouter = router({
             },
             tx
           );
+          await recordContractLifecycleEvent(tx, {
+            contractId: input.id,
+            actorId: ctx.user.id,
+            eventType: "restored",
+            effectiveAt,
+            sourceType: "restore_action",
+            sourceId: input.id,
+            dedupeKey: `contract-restored:${input.id}:${existing.deletedAt?.toISOString() ?? "unknown"}`,
+            metadata: {
+              previousDeletedAt: existing.deletedAt?.toISOString() ?? "",
+              contractStatus: existing.contractStatus ?? "",
+              paymentStatus: existing.paymentStatus ?? "",
+            },
+          });
           await log(
             ctx.user.id,
             "CONTRACT_RESTORED",
@@ -10683,42 +10814,69 @@ export const appRouter = router({
             code: "CONFLICT",
             message: "이미 처리 대기 중인 삭제 요청이 있습니다.",
           });
-        await createDeleteRequest({
-          requestType: "contract_delete",
-          targetType: "contract",
-          targetId: input.contractId,
-          customerId: contract.customerId,
-          requestedBy: ctx.user.id,
-          requestReason: input.requestReason,
-          requestMemo: input.requestMemo,
-          expectedImpact: "performance_exclusion",
-          status: "pending",
-        });
-        await log(
-          ctx.user.id,
-          "DELETE_REQUEST_CREATED",
-          "delete_request",
-          input.contractId,
-          logDetails({
-            actor: ctx.user.id,
-            targetId: input.contractId,
-            targetType: "contract",
-            metadata: {
+        const effectiveAt = new Date();
+        const createdRequestId = await runDbTransaction(async tx => {
+          const requestId = await createDeleteRequest(
+            {
               requestType: "contract_delete",
+              targetType: "contract",
+              targetId: input.contractId,
+              customerId: contract.customerId,
+              requestedBy: ctx.user.id,
+              requestReason: input.requestReason,
+              requestMemo: input.requestMemo,
               expectedImpact: "performance_exclusion",
-              reason: input.requestReason,
+              status: "pending",
             },
-          })
-        );
-        const createdRequest = await getPendingDeleteRequestForTarget(
-          "contract",
-          input.contractId
-        );
-        if (createdRequest) {
-          await pushNotifications.sendContractDeleteRequestPush(
-            createdRequest.id
+            tx
           );
-        }
+          if (!requestId)
+            throw new TRPCError({
+              code: "INTERNAL_SERVER_ERROR",
+              message: "계약 삭제 요청을 저장하지 못했습니다.",
+            });
+          await recordContractLifecycleEvent(tx, {
+            contractId: input.contractId,
+            actorId: ctx.user.id,
+            eventType: "deletion_requested",
+            effectiveAt,
+            reason: input.requestReason,
+            sourceType: "delete_request",
+            sourceId: requestId,
+            dedupeKey: `contract-delete-requested:${requestId}`,
+            metadata: {
+              requestStatus: "pending",
+              expectedImpact: "performance_exclusion",
+              contractStatus: contract.contractStatus ?? "",
+              paymentStatus: contract.paymentStatus ?? "",
+            },
+          });
+          await log(
+            ctx.user.id,
+            "DELETE_REQUEST_CREATED",
+            "delete_request",
+            requestId,
+            logDetails({
+              actor: ctx.user.id,
+              targetId: requestId,
+              targetType: "delete_request",
+              metadata: {
+                contractId: input.contractId,
+                requestType: "contract_delete",
+                expectedImpact: "performance_exclusion",
+                reason: input.requestReason,
+              },
+            }),
+            tx
+          );
+          return requestId;
+        });
+        if (!createdRequestId)
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "계약 삭제 요청을 저장하지 못했습니다.",
+          });
+        await pushNotifications.sendContractDeleteRequestPush(createdRequestId);
         return { success: true };
       }),
 
@@ -10759,8 +10917,9 @@ export const appRouter = router({
             code: "BAD_REQUEST",
             message: "이미 비활성 처리된 계약입니다.",
           });
+        const effectiveAt = new Date();
         await runDbTransaction(async tx => {
-          await deactivateContractWithClient(contract.id, tx);
+          await deactivateContractWithClient(contract.id, tx, effectiveAt);
           await createContractHistoryEntry(
             {
               contractId: contract.id,
@@ -10771,6 +10930,22 @@ export const appRouter = router({
             },
             tx
           );
+          await recordContractLifecycleEvent(tx, {
+            contractId: contract.id,
+            actorId: ctx.user.id,
+            eventType: "deleted",
+            effectiveAt,
+            reason: request.requestReason,
+            sourceType: "delete_request",
+            sourceId: input.id,
+            dedupeKey: `contract-delete-approved:${input.id}`,
+            metadata: {
+              requestStatus: "approved",
+              expectedImpact: request.expectedImpact,
+              contractStatus: contract.contractStatus ?? "",
+              paymentStatus: contract.paymentStatus ?? "",
+            },
+          });
           await updateDeleteRequest(
             input.id,
             {
@@ -10834,26 +11009,52 @@ export const appRouter = router({
             code: "BAD_REQUEST",
             message: "pending 상태의 요청만 반려할 수 있습니다.",
           });
-        await updateDeleteRequest(input.id, {
-          status: "rejected",
-          reviewedBy: ctx.user.id,
-          reviewedAt: new Date(),
-          reviewComment: input.reviewComment,
+        const contract = await getContractById(request.targetId);
+        if (!contract) throw new TRPCError({ code: "NOT_FOUND" });
+        const effectiveAt = new Date();
+        await runDbTransaction(async tx => {
+          await updateDeleteRequest(
+            input.id,
+            {
+              status: "rejected",
+              reviewedBy: ctx.user.id,
+              reviewedAt: effectiveAt,
+              reviewComment: input.reviewComment,
+            },
+            tx
+          );
+          await recordContractLifecycleEvent(tx, {
+            contractId: contract.id,
+            actorId: ctx.user.id,
+            eventType: "deletion_rejected",
+            effectiveAt,
+            reason: input.reviewComment,
+            sourceType: "delete_request",
+            sourceId: input.id,
+            dedupeKey: `contract-delete-rejected:${input.id}`,
+            metadata: {
+              requestStatus: "rejected",
+              expectedImpact: request.expectedImpact,
+              contractStatus: contract.contractStatus ?? "",
+              paymentStatus: contract.paymentStatus ?? "",
+            },
+          });
+          await log(
+            ctx.user.id,
+            "DELETE_REQUEST_REJECTED",
+            "delete_request",
+            input.id,
+            logDetails({
+              actor: ctx.user.id,
+              targetId: input.id,
+              targetType: "delete_request",
+              beforeValue: { status: request.status },
+              afterValue: { status: "rejected", reviewedBy: ctx.user.id },
+              metadata: { contractId: request.targetId },
+            }),
+            tx
+          );
         });
-        await log(
-          ctx.user.id,
-          "DELETE_REQUEST_REJECTED",
-          "delete_request",
-          input.id,
-          logDetails({
-            actor: ctx.user.id,
-            targetId: input.id,
-            targetType: "delete_request",
-            beforeValue: { status: request.status },
-            afterValue: { status: "rejected", reviewedBy: ctx.user.id },
-            metadata: { contractId: request.targetId },
-          })
-        );
         return { success: true };
       }),
 

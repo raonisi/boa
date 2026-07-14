@@ -274,6 +274,13 @@
       "when": 1783641600000,
       "tag": "0038_schedule_change_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "5",
+      "when": 1784019600000,
+      "tag": "0039_contract_lifecycle_events",
+      "breakpoints": true
     }
   ]
 }

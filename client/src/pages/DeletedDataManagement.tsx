@@ -110,6 +110,8 @@ export default function DeletedDataManagement() {
     utils.deletedData.listContracts.invalidate();
     utils.deleteRequests.listAllRequestsForAdmin.invalidate();
     utils.contracts.list.invalidate();
+    utils.contracts.lifecycleByCustomer.invalidate();
+    utils.customers.timeline.invalidate();
     utils.customers.list.invalidate();
     utils.customers.segmentCounts.invalidate();
     utils.performance.stats.invalidate();

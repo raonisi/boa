@@ -1051,6 +1051,51 @@ export const contractHistory = mysqlTable("contract_history", {
 export type ContractHistory = typeof contractHistory.$inferSelect;
 export type InsertContractHistory = typeof contractHistory.$inferInsert;
 
+export const contractLifecycleEvents = mysqlTable(
+  "contract_lifecycle_events",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    contractId: int("contractId").notNull(),
+    customerId: int("customerId").notNull(),
+    eventType: mysqlEnum("eventType", [
+      "created",
+      "updated",
+      "deletion_requested",
+      "deletion_rejected",
+      "deleted",
+      "restored",
+    ]).notNull(),
+    effectiveAt: timestamp("effectiveAt").notNull(),
+    reason: text("reason"),
+    monthlyPremiumSnapshot: int("monthlyPremiumSnapshot"),
+    actorId: int("actorId").notNull(),
+    sourceType: mysqlEnum("sourceType", [
+      "contract",
+      "delete_request",
+      "restore_action",
+    ]).notNull(),
+    sourceId: int("sourceId"),
+    dedupeKey: varchar("dedupeKey", { length: 191 }),
+    metadata: json("metadata"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    contractEffectiveIndex: index("idx_contract_lifecycle_contract_effective").on(
+      table.contractId,
+      table.effectiveAt
+    ),
+    customerEffectiveIndex: index("idx_contract_lifecycle_customer_effective").on(
+      table.customerId,
+      table.effectiveAt
+    ),
+    uniqueDedupe: unique("uq_contract_lifecycle_dedupe").on(table.dedupeKey),
+  })
+);
+export type ContractLifecycleEvent =
+  typeof contractLifecycleEvents.$inferSelect;
+export type InsertContractLifecycleEvent =
+  typeof contractLifecycleEvents.$inferInsert;
+
 // ─── Activity Logs ────────────────────────────────────────────────────────────
 export const activityLogs = mysqlTable("activity_logs", {
   id: int("id").autoincrement().primaryKey(),

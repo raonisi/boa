@@ -394,9 +394,20 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     ).toBeVisible();
     await expect(page.getByText("[E2E] Active Plan")).toBeVisible();
     await expect(page.getByText("[TEST] Past Plan")).toBeVisible();
-    await expect(page.getByText("종료사유")).toBeVisible();
-    await expect(page.getByText("종료 당시 월보험료")).toBeVisible();
-    await expect(page.getByText("기록 없음")).toHaveCount(2);
+    await expect(page.getByText("종료 사유")).toBeVisible();
+    await expect(page.getByText("종료 당시 월납보험료")).toBeVisible();
+    await expect(
+      page.getByText("[TEST] 중복 입력", { exact: true })
+    ).toBeVisible();
+    await expect(page.getByText("120,000원").last()).toBeVisible();
+    await expect(page.getByText("계약 복구")).toBeVisible();
+    await expect(
+      page
+        .getByRole("list", { name: "계약 처리 이력" })
+        .getByText("삭제 처리", { exact: true })
+    ).toHaveCount(2);
+    await expect(page.getByText("삭제 요청 상태")).toBeVisible();
+    await expect(page.getByText("승인")).toBeVisible();
   });
 
   test("mobile search filters nav and customer detail tabs keep touch targets", async ({

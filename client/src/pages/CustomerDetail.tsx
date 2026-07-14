@@ -139,6 +139,148 @@ const followUpStatusLabels: Record<string, string> = {
   cancelled: "취소",
 };
 
+type ContractLifecycleView = {
+  id: number;
+  contractId: number;
+  eventType:
+    | "created"
+    | "updated"
+    | "deletion_requested"
+    | "deletion_rejected"
+    | "deleted"
+    | "restored";
+  effectiveAt: Date | string;
+  reason: string | null;
+  monthlyPremiumSnapshot: number | null;
+  actorName: string | null;
+  sourceType: "contract" | "delete_request" | "restore_action";
+  deleteRequestStatus: "pending" | "approved" | "rejected" | "cancelled" | null;
+};
+
+const contractLifecycleLabels: Record<
+  ContractLifecycleView["eventType"],
+  string
+> = {
+  created: "계약 등록",
+  updated: "계약 정보 변경",
+  deletion_requested: "삭제 요청",
+  deletion_rejected: "삭제 요청 반려",
+  deleted: "삭제 처리",
+  restored: "계약 복구",
+};
+
+function latestLifecycleEvent(
+  events: ContractLifecycleView[],
+  eventType: ContractLifecycleView["eventType"]
+) {
+  return events.find(event => event.eventType === eventType);
+}
+
+function ContractLifecycleEventList({
+  events,
+}: {
+  events: ContractLifecycleView[];
+}) {
+  if (events.length === 0)
+    return (
+      <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+        계약 처리 이력: 기록 없음
+      </p>
+    );
+
+  return (
+    <div className="mt-3 border-t pt-3">
+      <p className="text-xs font-medium text-muted-foreground">계약 처리 이력</p>
+      <ol className="mt-2 space-y-2" aria-label="계약 처리 이력">
+        {events.slice(0, 6).map(event => (
+          <li
+            key={event.id}
+            className="border-l-2 border-border pl-3 text-xs"
+          >
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium">
+                {contractLifecycleLabels[event.eventType]}
+              </span>
+              <time className="text-muted-foreground">
+                {new Date(event.effectiveAt).toLocaleString("ko-KR")}
+              </time>
+              <span className="text-muted-foreground">
+                처리자: {event.actorName ?? "기록 없음"}
+              </span>
+            </div>
+            {event.reason && (
+              <p className="mt-1 text-muted-foreground">사유: {event.reason}</p>
+            )}
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function PastContractLifecycleDetails({
+  events,
+  deletedAt,
+}: {
+  events: ContractLifecycleView[];
+  deletedAt: Date | string | null;
+}) {
+  const deletedEvent = latestLifecycleEvent(events, "deleted");
+  const requestStatusLabels = {
+    pending: "대기",
+    approved: "승인",
+    rejected: "반려",
+    cancelled: "취소",
+  } as const;
+  const endedAt = deletedEvent?.effectiveAt ?? deletedAt;
+
+  return (
+    <>
+      <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-5">
+        <div>
+          <dt className="text-xs text-muted-foreground">종료일</dt>
+          <dd className="font-medium">
+            {endedAt
+              ? new Date(endedAt).toLocaleDateString("ko-KR")
+              : "기록 없음"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">종료 사유</dt>
+          <dd className="font-medium">
+            {deletedEvent?.reason ?? "기록 없음"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">
+            종료 당시 월납보험료
+          </dt>
+          <dd className="font-medium">
+            {deletedEvent?.monthlyPremiumSnapshot != null
+              ? `${deletedEvent.monthlyPremiumSnapshot.toLocaleString()}원`
+              : "기록 없음"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">처리자</dt>
+          <dd className="font-medium">
+            {deletedEvent?.actorName ?? "기록 없음"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-muted-foreground">삭제 요청 상태</dt>
+          <dd className="font-medium">
+            {deletedEvent?.deleteRequestStatus
+              ? requestStatusLabels[deletedEvent.deleteRequestStatus]
+              : "기록 없음"}
+          </dd>
+        </div>
+      </dl>
+      <ContractLifecycleEventList events={events} />
+    </>
+  );
+}
+
 const CUSTOMER_PRIORITIES = ["A", "B", "C", "D", "unclassified"] as const;
 const CONSULTATION_TYPES = [
   "전화",
@@ -432,6 +574,11 @@ export default function CustomerDetail({ id }: { id: number }) {
       { customerId: id },
       { enabled: canLoadDependencies }
     );
+  const { data: contractLifecycleEvents, refetch: refetchContractLifecycle } =
+    trpc.contracts.lifecycleByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery(
     { customerId: id },
     { enabled: canLoadDependencies }
@@ -586,6 +733,8 @@ export default function CustomerDetail({ id }: { id: number }) {
       setShowContractModal(false);
       refetchContracts();
       refetchContractHistory();
+      refetchContractLifecycle();
+      utils.customers.timeline.invalidate({ customerId: id });
       utils.customers.list.invalidate();
       utils.customers.segmentCounts.invalidate();
     },
@@ -597,6 +746,8 @@ export default function CustomerDetail({ id }: { id: number }) {
       setEditingContractId(null);
       refetchContracts();
       refetchContractHistory();
+      refetchContractLifecycle();
+      utils.customers.timeline.invalidate({ customerId: id });
       utils.customers.list.invalidate();
       utils.customers.segmentCounts.invalidate();
     },
@@ -609,6 +760,8 @@ export default function CustomerDetail({ id }: { id: number }) {
       setDeleteContractId(null);
       refetchContracts();
       refetchContractHistory();
+      refetchContractLifecycle();
+      utils.customers.timeline.invalidate({ customerId: id });
       utils.customers.list.invalidate();
       utils.customers.segmentCounts.invalidate();
     },
@@ -623,6 +776,8 @@ export default function CustomerDetail({ id }: { id: number }) {
         setRequestReason("");
         setRequestMemo("");
         refetchContracts();
+        refetchContractLifecycle();
+        utils.customers.timeline.invalidate({ customerId: id });
         utils.deleteRequests.listMyRequests.invalidate();
       },
       onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
@@ -923,6 +1078,15 @@ export default function CustomerDetail({ id }: { id: number }) {
   const pastContracts = allContractRecords.filter(
     contract => !isActiveCustomerContract(contract)
   );
+  const lifecycleEventsByContract = (() => {
+    const grouped = new Map<number, ContractLifecycleView[]>();
+    for (const event of (contractLifecycleEvents ?? []) as ContractLifecycleView[]) {
+      const entries = grouped.get(event.contractId) ?? [];
+      entries.push(event);
+      grouped.set(event.contractId, entries);
+    }
+    return grouped;
+  })();
   const canManageRelationships =
     user?.accountStatus === "active" &&
     (user?.role !== "member" || customer.agentId === user.id);
@@ -2338,6 +2502,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                           {c.memo}
                         </p>
                       )}
+                      <ContractLifecycleEventList
+                        events={lifecycleEventsByContract.get(c.id) ?? []}
+                      />
                       <div className="mt-3 flex justify-end gap-2">
                         <Button
                           variant="outline"
@@ -2425,32 +2592,13 @@ export default function CustomerDetail({ id }: { id: number }) {
                                   }
                                 />
                               </div>
-                              <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                                <div>
-                                  <dt className="text-xs text-muted-foreground">종료일</dt>
-                                  <dd className="font-medium">
-                                    {contract.deletedAt
-                                      ? new Date(contract.deletedAt).toLocaleDateString("ko-KR")
-                                      : "기록 없음"}
-                                  </dd>
-                                </div>
-                                <div>
-                                  <dt className="text-xs text-muted-foreground">종료사유</dt>
-                                  <dd className="font-medium">기록 없음</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-xs text-muted-foreground">종료 당시 월보험료</dt>
-                                  <dd className="font-medium">기록 없음</dd>
-                                </div>
-                                <div>
-                                  <dt className="text-xs text-muted-foreground">담당자</dt>
-                                  <dd className="font-medium">
-                                    {formatUserWithRole(
-                                      users?.find(userItem => userItem.id === contract.agentId)
-                                    )}
-                                  </dd>
-                                </div>
-                              </dl>
+                              <PastContractLifecycleDetails
+                                events={
+                                  lifecycleEventsByContract.get(contract.id) ??
+                                  []
+                                }
+                                deletedAt={contract.deletedAt}
+                              />
                             </div>
                             <Button
                               type="button"

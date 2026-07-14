@@ -3,6 +3,7 @@ import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { sanitizeActivityLogDetailsForStorage } from "./activityLogRedaction";
 import * as db from "./db";
+import * as contractLifecycle from "./contractLifecycle";
 import * as notifications from "./notifications";
 import * as pushNotifications from "./pushNotifications";
 import {
@@ -57,6 +58,12 @@ function createCtx(
 function createInactiveCtx(role: Role = "member"): TrpcContext {
   return createCtx(role, { accountStatus: "inactive" });
 }
+
+beforeEach(() => {
+  vi.spyOn(contractLifecycle, "recordContractLifecycleEvent").mockResolvedValue(
+    {} as any
+  );
+});
 
 afterEach(() => {
   pushNotifications.setPushSenderForTests(null);
@@ -1401,10 +1408,13 @@ describe("PR19-3 - safe FCM work notifications", () => {
     } as any;
     vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
     vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
-    vi.spyOn(db, "getPendingDeleteRequestForTarget")
-      .mockResolvedValueOnce(undefined)
-      .mockResolvedValueOnce({ id: 77, status: "pending" } as any);
-    vi.spyOn(db, "createDeleteRequest").mockResolvedValue(undefined);
+    vi.spyOn(db, "getPendingDeleteRequestForTarget").mockResolvedValueOnce(
+      undefined
+    );
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback({ tx: true } as any)
+    );
+    vi.spyOn(db, "createDeleteRequest").mockResolvedValue(77);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
     const pushSpy = vi
       .spyOn(pushNotifications, "sendContractDeleteRequestPush")
@@ -5771,8 +5781,15 @@ describe("PR9 full role permission QA", () => {
     vi.spyOn(db, "getPendingDeleteRequestForTarget").mockResolvedValue(
       undefined
     );
-    vi.spyOn(db, "createDeleteRequest").mockResolvedValue(undefined);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback({ tx: true } as any)
+    );
+    vi.spyOn(db, "createDeleteRequest").mockResolvedValue(77);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+    vi.spyOn(
+      pushNotifications,
+      "sendContractDeleteRequestPush"
+    ).mockResolvedValue({} as any);
 
     await expect(
       appRouter
@@ -7954,6 +7971,54 @@ describe("contracts.listByCustomer - 권한 검증", () => {
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(historySpy).not.toHaveBeenCalled();
   });
+
+  it("returns lifecycle events only after customer scope authorization", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      agentId: 4,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    const lifecycleSpy = vi
+      .spyOn(db, "getContractLifecycleEventsByCustomer")
+      .mockResolvedValue([
+        { id: 1, contractId: 11, customerId: 100, eventType: "deleted" },
+      ] as any);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { userId: 4 }))
+        .contracts.lifecycleByCustomer({ customerId: 100 })
+    ).resolves.toEqual([
+      expect.objectContaining({ id: 1, eventType: "deleted" }),
+    ]);
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { userId: 3 }))
+        .contracts.lifecycleByCustomer({ customerId: 100 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(lifecycleSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks inactive and resigned lifecycle history access", async () => {
+    const lifecycleSpy = vi
+      .spyOn(db, "getContractLifecycleEventsByCustomer")
+      .mockResolvedValue([] as any);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { accountStatus: "inactive" }))
+        .contracts.lifecycleByCustomer({ customerId: 100 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { accountStatus: "resigned" }))
+        .contracts.lifecycleByCustomer({ customerId: 100 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(lifecycleSpy).not.toHaveBeenCalled();
+  });
 });
 describe("soft delete permissions and audit flow", () => {
   it("allows branch_admin to deactivate an empty active team", async () => {
@@ -8101,8 +8166,12 @@ describe("soft delete permissions and audit flow", () => {
     const historySpy = vi
       .spyOn(db, "createContractHistoryEntry")
       .mockResolvedValue(undefined);
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
     const deactivateSpy = vi
-      .spyOn(db, "deactivateContract")
+      .spyOn(db, "deactivateContractWithClient")
       .mockResolvedValue(undefined);
     const logSpy = vi
       .spyOn(db, "createActivityLog")
@@ -8118,9 +8187,16 @@ describe("soft delete permissions and audit flow", () => {
         contractId: 10,
         fieldName: "isActive",
         afterValue: "false",
-      })
+      }),
+      tx
     );
-    expect(deactivateSpy).toHaveBeenCalledWith(10);
+    expect(deactivateSpy).toHaveBeenCalledWith(10, tx, expect.any(Date));
+    expect(
+      contractLifecycle.recordContractLifecycleEvent
+    ).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({ contractId: 10, eventType: "deleted" })
+    );
     expect(logSpy.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
         action: "CONTRACT_DEACTIVATED",
@@ -8155,7 +8231,7 @@ describe("soft delete permissions and audit flow", () => {
       isActive: true,
     } as any);
     const deactivateSpy = vi
-      .spyOn(db, "deactivateContract")
+      .spyOn(db, "deactivateContractWithClient")
       .mockResolvedValue(undefined);
 
     await expect(
@@ -10267,18 +10343,157 @@ describe("delete request and deleted data lifecycle", () => {
     updatedAt: new Date(),
   } as any;
 
+  it("records contract creation and its factual lifecycle event in one transaction", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "getUserById").mockResolvedValue({
+      id: 4,
+      name: "[TEST] Agent",
+      role: "member",
+      accountStatus: "active",
+      teamId: null,
+      subBranchAdminId: null,
+    } as any);
+    vi.spyOn(db, "getAllUsers").mockResolvedValue([]);
+    vi.spyOn(db, "getAllTeams").mockResolvedValue([]);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
+    const createSpy = vi.spyOn(db, "createContract").mockResolvedValue(10);
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
+
+    await expect(
+      appRouter.createCaller(createCtx("branch_admin")).contracts.create({
+        customerId: 100,
+        company: "[TEST] insurer",
+        monthlyPremium: 10000,
+      })
+    ).resolves.toEqual({ success: true });
+
+    expect(createSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        customerId: 100,
+        agentId: 4,
+        createdBy: 1,
+        monthlyPremium: 10000,
+      }),
+      tx
+    );
+    expect(
+      contractLifecycle.recordContractLifecycleEvent
+    ).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        contractId: 10,
+        actorId: 1,
+        eventType: "created",
+        sourceType: "contract",
+        dedupeKey: "contract-created:10",
+      })
+    );
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ action: "CONTRACT_CREATED", targetId: 10 }),
+      tx
+    );
+  });
+
+  it("records contract field history, update, and lifecycle in one transaction", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
+    const historySpy = vi
+      .spyOn(db, "createContractHistoryEntry")
+      .mockResolvedValue(undefined);
+    const updateSpy = vi
+      .spyOn(db, "updateContract")
+      .mockResolvedValue(undefined);
+    vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { userId: 4 }))
+        .contracts.update({ id: 10, monthlyPremium: 15000 })
+    ).resolves.toEqual({ success: true });
+
+    expect(historySpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contractId: 10,
+        fieldName: "monthlyPremium",
+        beforeValue: "10000",
+        afterValue: "15000",
+      }),
+      tx
+    );
+    expect(updateSpy).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ monthlyPremium: 15000 }),
+      tx
+    );
+    expect(
+      contractLifecycle.recordContractLifecycleEvent
+    ).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        contractId: 10,
+        actorId: 4,
+        eventType: "updated",
+        metadata: expect.objectContaining({
+          changedFields: ["monthlyPremium"],
+        }),
+      })
+    );
+  });
+
+  it("propagates lifecycle failures so the surrounding contract update transaction can roll back", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
+    vi.spyOn(db, "createContractHistoryEntry").mockResolvedValue(undefined);
+    vi.spyOn(db, "updateContract").mockResolvedValue(undefined);
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
+    vi.mocked(
+      contractLifecycle.recordContractLifecycleEvent
+    ).mockRejectedValueOnce(new Error("lifecycle insert failed"));
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { userId: 4 }))
+        .contracts.update({ id: 10, monthlyPremium: 15000 })
+    ).rejects.toThrow("lifecycle insert failed");
+
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
   it("allows member to request deleting own active contract and blocks duplicate pending request", async () => {
     vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
     vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
     vi.spyOn(db, "getPendingDeleteRequestForTarget").mockResolvedValue(
       undefined
     );
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
     const createSpy = vi
       .spyOn(db, "createDeleteRequest")
-      .mockResolvedValue(undefined);
+      .mockResolvedValue(77);
     const logSpy = vi
       .spyOn(db, "createActivityLog")
       .mockResolvedValue(undefined);
+    vi.spyOn(
+      pushNotifications,
+      "sendContractDeleteRequestPush"
+    ).mockResolvedValue({} as any);
 
     await expect(
       appRouter
@@ -10297,7 +10512,8 @@ describe("delete request and deleted data lifecycle", () => {
         requestedBy: 4,
         status: "pending",
         expectedImpact: "performance_exclusion",
-      })
+      }),
+      tx
     );
     expect(logSpy.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ action: "DELETE_REQUEST_CREATED" })
@@ -10389,7 +10605,7 @@ describe("delete request and deleted data lifecycle", () => {
         .deleteRequests.approve({ id: 7 })
     ).resolves.toEqual({ success: true });
 
-    expect(deactivateSpy).toHaveBeenCalledWith(10, tx);
+    expect(deactivateSpy).toHaveBeenCalledWith(10, tx, expect.any(Date));
     expect(historySpy).toHaveBeenCalledWith(
       expect.objectContaining({
         contractId: 10,
@@ -10403,6 +10619,17 @@ describe("delete request and deleted data lifecycle", () => {
       expect.objectContaining({ status: "approved", reviewedBy: 1 }),
       tx
     );
+    expect(
+      contractLifecycle.recordContractLifecycleEvent
+    ).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        contractId: 10,
+        eventType: "deleted",
+        reason: request.requestReason,
+        dedupeKey: "contract-delete-approved:7",
+      })
+    );
     expect(logSpy).toHaveBeenCalledWith(
       expect.objectContaining({ action: "DELETE_REQUEST_APPROVED" }),
       tx
@@ -10413,12 +10640,53 @@ describe("delete request and deleted data lifecycle", () => {
     );
   });
 
+  it("propagates lifecycle failures from delete approval before request approval is persisted", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getDeleteRequestById").mockResolvedValue({
+      id: 7,
+      targetId: 10,
+      requestReason: "[TEST] duplicate entry",
+      expectedImpact: "performance_exclusion",
+      status: "pending",
+    } as any);
+    vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
+    vi.spyOn(db, "deactivateContractWithClient").mockResolvedValue(undefined);
+    vi.spyOn(db, "createContractHistoryEntry").mockResolvedValue(undefined);
+    const updateRequestSpy = vi
+      .spyOn(db, "updateDeleteRequest")
+      .mockResolvedValue(undefined);
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
+    vi.mocked(
+      contractLifecycle.recordContractLifecycleEvent
+    ).mockRejectedValueOnce(new Error("lifecycle insert failed"));
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("branch_admin"))
+        .deleteRequests.approve({ id: 7 })
+    ).rejects.toThrow("lifecycle insert failed");
+
+    expect(updateRequestSpy).not.toHaveBeenCalled();
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
   it("rejects pending request without touching contract data", async () => {
     vi.spyOn(db, "getDeleteRequestById").mockResolvedValue({
       id: 7,
       status: "pending",
       targetId: 10,
+      expectedImpact: "performance_exclusion",
     } as any);
+    vi.spyOn(db, "getContractById").mockResolvedValue(activeContract);
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
     const updateRequestSpy = vi
       .spyOn(db, "updateDeleteRequest")
       .mockResolvedValue(undefined);
@@ -10437,11 +10705,22 @@ describe("delete request and deleted data lifecycle", () => {
 
     expect(updateRequestSpy).toHaveBeenCalledWith(
       7,
-      expect.objectContaining({ status: "rejected", reviewedBy: 1 })
+      expect.objectContaining({ status: "rejected", reviewedBy: 1 }),
+      tx
     );
     expect(deactivateSpy).not.toHaveBeenCalled();
     expect(logSpy.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ action: "DELETE_REQUEST_REJECTED" })
+    );
+    expect(
+      contractLifecycle.recordContractLifecycleEvent
+    ).toHaveBeenCalledWith(
+      tx,
+      expect.objectContaining({
+        contractId: 10,
+        eventType: "deletion_rejected",
+        dedupeKey: "contract-delete-rejected:7",
+      })
     );
   });
 
@@ -10467,12 +10746,47 @@ describe("delete request and deleted data lifecycle", () => {
         .deletedData.restoreContract({ id: 10 })
     ).resolves.toEqual({ success: true });
     expect(restoreSpy).toHaveBeenCalled();
+    expect(
+      contractLifecycle.recordContractLifecycleEvent
+    ).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ contractId: 10, eventType: "restored" })
+    );
 
     await expect(
       appRouter
         .createCaller(createCtx("member"))
         .deletedData.restoreContract({ id: 10 })
     ).rejects.toThrow();
+  });
+
+  it("propagates lifecycle failures from contract restore before audit completion", async () => {
+    const tx = { tx: true } as any;
+    vi.spyOn(db, "getContractById").mockResolvedValue({
+      ...activeContract,
+      isActive: false,
+      deletedAt: new Date("2026-07-14T10:00:00.000Z"),
+    });
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(activeCustomer);
+    vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
+      callback(tx)
+    );
+    vi.spyOn(db, "restoreContract").mockResolvedValue(undefined);
+    vi.spyOn(db, "createContractHistoryEntry").mockResolvedValue(undefined);
+    const logSpy = vi
+      .spyOn(db, "createActivityLog")
+      .mockResolvedValue(undefined);
+    vi.mocked(
+      contractLifecycle.recordContractLifecycleEvent
+    ).mockRejectedValueOnce(new Error("lifecycle insert failed"));
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("branch_admin"))
+        .deletedData.restoreContract({ id: 10 })
+    ).rejects.toThrow("lifecycle insert failed");
+
+    expect(logSpy).not.toHaveBeenCalled();
   });
 
   it("blocks permanent delete for active data and requires confirmation text", async () => {
@@ -10580,6 +10894,7 @@ describe("delete request and deleted data lifecycle", () => {
     });
     vi.spyOn(db, "getContractPermanentDeleteBlockers").mockResolvedValue({
       contractHistory: 0,
+      contractLifecycleEvents: 0,
       deleteRequests: 0,
       notifications: 0,
       reminders: 0,
@@ -10654,6 +10969,7 @@ describe("delete request and deleted data lifecycle", () => {
     });
     vi.spyOn(db, "getContractPermanentDeleteBlockers").mockResolvedValue({
       contractHistory: 0,
+      contractLifecycleEvents: 0,
       deleteRequests: 0,
       notifications: 1,
       reminders: 0,

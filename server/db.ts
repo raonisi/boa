@@ -27,6 +27,7 @@ import {
   consultationCheckResults,
   consultationScripts,
   contractHistory,
+  contractLifecycleEvents,
   contracts,
   customerHandoffNotes,
   customerRelationships,
@@ -3011,39 +3012,40 @@ export async function getAllContracts(filter: {
     .orderBy(desc(contracts.createdAt));
 }
 
-export async function createContract(data: InsertContract) {
-  const db = await getDb();
+export async function createContract(
+  data: InsertContract,
+  client?: DbExecutor
+) {
+  const db = client ?? (await getDb());
   if (!db) return;
-  await db.insert(contracts).values({ ...data, isActive: true });
+  const result = await db.insert(contracts).values({ ...data, isActive: true });
+  return Number(result[0]?.insertId ?? 0) || undefined;
 }
 
 export async function updateContract(
   id: number,
-  data: Partial<InsertContract>
+  data: Partial<InsertContract>,
+  client?: DbExecutor
 ) {
-  const db = await getDb();
+  const db = client ?? (await getDb());
   if (!db) return;
   await db.update(contracts).set(data).where(eq(contracts.id, id));
 }
 
-export async function deactivateContract(id: number) {
-  const db = await getDb();
-  if (!db) return;
-  await db
-    .update(contracts)
-    .set({ isActive: false, deletedAt: new Date() })
-    .where(eq(contracts.id, id));
+export async function deactivateContract(id: number, deletedAt = new Date()) {
+  return deactivateContractWithClient(id, undefined, deletedAt);
 }
 
 export async function deactivateContractWithClient(
   id: number,
-  client?: DbExecutor
+  client?: DbExecutor,
+  deletedAt = new Date()
 ) {
   const db = client ?? (await getDb());
   if (!db) return;
   await db
     .update(contracts)
-    .set({ isActive: false, deletedAt: new Date() })
+    .set({ isActive: false, deletedAt })
     .where(eq(contracts.id, id));
 }
 
@@ -3169,16 +3171,28 @@ export async function getContractPermanentDeleteBlockers(contractId: number) {
   if (!db)
     return {
       contractHistory: 0,
+      contractLifecycleEvents: 0,
       deleteRequests: 0,
       notifications: 0,
       reminders: 0,
     };
-  const [historyRows, requestRows, notificationRows, reminderRows] =
+  const [
+    historyRows,
+    lifecycleRows,
+    requestRows,
+    notificationRows,
+    reminderRows,
+  ] =
     await Promise.all([
       db
         .select({ id: contractHistory.id })
         .from(contractHistory)
         .where(eq(contractHistory.contractId, contractId))
+        .limit(1),
+      db
+        .select({ id: contractLifecycleEvents.id })
+        .from(contractLifecycleEvents)
+        .where(eq(contractLifecycleEvents.contractId, contractId))
         .limit(1),
       db
         .select({ id: deleteRequests.id })
@@ -3213,6 +3227,7 @@ export async function getContractPermanentDeleteBlockers(contractId: number) {
     ]);
   return {
     contractHistory: historyRows.length,
+    contractLifecycleEvents: lifecycleRows.length,
     deleteRequests: requestRows.length,
     notifications: notificationRows.length,
     reminders: reminderRows.length,
@@ -3290,13 +3305,49 @@ export async function getContractHistory(contractId: number) {
     .orderBy(desc(contractHistory.createdAt));
 }
 
+export async function getContractLifecycleEventsByCustomer(customerId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: contractLifecycleEvents.id,
+      contractId: contractLifecycleEvents.contractId,
+      customerId: contractLifecycleEvents.customerId,
+      eventType: contractLifecycleEvents.eventType,
+      effectiveAt: contractLifecycleEvents.effectiveAt,
+      reason: contractLifecycleEvents.reason,
+      monthlyPremiumSnapshot:
+        contractLifecycleEvents.monthlyPremiumSnapshot,
+      actorId: contractLifecycleEvents.actorId,
+      actorName: users.name,
+      actorRole: users.role,
+      sourceType: contractLifecycleEvents.sourceType,
+      sourceId: contractLifecycleEvents.sourceId,
+      createdAt: contractLifecycleEvents.createdAt,
+      deleteRequestStatus: deleteRequests.status,
+    })
+    .from(contractLifecycleEvents)
+    .innerJoin(contracts, eq(contractLifecycleEvents.contractId, contracts.id))
+    .leftJoin(users, eq(contractLifecycleEvents.actorId, users.id))
+    .leftJoin(
+      deleteRequests,
+      and(
+        eq(contractLifecycleEvents.sourceType, "delete_request"),
+        eq(contractLifecycleEvents.sourceId, deleteRequests.id)
+      )
+    )
+    .where(eq(contracts.customerId, customerId))
+    .orderBy(desc(contractLifecycleEvents.effectiveAt));
+}
+
 export async function createDeleteRequest(
   data: InsertDeleteRequest,
   client?: DbExecutor
 ) {
   const db = client ?? (await getDb());
   if (!db) return;
-  await db.insert(deleteRequests).values(data);
+  const result = await db.insert(deleteRequests).values(data);
+  return Number(result[0]?.insertId ?? 0) || undefined;
 }
 
 export async function getDeleteRequestById(id: number) {
@@ -4992,6 +5043,7 @@ export async function getCustomerTimeline(
   const requestIds = requestRows.map(request => request.id);
   const [
     contractHistoryRows,
+    contractLifecycleRows,
     contractNotificationRows,
     customerActivityRows,
     contractActivityRows,
@@ -5002,6 +5054,12 @@ export async function getCustomerTimeline(
           .select()
           .from(contractHistory)
           .where(inArray(contractHistory.contractId, contractIds))
+      : Promise.resolve([]),
+    contractIds.length > 0
+      ? db
+          .select()
+          .from(contractLifecycleEvents)
+          .where(inArray(contractLifecycleEvents.contractId, contractIds))
       : Promise.resolve([]),
     contractIds.length > 0
       ? db
@@ -5101,8 +5159,38 @@ export async function getCustomerTimeline(
     });
   }
 
+  const hasLifecycleEventNear = (
+    contractId: number,
+    eventType: (typeof contractLifecycleRows)[number]["eventType"],
+    occurredAt: Date | string | null | undefined
+  ) => {
+    if (!occurredAt) return false;
+    const occurredAtMs = new Date(occurredAt).getTime();
+    if (!Number.isFinite(occurredAtMs)) return false;
+    return contractLifecycleRows.some(
+      row =>
+        row.contractId === contractId &&
+        row.eventType === eventType &&
+        Math.abs(new Date(row.effectiveAt).getTime() - occurredAtMs) <= 10_000
+    );
+  };
+  const lifecycleRequestKeys = new Set(
+    contractLifecycleRows
+      .filter(row => row.sourceType === "delete_request" && row.sourceId)
+      .map(row => `${row.sourceId}:${row.eventType}`)
+  );
+
   for (const row of contractRows) {
     const deleted = row.isActive === false || !!row.deletedAt;
+    const lifecycleEventType = deleted ? "deleted" : "created";
+    if (
+      hasLifecycleEventNear(
+        row.id,
+        lifecycleEventType,
+        deleted ? row.deletedAt : row.createdAt
+      )
+    )
+      continue;
     pushEvent({
       id: `contract:${row.id}`,
       eventType: deleted ? "contract_deleted" : "contract_created",
@@ -5127,6 +5215,12 @@ export async function getCustomerTimeline(
   }
 
   for (const row of contractHistoryRows) {
+    if (
+      row.fieldName === "isActive" &&
+      (hasLifecycleEventNear(row.contractId, "deleted", row.createdAt) ||
+        hasLifecycleEventNear(row.contractId, "restored", row.createdAt))
+    )
+      continue;
     pushEvent({
       id: `contract_history:${row.id}`,
       eventType: "contract_updated",
@@ -5142,6 +5236,44 @@ export async function getCustomerTimeline(
         afterValue: row.afterValue,
       }),
       severity: row.fieldName === "isActive" ? "warning" : "info",
+      relatedId: row.contractId,
+      relatedType: "contract",
+    });
+  }
+
+  const lifecycleLabels = {
+    created: "계약이 등록되었습니다.",
+    updated: "계약 정보가 변경되었습니다.",
+    deletion_requested: "계약 삭제가 요청되었습니다.",
+    deletion_rejected: "계약 삭제 요청이 반려되었습니다.",
+    deleted: "계약이 삭제 처리되었습니다.",
+    restored: "계약이 복구되었습니다.",
+  } as const;
+  for (const row of contractLifecycleRows) {
+    pushEvent({
+      id: `contract_lifecycle:${row.id}`,
+      eventType: `contract_${row.eventType}`,
+      eventLabel: lifecycleLabels[row.eventType],
+      occurredAt: row.effectiveAt,
+      ...userLabel(userMap, row.actorId),
+      source: "contract_lifecycle",
+      summary: lifecycleLabels[row.eventType],
+      detail: truncateTimelineText(row.reason, 140),
+      metadata: safeTimelineMetadata({
+        eventType: row.eventType,
+        monthlyPremiumSnapshot: row.monthlyPremiumSnapshot,
+        sourceType: row.sourceType,
+        sourceId: row.sourceId,
+        ...(typeof row.metadata === "object" && row.metadata
+          ? row.metadata
+          : {}),
+      }),
+      severity:
+        row.eventType === "deleted" || row.eventType === "deletion_rejected"
+          ? "warning"
+          : row.eventType === "restored"
+            ? "success"
+            : "info",
       relatedId: row.contractId,
       relatedType: "contract",
     });
@@ -5256,6 +5388,19 @@ export async function getCustomerTimeline(
   }
 
   for (const row of requestRows) {
+    const lifecycleEventType =
+      row.status === "approved"
+        ? "deleted"
+        : row.status === "rejected"
+          ? "deletion_rejected"
+          : row.status === "pending"
+            ? "deletion_requested"
+            : null;
+    if (
+      lifecycleEventType &&
+      lifecycleRequestKeys.has(`${row.id}:${lifecycleEventType}`)
+    )
+      continue;
     pushEvent({
       id: `delete_request:${row.id}`,
       eventType:
@@ -5328,6 +5473,44 @@ export async function getCustomerTimeline(
     ...requestActivityRows,
   ]) {
     if (row.action.startsWith("CUSTOMER_RELATIONSHIP_")) continue;
+    const contractLifecycleType =
+      row.action === "CONTRACT_CREATED"
+        ? "created"
+        : row.action === "CONTRACT_UPDATED" ||
+            row.action === "CONTRACT_OWNER_CHANGED"
+          ? "updated"
+          : row.action === "CONTRACT_RESTORED"
+            ? "restored"
+            : row.action === "CONTRACT_DEACTIVATED" ||
+                row.action === "CONTRACT_DEACTIVATED_BY_REQUEST"
+              ? "deleted"
+              : null;
+    if (
+      row.targetType === "contract" &&
+      row.targetId &&
+      contractLifecycleType &&
+      hasLifecycleEventNear(
+        row.targetId,
+        contractLifecycleType,
+        row.createdAt
+      )
+    )
+      continue;
+    const requestLifecycleType =
+      row.action === "DELETE_REQUEST_CREATED"
+        ? "deletion_requested"
+        : row.action === "DELETE_REQUEST_APPROVED"
+          ? "deleted"
+          : row.action === "DELETE_REQUEST_REJECTED"
+            ? "deletion_rejected"
+            : null;
+    if (
+      row.targetType === "delete_request" &&
+      row.targetId &&
+      requestLifecycleType &&
+      lifecycleRequestKeys.has(`${row.targetId}:${requestLifecycleType}`)
+    )
+      continue;
     pushEvent({
       id: `activity:${row.id}`,
       eventType: row.action.toLowerCase(),
