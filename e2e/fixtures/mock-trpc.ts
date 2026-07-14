@@ -115,6 +115,50 @@ const customer = {
   assignedAt: now,
   nextAction: "상담기록 추가",
   customerTags: JSON.stringify(["E2E", "smoke"]),
+  customerSegment: "database" as const,
+  contractCount: 0,
+  monthlyPremiumTotal: 0,
+  recentContractDate: null,
+  consultationCount: 1,
+  recentConsultationAt: now,
+  followUpCount: 1,
+  nextFollowUpAt: oneHourAfterNow,
+  activityCount: 1,
+  recentActivityAt: now,
+};
+
+const activeContract = {
+  id: 601,
+  customerId: customer.id,
+  agentId: 4,
+  company: "[E2E] Insurance",
+  productName: "[E2E] Active Plan",
+  contractStatus: "유지",
+  paymentStatus: "정상",
+  monthlyPremium: 120000,
+  isActive: true,
+  deletedAt: null,
+  createdAt: now,
+};
+
+const pastContract = {
+  ...activeContract,
+  id: 602,
+  productName: "[TEST] Past Plan",
+  contractStatus: "해지",
+  paymentStatus: "해지",
+  isActive: false,
+  deletedAt: now,
+};
+
+const contractedCustomer = {
+  ...customer,
+  id: 102,
+  name: "[E2E] Contracted Customer",
+  customerSegment: "contracted" as const,
+  contractCount: 1,
+  monthlyPremiumTotal: 120000,
+  recentContractDate: now,
 };
 
 const todayWork = {
@@ -444,6 +488,7 @@ const defaults: Record<string, unknown> = {
   },
   "performance.stats": { assigned: 1, contracts: 1, monthlyPremium: 120000 },
   "customers.list": [customer],
+  "customers.segmentCounts": { all: 2, database: 1, contracted: 1 },
   "customers.get": customer,
   "schedules.list": scheduleListResponse,
   "customers.downloadImportTemplate": {
@@ -498,7 +543,8 @@ const defaults: Record<string, unknown> = {
     },
   ],
   "contracts.list": [],
-  "contracts.listByCustomer": [],
+  "contracts.listByCustomer": [activeContract],
+  "contracts.historyByCustomer": [activeContract, pastContract],
   "customers.statusHistory": [],
   "customers.consentLogs": [],
   "customers.assignmentHistory": [],
@@ -771,9 +817,7 @@ const outOfScopeCustomer = {
 
 function responseFor(procedure: string, role: Role, options?: MockOptions) {
   if (procedure === "auth.me") return userFor(role, options);
-  if (procedure === "customers.list") {
-    return [customer, outOfScopeCustomer];
-  }
+  if (procedure === "customers.list") return [customer, contractedCustomer];
   return defaults[procedure] ?? null;
 }
 
@@ -810,6 +854,17 @@ async function fulfillTrpc(route: Route, role: Role, options?: MockOptions) {
         return serialize(null);
       }
       return serialize(customer);
+    }
+    if (procedure === "customers.list") {
+      const payload = decodeURIComponent(
+        `${url.search}\n${route.request().postData() ?? ""}`
+      );
+      if (/"segment"\s*:\s*"database"/.test(payload)) {
+        return serialize([customer]);
+      }
+      if (/"segment"\s*:\s*"contracted"/.test(payload)) {
+        return serialize([contractedCustomer]);
+      }
     }
     return serialize(responseFor(procedure, role, options));
   });

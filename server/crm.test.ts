@@ -7909,6 +7909,51 @@ describe("contracts.listByCustomer - 권한 검증", () => {
         .contracts.listByCustomer({ customerId: 999999 })
     ).rejects.toThrow();
   });
+
+  it("returns current and past contracts only for an authorized customer", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      agentId: 4,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    const historySpy = vi
+      .spyOn(db, "getContractsByCustomerIncludingInactive")
+      .mockResolvedValue([
+        { id: 11, customerId: 100, isActive: true },
+        { id: 12, customerId: 100, isActive: false },
+      ] as any);
+
+    const result = await appRouter
+      .createCaller(createCtx("member", { userId: 4 }))
+      .contracts.historyByCustomer({ customerId: 100 });
+
+    expect(result.map(contract => contract.id)).toEqual([11, 12]);
+    expect(historySpy).toHaveBeenCalledWith(100);
+  });
+
+  it("blocks contract history access outside the customer scope", async () => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      id: 100,
+      agentId: 4,
+      assignedTeamId: null,
+      subBranchAdminId: null,
+      isActive: true,
+      deletedAt: null,
+    } as any);
+    const historySpy = vi
+      .spyOn(db, "getContractsByCustomerIncludingInactive")
+      .mockResolvedValue([] as any);
+
+    await expect(
+      appRouter
+        .createCaller(createCtx("member", { userId: 3 }))
+        .contracts.historyByCustomer({ customerId: 100 })
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(historySpy).not.toHaveBeenCalled();
+  });
 });
 describe("soft delete permissions and audit flow", () => {
   it("allows branch_admin to deactivate an empty active team", async () => {

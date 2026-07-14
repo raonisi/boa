@@ -88,6 +88,20 @@ describe("customers.list agent filter scope", () => {
     );
   });
 
+  it("allows hierarchy managers to filter their directly assigned customers", async () => {
+    const getCustomersSpy = vi
+      .spyOn(db, "getCustomers")
+      .mockResolvedValue([] as any);
+
+    await appRouter
+      .createCaller(createCtx({ role: "sub_branch_admin", id: 2 }))
+      .customers.list({ agentIdFilter: 2 });
+
+    expect(getCustomersSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ agentId: 2 })
+    );
+  });
+
   it("passes customer segment filters without changing sub_branch_admin scope", async () => {
     const getCustomersSpy = vi
       .spyOn(db, "getCustomers")
@@ -95,12 +109,20 @@ describe("customers.list agent filter scope", () => {
 
     await appRouter
       .createCaller(createCtx({ role: "sub_branch_admin", id: 2 }))
-      .customers.list({ segment: "contracted" });
+      .customers.list({
+        segment: "contracted",
+        page: 3,
+        pageSize: 50,
+        sort: "contract_value",
+      });
 
     expect(getCustomersSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         subBranchAdminId: 2,
         segment: "contracted",
+        page: 3,
+        pageSize: 50,
+        sort: "contract_value",
         withSegmentMeta: true,
       })
     );
@@ -111,25 +133,31 @@ describe("customers.list agent filter scope", () => {
       .spyOn(db, "getCustomerSegmentCounts")
       .mockResolvedValue({
         all: 2,
-        db_only: 1,
-        in_progress_db: 0,
+        database: 1,
         contracted: 1,
       });
 
     const result = await appRouter
       .createCaller(createCtx({ role: "member", id: 4 }))
-      .customers.segmentCounts({ segment: "contracted" });
+      .customers.segmentCounts({
+        segment: "contracted",
+        page: 2,
+        pageSize: 50,
+        sort: "name",
+      });
 
     expect(result).toEqual({
       all: 2,
-      db_only: 1,
-      in_progress_db: 0,
+      database: 1,
       contracted: 1,
     });
     expect(getCountsSpy).toHaveBeenCalledWith(
       expect.objectContaining({ agentId: 4 })
     );
     expect(getCountsSpy.mock.calls[0]?.[0]).not.toHaveProperty("segment");
+    expect(getCountsSpy.mock.calls[0]?.[0]).not.toHaveProperty("page");
+    expect(getCountsSpy.mock.calls[0]?.[0]).not.toHaveProperty("pageSize");
+    expect(getCountsSpy.mock.calls[0]?.[0]).not.toHaveProperty("sort");
   });
 
   it("blocks sub_branch_admin from filtering by out-of-scope agent", async () => {

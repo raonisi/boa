@@ -5378,6 +5378,9 @@ const customerListInputSchema = z.object({
   scope: z.enum(["all", "mine", "member"]).optional(),
   selectedUserId: z.number().optional(),
   segment: z.enum(CUSTOMER_SEGMENTS).optional(),
+  page: z.number().int().min(1).optional(),
+  pageSize: z.number().int().min(10).max(100).optional(),
+  sort: z.enum(["recent", "name", "next_contact", "contract_value"]).optional(),
 });
 
 type CustomerListInput = z.infer<typeof customerListInputSchema>;
@@ -5440,6 +5443,9 @@ async function resolveCustomerListScopeFilter(user: any, input: CustomerListInpu
 
   if (user.role === "sub_branch_admin" || user.role === "team_leader") {
     if (input.agentIdFilter !== undefined) {
+      if (input.agentIdFilter === user.id) {
+        return { ...baseFilter, agentId: user.id };
+      }
       const target = await getUserById(input.agentIdFilter);
       if (!target || target.accountStatus !== "active") {
         throw new TRPCError({
@@ -7544,6 +7550,9 @@ export const appRouter = router({
         return getCustomers({
           ...scopedFilter,
           segment: input.segment,
+          page: input.page,
+          pageSize: input.pageSize,
+          sort: input.sort,
           withSegmentMeta: true,
         });
       }),
@@ -10017,6 +10026,13 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         await verifyCustomerAccess(ctx.user, input.customerId);
         return getContractsByCustomer(input.customerId);
+      }),
+
+    historyByCustomer: activeUserProcedure
+      .input(z.object({ customerId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        await verifyCustomerAccess(ctx.user, input.customerId);
+        return getContractsByCustomerIncludingInactive(input.customerId);
       }),
 
     list: activeUserProcedure

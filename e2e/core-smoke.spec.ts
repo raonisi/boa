@@ -163,10 +163,11 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(page).toHaveURL(/\/customers$/);
     await expect(page.getByText("[E2E] Customer Alpha").first()).toBeVisible();
     await expect(page.locator('a[href^="tel:"]:visible').first()).toBeVisible();
-    await page
+    const customerSearch = page
       .locator('input[type="text"], input[type="search"], input:not([type])')
-      .first()
-      .fill("[E2E]");
+      .first();
+    await customerSearch.fill("[E2E]");
+    await customerSearch.press("Enter");
     await expect(page.getByText("검색어: [E2E]").first()).toBeVisible();
     await page
       .getByRole("button", { name: /검색어: \[E2E\] 필터 해제/ })

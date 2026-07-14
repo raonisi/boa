@@ -220,8 +220,11 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
       page.getByRole("button", { name: "전체 고객 보기" })
     ).toBeVisible();
     await page
-      .getByPlaceholder("고객명, 연락처, 지역, 유입경로 검색")
+      .getByPlaceholder("고객명, 연락처, 담당자명, 주요 태그 검색")
       .fill("[TEST]");
+    await page
+      .getByPlaceholder("고객명, 연락처, 담당자명, 주요 태그 검색")
+      .press("Enter");
     await expect(page.getByText("검색어: [TEST]").first()).toBeVisible();
     await expect(
       page.getByText("현재 보기: 우선 연락 고객").first()
@@ -289,13 +292,111 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
       page.getByText("현재 보기: 우선 연락 고객").first()
     ).toBeVisible();
     await page
-      .getByPlaceholder("고객명, 연락처, 지역, 유입경로 검색")
+      .getByPlaceholder("고객명, 연락처, 담당자명, 주요 태그 검색")
       .fill("[TEST]");
+    await page
+      .getByPlaceholder("고객명, 연락처, 담당자명, 주요 태그 검색")
+      .press("Enter");
     await expect(page.getByText("검색어: [TEST]").first()).toBeVisible();
     await expect(
       page.getByText("현재 보기: 우선 연락 고객").first()
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
+  });
+
+  test("customer list desktop keeps segment, table view and keyboard detail navigation in the URL", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.name.includes("desktop"),
+      "desktop customer list table workflow"
+    );
+    await mockBoaTrpc(page, "branch_admin");
+    await page.goto("/customers", {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(page.getByRole("button", { name: "카드 보기" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    const cardIds = await page
+      .locator('[data-testid="customer-list-result-card"][data-customer-id]')
+      .evaluateAll(nodes => nodes.map(node => node.getAttribute("data-customer-id")));
+    await page.getByRole("button", { name: "표 보기" }).click();
+    await expect(page.getByRole("button", { name: "표 보기" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
+    );
+    await expect(
+      page.getByRole("table", { name: "고객 표 보기" })
+    ).toBeVisible();
+    const tableIds = await page
+      .locator('[role="row"][data-customer-id]')
+      .evaluateAll(nodes => nodes.map(node => node.getAttribute("data-customer-id")));
+    expect(tableIds).toEqual(cardIds);
+    await expect(page).toHaveURL(/view=table/);
+
+    const databaseTab = page.getByRole("tab", {
+      name: /DB 배분 고객 1/,
+    });
+    await page.getByRole("tab", { name: /전체 2/ }).focus();
+    await page.getByRole("tab", { name: /전체 2/ }).press("ArrowRight");
+    await expect(databaseTab).toHaveAttribute("aria-selected", "true");
+    await expect(page).toHaveURL(/segment=database/);
+
+    const customerRow = page.locator('[role="row"][data-customer-id="101"]');
+    await customerRow.focus();
+    await expect(customerRow).toBeFocused();
+    await customerRow.press("Enter");
+    await expect(page).toHaveURL(/\/customers\/101$/);
+
+    await page.goBack({ waitUntil: "domcontentloaded" });
+    await expect(page).toHaveURL(/segment=database/);
+    await expect(
+      page.locator('[role="row"][data-customer-id="101"]')
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("customer list mobile normalizes table URLs to cards without page overflow", async ({
+    page,
+  }, testInfo) => {
+    test.skip(
+      !testInfo.project.name.includes("mobile"),
+      "mobile customer list card workflow"
+    );
+    await setResponsiveViewport(page, "mobile360");
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers?segment=contracted&view=table", {
+      waitUntil: "domcontentloaded",
+    });
+
+    await expect(page.getByTestId("customer-list-result-card")).toHaveCount(1);
+    await expect(page.getByRole("table", { name: "고객 표 보기" })).toHaveCount(
+      0
+    );
+    await expect(page).toHaveURL(/segment=contracted/);
+    await expect(page).not.toHaveURL(/view=table/);
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("customer detail separates current contracts from past contract history", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "member");
+    await page.goto("/customers/101", { waitUntil: "domcontentloaded" });
+
+    await page.getByRole("tab", { name: /계약 1/ }).click();
+    await expect(page.getByRole("heading", { name: "현재 계약" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "과거 계약 이력" })
+    ).toBeVisible();
+    await expect(page.getByText("[E2E] Active Plan")).toBeVisible();
+    await expect(page.getByText("[TEST] Past Plan")).toBeVisible();
+    await expect(page.getByText("종료사유")).toBeVisible();
+    await expect(page.getByText("종료 당시 월보험료")).toBeVisible();
+    await expect(page.getByText("기록 없음")).toHaveCount(2);
   });
 
   test("mobile search filters nav and customer detail tabs keep touch targets", async ({
@@ -337,16 +438,17 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     await expect(resultCard).not.toContainText("010-1000-2000");
     await expect(resultCard).not.toContainText("1985-05-18");
     await expectMinimumHitTarget(resultCard, 40);
-    await resultCard.click();
+    await resultCard.getByTestId("customer-list-result-card-detail").click();
     await expect(page).toHaveURL(/\/customers\/101$/);
     await page.goto("/customers", { waitUntil: "domcontentloaded" });
 
     const searchInput = page.getByPlaceholder(
-      "고객명, 연락처, 지역, 유입경로 검색"
+      "고객명, 연락처, 담당자명, 주요 태그 검색"
     );
     await expect(searchInput).toBeVisible();
     await expectMinimumHitTarget(searchInput, 40);
     await searchInput.fill("[TEST]");
+    await searchInput.press("Enter");
 
     const clearSearch = page.getByTestId("customer-list-mobile-search-clear");
     await expect(clearSearch).toBeVisible();

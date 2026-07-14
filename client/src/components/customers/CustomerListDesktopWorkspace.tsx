@@ -22,6 +22,7 @@ import {
 } from "@/components/customers/customerListExecutionHelpers";
 import { formatUserWithRole } from "@/lib/userRole";
 import { cn } from "@/lib/utils";
+import type { CustomerListSort } from "@/lib/customerListUrlState";
 import { formatExpectedPremiumManwon } from "@shared/expectedPremium";
 import {
   CUSTOMER_SEGMENT_LABELS,
@@ -56,8 +57,6 @@ function formatShortDate(value: unknown) {
 function customerSegmentTone(segment?: CustomerSegment) {
   if (segment === "contracted")
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (segment === "in_progress_db")
-    return "border-amber-200 bg-amber-50 text-amber-700";
   return "border-slate-200 bg-slate-100 text-slate-700";
 }
 
@@ -91,6 +90,7 @@ type CustomerListDesktopWorkspaceProps = {
   onQuickConsult: (customer: any) => void;
   isCustomerReclaimable: (customer: any) => boolean;
   relationFlags?: Record<number, boolean>;
+  sortMode: CustomerListSort;
 };
 
 export function CustomerListDesktopWorkspace({
@@ -118,6 +118,7 @@ export function CustomerListDesktopWorkspace({
   onQuickConsult,
   isCustomerReclaimable,
   relationFlags,
+  sortMode,
 }: CustomerListDesktopWorkspaceProps) {
   const showSelection = canReclaimCustomer || canBulkChangeAssignee;
 
@@ -126,12 +127,19 @@ export function CustomerListDesktopWorkspace({
     : "grid grid-cols-[minmax(220px,1.35fr)_minmax(200px,1.15fr)_minmax(180px,1fr)_minmax(120px,0.75fr)_auto] items-start gap-4 px-4 py-3";
 
   return (
-    <Card className="overflow-hidden border-border shadow-sm">
-      <CardContent className="p-0">
+    <Card className="overflow-x-auto border-border shadow-sm">
+      <CardContent
+        className="min-w-[1080px] p-0"
+        role="table"
+        aria-label="고객 표 보기"
+      >
         <div className="border-b border-border/70 bg-muted/30 px-4 py-3">
-          <div className={gridClassName}>
+          <div className={gridClassName} role="row">
             {showSelection ? (
-              <div className="flex items-center justify-center pt-0.5">
+              <div
+                className="flex items-center justify-center pt-0.5"
+                role="columnheader"
+              >
                 <Checkbox
                   touchTarget
                   checked={allVisibleSelectableSelected}
@@ -143,19 +151,27 @@ export function CustomerListDesktopWorkspace({
                 />
               </div>
             ) : null}
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p
+              className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              role="columnheader"
+              aria-sort={sortMode === "name" ? "ascending" : "none"}
+            >
               고객 / 상태
             </p>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" role="columnheader">
               다음 조치
             </p>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p
+              className="text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+              role="columnheader"
+              aria-sort={sortMode === "recent" ? "descending" : "none"}
+            >
               최근 활동
             </p>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" role="columnheader">
               담당자
             </p>
-            <p className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground" role="columnheader">
               빠른 액션
             </p>
           </div>
@@ -238,13 +254,24 @@ export function CustomerListDesktopWorkspace({
               return (
                 <div
                   key={customer.id}
-                  className={`${gridClassName} cursor-pointer transition-colors hover:bg-muted/25`}
+                  data-customer-id={customer.id}
+                  role="row"
+                  tabIndex={0}
+                  aria-label={`${customer.name} 고객 상세 보기`}
+                  className={`${gridClassName} cursor-pointer transition-colors hover:bg-muted/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset`}
                   onClick={() => onNavigate(`/customers/${customer.id}`)}
+                  onKeyDown={event => {
+                    if (event.key !== "Enter" && event.key !== " ") return;
+                    event.preventDefault();
+                    onNavigate(`/customers/${customer.id}`);
+                  }}
                 >
                   {showSelection ? (
                     <div
                       className="-ml-2 -mt-2 flex items-start justify-center sm:m-0"
+                      role="cell"
                       onClick={e => e.stopPropagation()}
+                      onKeyDown={e => e.stopPropagation()}
                     >
                       <Checkbox
                         touchTarget
@@ -261,7 +288,7 @@ export function CustomerListDesktopWorkspace({
                     </div>
                   ) : null}
 
-                  <div className="min-w-0 space-y-2">
+                  <div className="min-w-0 space-y-2" role="cell">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-base font-semibold text-foreground">
                         {customer.name}
@@ -302,7 +329,7 @@ export function CustomerListDesktopWorkspace({
                     </div>
                   </div>
 
-                  <div className="min-w-0 space-y-2">
+                  <div className="min-w-0 space-y-2" role="cell">
                     <p className="text-sm font-semibold leading-snug text-foreground">
                       {actionTitle}
                     </p>
@@ -323,7 +350,7 @@ export function CustomerListDesktopWorkspace({
                     ) : null}
                   </div>
 
-                  <div className="min-w-0 space-y-1.5">
+                  <div className="min-w-0 space-y-1.5" role="cell">
                     <p className="text-sm leading-snug text-foreground">
                       {recentActivity}
                     </p>
@@ -339,11 +366,6 @@ export function CustomerListDesktopWorkspace({
                         {formatCurrencyNumber(customer.monthlyPremiumTotal)} ·
                         최근 {formatShortDate(customer.recentContractDate)}
                       </p>
-                    ) : customer.customerSegment === "in_progress_db" ? (
-                      <p className="text-xs font-semibold tabular-nums text-amber-700">
-                        상담 진행 · 최근 상담{" "}
-                        {formatShortDate(customer.recentConsultationAt)}
-                      </p>
                     ) : (
                       <p className="text-xs font-semibold tabular-nums text-slate-600">
                         배정 DB · 배정일 {formatShortDate(customer.assignedDate)}
@@ -351,7 +373,7 @@ export function CustomerListDesktopWorkspace({
                     )}
                   </div>
 
-                  <div className="min-w-0">
+                  <div className="min-w-0" role="cell">
                     <p className="text-sm font-medium text-foreground">
                       {assigneeLabel}
                     </p>
@@ -364,7 +386,9 @@ export function CustomerListDesktopWorkspace({
 
                   <div
                     className="flex items-center justify-end gap-0.5"
+                    role="cell"
                     onClick={e => e.stopPropagation()}
+                    onKeyDown={e => e.stopPropagation()}
                   >
                     {customer.phone ? (
                       <Button

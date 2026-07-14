@@ -1,5 +1,6 @@
 import {
   and,
+  asc,
   desc,
   eq,
   gte,
@@ -1096,6 +1097,9 @@ export async function getCustomers(filter: {
   assignedDateFrom?: Date;
   assignedDateTo?: Date;
   limit?: number;
+  page?: number;
+  pageSize?: number;
+  sort?: "recent" | "name" | "next_contact" | "contract_value";
   segment?: CustomerSegment;
   withSegmentMeta?: boolean;
 }) {
@@ -1167,16 +1171,32 @@ export async function getCustomers(filter: {
   const search = filter.search?.trim().toLowerCase();
   if (search) {
     const likeSearch = `%${search}%`;
+    const searchDigits = search.replace(/\D/g, "");
+    const matchingAgents = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(sql`lower(${users.name}) like ${likeSearch}`);
+    const matchingAgentIds = matchingAgents.map(agent => agent.id);
+    const searchConditions: any[] = [
+      sql`lower(${customers.name}) like ${likeSearch}`,
+      sql`lower(${customers.phone}) like ${likeSearch}`,
+      sql`lower(${customers.region}) like ${likeSearch}`,
+      sql`lower(${customers.source}) like ${likeSearch}`,
+      sql`lower(${customers.dbCompany}) like ${likeSearch}`,
+      sql`lower(${customers.consultStatus}) like ${likeSearch}`,
+      sql`lower(${customers.priority}) like ${likeSearch}`,
+      sql`lower(${customers.customerTags}) like ${likeSearch}`,
+    ];
+    if (searchDigits) {
+      searchConditions.push(
+        sql`replace(replace(replace(${customers.phone}, '-', ''), ' ', ''), '.', '') like ${`%${searchDigits}%`}`
+      );
+    }
+    if (matchingAgentIds.length > 0) {
+      searchConditions.push(inArray(customers.agentId, matchingAgentIds));
+    }
     conditions.push(
-      or(
-        sql`lower(${customers.name}) like ${likeSearch}`,
-        sql`lower(${customers.phone}) like ${likeSearch}`,
-        sql`lower(${customers.region}) like ${likeSearch}`,
-        sql`lower(${customers.source}) like ${likeSearch}`,
-        sql`lower(${customers.dbCompany}) like ${likeSearch}`,
-        sql`lower(${customers.consultStatus}) like ${likeSearch}`,
-        sql`lower(${customers.priority}) like ${likeSearch}`
-      ) as any
+      or(...searchConditions) as any
     );
   }
   if (filter.assignedDateFrom)
@@ -1184,24 +1204,73 @@ export async function getCustomers(filter: {
   if (filter.assignedDateTo)
     conditions.push(lte(customers.assignedAt, filter.assignedDateTo) as any);
 
+  const activeContractExists = sql<boolean>`exists (
+    select 1
+    from ${contracts}
+    where ${contracts.customerId} = ${customers.id}
+      and ${contracts.isActive} = true
+      and ${contracts.deletedAt} is null
+      and (${contracts.contractStatus} is null or ${contracts.contractStatus} not in ('철회', '해지'))
+      and (${contracts.paymentStatus} is null or ${contracts.paymentStatus} not in ('실효', '해지'))
+  )`;
+  if (filter.segment === "contracted") {
+    conditions.push(activeContractExists);
+  } else if (filter.segment === "database") {
+    conditions.push(sql<boolean>`not (${activeContractExists})`);
+  }
+
+  const activeContractPremiumTotal = sql<number>`(
+    select coalesce(sum(${contracts.monthlyPremium}), 0)
+    from ${contracts}
+    where ${contracts.customerId} = ${customers.id}
+      and ${contracts.isActive} = true
+      and ${contracts.deletedAt} is null
+      and (${contracts.contractStatus} is null or ${contracts.contractStatus} not in ('철회', '해지'))
+      and (${contracts.paymentStatus} is null or ${contracts.paymentStatus} not in ('실효', '해지'))
+  )`;
+  const nextFollowUpDate = sql<Date | null>`(
+    select min(${followUps.nextContactDate})
+    from ${followUps}
+    where ${followUps.customerId} = ${customers.id}
+      and ${followUps.deletedAt} is null
+  )`;
+  const orderExpressions: any[] =
+    filter.sort === "name"
+      ? [asc(customers.name), desc(customers.createdAt)]
+      : filter.sort === "next_contact"
+        ? [sql`${nextFollowUpDate} is null`, asc(nextFollowUpDate), desc(customers.createdAt)]
+        : filter.sort === "contract_value"
+          ? [desc(activeContractPremiumTotal), desc(customers.createdAt)]
+          : [desc(customers.createdAt)];
+
   let query = db
     .select()
     .from(customers)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(customers.createdAt));
+    .orderBy(...orderExpressions);
 
-  if (filter.limit != null && filter.limit > 0) {
+  const needsSegmentProcessing =
+    filter.withSegmentMeta ||
+    Boolean(filter.segment && filter.segment !== "all") ||
+    filter.page != null ||
+    filter.pageSize != null ||
+    filter.sort != null;
+
+  if (filter.pageSize != null) {
+    const page = Math.max(1, filter.page ?? 1);
+    const pageSize = Math.min(100, Math.max(1, filter.pageSize));
+    query = query.limit(pageSize).offset((page - 1) * pageSize) as typeof query;
+  } else if (filter.limit != null && filter.limit > 0) {
     query = query.limit(filter.limit) as typeof query;
   }
 
   const rows = await query;
-  if (!filter.withSegmentMeta && (!filter.segment || filter.segment === "all")) {
+  if (!needsSegmentProcessing) {
     return rows;
   }
 
   const rowsWithSegment = await attachCustomerSegmentMeta(rows);
-  if (!filter.segment || filter.segment === "all") return rowsWithSegment;
-  return rowsWithSegment.filter(row => row.customerSegment === filter.segment);
+  return rowsWithSegment;
 }
 
 type CustomerSegmentMeta = {
@@ -1225,9 +1294,7 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
   if (!db) {
     return rows.map(row => ({
       ...row,
-      customerSegment: getConcreteCustomerSegment({
-        nextAction: row.nextAction,
-      }),
+      customerSegment: getConcreteCustomerSegment({ contractCount: 0 }),
       contractCount: 0,
       monthlyPremiumTotal: 0,
       recentContractDate: null,
@@ -1255,7 +1322,15 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
           and(
             inArray(contracts.customerId, customerIds),
             eq(contracts.isActive, true),
-            isNull(contracts.deletedAt)
+            isNull(contracts.deletedAt),
+            or(
+              isNull(contracts.contractStatus),
+              sql`${contracts.contractStatus} not in ('철회', '해지')`
+            ),
+            or(
+              isNull(contracts.paymentStatus),
+              sql`${contracts.paymentStatus} not in ('실효', '해지')`
+            )
           )
         )
         .groupBy(contracts.customerId),
@@ -1322,10 +1397,6 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
       ...row,
       customerSegment: getConcreteCustomerSegment({
         contractCount,
-        consultationCount,
-        followUpCount,
-        activityCount,
-        nextAction: row.nextAction,
       }),
       contractCount,
       monthlyPremiumTotal: Number(contract?.monthlyPremiumTotal ?? 0),

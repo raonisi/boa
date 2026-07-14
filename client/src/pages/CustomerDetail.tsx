@@ -87,6 +87,7 @@ import { CustomerClaimGuidancePanel } from "@/components/claimGuidance/CustomerC
 import { CustomerRetentionRiskPanel } from "@/components/retentionRisk/CustomerRetentionRiskPanel";
 import { SmartConsultationPrepCard } from "@/components/customer/SmartConsultationPrepCard";
 import { buildCustomerExecutionScore } from "@shared/customerExecution";
+import { isActiveCustomerContract } from "@shared/customerSegment";
 import type { DetailedFollowUpSeed } from "@shared/followupQuickCreate";
 import {
   AlertTriangle,
@@ -426,6 +427,11 @@ export default function CustomerDetail({ id }: { id: number }) {
       { customerId: id },
       { enabled: canLoadDependencies }
     );
+  const { data: contractHistoryRecords, refetch: refetchContractHistory } =
+    trpc.contracts.historyByCustomer.useQuery(
+      { customerId: id },
+      { enabled: canLoadDependencies }
+    );
   const { data: statusHistoryData } = trpc.customers.statusHistory.useQuery(
     { customerId: id },
     { enabled: canLoadDependencies }
@@ -579,6 +585,9 @@ export default function CustomerDetail({ id }: { id: number }) {
       toast.success("계약이 등록되었습니다.");
       setShowContractModal(false);
       refetchContracts();
+      refetchContractHistory();
+      utils.customers.list.invalidate();
+      utils.customers.segmentCounts.invalidate();
     },
   });
 
@@ -587,6 +596,9 @@ export default function CustomerDetail({ id }: { id: number }) {
       toast.success("계약이 수정되었습니다.");
       setEditingContractId(null);
       refetchContracts();
+      refetchContractHistory();
+      utils.customers.list.invalidate();
+      utils.customers.segmentCounts.invalidate();
     },
     onError: () => toastUserFacingError(null, USER_FACING_ERRORS.saveFailed),
   });
@@ -596,6 +608,9 @@ export default function CustomerDetail({ id }: { id: number }) {
       toast.success("계약을 삭제했습니다.");
       setDeleteContractId(null);
       refetchContracts();
+      refetchContractHistory();
+      utils.customers.list.invalidate();
+      utils.customers.segmentCounts.invalidate();
     },
     onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
@@ -903,12 +918,19 @@ export default function CustomerDetail({ id }: { id: number }) {
     user?.role === "sub_branch_admin" ||
     user?.role === "team_leader" ||
     user?.role === "member";
+  const allContractRecords = contractHistoryRecords ?? contracts ?? [];
+  const currentContracts = allContractRecords.filter(isActiveCustomerContract);
+  const pastContracts = allContractRecords.filter(
+    contract => !isActiveCustomerContract(contract)
+  );
   const canManageRelationships =
     user?.accountStatus === "active" &&
     (user?.role !== "member" || customer.agentId === user.id);
   const editingConsult = consultations?.find(c => c.id === editingConsultId);
-  const editingContract = contracts?.find(c => c.id === editingContractId);
-  const deleteTargetContract = contracts?.find(c => c.id === deleteContractId);
+  const editingContract = currentContracts.find(c => c.id === editingContractId);
+  const deleteTargetContract = currentContracts.find(
+    c => c.id === deleteContractId
+  );
   const customerTags = parseCustomerTags((customer as any).customerTags);
   const latestConsult = (consultations ?? [])[0] as any;
   const openFollowUps = (followUps ?? []).filter(
@@ -1757,7 +1779,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           </div>
           <CustomerDetailTabNavigation
             consultationCount={consultations?.length ?? 0}
-            contractCount={contracts?.length ?? 0}
+            contractCount={currentContracts.length}
             scheduleCount={todayScheduleCount}
             historyCount={timelineData?.totalCount ?? 0}
           />
@@ -2217,32 +2239,44 @@ export default function CustomerDetail({ id }: { id: number }) {
           </TabsContent>
 
           <TabsContent value="contracts">
-            <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <p className="text-sm text-muted-foreground">
-                  총 {contracts?.length ?? 0}건
-                </p>
-                <Button size="sm" onClick={() => setShowContractModal(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> 계약 등록
-                </Button>
-              </div>
-              {(contracts ?? []).length === 0 ? (
-                <EmptyState
-                  icon={FilePlus2}
-                  title="계약 정보가 없습니다."
-                  description="상담이 계약으로 이어졌다면 계약 정보를 등록해 실적과 후속관리를 연결하세요."
-                  action={
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => setShowContractModal(true)}
+            <div className="space-y-6">
+              <section
+                className="space-y-3"
+                aria-labelledby="current-contracts-heading"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <h2
+                      id="current-contracts-heading"
+                      className="text-base font-semibold"
                     >
-                      계약 등록
-                    </Button>
-                  }
-                />
-              ) : (
-                (contracts ?? []).map(c => (
+                      현재 계약
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      유효 계약 {currentContracts.length}건
+                    </p>
+                  </div>
+                  <Button size="sm" onClick={() => setShowContractModal(true)}>
+                    <Plus className="h-4 w-4 mr-1" /> 계약 등록
+                  </Button>
+                </div>
+                {currentContracts.length === 0 ? (
+                  <EmptyState
+                    icon={FilePlus2}
+                    title="현재 유효한 계약이 없습니다."
+                    description="상담이 계약으로 이어졌다면 계약 정보를 등록해 실적과 후속관리를 연결하세요."
+                    action={
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => setShowContractModal(true)}
+                      >
+                        계약 등록
+                      </Button>
+                    }
+                  />
+                ) : (
+                  currentContracts.map(c => (
                   <Card key={c.id}>
                     <CardContent className="p-4">
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
@@ -2336,8 +2370,104 @@ export default function CustomerDetail({ id }: { id: number }) {
                       </div>
                     </CardContent>
                   </Card>
-                ))
-              )}
+                  ))
+                )}
+              </section>
+
+              <section className="space-y-3" aria-labelledby="past-contracts-heading">
+                <div>
+                  <h2 id="past-contracts-heading" className="text-base font-semibold">
+                    과거 계약 이력
+                  </h2>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    철회·해지·실효·삭제 처리된 계약 {pastContracts.length}건
+                  </p>
+                </div>
+                {pastContracts.length === 0 ? (
+                  <EmptyState
+                    icon={History}
+                    title="과거 계약 이력이 없습니다."
+                    description="종료되거나 삭제 처리된 계약이 있으면 이곳에서 현재 계약과 분리해 확인합니다."
+                    className="py-8"
+                  />
+                ) : (
+                  <div className="grid gap-3">
+                    {pastContracts.map(contract => (
+                      <Card
+                        key={contract.id}
+                        className="border-dashed bg-muted/20"
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold">
+                                  {contract.company ?? "보험사 기록 없음"}
+                                  {contract.productName
+                                    ? ` · ${contract.productName}`
+                                    : ""}
+                                </p>
+                                <StatusBadge
+                                  status={
+                                    ["철회", "해지"].includes(
+                                      contract.contractStatus ?? ""
+                                    )
+                                      ? (contract.contractStatus ?? "종료")
+                                      : ["실효", "해지"].includes(
+                                            contract.paymentStatus ?? ""
+                                          )
+                                        ? (contract.paymentStatus ?? "종료")
+                                        : contract.deletedAt
+                                          ? "삭제"
+                                          : contract.isActive === false
+                                            ? "비활성"
+                                            : "종료"
+                                  }
+                                />
+                              </div>
+                              <dl className="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                                <div>
+                                  <dt className="text-xs text-muted-foreground">종료일</dt>
+                                  <dd className="font-medium">
+                                    {contract.deletedAt
+                                      ? new Date(contract.deletedAt).toLocaleDateString("ko-KR")
+                                      : "기록 없음"}
+                                  </dd>
+                                </div>
+                                <div>
+                                  <dt className="text-xs text-muted-foreground">종료사유</dt>
+                                  <dd className="font-medium">기록 없음</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-xs text-muted-foreground">종료 당시 월보험료</dt>
+                                  <dd className="font-medium">기록 없음</dd>
+                                </div>
+                                <div>
+                                  <dt className="text-xs text-muted-foreground">담당자</dt>
+                                  <dd className="font-medium">
+                                    {formatUserWithRole(
+                                      users?.find(userItem => userItem.id === contract.agentId)
+                                    )}
+                                  </dd>
+                                </div>
+                              </dl>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0"
+                              onClick={() => selectCustomerDetailTab("history")}
+                            >
+                              <History className="mr-1 h-4 w-4" /> 처리이력 보기
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </section>
             </div>
           </TabsContent>
 

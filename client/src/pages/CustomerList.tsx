@@ -15,6 +15,15 @@ import {
   type CustomerListUrlPresetId,
 } from "@/components/customers/customerListUrlPresets";
 import { buildCustomerListPresetContext } from "@/lib/customerListPresetContext";
+import {
+  CUSTOMER_LIST_NEXT_ACTIONS,
+  CUSTOMER_LIST_TAGS,
+  parseCustomerListUrlState,
+  writeCustomerListUrlState,
+  type CustomerListSort,
+  type CustomerListUrlState,
+  type CustomerListView,
+} from "@/lib/customerListUrlState";
 import { parseCustomerDetailAction } from "@/lib/customerDetailActions";
 import { CustomerListDesktopWorkspace } from "@/components/customers/CustomerListDesktopWorkspace";
 import {
@@ -109,6 +118,9 @@ import {
   Trash2,
   Upload,
   LayoutGrid,
+  List,
+  ChevronLeft,
+  ChevronRight,
   MoreHorizontal,
   Eye,
   MessageSquare,
@@ -134,6 +146,30 @@ type WorkspaceFilter =
 
 const CUSTOMER_SEGMENT_OPTIONS = CUSTOMER_SEGMENTS;
 
+type CustomerListServerFilterState = Pick<
+  CustomerListUrlState,
+  | "segment"
+  | "search"
+  | "status"
+  | "priority"
+  | "agent"
+  | "tag"
+  | "nextAction"
+  | "region"
+  | "source"
+  | "assignedDateFrom"
+  | "assignedDateTo"
+  | "scope"
+  | "sort"
+  | "pageSize"
+>;
+
+function customerListServerFilterFingerprint(
+  state: CustomerListServerFilterState
+) {
+  return JSON.stringify(state);
+}
+
 function formatCurrencyNumber(value: unknown) {
   const amount = Number(value ?? 0);
   if (!Number.isFinite(amount) || amount <= 0) return "0";
@@ -150,8 +186,6 @@ function formatShortDate(value: unknown) {
 function customerSegmentTone(segment?: CustomerSegment) {
   if (segment === "contracted")
     return "bg-emerald-50 text-emerald-700 border-emerald-200";
-  if (segment === "in_progress_db")
-    return "bg-blue-50 text-blue-700 border-blue-200";
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
@@ -159,31 +193,6 @@ function customerSegmentLabel(customer: any) {
   const segment = customer.customerSegment as CustomerSegment | undefined;
   return segment ? CUSTOMER_SEGMENT_LABELS[segment] : "계약 없음";
 }
-
-const CUSTOMER_TAGS = [
-  "가격민감형",
-  "보장불안형",
-  "가족책임형",
-  "무관심형",
-  "해지위험",
-  "리밸런싱필요",
-  "사후관리필요",
-  "소개가능성",
-  "고액계약가능성",
-  "장기관리",
-] as const;
-const CUSTOMER_NEXT_ACTIONS = [
-  "재연락",
-  "설계안 발송",
-  "보장분석 진행",
-  "계약 진행",
-  "추가 자료 요청",
-  "가족과 상의",
-  "보류",
-  "거절",
-  "장기관리",
-  "사후관리",
-] as const;
 
 /** wouter pathname may omit `?search` on direct browser entry — mirror Calendar.tsx */
 export function getCustomerListQueryString(location: string): string {
@@ -198,25 +207,52 @@ export function getCustomerListQueryString(location: string): string {
 export default function CustomerList() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
-  const [search, setSearch] = useState("");
+  const isMobile = useIsMobile();
+  const initialUrlState = useRef(
+    parseCustomerListUrlState(getCustomerListQueryString(location), {
+      isMobile,
+    })
+  ).current;
+  const [searchInput, setSearchInput] = useState(initialUrlState.search);
+  const [search, setSearch] = useState(initialUrlState.search);
   const [showCreate, setShowCreate] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [regionFilter, setRegionFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
-  const [priorityFilter, setPriorityFilter] = useState<string>("all");
-  const [tagFilter, setTagFilter] = useState<string>("all");
-  const [nextActionFilter, setNextActionFilter] = useState<string>("all");
-  const [agentFilter, setAgentFilter] = useState<string>("all");
-  const [scopeFilter, setScopeFilter] = useState<"all" | "mine">("all");
+  const [statusFilter, setStatusFilter] = useState<string>(
+    initialUrlState.status
+  );
+  const [regionFilter, setRegionFilter] = useState(initialUrlState.region);
+  const [sourceFilter, setSourceFilter] = useState(initialUrlState.source);
+  const [priorityFilter, setPriorityFilter] = useState<string>(
+    initialUrlState.priority
+  );
+  const [tagFilter, setTagFilter] = useState<string>(initialUrlState.tag);
+  const [nextActionFilter, setNextActionFilter] = useState<string>(
+    initialUrlState.nextAction
+  );
+  const [agentFilter, setAgentFilter] = useState<string>(
+    initialUrlState.agent
+  );
+  const [scopeFilter, setScopeFilter] = useState<"all" | "mine">(
+    initialUrlState.scope
+  );
   const [recommendationFilter, setRecommendationFilter] =
     useState<string>("all");
   const [workspaceFilter, setWorkspaceFilter] =
     useState<WorkspaceFilter>("all");
   const [customerSegment, setCustomerSegment] =
-    useState<CustomerSegment>("all");
+    useState<CustomerSegment>(initialUrlState.segment);
+  const [viewMode, setViewMode] =
+    useState<CustomerListView>(initialUrlState.view);
+  const [sortMode, setSortMode] =
+    useState<CustomerListSort>(initialUrlState.sort);
+  const [page, setPage] = useState(initialUrlState.page);
+  const [pageSize, setPageSize] = useState(initialUrlState.pageSize);
   const segmentInitializedRef = useRef(false);
-  const [assignedDateFrom, setAssignedDateFrom] = useState("");
-  const [assignedDateTo, setAssignedDateTo] = useState("");
+  const [assignedDateFrom, setAssignedDateFrom] = useState(
+    initialUrlState.assignedDateFrom
+  );
+  const [assignedDateTo, setAssignedDateTo] = useState(
+    initialUrlState.assignedDateTo
+  );
   const [showFilters, setShowFilters] = useState(false);
   const [deleteCustomerId, setDeleteCustomerId] = useState<number | null>(null);
   const [reclaimCustomerId, setReclaimCustomerId] = useState<number | null>(
@@ -241,13 +277,121 @@ export default function CustomerList() {
   const [activeUrlPreset, setActiveUrlPreset] =
     useState<CustomerListUrlPresetId | null>(null);
   const lastUrlPresetRef = useRef<string | null>(null);
-  const isMobile = useIsMobile();
+  const applyingUrlStateRef = useRef(false);
+  const lastParsedQueryRef = useRef(getCustomerListQueryString(location));
+  const lastServerFilterFingerprintRef = useRef(
+    customerListServerFilterFingerprint(initialUrlState)
+  );
 
   useEffect(() => {
     if (!user || segmentInitializedRef.current) return;
-    setCustomerSegment(user.role === "branch_admin" ? "all" : "db_only");
+    const params = new URLSearchParams(getCustomerListQueryString(location));
+    if (!params.has("segment")) {
+      setCustomerSegment(
+        user.role === "branch_admin" ? "all" : "database"
+      );
+    }
     segmentInitializedRef.current = true;
-  }, [user]);
+  }, [location, user]);
+
+  useEffect(() => {
+    const query = getCustomerListQueryString(location);
+    if (query === lastParsedQueryRef.current && !isMobile) return;
+    const parsed = parseCustomerListUrlState(query, {
+      isMobile,
+      defaultSegment:
+        user && user.role !== "branch_admin" ? "database" : "all",
+    });
+    applyingUrlStateRef.current = true;
+    lastParsedQueryRef.current = query;
+    lastServerFilterFingerprintRef.current =
+      customerListServerFilterFingerprint(parsed);
+    setSearchInput(parsed.search);
+    setSearch(parsed.search);
+    setStatusFilter(parsed.status);
+    setPriorityFilter(parsed.priority);
+    setAgentFilter(parsed.agent);
+    setTagFilter(parsed.tag);
+    setNextActionFilter(parsed.nextAction);
+    setRegionFilter(parsed.region);
+    setSourceFilter(parsed.source);
+    setAssignedDateFrom(parsed.assignedDateFrom);
+    setAssignedDateTo(parsed.assignedDateTo);
+    setScopeFilter(parsed.scope);
+    setCustomerSegment(parsed.segment);
+    setSortMode(parsed.sort);
+    setPage(parsed.page);
+    setPageSize(parsed.pageSize);
+    setViewMode(parsed.view);
+  }, [isMobile, location, user]);
+
+  useEffect(() => {
+    if (applyingUrlStateRef.current) {
+      applyingUrlStateRef.current = false;
+      return;
+    }
+    const currentQuery = getCustomerListQueryString(location);
+    const nextServerFilterFingerprint = customerListServerFilterFingerprint({
+      segment: customerSegment,
+      search,
+      status: statusFilter,
+      priority: priorityFilter,
+      agent: agentFilter,
+      tag: tagFilter,
+      nextAction: nextActionFilter,
+      region: regionFilter,
+      source: sourceFilter,
+      assignedDateFrom,
+      assignedDateTo,
+      scope: scopeFilter,
+      sort: sortMode,
+      pageSize,
+    });
+    const serverFiltersChanged =
+      nextServerFilterFingerprint !== lastServerFilterFingerprintRef.current;
+    const nextPage = serverFiltersChanged ? 1 : page;
+    lastServerFilterFingerprintRef.current = nextServerFilterFingerprint;
+    if (serverFiltersChanged && page !== 1) setPage(1);
+    const nextQuery = writeCustomerListUrlState(currentQuery, {
+      segment: customerSegment,
+      search,
+      status: statusFilter,
+      priority: priorityFilter,
+      agent: agentFilter,
+      tag: tagFilter,
+      nextAction: nextActionFilter,
+      region: regionFilter,
+      source: sourceFilter,
+      assignedDateFrom,
+      assignedDateTo,
+      scope: scopeFilter,
+      sort: sortMode,
+      page: nextPage,
+      pageSize,
+      view: isMobile ? "card" : viewMode,
+    });
+    if (nextQuery === currentQuery) return;
+    lastParsedQueryRef.current = nextQuery;
+    setLocation(nextQuery ? `/customers?${nextQuery}` : "/customers");
+  }, [
+    agentFilter,
+    assignedDateFrom,
+    assignedDateTo,
+    customerSegment,
+    isMobile,
+    nextActionFilter,
+    page,
+    pageSize,
+    priorityFilter,
+    regionFilter,
+    scopeFilter,
+    search,
+    sortMode,
+    sourceFilter,
+    statusFilter,
+    tagFilter,
+    viewMode,
+  ]);
 
   const presetInUrl = useMemo(() => {
     return parseCustomerListUrlPreset(
@@ -281,6 +425,7 @@ export default function CustomerList() {
 
   const applyUrlPreset = (presetId: CustomerListUrlPresetId) => {
     const meta = getCustomerListUrlPresetMeta(presetId);
+    setSearchInput("");
     setSearch("");
     setStatusFilter("all");
     setRegionFilter("");
@@ -332,6 +477,7 @@ export default function CustomerList() {
   };
 
   const clearUrlPreset = () => {
+    setSearchInput("");
     setSearch("");
     setStatusFilter("all");
     setRegionFilter("");
@@ -387,6 +533,14 @@ export default function CustomerList() {
   }, [location]);
 
   const utils = trpc.useUtils();
+  const invalidateCustomerListQueries = () => {
+    void utils.customers.list.invalidate();
+    void utils.customers.segmentCounts.invalidate();
+  };
+  const usesClientWorkflowFilter =
+    Boolean(effectiveUrlPreset) ||
+    workspaceFilter !== "all" ||
+    recommendationFilter !== "all";
   const customerListQueryInput = {
     search: search.trim() || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
@@ -414,6 +568,9 @@ export default function CustomerList() {
   } = trpc.customers.list.useQuery({
     ...customerListQueryInput,
     segment: customerSegment,
+    page: usesClientWorkflowFilter ? undefined : page,
+    pageSize: usesClientWorkflowFilter ? undefined : pageSize,
+    sort: sortMode,
   });
   const {
     data: customerSegmentCounts,
@@ -440,6 +597,7 @@ export default function CustomerList() {
     onSuccess: () => {
       toast.success("고객이 등록되었습니다.");
       setShowCreate(false);
+      invalidateCustomerListQueries();
       refetch();
     },
     onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
@@ -477,7 +635,7 @@ export default function CustomerList() {
   const updateMutation = trpc.customers.update.useMutation({
     onSuccess: () => {
       toast.success("상태가 변경되었습니다.");
-      utils.customers.list.invalidate();
+      invalidateCustomerListQueries();
     },
   });
 
@@ -485,7 +643,7 @@ export default function CustomerList() {
     onSuccess: () => {
       toast.success("고객을 삭제했습니다.");
       setDeleteCustomerId(null);
-      utils.customers.list.invalidate();
+      invalidateCustomerListQueries();
       refetch();
     },
     onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
@@ -502,7 +660,7 @@ export default function CustomerList() {
       toast.success("고객 DB를 미배정 상태로 회수했습니다.");
       closeReclaimDialog();
       setSelectedCustomerIds([]);
-      utils.customers.list.invalidate();
+      invalidateCustomerListQueries();
       refetch();
     },
     onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
@@ -515,7 +673,7 @@ export default function CustomerList() {
       );
       closeReclaimDialog();
       setSelectedCustomerIds([]);
-      utils.customers.list.invalidate();
+      invalidateCustomerListQueries();
       refetch();
     },
     onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
@@ -537,7 +695,7 @@ export default function CustomerList() {
       setBulkAssigneeId("");
       setBulkAssigneeReason("");
       setSelectedCustomerIds([]);
-      utils.customers.list.invalidate();
+      invalidateCustomerListQueries();
       utils.customers.assignmentHistory.invalidate();
       refetch();
     },
@@ -579,10 +737,18 @@ export default function CustomerList() {
       );
     }
     if (user.role === "sub_branch_admin") {
-      return agent.role === "team_leader" || agent.role === "member";
+      return (
+        agent.id === user.id ||
+        ((agent.role === "team_leader" || agent.role === "member") &&
+          (agent.subBranchAdminId === user.id || agent.parentUserId === user.id))
+      );
     }
     if (user.role === "team_leader") {
-      return agent.role === "member";
+      return (
+        agent.id === user.id ||
+        (agent.role === "member" &&
+          (agent.teamId === user.teamId || agent.parentUserId === user.id))
+      );
     }
     return false;
   });
@@ -674,8 +840,9 @@ export default function CustomerList() {
         );
       return true;
     })
-    .slice()
-    .sort((a, b) => {
+    .slice();
+  if (usesClientWorkflowFilter) {
+    workspaceCustomers.sort((a, b) => {
       const aExecution = buildListExecution(
         a,
         recommendationByCustomerId.get(a.id)
@@ -686,6 +853,57 @@ export default function CustomerList() {
       );
       return bExecution.score - aExecution.score;
     });
+  }
+  const selectedSegmentCount =
+    customerSegmentCounts?.[customerSegment] ?? workspaceCustomers.length;
+  const resultCount = usesClientWorkflowFilter
+    ? workspaceCustomers.length
+    : selectedSegmentCount;
+  const totalPages = usesClientWorkflowFilter
+    ? 1
+    : Math.max(1, Math.ceil(resultCount / pageSize));
+
+  useEffect(() => {
+    if (!usesClientWorkflowFilter && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, usesClientWorkflowFilter]);
+
+  const navigateFromCustomerList = (path: string) => {
+    const match = path.match(/^\/customers\/(\d+)/);
+    if (match && typeof window !== "undefined") {
+      window.history.replaceState(
+        {
+          ...(window.history.state ?? {}),
+          boaCustomerListReturn: {
+            query: getCustomerListQueryString(location),
+            customerId: Number(match[1]),
+          },
+        },
+        "",
+        window.location.href
+      );
+    }
+    setLocation(path);
+  };
+
+  useEffect(() => {
+    if (isCustomersLoading || typeof window === "undefined") return;
+    const marker = window.history.state?.boaCustomerListReturn as
+      | { query?: string; customerId?: number }
+      | undefined;
+    if (
+      !marker?.customerId ||
+      marker.query !== getCustomerListQueryString(location)
+    ) {
+      return;
+    }
+    const element = document.querySelector<HTMLElement>(
+      `[data-customer-id="${marker.customerId}"]`
+    );
+    if (element) element.scrollIntoView({ block: "center" });
+    const nextState = { ...(window.history.state ?? {}) };
+    delete nextState.boaCustomerListReturn;
+    window.history.replaceState(nextState, "", window.location.href);
+  }, [isCustomersLoading, location, workspaceCustomers]);
 
   const isCustomerReclaimable = (customer: any) =>
     canReclaimCustomer &&
@@ -743,7 +961,11 @@ export default function CustomerList() {
       ? {
           key: "search",
           label: `검색어: ${search.trim()}`,
-          clear: () => setSearch(""),
+          clear: () => {
+            setSearchInput("");
+            setSearch("");
+            setPage(1);
+          },
         }
       : null,
     user?.role === "branch_admin" && scopeFilter !== "all"
@@ -880,6 +1102,7 @@ export default function CustomerList() {
   };
 
   const applyQuickPreset = (presetId: QuickPresetId) => {
+    setSearchInput("");
     setSearch("");
     setStatusFilter("all");
     setRegionFilter("");
@@ -1082,7 +1305,7 @@ export default function CustomerList() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">전체 태그</SelectItem>
-          {CUSTOMER_TAGS.map(tag => (
+          {CUSTOMER_LIST_TAGS.map(tag => (
             <SelectItem key={tag} value={tag}>
               {tag}
             </SelectItem>
@@ -1095,7 +1318,7 @@ export default function CustomerList() {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">전체 액션</SelectItem>
-          {CUSTOMER_NEXT_ACTIONS.map(action => (
+          {CUSTOMER_LIST_NEXT_ACTIONS.map(action => (
             <SelectItem key={action} value={action}>
               {action}
             </SelectItem>
@@ -1254,7 +1477,7 @@ export default function CustomerList() {
                 role="tablist"
                 aria-label="고객 분류"
               >
-                {CUSTOMER_SEGMENT_OPTIONS.map(segment => {
+                {CUSTOMER_SEGMENT_OPTIONS.map((segment, segmentIndex) => {
                   const active = customerSegment === segment;
                   const count = customerSegmentCounts?.[segment] ?? 0;
                   return (
@@ -1262,14 +1485,43 @@ export default function CustomerList() {
                       key={segment}
                       type="button"
                       role="tab"
+                      data-segment={segment}
                       aria-selected={active}
+                      tabIndex={active ? 0 : -1}
                       className={cn(
                         "flex min-h-11 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-semibold transition",
                         active
                           ? "border-primary bg-primary text-primary-foreground shadow-sm"
                           : "border-border bg-background text-muted-foreground hover:bg-muted/60"
                       )}
-                      onClick={() => setCustomerSegment(segment)}
+                      onClick={() => {
+                        setCustomerSegment(segment);
+                        setPage(1);
+                      }}
+                      onKeyDown={event => {
+                        if (
+                          event.key !== "ArrowRight" &&
+                          event.key !== "ArrowLeft"
+                        ) {
+                          return;
+                        }
+                        event.preventDefault();
+                        const direction = event.key === "ArrowRight" ? 1 : -1;
+                        const nextIndex =
+                          (segmentIndex + direction +
+                            CUSTOMER_SEGMENT_OPTIONS.length) %
+                          CUSTOMER_SEGMENT_OPTIONS.length;
+                        const nextSegment = CUSTOMER_SEGMENT_OPTIONS[nextIndex];
+                        setCustomerSegment(nextSegment);
+                        setPage(1);
+                        requestAnimationFrame(() => {
+                          document
+                            .querySelector<HTMLButtonElement>(
+                              `[data-segment="${nextSegment}"]`
+                            )
+                            ?.focus();
+                        });
+                      }}
                     >
                       <span>{CUSTOMER_SEGMENT_LABELS[segment]}</span>
                       <span
@@ -1324,29 +1576,46 @@ export default function CustomerList() {
             </div>
 
             <div className="flex flex-col gap-2 sm:flex-row">
-              <div
-                className="relative flex-1"
-                data-testid="customer-list-mobile-search"
+              <form
+                className="flex min-w-0 flex-1 gap-2"
+                onSubmit={event => {
+                  event.preventDefault();
+                  setSearch(searchInput.trim().replace(/\s+/g, " "));
+                  setPage(1);
+                }}
               >
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="고객명, 연락처, 지역, 유입경로 검색"
-                  className="min-h-12 rounded-xl border-border bg-background pl-10 pr-12 shadow-sm focus-visible:shadow-sm md:h-11 md:min-h-11"
-                />
-                {search.trim() ? (
-                  <button
-                    type="button"
-                    data-testid="customer-list-mobile-search-clear"
-                    className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
-                    onClick={() => setSearch("")}
-                    aria-label="검색어 지우기"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </div>
+                <div
+                  className="relative min-w-0 flex-1"
+                  data-testid="customer-list-mobile-search"
+                >
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchInput}
+                    onChange={e => setSearchInput(e.target.value)}
+                    aria-label="고객 통합 검색"
+                    placeholder="고객명, 연락처, 담당자명, 주요 태그 검색"
+                    className="min-h-12 rounded-xl border-border bg-background pl-10 pr-12 shadow-sm focus-visible:shadow-sm md:h-11 md:min-h-11"
+                  />
+                  {searchInput.trim() ? (
+                    <button
+                      type="button"
+                      data-testid="customer-list-mobile-search-clear"
+                      className="absolute right-1.5 top-1/2 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45"
+                      onClick={() => {
+                        setSearchInput("");
+                        setSearch("");
+                        setPage(1);
+                      }}
+                      aria-label="검색어 지우기"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </div>
+                <Button type="submit" variant="secondary" className="min-h-12">
+                  검색
+                </Button>
+              </form>
               <Button
                 variant={hasActiveFilters ? "default" : "outline"}
                 size="sm"
@@ -1368,6 +1637,59 @@ export default function CustomerList() {
                   필터 초기화
                 </Button>
               )}
+            </div>
+
+            <div className="hidden items-center justify-between gap-3 border-t border-border/70 pt-3 md:flex">
+              <p className="text-sm text-muted-foreground" aria-live="polite">
+                조건에 맞는 고객 <strong className="text-foreground">{resultCount}</strong>명
+              </p>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={sortMode}
+                  onValueChange={value => {
+                    setSortMode(value as CustomerListSort);
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-40" aria-label="고객 정렬">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent">최근 등록순</SelectItem>
+                    <SelectItem value="name">고객명순</SelectItem>
+                    <SelectItem value="next_contact">다음 연락순</SelectItem>
+                    <SelectItem value="contract_value">월납보험료순</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div
+                  className="flex rounded-md border border-border bg-background p-1"
+                  role="group"
+                  aria-label="고객 목록 보기 방식"
+                >
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={viewMode === "card" ? "secondary" : "ghost"}
+                    className="h-9 w-9"
+                    onClick={() => setViewMode("card")}
+                    aria-label="카드 보기"
+                    aria-pressed={viewMode === "card"}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant={viewMode === "table" ? "secondary" : "ghost"}
+                    className="h-9 w-9"
+                    onClick={() => setViewMode("table")}
+                    aria-label="표 보기"
+                    aria-pressed={viewMode === "table"}
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {!isMobile && showFilters && (
@@ -1453,9 +1775,9 @@ export default function CustomerList() {
           </SheetContent>
         </Sheet>
 
-        {/* 모바일 카드 뷰 */}
-        {isMobile ? (
-          <div className="space-y-3">
+        {/* 모바일과 기본 데스크톱 카드 뷰 */}
+        {isMobile || viewMode === "card" ? (
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {isCustomersLoading ? (
               <Card className="border-dashed border-border bg-muted/20 shadow-sm">
                 <CardContent className="py-4">
@@ -1551,9 +1873,9 @@ export default function CustomerList() {
                   return (
                     <Card
                       key={c.id}
+                      data-customer-id={c.id}
                       data-testid="customer-list-result-card"
-                      className="cursor-pointer overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/30 active:bg-muted/45 focus-within:ring-2 focus-within:ring-primary/20"
-                      onClick={() => setLocation(`/customers/${c.id}`)}
+                      className="overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/20 focus-within:ring-2 focus-within:ring-primary/20"
                     >
                       <CardContent className="p-3.5">
                         <div className="flex items-start justify-between gap-3">
@@ -1646,14 +1968,6 @@ export default function CustomerList() {
                                     )}
                                   </span>
                                 </>
-                              ) : (c as any).customerSegment ===
-                                "in_progress_db" ? (
-                                <span className="inline-flex min-h-7 items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                                  최근 상담{" "}
-                                  {formatShortDate(
-                                    (c as any).recentConsultationAt
-                                  )}
-                                </span>
                               ) : null}
                               <span
                                 data-testid="customer-list-result-card-followup-chip"
@@ -1713,7 +2027,7 @@ export default function CustomerList() {
                                 data-testid="customer-list-result-card-action"
                                 className="min-h-10"
                                 onClick={() =>
-                                  setLocation(`/customers/${c.id}`)
+                                  navigateFromCustomerList(`/customers/${c.id}`)
                                 }
                               >
                                 <Eye className="mr-2 h-4 w-4" /> 상세 보기
@@ -1730,7 +2044,7 @@ export default function CustomerList() {
                               ) : null}
                               <DropdownMenuItem
                                 onClick={() =>
-                                  setLocation(
+                                  navigateFromCustomerList(
                                     `/customers/${c.id}?action=consult`
                                   )
                                 }
@@ -1778,10 +2092,24 @@ export default function CustomerList() {
                           ) : null}
                           <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
+                            data-testid="customer-list-result-card-detail"
+                            onClick={() =>
+                              navigateFromCustomerList(`/customers/${c.id}`)
+                            }
+                            className="min-h-12 flex-1 rounded-lg px-3 text-xs"
+                          >
+                            <Eye className="mr-1 h-3.5 w-3.5" /> 상세
+                          </Button>
+                          <Button
+                            type="button"
                             variant="default"
                             size="sm"
                             onClick={() =>
-                              setLocation(`/customers/${c.id}?action=consult`)
+                              navigateFromCustomerList(
+                                `/customers/${c.id}?action=consult`
+                              )
                             }
                             className="min-h-12 flex-1 rounded-lg px-3 text-xs"
                           >
@@ -1814,7 +2142,7 @@ export default function CustomerList() {
             onRetry={() => void refetch()}
             onClearFilters={clearFilters}
             onCreateCustomer={() => setShowCreate(true)}
-            onNavigate={setLocation}
+            onNavigate={navigateFromCustomerList}
             onToggleAllVisibleSelectable={handleToggleAllVisibleSelectable}
             onToggleCustomerSelection={toggleCustomerSelection}
             onOpenReclaimCustomer={handleOpenReclaimCustomer}
@@ -1822,8 +2150,66 @@ export default function CustomerList() {
             onQuickConsult={setSelectedQuickConsultCustomer}
             isCustomerReclaimable={isCustomerReclaimable}
             relationFlags={relationFlags}
+            sortMode={sortMode}
           />
         )}
+
+        {!usesClientWorkflowFilter && resultCount > 0 ? (
+          <nav
+            className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between"
+            aria-label="고객 목록 페이지"
+          >
+            <p className="text-sm text-muted-foreground">
+              {resultCount}명 중 {(page - 1) * pageSize + 1}-
+              {Math.min(page * pageSize, resultCount)}명
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select
+                value={String(pageSize)}
+                onValueChange={value => {
+                  setPageSize(Number(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="w-28" aria-label="페이지당 고객 수">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="20">20명씩</SelectItem>
+                  <SelectItem value="50">50명씩</SelectItem>
+                  <SelectItem value="100">100명씩</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() => setPage(current => Math.max(1, current - 1))}
+                disabled={page <= 1}
+                aria-label="이전 페이지"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span className="min-w-16 text-center text-sm font-medium tabular-nums">
+                {page} / {totalPages}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="h-10 w-10"
+                onClick={() =>
+                  setPage(current => Math.min(totalPages, current + 1))
+                }
+                disabled={page >= totalPages}
+                aria-label="다음 페이지"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </nav>
+        ) : null}
       </div>
 
       {hasBulkSelection && (canBulkChangeAssignee || canReclaimCustomer) && (

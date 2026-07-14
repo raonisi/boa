@@ -92,6 +92,8 @@ export default function ContractList() {
       toast.success("계약을 삭제했습니다.");
       utils.contracts.list.invalidate();
       utils.performance.stats.invalidate();
+      utils.customers.list.invalidate();
+      utils.customers.segmentCounts.invalidate();
     },
     onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
   });
