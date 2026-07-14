@@ -27,8 +27,7 @@ const authenticatedScenarios = [
   {
     name: "dashboard",
     path: "/",
-    ready: (page: Page) =>
-      page.getByRole("heading", { name: /먼저 처리할 일부터 보세요/ }).first(),
+    ready: (page: Page) => page.getByTestId("dashboard-action-cockpit"),
   },
   {
     name: "customer-list",
