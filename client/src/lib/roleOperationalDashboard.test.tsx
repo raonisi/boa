@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getDashboardQuickActionsForRole,
   getManagerQuickLinks,
   getMemberQuickActions,
   getOperationalCardsForRole,
@@ -87,9 +88,45 @@ describe("roleOperationalDashboard", () => {
     const links = getManagerQuickLinks("team_leader");
     expect(links.map(link => link.path)).toEqual([
       "/customers",
-      "/customers/assign",
+      "/schedule-change-requests",
       "/team-insights",
     ]);
+  });
+
+  it("keeps dashboard quick actions within each role's supported routes", () => {
+    expect(
+      getDashboardQuickActionsForRole("branch_admin").map(action => action.id)
+    ).toEqual([
+      "customer-search",
+      "assign-database",
+      "schedule-approvals",
+      "contract-approvals",
+      "operation-risk",
+    ]);
+    expect(
+      getDashboardQuickActionsForRole("sub_branch_admin").map(
+        action => action.id
+      )
+    ).toContain("assign-database");
+    expect(
+      getDashboardQuickActionsForRole("team_leader").map(action => action.id)
+    ).toEqual([
+      "customer-search",
+      "quick-followup",
+      "schedule-create",
+      "schedule-requests",
+      "team-insights",
+    ]);
+    expect(
+      getDashboardQuickActionsForRole("member").map(action => action.id)
+    ).toEqual([
+      "customer-search",
+      "quick-followup",
+      "schedule-create",
+      "contract-create",
+    ]);
+    expect(getDashboardQuickActionsForRole("inactive")).toEqual([]);
+    expect(getDashboardQuickActionsForRole("resigned")).toEqual([]);
   });
 
   it("ranks team support assignees by open work without exposing zero-work users", () => {

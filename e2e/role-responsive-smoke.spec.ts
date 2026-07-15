@@ -129,6 +129,108 @@ test.describe("PR-QA-MAINT-11 role-based responsive UI smoke", () => {
     });
   }
 
+  for (const role of [
+    "branch_admin",
+    "sub_branch_admin",
+    "team_leader",
+    "member",
+  ] as const) {
+    test(`dashboard action cockpit exposes role-valid actions: ${role}`, async ({
+      page,
+    }, testInfo) => {
+      await mockBoaTrpc(page, role);
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+
+      await expect(page.getByTestId("dashboard-action-cockpit")).toBeVisible();
+      await expect(page.getByTestId("dashboard-priority-actions")).toBeVisible();
+      await expect(page.getByTestId("dashboard-quick-actions")).toBeVisible();
+      if (testInfo.project.name.includes("mobile")) {
+        await expect(page.getByTestId("dashboard-mobile-kpis")).toBeVisible();
+        await expect(page.getByTestId("dashboard-core-kpis")).toBeHidden();
+      } else {
+        await expect(page.getByTestId("dashboard-core-kpis")).toBeVisible();
+        await expect(page.getByTestId("dashboard-mobile-kpis")).toBeHidden();
+      }
+      await expect(
+        page.getByTestId("dashboard-mobile-followup-queue")
+      ).toBeVisible();
+
+      if (role === "branch_admin") {
+        await expect(page.getByTestId("dashboard-admin-attention")).toBeVisible();
+        await expect(
+          page.getByTestId("dashboard-quick-action-assign-database")
+        ).toBeVisible();
+        await expect(
+          page.getByTestId("dashboard-quick-action-schedule-approvals")
+        ).toBeVisible();
+      } else {
+        await expect(page.getByTestId("dashboard-admin-attention")).toHaveCount(0);
+      }
+
+      if (role === "sub_branch_admin") {
+        await expect(
+          page.getByTestId("dashboard-quick-action-assign-database")
+        ).toBeVisible();
+      }
+
+      if (role === "team_leader") {
+        await expect(
+          page.getByTestId("dashboard-quick-action-schedule-requests")
+        ).toBeVisible();
+        await expect(
+          page.getByTestId("dashboard-quick-action-assign-database")
+        ).toHaveCount(0);
+      }
+
+      if (role === "member") {
+        await expect(
+          page.getByTestId("dashboard-quick-action-contract-create")
+        ).toBeVisible();
+        await expect(
+          page.getByTestId("dashboard-quick-action-team-insights")
+        ).toHaveCount(0);
+      }
+
+      await expectNoHorizontalOverflow(page);
+    });
+  }
+
+  for (const viewportKey of ["mobile390", "mobile360"] as const) {
+    test(`dashboard action cockpit stays actionable at ${RESPONSIVE_VIEWPORTS[viewportKey].width}px`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(
+        !testInfo.project.name.includes("mobile"),
+        "mobile dashboard action cockpit"
+      );
+      await setResponsiveViewport(page, viewportKey);
+      await mockBoaTrpc(page, "member");
+      const errors = collectPageErrors(page);
+
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+
+      const cockpit = page.getByTestId("dashboard-action-cockpit");
+      await expect(cockpit).toBeVisible();
+      await expect(page.getByTestId("dashboard-priority-actions")).toBeVisible();
+      await expect(page.getByTestId("dashboard-quick-actions")).toBeVisible();
+      await expect(page.getByTestId("dashboard-mobile-kpis")).toBeVisible();
+      await expect(page.getByTestId("dashboard-core-kpis")).toBeHidden();
+      await expect(page.getByTestId("dashboard-admin-attention")).toHaveCount(0);
+
+      const quickActions = page
+        .getByTestId("dashboard-quick-actions")
+        .getByRole("button");
+      await expect(quickActions).toHaveCount(4);
+      for (let index = 0; index < 4; index += 1) {
+        await expectMinimumHitTarget(quickActions.nth(index), 44);
+        await expectClickCenterReachable(quickActions.nth(index));
+      }
+
+      await expectNoHorizontalOverflow(page);
+      expect(errors, errors.join("\n")).toEqual([]);
+    });
+  }
+
   test("inactive account is blocked across direct URLs", async ({ page }) => {
     await mockBoaTrpc(page, "member", { accountStatus: "inactive" });
 

@@ -546,6 +546,13 @@ const defaults: Record<string, unknown> = {
   "performance.stats": { assigned: 1, contracts: 1, monthlyPremium: 120000 },
   "customers.list": [customer],
   "customers.segmentCounts": { all: 2, database: 1, contracted: 1 },
+  "scheduleChangeRequests.summary": {
+    pending: 2,
+    today: 2,
+    conflict: 0,
+    monthApproved: 1,
+    monthRejected: 0,
+  },
   "customers.get": customer,
   "schedules.list": scheduleListResponse,
   "customers.downloadImportTemplate": {

@@ -32,6 +32,20 @@ export type MemberQuickAction = {
   path: string;
 };
 
+export type DashboardQuickActionIcon =
+  | "customers"
+  | "followup"
+  | "calendar"
+  | "contracts"
+  | "assignment"
+  | "approvals"
+  | "risk"
+  | "team";
+
+export type DashboardQuickAction = MemberQuickAction & {
+  icon: DashboardQuickActionIcon;
+};
+
 export type ManagerQuickLink = {
   label: string;
   hint: string;
@@ -209,18 +223,134 @@ export function getMemberQuickActions(): MemberQuickAction[] {
   ];
 }
 
+export function getDashboardQuickActionsForRole(
+  role?: string | null
+): DashboardQuickAction[] {
+  const customerSearch: DashboardQuickAction = {
+    id: "customer-search",
+    label: "고객 검색",
+    hint: "권한 범위 고객 찾기",
+    path: "/customers",
+    icon: "customers",
+  };
+  const quickFollowUp: DashboardQuickAction = {
+    id: "quick-followup",
+    label: "후속 등록",
+    hint: "고객 선택 후 바로 기록",
+    path: "/customers?action=quick-followup",
+    icon: "followup",
+  };
+  const scheduleCreate: DashboardQuickAction = {
+    id: "schedule-create",
+    label: "일정 등록",
+    hint: "오늘 업무 일정 추가",
+    path: "/calendar?action=quick-create",
+    icon: "calendar",
+  };
+
+  if (role === "branch_admin") {
+    return [
+      customerSearch,
+      {
+        id: "assign-database",
+        label: "DB 배정",
+        hint: "신규 DB 담당 지정",
+        path: "/customers/assign",
+        icon: "assignment",
+      },
+      {
+        id: "schedule-approvals",
+        label: "일정 승인",
+        hint: "변경 요청 검토",
+        path: "/schedule-change-requests",
+        icon: "approvals",
+      },
+      {
+        id: "contract-approvals",
+        label: "계약 요청",
+        hint: "삭제 요청 검토",
+        path: "/contracts",
+        icon: "contracts",
+      },
+      {
+        id: "operation-risk",
+        label: "운영 리스크",
+        hint: "지점 위험 신호 확인",
+        path: "/operation-risk",
+        icon: "risk",
+      },
+    ];
+  }
+
+  if (role === "sub_branch_admin") {
+    return [
+      customerSearch,
+      quickFollowUp,
+      scheduleCreate,
+      {
+        id: "assign-database",
+        label: "DB 배정",
+        hint: "산하 담당자 지정",
+        path: "/customers/assign",
+        icon: "assignment",
+      },
+      {
+        id: "team-insights",
+        label: "조직 현황",
+        hint: "산하 업무 지원 확인",
+        path: "/team-insights",
+        icon: "team",
+      },
+    ];
+  }
+
+  if (role === "team_leader") {
+    return [
+      customerSearch,
+      quickFollowUp,
+      scheduleCreate,
+      {
+        id: "schedule-requests",
+        label: "일정 요청",
+        hint: "변경 요청 진행",
+        path: "/schedule-change-requests",
+        icon: "approvals",
+      },
+      {
+        id: "team-insights",
+        label: "팀 현황",
+        hint: "팀원 지원 업무 확인",
+        path: "/team-insights",
+        icon: "team",
+      },
+    ];
+  }
+
+  if (role === "member") {
+    return [
+      customerSearch,
+      quickFollowUp,
+      scheduleCreate,
+      {
+        id: "contract-create",
+        label: "계약 등록",
+        hint: "내 고객 계약 관리",
+        path: "/contracts",
+        icon: "contracts",
+      },
+    ];
+  }
+
+  return [];
+}
+
 export function getManagerQuickLinks(role?: string | null): ManagerQuickLink[] {
   const scope = getScopeLabel(role);
-  return [
+  const links: ManagerQuickLink[] = [
     {
       label: "고객 목록",
       hint: `${scope} 고객 보기`,
       path: "/customers",
-    },
-    {
-      label: "DB 배정",
-      hint: "신규·미배정 고객 담당 지정",
-      path: "/customers/assign",
     },
     {
       label: "팀 운영 현황",
@@ -228,6 +358,22 @@ export function getManagerQuickLinks(role?: string | null): ManagerQuickLink[] {
       path: "/team-insights",
     },
   ];
+
+  if (role === "sub_branch_admin") {
+    links.splice(1, 0, {
+      label: "DB 배정",
+      hint: "신규·미배정 고객 담당 지정",
+      path: "/customers/assign",
+    });
+  } else if (role === "team_leader") {
+    links.splice(1, 0, {
+      label: "일정 변경 요청",
+      hint: "팀 일정 변경 요청 확인",
+      path: "/schedule-change-requests",
+    });
+  }
+
+  return links;
 }
 
 export type TeamSupportAssignee = {
