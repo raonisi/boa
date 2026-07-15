@@ -60,31 +60,10 @@
         "rule": "button-name",
         "impact": "critical",
         "target": "button[aria-controls=\"radix-_r_1i_\"]#bb4763405b5f"
-      },
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#39d0b22c4281"
-      },
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
       }
     ],
     "accessibility-desktop:customer-list": [],
-    "accessibility-desktop:dashboard": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#39d0b22c4281"
-      },
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
-      }
-    ],
+    "accessibility-desktop:dashboard": [],
     "accessibility-desktop:login": [
       {
         "rule": "color-contrast",
@@ -97,18 +76,7 @@
         "target": ".tracking-\\[0\\.24em\\]#0b3573ebc22e"
       }
     ],
-    "accessibility-desktop:schedule-change-requests": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#39d0b22c4281"
-      },
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
-      }
-    ],
+    "accessibility-desktop:schedule-change-requests": [],
     "accessibility-mobile390:calendar": [
       {
         "rule": "color-contrast",
