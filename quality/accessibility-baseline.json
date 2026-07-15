@@ -72,18 +72,7 @@
         "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.leading-snug.text-sidebar-foreground\\/40#2c5e785c81b1"
       }
     ],
-    "accessibility-desktop:customer-list": [
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(1) > .pt-0\\.5.px-4 > .mb-1.text-sidebar-foreground\\/40.leading-snug#5653b7a73851"
-      },
-      {
-        "rule": "color-contrast",
-        "impact": "serious",
-        "target": "div:nth-child(2) > .pt-0\\.5.px-4 > .mb-1.text-sidebar-foreground\\/40.leading-snug#270155606c69"
-      }
-    ],
+    "accessibility-desktop:customer-list": [],
     "accessibility-desktop:dashboard": [
       {
         "rule": "color-contrast",
