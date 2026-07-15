@@ -235,7 +235,7 @@ function DashboardLayoutContent({
                         {group.label}
                       </p>
                       {group.description ? (
-                        <p className="mb-1 text-xs leading-snug text-sidebar-foreground/40">
+                        <p className="mb-1 text-xs leading-snug text-sidebar-foreground/60">
                           {group.description}
                         </p>
                       ) : null}
