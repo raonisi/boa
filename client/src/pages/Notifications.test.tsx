@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   createBulkCompleteConfirmation,
+  buildNotificationUrlState,
   getBulkSelectionCheckboxState,
+  parseNotificationUrlState,
 } from "./Notifications";
 
 describe("Notifications bulk complete confirmation", () => {
@@ -35,5 +37,41 @@ describe("Notifications bulk complete confirmation", () => {
         selectedVisibleCount: 2,
       })
     ).toBe(true);
+  });
+});
+
+describe("Notifications URL filters", () => {
+  it("round-trips allowlisted action-center filters", () => {
+    const location = buildNotificationUrlState({
+      priority: "urgent",
+      category: "schedule",
+      action: "required",
+      processStatus: "확인",
+      read: "unread",
+      type: "schedule_incomplete",
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-15",
+      offset: 50,
+    });
+
+    expect(parseNotificationUrlState(location)).toEqual({
+      priority: "urgent",
+      category: "schedule",
+      action: "required",
+      processStatus: "확인",
+      read: "unread",
+      type: "schedule_incomplete",
+      dateFrom: "2026-07-01",
+      dateTo: "2026-07-15",
+      offset: 50,
+    });
+  });
+
+  it("fails closed for unknown filter values", () => {
+    expect(
+      parseNotificationUrlState(
+        "/notifications?category=external&action=javascript%3Aalert(1)&offset=-1"
+      )
+    ).toMatchObject({ category: "all", action: "all", offset: 0 });
   });
 });

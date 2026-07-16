@@ -10,6 +10,7 @@ const inheritedWebServer = Array.isArray(baseConfig.webServer)
 export default defineConfig({
   ...baseConfig,
   testDir: "./e2e/critical",
+  testIgnore: [],
   outputDir: "test-results/critical",
   timeout: 45_000,
   fullyParallel: false,

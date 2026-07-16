@@ -88,6 +88,7 @@ const categoryIcons = {
   handoff: UsersRound,
   push: BellRing,
   unresolved: ClipboardList,
+  approval: ClipboardList,
 } as const;
 
 const riskActionMeta: Record<
@@ -124,6 +125,11 @@ const riskActionMeta: Record<
     owner: "팀 리더",
     deadline: "오늘 중",
     nextAction: "미확인 알림과 미처리 후속관리를 담당자별로 정리",
+  },
+  approval: {
+    owner: "지점장",
+    deadline: "오늘 중",
+    nextAction: "승인 대기보다 충돌·반영 실패 일정 요청을 먼저 확인",
   },
 };
 
@@ -169,6 +175,8 @@ const actionLabels: Record<string, string> = {
   LOGIN_BLOCKED: "로그인 차단",
   USER_ROLE_CHANGED: "권한 변경",
   USER_STATUS_CHANGED: "계정 상태 변경",
+  USER_BLOCKED: "계정 사용 중지",
+  USER_ACTIVATED: "계정 활성화",
   CUSTOMER_ASSIGNEE_BULK_CHANGED: "담당자 일괄 변경",
   CUSTOMER_ASSIGNEE_CHANGED_BY_BULK: "담당자 변경",
   AGENT_CHANGED: "담당자 변경",
@@ -233,7 +241,7 @@ function ManagerScopedRiskView({
       <Card className="border-border/80 bg-white shadow-sm">
         <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-boa-amber">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
               산하 조직 리스크
             </p>
             <h1 className="mt-1 text-2xl font-bold text-foreground">
@@ -483,7 +491,7 @@ export default function OperationRiskCenter() {
         <Card className="border-border/80 bg-white shadow-sm">
           <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-boa-amber">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
                 운영 리스크
               </p>
               <h1 className="mt-1 text-2xl font-bold text-foreground">
@@ -518,7 +526,10 @@ export default function OperationRiskCenter() {
                 value={period}
                 onValueChange={value => setPeriod(value as Period)}
               >
-                <SelectTrigger className="h-10 rounded-xl bg-muted/50">
+                <SelectTrigger
+                  aria-label="운영 리스크 조회 기간"
+                  className="h-10 rounded-xl bg-muted/50"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -534,6 +545,7 @@ export default function OperationRiskCenter() {
               <Label>시작일</Label>
               <Input
                 type="date"
+                aria-label="운영 리스크 조회 시작일"
                 value={dateFrom}
                 onChange={event => setDateFrom(event.target.value)}
                 disabled={period !== "custom"}
@@ -544,6 +556,7 @@ export default function OperationRiskCenter() {
               <Label>종료일</Label>
               <Input
                 type="date"
+                aria-label="운영 리스크 조회 종료일"
                 value={dateTo}
                 onChange={event => setDateTo(event.target.value)}
                 disabled={period !== "custom"}
@@ -674,7 +687,9 @@ function TodayReviewSection({
   const queueCards = (data?.riskCards ?? []).filter(
     (card: any) => card.count > 0 && card.level !== "normal"
   );
-  const recentHighRisk = (data?.recentRiskEvents ?? []).length;
+  const recentHighRisk = (data?.recentRiskEvents ?? []).filter(
+    (event: any) => event.riskLevel === "high"
+  ).length;
 
   if (isLoading) {
     return (
@@ -1004,8 +1019,61 @@ function ActionsTab({
   data: any;
   setLocation: (path: string) => void;
 }) {
+  const approvalQueue = [
+    {
+      label: "일정 승인 대기",
+      value: data?.approvalRisk?.schedulePendingCount ?? 0,
+      tone: "border-amber-200 bg-amber-50 text-amber-900",
+    },
+    {
+      label: "일정 충돌",
+      value: data?.approvalRisk?.scheduleConflictCount ?? 0,
+      tone: "border-red-200 bg-red-50 text-red-800",
+    },
+    {
+      label: "일정 반영 실패",
+      value: data?.approvalRisk?.scheduleFailedCount ?? 0,
+      tone: "border-red-200 bg-red-50 text-red-800",
+    },
+    {
+      label: "계약 삭제 승인 대기",
+      value: data?.approvalRisk?.pendingDeleteRequestCount ?? 0,
+      tone: "border-slate-200 bg-slate-50 text-slate-800",
+    },
+  ];
+
   return (
     <>
+      <Card className="border-border/80 bg-white shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">승인·실패 처리 대기</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+          {approvalQueue.map(item => (
+            <button
+              key={item.label}
+              type="button"
+              className={cn(
+                "min-h-20 rounded-xl border p-3 text-left transition hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+                item.tone
+              )}
+              onClick={() =>
+                setLocation(
+                  item.label.includes("계약")
+                    ? "/deleted-data"
+                    : "/schedule-change-requests"
+                )
+              }
+            >
+              <span className="block text-xs font-semibold">{item.label}</span>
+              <span className="mt-1 block text-2xl font-bold tabular-nums">
+                {formatNumber(item.value)}건
+              </span>
+            </button>
+          ))}
+        </CardContent>
+      </Card>
+
       <Card className="overflow-hidden border-border/80 bg-white shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-sm">
@@ -1095,7 +1163,10 @@ function AuditLogsTab(props: {
                 props.onDatePresetChange(value as AuditPeriod)
               }
             >
-              <SelectTrigger className="h-10 rounded-xl bg-muted/50">
+              <SelectTrigger
+                aria-label="운영 로그 조회 기간"
+                className="h-10 rounded-xl bg-muted/50"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -1112,7 +1183,10 @@ function AuditLogsTab(props: {
               value={props.auditCategory}
               onValueChange={props.onCategoryChange}
             >
-              <SelectTrigger className="h-10 rounded-xl bg-muted/50">
+              <SelectTrigger
+                aria-label="운영 로그 분류"
+                className="h-10 rounded-xl bg-muted/50"
+              >
                 <SelectValue placeholder="분류" />
               </SelectTrigger>
               <SelectContent>
@@ -1130,7 +1204,10 @@ function AuditLogsTab(props: {
               value={props.auditTargetType}
               onValueChange={props.onTargetTypeChange}
             >
-              <SelectTrigger className="h-10 rounded-xl bg-muted/50">
+              <SelectTrigger
+                aria-label="운영 로그 대상 종류"
+                className="h-10 rounded-xl bg-muted/50"
+              >
                 <SelectValue placeholder="대상" />
               </SelectTrigger>
               <SelectContent>
@@ -1149,6 +1226,7 @@ function AuditLogsTab(props: {
               작업 코드
             </Label>
             <Input
+              aria-label="운영 로그 작업 코드"
               value={props.auditAction}
               onChange={event => props.onActionChange(event.target.value)}
               className="h-10 rounded-xl bg-muted/50"
@@ -1158,6 +1236,7 @@ function AuditLogsTab(props: {
           <div className="space-y-1">
             <Label className="text-xs text-muted-foreground">검색</Label>
             <Input
+              aria-label="운영 로그 검색어"
               value={props.auditSearch}
               onChange={event => props.onSearchChange(event.target.value)}
               className="h-10 rounded-xl bg-muted/50"

@@ -41,12 +41,14 @@ import {
   type OrgUser,
 } from "./organizationHierarchy";
 import { googleCalendarRouter } from "./googleCalendar";
-import {
-  triggerGoogleCalendarSyncForFollowUp,
-} from "./googleCalendarHooks";
+import { triggerGoogleCalendarSyncForFollowUp } from "./googleCalendarHooks";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { CUSTOMER_SEGMENTS } from "@shared/customerSegment";
+import {
+  NOTIFICATION_CATEGORY_VALUES,
+  NOTIFICATION_PRIORITY_FILTER_VALUES,
+} from "@shared/notificationActionCenter";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
   activeUserProcedure,
@@ -185,6 +187,8 @@ import {
   listPerformanceGoals,
   getAllNotifications,
   getNotificationsFiltered,
+  getNotificationsActionCenter,
+  getScheduleChangeRequestRiskSummary,
   normalizePhone,
   normalizeBulkImportRow,
   normalizeBulkImportConsultationResult,
@@ -1525,6 +1529,7 @@ const MEDIUM_RISK_ACTIONS = new Set([
   "IMPORT_BATCH_CANCEL_BLOCKED",
   "USER_FORCE_LOGOUT",
   "USER_ROLE_CHANGED",
+  "USER_BLOCKED",
 ]);
 const LOW_RISK_ACTIONS = new Set([
   "DELETE_REQUEST_CREATED",
@@ -1535,6 +1540,7 @@ const LOW_RISK_ACTIONS = new Set([
   "CONTRACT_RESTORED",
   "PERMANENT_DELETE_BLOCKED",
   "LOGIN_BLOCKED",
+  "USER_ACTIVATED",
 ]);
 const DOWNLOAD_ACTIONS = new Set(["DATA_DOWNLOAD", "DATA_DOWNLOAD_FAILED"]);
 const DELETE_AUDIT_ACTIONS = new Set([
@@ -1567,6 +1573,8 @@ const SECURITY_AUDIT_ACTIONS = new Set([
   "ALL_USERS_FORCE_LOGOUT",
   "USER_ROLE_CHANGED",
   "USER_STATUS_CHANGED",
+  "USER_BLOCKED",
+  "USER_ACTIVATED",
 ]);
 const RISK_ACTIONS = new Set([
   "DATA_DOWNLOAD",
@@ -1581,6 +1589,8 @@ const RISK_ACTIONS = new Set([
   "IMPORT_BATCH_CANCEL_BLOCKED",
   "USER_FORCE_LOGOUT",
   "USER_ROLE_CHANGED",
+  "USER_BLOCKED",
+  "USER_ACTIVATED",
   "DELETE_REQUEST_CREATED",
   "DELETE_REQUEST_REJECTED",
   "DELETE_REQUEST_CANCELLED",
@@ -1648,7 +1658,8 @@ type OperationRiskCategory =
   | "account"
   | "handoff"
   | "push"
-  | "unresolved";
+  | "unresolved"
+  | "approval";
 
 const operationRiskPeriodInput = z
   .object({
@@ -1752,6 +1763,7 @@ async function buildOperationRiskReport(
     activityLogs,
     pushSummary,
     pushLogs,
+    scheduleRequestRisk,
   ] = await Promise.all([
     getAllUsers(),
     getCustomers({}),
@@ -1770,6 +1782,7 @@ async function buildOperationRiskReport(
       dateTo: range.dateTo,
       limit: 100,
     }),
+    getScheduleChangeRequestRiskSummary(range.dateFrom, range.dateTo),
   ]);
 
   const logsInRange = activityLogs.filter(entry =>
@@ -1889,6 +1902,24 @@ async function buildOperationRiskReport(
     pendingDeleteRequests.length;
 
   const riskCards = [
+    compactRiskItem({
+      category: "approval",
+      title: "일정 요청 처리",
+      count:
+        scheduleRequestRisk.pending +
+        scheduleRequestRisk.conflict +
+        scheduleRequestRisk.failed,
+      score:
+        scheduleRequestRisk.pending * 4 +
+        scheduleRequestRisk.conflict * 15 +
+        scheduleRequestRisk.failed * 20,
+      description:
+        scheduleRequestRisk.conflict + scheduleRequestRisk.failed > 0
+          ? "충돌 또는 반영 실패 요청을 먼저 확인하세요."
+          : "승인 대기 중인 일정 변경 요청을 확인하세요.",
+      actionLabel: "일정 요청 확인",
+      href: "/schedule-change-requests",
+    }),
     compactRiskItem({
       category: "download",
       title: "데이터 다운로드 리스크",
@@ -2088,6 +2119,12 @@ async function buildOperationRiskReport(
       overdueFollowUpCount: overdueFollowUps.length,
       staleScheduleCount: staleSchedules.length,
       unreadNotificationCount: unreadNotifications.length,
+      pendingDeleteRequestCount: pendingDeleteRequests.length,
+    },
+    approvalRisk: {
+      schedulePendingCount: scheduleRequestRisk.pending,
+      scheduleConflictCount: scheduleRequestRisk.conflict,
+      scheduleFailedCount: scheduleRequestRisk.failed,
       pendingDeleteRequestCount: pendingDeleteRequests.length,
     },
     recentRiskEvents,
@@ -3304,6 +3341,27 @@ function toDayStart(date: Date) {
 
 function toDayEnd(date: Date) {
   return getKstDayRange(date).end;
+}
+
+function parseNotificationFilterDate(
+  value: string | undefined,
+  boundary: "start" | "end"
+) {
+  if (!value) return undefined;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? parseKstLocalDateTime(value)
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `${boundary === "start" ? "dateFrom" : "dateTo"}이 올바르지 않습니다.`,
+    });
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? boundary === "start"
+      ? toDayStart(date)
+      : toDayEnd(date)
+    : date;
 }
 
 async function getFollowUpScope(user: {
@@ -5407,7 +5465,10 @@ function buildCustomerListBaseFilter(input: CustomerListInput) {
   };
 }
 
-async function resolveCustomerListScopeFilter(user: any, input: CustomerListInput) {
+async function resolveCustomerListScopeFilter(
+  user: any,
+  input: CustomerListInput
+) {
   const baseFilter = buildCustomerListBaseFilter(input);
 
   if (input.scope === "all" && user.role === "member") {
@@ -5429,7 +5490,9 @@ async function resolveCustomerListScopeFilter(user: any, input: CustomerListInpu
   }
 
   if (input.scope === "mine") {
-    if (!["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role)) {
+    if (
+      !["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role)
+    ) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "담당자만 해당 필터로 조회할 수 있습니다.",
@@ -5510,7 +5573,10 @@ async function resolveConversionDashboardAgentIds(
   },
   input: ConversionDashboardInput = {}
 ) {
-  const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+  const [allUsers, allTeams] = await Promise.all([
+    getAllUsers(),
+    getAllTeams(),
+  ]);
   const activeUsers = (allUsers as any[]).filter(
     item => item.accountStatus === "active"
   );
@@ -5522,7 +5588,9 @@ async function resolveConversionDashboardAgentIds(
   let allowedIds = new Set(hierarchyIds.filter(id => activeUserIds.has(id)));
 
   if (input.teamIdFilter != null) {
-    const team = (allTeams as any[]).find(item => item.id === input.teamIdFilter);
+    const team = (allTeams as any[]).find(
+      item => item.id === input.teamIdFilter
+    );
     const teamUserIds = activeUsers
       .filter(item => item.teamId === input.teamIdFilter)
       .map(item => item.id);
@@ -8580,7 +8648,10 @@ export const appRouter = router({
         const existingPhones = await getAllActiveCustomerPhones(customerScope);
         const scopedCustomers = await getCustomers(customerScope);
         const allActivePhones = await getAllActiveCustomerPhones({});
-        const scopedCustomersByPhone = new Map<string, typeof scopedCustomers>();
+        const scopedCustomersByPhone = new Map<
+          string,
+          typeof scopedCustomers
+        >();
         for (const customer of scopedCustomers) {
           if (!customer.phone) continue;
           const phone = normalizePhone(customer.phone);
@@ -8632,7 +8703,9 @@ export const appRouter = router({
             }
           }
           if (result.isValid) {
-            const parsedRow = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            const parsedRow = normalizeBulkImportRow(
+              input.rows[result.rowIndex]
+            );
             if (parsedRow.consultationDateTime?.trim()) {
               try {
                 parseImportDateTimeOrThrow(
@@ -8646,7 +8719,10 @@ export const appRouter = router({
             }
             if (parsedRow.nextContactDate?.trim()) {
               try {
-                parseImportDateTimeOrThrow(parsedRow.nextContactDate, "다음연락일");
+                parseImportDateTimeOrThrow(
+                  parsedRow.nextContactDate,
+                  "다음연락일"
+                );
               } catch (error) {
                 result.isValid = false;
                 result.errors.push("다음연락일 형식을 확인해 주세요.");
@@ -8738,7 +8814,10 @@ export const appRouter = router({
         const existingPhones = await getAllActiveCustomerPhones(customerScope);
         const scopedCustomers = await getCustomers(customerScope);
         const allActivePhones = await getAllActiveCustomerPhones({});
-        const scopedCustomersByPhone = new Map<string, typeof scopedCustomers>();
+        const scopedCustomersByPhone = new Map<
+          string,
+          typeof scopedCustomers
+        >();
         for (const customer of scopedCustomers) {
           if (!customer.phone) continue;
           const phone = normalizePhone(customer.phone);
@@ -8790,7 +8869,9 @@ export const appRouter = router({
             }
           }
           if (result.isValid) {
-            const parsedRow = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            const parsedRow = normalizeBulkImportRow(
+              input.rows[result.rowIndex]
+            );
             if (parsedRow.consultationDateTime?.trim()) {
               try {
                 parseImportDateTimeOrThrow(
@@ -8804,7 +8885,10 @@ export const appRouter = router({
             }
             if (parsedRow.nextContactDate?.trim()) {
               try {
-                parseImportDateTimeOrThrow(parsedRow.nextContactDate, "다음연락일");
+                parseImportDateTimeOrThrow(
+                  parsedRow.nextContactDate,
+                  "다음연락일"
+                );
               } catch (error) {
                 result.isValid = false;
                 result.errors.push("다음연락일 형식을 확인해 주세요.");
@@ -8862,14 +8946,14 @@ export const appRouter = router({
 
           for (const result of validRows) {
             const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
-            const normalizedConsultationResult = normalizeBulkImportConsultationResult(
-              row.consultationLog
-            );
-            const normalizedStatusFromConsultation = normalizedConsultationResult
-              ? mapImportConsultationResultToCustomerStatus(
-                  normalizedConsultationResult
-                )
-              : undefined;
+            const normalizedConsultationResult =
+              normalizeBulkImportConsultationResult(row.consultationLog);
+            const normalizedStatusFromConsultation =
+              normalizedConsultationResult
+                ? mapImportConsultationResultToCustomerStatus(
+                    normalizedConsultationResult
+                  )
+                : undefined;
             const normalizedConsultStatus = row.consultStatus ?? "미상담";
             const customerPayload = {
               name: row.name!,
@@ -8886,7 +8970,9 @@ export const appRouter = router({
                     : undefined) as any,
               region: row.region,
               expectedPremium: row.expectedPremium
-                ? expectedPremiumStoredWonFromManwonInput(String(row.expectedPremium))
+                ? expectedPremiumStoredWonFromManwonInput(
+                    String(row.expectedPremium)
+                  )
                 : undefined,
               availableTime: row.availableTime,
               source: row.source,
@@ -8938,7 +9024,10 @@ export const appRouter = router({
 
             if (normalizedConsultationResult && customerId > 0) {
               const consultationOccurredAt = row.consultationDateTime?.trim()
-                ? parseImportDateTimeOrThrow(row.consultationDateTime, "상담일시")
+                ? parseImportDateTimeOrThrow(
+                    row.consultationDateTime,
+                    "상담일시"
+                  )
                 : importedAt;
               const nextContactAt = row.nextContactDate?.trim()
                 ? parseImportDateTimeOrThrow(row.nextContactDate, "다음연락일")
@@ -9019,13 +9108,15 @@ export const appRouter = router({
           ).length,
           consultationCreatedRows: validRows.filter(result => {
             const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
-            return Boolean(normalizeBulkImportConsultationResult(row.consultationLog));
+            return Boolean(
+              normalizeBulkImportConsultationResult(row.consultationLog)
+            );
           }).length,
           createdCustomers: validRows.filter(
             result => !result.matchedExistingCustomerId
           ).length,
-          updatedCustomers: validRows.filter(
-            result => Boolean(result.matchedExistingCustomerId)
+          updatedCustomers: validRows.filter(result =>
+            Boolean(result.matchedExistingCustomerId)
           ).length,
           validationResults,
         };
@@ -10336,8 +10427,7 @@ export const appRouter = router({
                 changedFields,
                 contractStatus:
                   input.contractStatus ?? existing.contractStatus ?? "",
-                paymentStatus:
-                  paymentStatus ?? existing.paymentStatus ?? "",
+                paymentStatus: paymentStatus ?? existing.paymentStatus ?? "",
               },
             });
           }
@@ -11910,6 +12000,19 @@ export const appRouter = router({
             processStatus: z.string().optional(),
             isRead: z.boolean().optional(),
             type: z.string().optional(),
+            category: z.enum(NOTIFICATION_CATEGORY_VALUES).optional(),
+            actionRequired: z.boolean().optional(),
+            priority: z.enum(NOTIFICATION_PRIORITY_FILTER_VALUES).optional(),
+            targetType: z
+              .enum([
+                "customer",
+                "contract",
+                "schedule",
+                "follow_up",
+                "schedule_change_request",
+                "delete_request",
+              ])
+              .optional(),
             dateFrom: z.string().optional(),
             dateTo: z.string().optional(),
             limit: z.number().min(1).max(200).default(50),
@@ -11923,29 +12026,36 @@ export const appRouter = router({
           processStatus: input?.processStatus,
           isRead: input?.isRead,
           type: input?.type,
-          dateFrom: input?.dateFrom ? new Date(input.dateFrom) : undefined,
-          dateTo: input?.dateTo ? new Date(input.dateTo) : undefined,
+          category: input?.category,
+          actionRequired: input?.actionRequired,
+          priority: input?.priority,
+          targetType: input?.targetType,
+          dateFrom: parseNotificationFilterDate(input?.dateFrom, "start"),
+          dateTo: parseNotificationFilterDate(input?.dateTo, "end"),
           limit: input?.limit ?? 50,
           offset: input?.offset ?? 0,
         };
         // branch_admin: 전체 알림 (userIds 제한 없음)
         if (user.role === "branch_admin") {
-          return getNotificationsFiltered({ ...filter });
+          return getNotificationsActionCenter({ ...filter });
         }
         // sub_branch_admin: 본인 + 산하 팀원 알림
         if (user.role === "sub_branch_admin") {
           const subordinates = await getUsersBySubBranchAdminId(user.id);
           const userIds = [user.id, ...subordinates.map(u => u.id)];
-          return getNotificationsFiltered({ ...filter, userIds });
+          return getNotificationsActionCenter({ ...filter, userIds });
         }
         // team_leader: 본인 + 본인 팀원 알림
         if (user.role === "team_leader" && user.teamId) {
           const teamMembers = await getUsersByTeamId(user.teamId);
           const userIds = [user.id, ...teamMembers.map(u => u.id)];
-          return getNotificationsFiltered({ ...filter, userIds });
+          return getNotificationsActionCenter({ ...filter, userIds });
         }
         // member: 본인 알림만
-        return getNotificationsFiltered({ ...filter, userIds: [user.id] });
+        return getNotificationsActionCenter({
+          ...filter,
+          userIds: [user.id],
+        });
       }),
     unreadCount: activeUserProcedure.query(async ({ ctx }) =>
       getUnreadCount(ctx.user.id)
@@ -12221,7 +12331,10 @@ export const appRouter = router({
     summary: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           scope: dashboard.scope,
@@ -12232,7 +12345,10 @@ export const appRouter = router({
     funnel: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           funnel: dashboard.funnel,
@@ -12242,7 +12358,10 @@ export const appRouter = router({
     byAgent: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           rows: dashboard.byAgent,
@@ -12252,7 +12371,10 @@ export const appRouter = router({
     staleDb: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           staleDb: dashboard.staleDb,
@@ -12261,7 +12383,10 @@ export const appRouter = router({
 
     filters: activeUserProcedure.query(async ({ ctx }) => {
       const agentIds = await resolveConversionDashboardAgentIds(ctx.user, {});
-      const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+      const [allUsers, allTeams] = await Promise.all([
+        getAllUsers(),
+        getAllTeams(),
+      ]);
       const allowed = new Set(agentIds);
       return {
         presets: [
@@ -12271,7 +12396,9 @@ export const appRouter = router({
           { value: "custom", label: "직접 기간 선택" },
         ],
         agents: (allUsers as any[])
-          .filter(user => allowed.has(user.id) && user.accountStatus === "active")
+          .filter(
+            user => allowed.has(user.id) && user.accountStatus === "active"
+          )
           .map(user => ({
             id: user.id,
             name: user.name,

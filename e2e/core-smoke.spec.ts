@@ -1,3 +1,4 @@
+import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { mockBoaTrpc } from "./fixtures/mock-trpc";
 
@@ -34,6 +35,22 @@ async function expectNoHorizontalOverflow(page: Page) {
       document.documentElement.clientWidth
   );
   expect(overflowPx).toBeLessThanOrEqual(8);
+}
+
+async function expectNoBlockingAccessibilityViolations(page: Page) {
+  const results = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+    .analyze();
+  const blocking = results.violations
+    .filter(violation =>
+      ["critical", "serious"].includes(violation.impact ?? "")
+    )
+    .map(violation => ({
+      id: violation.id,
+      impact: violation.impact,
+      targets: violation.nodes.map(node => node.target),
+    }));
+  expect(blocking).toEqual([]);
 }
 
 function collectPageErrors(page: Page) {
@@ -139,9 +156,9 @@ test.describe("BOA CRM e2e smoke", () => {
     const followUpQueue = page.getByTestId("dashboard-mobile-followup-queue");
     await expect(followUpQueue).toBeVisible();
     await expect(page.getByTestId("mobile-followup-summary")).toBeVisible();
-    await expect(page.getByTestId("mobile-followup-pending-chip")).toContainText(
-      /후속 1건/
-    );
+    await expect(
+      page.getByTestId("mobile-followup-pending-chip")
+    ).toContainText(/후속 1건/);
     await expect(page.getByTestId("mobile-followup-today-chip")).toContainText(
       /오늘 일정 1건/
     );
@@ -210,6 +227,30 @@ test.describe("BOA CRM e2e smoke", () => {
     ).toBeVisible();
     await expect(
       page.getByTestId("notifications-mobile-notification-card").first()
+    ).toBeVisible();
+    const [filterBox, firstNotificationBox, bottomNavBox] = await Promise.all([
+      page.getByRole("button", { name: /알림 필터/ }).boundingBox(),
+      page
+        .getByTestId("notifications-mobile-notification-card")
+        .first()
+        .boundingBox(),
+      page.locator("nav.fixed").boundingBox(),
+    ]);
+    expect(filterBox).not.toBeNull();
+    expect(firstNotificationBox).not.toBeNull();
+    expect(bottomNavBox).not.toBeNull();
+    expect(filterBox!.y + filterBox!.height).toBeLessThan(bottomNavBox!.y);
+    expect(firstNotificationBox!.y).toBeLessThan(bottomNavBox!.y);
+    await page.getByRole("button", { name: /알림 필터/ }).click();
+    await expect(
+      page.getByTestId("notifications-mobile-filter-sheet")
+    ).toBeVisible();
+    await page.getByRole("combobox", { name: "업무 처리 필요 여부" }).click();
+    await page.getByRole("option", { name: "처리 필요" }).click();
+    await page.getByRole("button", { name: "결과 보기" }).click();
+    await expect(page).toHaveURL(/action=required/);
+    await expect(
+      page.getByRole("button", { name: "처리 필요 필터 해제" })
     ).toBeVisible();
     await expect(page.getByTestId("notifications-bulk-actions")).toBeVisible();
     await page
@@ -529,6 +570,48 @@ test.describe("BOA CRM e2e smoke", () => {
     await expectNoHorizontalOverflow(page);
   });
 
+  test("notification action center uses source state and safe target navigation", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "branch_admin");
+
+    await page.goto("/notifications?category=schedule&priority=today");
+    await expect(
+      page.getByRole("heading", { name: "업무 분류" })
+    ).toBeVisible();
+    await expect(
+      page.getByText("원본 업무에서 후속 조치가 필요합니다.")
+    ).toBeVisible();
+    await page.getByRole("button", { name: "일정 보기" }).click();
+    await expect(page).toHaveURL(/\/calendar$/);
+    await page.goBack();
+    await expect(page).toHaveURL(
+      /\/notifications\?category=schedule&priority=today/
+    );
+    await expect(
+      page.getByRole("button", { name: /우선순위: 오늘 필터 해제/ })
+    ).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
+  test("notification and operation risk action centers have no blocking accessibility violations", async ({
+    page,
+  }) => {
+    await mockBoaTrpc(page, "branch_admin");
+
+    await page.goto("/notifications");
+    await expect(
+      page.getByRole("heading", { name: "전체 알림 관리" })
+    ).toBeVisible();
+    await expectNoBlockingAccessibilityViolations(page);
+
+    await page.goto("/operation-risk");
+    await expect(
+      page.getByRole("heading", { name: "운영 리스크 센터" })
+    ).toBeVisible();
+    await expectNoBlockingAccessibilityViolations(page);
+  });
+
   test("customer detail can start a customer-linked calendar schedule", async ({
     page,
   }) => {
@@ -536,7 +619,9 @@ test.describe("BOA CRM e2e smoke", () => {
 
     await page.goto("/customers/101");
     await page
-      .getByRole("button", { name: /빠른 일정 등록|이 고객 일정 추가|일정 추가/ })
+      .getByRole("button", {
+        name: /빠른 일정 등록|이 고객 일정 추가|일정 추가/,
+      })
       .first()
       .click();
     await expect(page).toHaveURL(

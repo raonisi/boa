@@ -30,7 +30,13 @@ function userFor(role: Role, options?: MockOptions) {
   const accountStatus = options?.accountStatus ?? "active";
   const profileByRole: Record<
     Role,
-    { id: number; name: string; teamId: number | null; subBranchAdminId: number | null; parentUserId: number | null }
+    {
+      id: number;
+      name: string;
+      teamId: number | null;
+      subBranchAdminId: number | null;
+      parentUserId: number | null;
+    }
   > = {
     branch_admin: {
       id: 1,
@@ -281,6 +287,10 @@ const notificationsList = {
       createdAt: now,
       relatedType: "schedule",
       relatedId: 301,
+      category: "schedule",
+      actionRequired: true,
+      sourceAvailable: true,
+      sourceStatus: "예정",
     },
     {
       id: 402,
@@ -294,10 +304,32 @@ const notificationsList = {
       createdAt: oneHourAfterNow,
       relatedType: "customer",
       relatedId: customer.id,
+      category: "customer_follow_up",
+      actionRequired: false,
+      sourceAvailable: true,
+      sourceStatus: "미상담",
     },
   ],
   totalCount: 2,
   hasMore: false,
+  nextOffset: null,
+  counts: {
+    all: 2,
+    unread: 1,
+    actionRequired: 1,
+    byCategory: {
+      schedule: 1,
+      customer_follow_up: 1,
+      approval_admin: 0,
+      system: 0,
+    },
+    byPriority: {
+      urgent: 0,
+      today: 1,
+      general: 1,
+      done: 0,
+    },
+  },
 };
 
 const calendarSchedules = [

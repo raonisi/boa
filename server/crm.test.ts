@@ -65,6 +65,99 @@ beforeEach(() => {
   );
 });
 
+describe("notification action center scope", () => {
+  const emptyPage = {
+    items: [],
+    totalCount: 0,
+    hasMore: false,
+    nextOffset: null,
+    counts: {
+      all: 0,
+      unread: 0,
+      actionRequired: 0,
+      byCategory: {
+        schedule: 0,
+        customer_follow_up: 0,
+        approval_admin: 0,
+        system: 0,
+      },
+      byPriority: {
+        urgent: 0,
+        today: 0,
+        general: 0,
+        done: 0,
+      },
+    },
+  };
+
+  it("keeps each role in the existing recipient scope for list and counts", async () => {
+    const querySpy = vi
+      .spyOn(db, "getNotificationsActionCenter")
+      .mockResolvedValue(emptyPage as any);
+    vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([
+      { id: 21 },
+      { id: 22 },
+    ]);
+    vi.spyOn(db, "getUsersByTeamId").mockResolvedValue([
+      { id: 31 },
+      { id: 32 },
+    ]);
+
+    await appRouter
+      .createCaller(createCtx("branch_admin", { userId: 1 }))
+      .notifications.list({
+        category: "all",
+        priority: "urgent",
+        dateFrom: "2026-07-01",
+        dateTo: "2026-07-01",
+      });
+    await appRouter
+      .createCaller(createCtx("sub_branch_admin", { userId: 2 }))
+      .notifications.list({ category: "approval_admin" });
+    await appRouter
+      .createCaller(createCtx("team_leader", { userId: 3, teamId: 10 }))
+      .notifications.list({ actionRequired: true });
+    await appRouter
+      .createCaller(createCtx("member", { userId: 4 }))
+      .notifications.list({ isRead: false });
+
+    expect(querySpy.mock.calls[0]?.[0].userIds).toBeUndefined();
+    expect(querySpy.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        priority: "urgent",
+        dateFrom: new Date("2026-06-30T15:00:00.000Z"),
+        dateTo: new Date("2026-07-01T14:59:59.999Z"),
+      })
+    );
+    expect(querySpy.mock.calls[1]?.[0].userIds).toEqual([2, 21, 22]);
+    expect(querySpy.mock.calls[2]?.[0].userIds).toEqual([3, 31, 32]);
+    expect(querySpy.mock.calls[3]?.[0].userIds).toEqual([4]);
+  });
+
+  it("blocks inactive and resigned callers before querying counts", async () => {
+    const querySpy = vi
+      .spyOn(db, "getNotificationsActionCenter")
+      .mockResolvedValue(emptyPage as any);
+
+    for (const accountStatus of ["inactive", "resigned"] as const) {
+      await expect(
+        appRouter
+          .createCaller(createCtx("member", { accountStatus }))
+          .notifications.list({ category: "all" })
+      ).rejects.toThrow();
+    }
+    expect(querySpy).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid notification filter dates", async () => {
+    await expect(
+      appRouter
+        .createCaller(createCtx("member"))
+        .notifications.list({ dateFrom: "not-a-date" })
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
 afterEach(() => {
   pushNotifications.setPushSenderForTests(null);
   vi.restoreAllMocks();
