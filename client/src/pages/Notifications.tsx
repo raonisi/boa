@@ -20,19 +20,31 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   getPageRowSelectionLabel,
   getPageSelectAllLabel,
 } from "@/lib/checkboxA11yLabels";
-import {
-  classifyNotificationPriority,
-  sortNotificationsForQueue,
-} from "@/lib/notificationPriority";
+import { classifyNotificationPriority } from "@/lib/notificationPriority";
 import { trpc } from "@/lib/trpc";
 import {
   getUserFacingErrorMessage,
   USER_FACING_ERRORS,
 } from "@/lib/userFacingMessages";
 import { MOBILE_STATE_UX } from "@/lib/stateUxCopy";
+import {
+  getNotificationActionCopy,
+  resolveNotificationTarget,
+  type NotificationActionCenterItem,
+  type NotificationCategory,
+} from "@shared/notificationActionCenter";
 import {
   EmptyState,
   ErrorState,
@@ -49,8 +61,8 @@ import {
   ShieldAlert,
   X,
 } from "lucide-react";
-import { useState } from "react";
-import { useLocation } from "wouter";
+import { useEffect, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 
 const typeLabels: Record<string, string> = {
@@ -67,9 +79,6 @@ const typeLabels: Record<string, string> = {
   schedule_1hour: "일정 1시간 전",
   schedule_incomplete: "미완료 일정",
   customer_assigned: "고객 DB 배정",
-  today_follow_up: "오늘 후속관리",
-  contract_delete_request: "계약 삭제 요청",
-  test: "테스트 알림",
   general: "일반",
 };
 
@@ -83,6 +92,7 @@ const processStatusColors: Record<string, string> = {
 
 type ProcessStatus = "미확인" | "확인" | "처리완료" | "보류";
 type PriorityFilter = "all" | "urgent" | "today" | "general" | "done";
+type ActionFilter = "all" | "required" | "informational";
 type BulkCompleteConfirmation = {
   ids: number[];
   action: "complete" | "todayComplete";
@@ -114,13 +124,84 @@ const titleMap: Record<string, string> = {
 
 const LIMIT = 50;
 
+type NotificationUrlState = {
+  priority: PriorityFilter;
+  category: NotificationCategory;
+  action: ActionFilter;
+  processStatus: string;
+  read: string;
+  type: string;
+  dateFrom: string;
+  dateTo: string;
+  offset: number;
+};
+
+const notificationCategories: NotificationCategory[] = [
+  "all",
+  "schedule",
+  "customer_follow_up",
+  "approval_admin",
+  "system",
+];
+
+export function parseNotificationUrlState(
+  location: string
+): NotificationUrlState {
+  const params = new URLSearchParams(location.split("?")[1] ?? "");
+  const priority = params.get("priority") as PriorityFilter | null;
+  const category = params.get("category") as NotificationCategory | null;
+  const action = params.get("action") as ActionFilter | null;
+  const processStatus = params.get("status") ?? "all";
+  const read = params.get("read") ?? "all";
+  const type = params.get("type") ?? "all";
+  const offsetValue = Number(params.get("offset") ?? 0);
+  return {
+    priority: ["all", "urgent", "today", "general", "done"].includes(
+      priority ?? ""
+    )
+      ? (priority as PriorityFilter)
+      : "all",
+    category: notificationCategories.includes(category ?? "all")
+      ? (category ?? "all")
+      : "all",
+    action: ["all", "required", "informational"].includes(action ?? "")
+      ? (action as ActionFilter)
+      : "all",
+    processStatus: ["미확인", "확인", "처리완료", "보류"].includes(
+      processStatus
+    )
+      ? processStatus
+      : "all",
+    read: ["all", "unread", "read"].includes(read) ? read : "all",
+    type: type in typeLabels ? type : "all",
+    dateFrom: params.get("from") ?? "",
+    dateTo: params.get("to") ?? "",
+    offset: Number.isInteger(offsetValue) && offsetValue >= 0 ? offsetValue : 0,
+  };
+}
+
+export function buildNotificationUrlState(state: NotificationUrlState) {
+  const params = new URLSearchParams();
+  if (state.category !== "all") params.set("category", state.category);
+  if (state.action !== "all") params.set("action", state.action);
+  if (state.priority !== "all") params.set("priority", state.priority);
+  if (state.processStatus !== "all") params.set("status", state.processStatus);
+  if (state.read !== "all") params.set("read", state.read);
+  if (state.type !== "all") params.set("type", state.type);
+  if (state.dateFrom) params.set("from", state.dateFrom);
+  if (state.dateTo) params.set("to", state.dateTo);
+  if (state.offset > 0) params.set("offset", String(state.offset));
+  const query = params.toString();
+  return query ? `/notifications?${query}` : "/notifications";
+}
+
 function priorityLabel(priority: "urgent" | "today" | "general" | "done") {
   return priority === "urgent"
     ? "긴급"
     : priority === "today"
       ? "오늘 처리"
       : priority === "done"
-        ? "처리완료"
+        ? "알림 정리"
         : "일반";
 }
 
@@ -145,16 +226,31 @@ function priorityCardClass(priority: PriorityFilter, active: boolean) {
 export default function Notifications() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const search = useSearch();
+  const notificationLocation = `${location}${search ? `?${search}` : ""}`;
+  const initialUrlState = parseNotificationUrlState(notificationLocation);
 
   // 서버 사이드 필터 상태
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
-  const [processStatusFilter, setProcessStatusFilter] = useState<string>("all");
-  const [isReadFilter, setIsReadFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-  const [offset, setOffset] = useState(0);
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>(
+    initialUrlState.priority
+  );
+  const [categoryFilter, setCategoryFilter] = useState<NotificationCategory>(
+    initialUrlState.category
+  );
+  const [actionFilter, setActionFilter] = useState<ActionFilter>(
+    initialUrlState.action
+  );
+  const [processStatusFilter, setProcessStatusFilter] = useState<string>(
+    initialUrlState.processStatus
+  );
+  const [isReadFilter, setIsReadFilter] = useState<string>(
+    initialUrlState.read
+  );
+  const [typeFilter, setTypeFilter] = useState<string>(initialUrlState.type);
+  const [dateFrom, setDateFrom] = useState(initialUrlState.dateFrom);
+  const [dateTo, setDateTo] = useState(initialUrlState.dateTo);
+  const [offset, setOffset] = useState(initialUrlState.offset);
   const [showMarkAllReadDialog, setShowMarkAllReadDialog] = useState(false);
   const [selectedNotificationIds, setSelectedNotificationIds] = useState<
     number[]
@@ -164,6 +260,51 @@ export default function Notifications() {
   >(null);
   const [bulkCompleteConfirmation, setBulkCompleteConfirmation] =
     useState<BulkCompleteConfirmation | null>(null);
+
+  useEffect(() => {
+    if (!location.startsWith("/notifications")) return;
+
+    const next = parseNotificationUrlState(notificationLocation);
+    setPriorityFilter(next.priority);
+    setCategoryFilter(next.category);
+    setActionFilter(next.action);
+    setProcessStatusFilter(next.processStatus);
+    setIsReadFilter(next.read);
+    setTypeFilter(next.type);
+    setDateFrom(next.dateFrom);
+    setDateTo(next.dateTo);
+    setOffset(next.offset);
+    setSelectedNotificationIds([]);
+  }, [location, notificationLocation]);
+
+  useEffect(() => {
+    const nextLocation = buildNotificationUrlState({
+      priority: priorityFilter,
+      category: categoryFilter,
+      action: actionFilter,
+      processStatus: processStatusFilter,
+      read: isReadFilter,
+      type: typeFilter,
+      dateFrom,
+      dateTo,
+      offset,
+    });
+    if (nextLocation !== notificationLocation) {
+      setLocation(nextLocation, { replace: true });
+    }
+    // Filter state is initialized from the URL; subsequent changes own it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    actionFilter,
+    categoryFilter,
+    dateFrom,
+    dateTo,
+    isReadFilter,
+    offset,
+    priorityFilter,
+    processStatusFilter,
+    typeFilter,
+  ]);
 
   const queryInput = {
     processStatus:
@@ -175,6 +316,14 @@ export default function Notifications() {
           ? true
           : undefined,
     type: typeFilter !== "all" ? typeFilter : undefined,
+    category: categoryFilter,
+    priority: priorityFilter !== "all" ? priorityFilter : undefined,
+    actionRequired:
+      actionFilter === "required"
+        ? true
+        : actionFilter === "informational"
+          ? false
+          : undefined,
     dateFrom: dateFrom || undefined,
     dateTo: dateTo || undefined,
     limit: LIMIT,
@@ -187,24 +336,14 @@ export default function Notifications() {
     isError: isNotificationsError,
     refetch: refetchNotifications,
   } = trpc.notifications.list.useQuery(queryInput);
-  const notifications = result?.items ?? [];
-  const filteredNotifications = notifications.filter(n => {
-    if (priorityFilter === "all") return true;
-    if (priorityFilter === "done") return n.processStatus === "처리완료";
-    return classifyNotificationPriority(n) === priorityFilter;
-  });
-  const sortedNotifications = sortNotificationsForQueue(filteredNotifications);
+  const notifications: NotificationActionCenterItem[] =
+    (result?.items as NotificationActionCenterItem[] | undefined) ?? [];
+  const sortedNotifications = notifications;
   const priorityCounts = {
-    urgent: notifications.filter(
-      n => classifyNotificationPriority(n) === "urgent"
-    ).length,
-    today: notifications.filter(
-      n => classifyNotificationPriority(n) === "today"
-    ).length,
-    general: notifications.filter(
-      n => classifyNotificationPriority(n) === "general"
-    ).length,
-    done: notifications.filter(n => n.processStatus === "처리완료").length,
+    urgent: result?.counts?.byPriority?.urgent ?? 0,
+    today: result?.counts?.byPriority?.today ?? 0,
+    general: result?.counts?.byPriority?.general ?? 0,
+    done: result?.counts?.byPriority?.done ?? 0,
   };
   const totalCount = result?.totalCount ?? 0;
   const hasMore = result?.hasMore ?? false;
@@ -216,6 +355,7 @@ export default function Notifications() {
     onSuccess: () => {
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
+      utils.notifications.myUnreadCount.invalidate();
     },
   });
 
@@ -224,6 +364,7 @@ export default function Notifications() {
       setShowMarkAllReadDialog(false);
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
+      utils.notifications.myUnreadCount.invalidate();
       toast.success("내 알림이 모두 읽음 처리되었습니다.");
     },
   });
@@ -233,12 +374,13 @@ export default function Notifications() {
       onSuccess: () => {
         utils.notifications.list.invalidate();
         utils.notifications.unreadCount.invalidate();
+        utils.notifications.myUnreadCount.invalidate();
       },
       onError: () => toast.error("상태 변경에 실패했습니다."),
     });
 
-  const unreadCount = filteredNotifications.filter(n => !n.isRead).length;
-  const actionQueueCount = priorityCounts.urgent + priorityCounts.today;
+  const unreadCount = result?.counts?.unread ?? 0;
+  const actionQueueCount = result?.counts?.actionRequired ?? 0;
   const completedCount = notifications.filter(
     n => n.processStatus === "처리완료"
   ).length;
@@ -300,6 +442,7 @@ export default function Notifications() {
       await Promise.all([
         utils.notifications.list.invalidate(),
         utils.notifications.unreadCount.invalidate(),
+        utils.notifications.myUnreadCount.invalidate(),
       ]);
       toast.success(`${selectedVisibleIds.length}개 알림을 읽음 처리했습니다.`);
     } catch {
@@ -330,12 +473,13 @@ export default function Notifications() {
       await Promise.all([
         utils.notifications.list.invalidate(),
         utils.notifications.unreadCount.invalidate(),
+        utils.notifications.myUnreadCount.invalidate(),
       ]);
-      toast.success(`${ids.length}개 알림을 처리완료로 변경했습니다.`);
+      toast.success(`${ids.length}개 알림 기록을 정리했습니다.`);
       setBulkCompleteConfirmation(null);
     } catch (error) {
       toast.error(
-        getUserFacingErrorMessage(error, "선택 알림 처리완료에 실패했습니다.")
+        getUserFacingErrorMessage(error, "선택 알림 기록 정리에 실패했습니다.")
       );
     } finally {
       setBulkAction(null);
@@ -343,17 +487,48 @@ export default function Notifications() {
   };
 
   const activeFilterChips = [
+    categoryFilter !== "all"
+      ? {
+          key: "category",
+          label: `분류: ${
+            categoryFilter === "schedule"
+              ? "일정"
+              : categoryFilter === "customer_follow_up"
+                ? "고객·후속관리"
+                : categoryFilter === "approval_admin"
+                  ? "승인·관리"
+                  : "시스템"
+          }`,
+          clear: () => {
+            setCategoryFilter("all");
+            setOffset(0);
+          },
+        }
+      : null,
+    actionFilter !== "all"
+      ? {
+          key: "actionRequired",
+          label: actionFilter === "required" ? "처리 필요" : "확인용 알림",
+          clear: () => {
+            setActionFilter("all");
+            setOffset(0);
+          },
+        }
+      : null,
     priorityFilter !== "all"
       ? {
           key: "priority",
           label: `우선순위: ${priorityLabel(priorityFilter)}`,
-          clear: () => setPriorityFilter("all"),
+          clear: () => {
+            setPriorityFilter("all");
+            setOffset(0);
+          },
         }
       : null,
     processStatusFilter !== "all"
       ? {
           key: "processStatus",
-          label: `처리상태: ${processStatusFilter}`,
+          label: `알림 기록 상태: ${processStatusFilter}`,
           clear: () => {
             setProcessStatusFilter("all");
             setOffset(0);
@@ -405,6 +580,8 @@ export default function Notifications() {
   );
   const hasActiveFilters = activeFilterChips.length > 0;
   const clearFilters = () => {
+    setCategoryFilter("all");
+    setActionFilter("all");
     setPriorityFilter("all");
     setProcessStatusFilter("all");
     setIsReadFilter("all");
@@ -414,134 +591,329 @@ export default function Notifications() {
     setOffset(0);
   };
 
-  const getNotificationPrimaryRoute = (notification: any) => {
-    if (notification.relatedType === "customer" && notification.relatedId) {
-      return {
-        label: "고객 보기",
-        path: `/customers/${notification.relatedId}`,
-      };
-    }
-    if (notification.relatedType === "schedule") {
-      return {
-        label: "일정 보기",
-        path: "/calendar",
-      };
-    }
-    if (notification.relatedType === "follow_up") {
-      return {
-        label: "후속관리 보기",
-        path: "/customers?action=quick-followup",
-      };
-    }
-    if (
-      notification.relatedType === "contract" ||
-      notification.relatedType === "delete_request" ||
-      notification.type === "contract_delete_request"
-    ) {
-      return {
-        label: "삭제 요청 보기",
-        path: "/contracts",
-      };
-    }
-    return {
-      label: "관련 화면으로 이동",
-      path: "/notifications",
-    };
-  };
-
-  const hasScheduleContext = (notification: any) =>
-    notification.relatedType === "schedule" ||
-    notification.type === "schedule_1day" ||
-    notification.type === "schedule_today" ||
-    notification.type === "schedule_1hour" ||
-    notification.type === "schedule_incomplete";
-
   return (
     <DashboardLayout>
-      <div className="space-y-5 pb-[max(5rem,env(safe-area-inset-bottom))]">
+      <div className="space-y-2 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-5">
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
-            <div>
+          <CardContent className="flex items-start justify-between gap-3 p-3 sm:items-center sm:p-5">
+            <div className="min-w-0">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ring">
                 오늘 업무 알림
               </p>
-              <h1 className="mt-1 text-2xl font-bold text-foreground">
+              <h1 className="mt-1 text-xl font-bold text-foreground sm:text-2xl">
                 {titleMap[user?.role ?? ""] ?? "알림센터"}
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                현재 페이지 우선 처리 {actionQueueCount}건 · 미확인{" "}
-                {unreadCount}건 · 처리완료 {completedCount}건
+              <p
+                className="mt-1 text-sm text-muted-foreground"
+                aria-live="polite"
+              >
+                처리 필요 {actionQueueCount}건 · 읽지 않음 {unreadCount}건 ·
+                현재 페이지 알림 정리 {completedCount}건
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                 전체 {totalCount.toLocaleString()}건 중{" "}
-                {pageVisibleCount.toLocaleString()}건을 불러왔습니다. 우선순위
-                수치는 현재 페이지 기준입니다.
+                {pageVisibleCount.toLocaleString()}건을 불러왔습니다. 처리 필요
+                여부는 원본 업무의 현재 상태를 기준으로 계산합니다.
               </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+              <p className="mt-1 hidden text-xs text-muted-foreground sm:block">
                 미래 일정 알림은 설정한 알림 시간이 되면 표시됩니다.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex shrink-0 items-center gap-2">
               {unreadCount > 0 && (
                 <Button
-                  className="min-h-12 w-full sm:min-h-8 sm:w-auto"
+                  className="min-h-10 min-w-10 p-0 sm:min-h-8 sm:w-auto sm:px-3"
                   variant="outline"
                   size="sm"
                   onClick={handleMarkAllRead}
                   disabled={markAllReadMutation.isPending}
+                  aria-label="내 알림 모두 읽음"
                 >
-                  <CheckCheck className="h-4 w-4 mr-1" /> 내 알림 모두 읽음
+                  <CheckCheck className="h-4 w-4 sm:mr-1" />
+                  <span className="sr-only sm:not-sr-only">
+                    내 알림 모두 읽음
+                  </span>
                 </Button>
               )}
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           <Card className="border-slate-200 bg-white shadow-sm">
-            <CardContent className="p-3">
-              <p className="text-xs font-semibold text-muted-foreground">
+            <CardContent className="p-2 sm:p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground sm:text-xs">
                 전체 검색 결과
               </p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
+              <p className="mt-1 text-lg font-bold tabular-nums text-foreground sm:text-xl">
                 {totalCount.toLocaleString()}건
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
                 서버 필터 적용 결과
               </p>
             </CardContent>
           </Card>
           <Card className="border-slate-200 bg-white shadow-sm">
-            <CardContent className="p-3">
-              <p className="text-xs font-semibold text-muted-foreground">
+            <CardContent className="p-2 sm:p-3">
+              <p className="text-[11px] font-semibold text-muted-foreground sm:text-xs">
                 현재 페이지
               </p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-foreground">
+              <p className="mt-1 text-lg font-bold tabular-nums text-foreground sm:text-xl">
                 {pageVisibleCount.toLocaleString()}건
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
                 페이지 {currentPage.toLocaleString()} /{" "}
                 {Math.max(totalPages, 1).toLocaleString()}
               </p>
             </CardContent>
           </Card>
           <Card className="border-amber-200 bg-amber-50/70 shadow-sm">
-            <CardContent className="p-3">
-              <p className="text-xs font-semibold text-amber-800">
-                현재 페이지 우선 처리
+            <CardContent className="p-2 sm:p-3">
+              <p className="text-[11px] font-semibold text-amber-800 sm:text-xs">
+                처리 필요
               </p>
-              <p className="mt-1 text-xl font-bold tabular-nums text-amber-900">
+              <p className="mt-1 text-lg font-bold tabular-nums text-amber-900 sm:text-xl">
                 {actionQueueCount.toLocaleString()}건
               </p>
-              <p className="mt-0.5 text-xs text-amber-700">
-                긴급 {priorityCounts.urgent} · 오늘 처리 {priorityCounts.today}
+              <p className="mt-0.5 hidden text-xs text-amber-700 sm:block">
+                원본 업무가 대기·실패·미완료 상태
               </p>
             </CardContent>
           </Card>
         </div>
 
+        <section
+          aria-labelledby="notification-category-heading"
+          className="space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm sm:p-3"
+        >
+          <div>
+            <h2
+              id="notification-category-heading"
+              className="text-sm font-semibold text-foreground"
+            >
+              업무 분류
+            </h2>
+            <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
+              서버 권한 범위와 동일한 조건으로 집계합니다.
+            </p>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible sm:pb-0">
+            {[
+              ["all", "전체", result?.counts?.all ?? 0],
+              [
+                "customer_follow_up",
+                "고객·후속관리",
+                result?.counts?.byCategory?.customer_follow_up ?? 0,
+              ],
+              ["schedule", "일정", result?.counts?.byCategory?.schedule ?? 0],
+              [
+                "approval_admin",
+                "승인·관리",
+                result?.counts?.byCategory?.approval_admin ?? 0,
+              ],
+              ["system", "시스템", result?.counts?.byCategory?.system ?? 0],
+            ].map(([value, label, count]) => (
+              <button
+                key={String(value)}
+                type="button"
+                aria-pressed={categoryFilter === value}
+                className={`min-h-11 min-w-28 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 ${
+                  categoryFilter === value
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-slate-200 bg-white text-foreground hover:bg-slate-50"
+                }`}
+                onClick={() => {
+                  setCategoryFilter(value as NotificationCategory);
+                  setOffset(0);
+                  setSelectedNotificationIds([]);
+                }}
+              >
+                <span className="block">{label}</span>
+                <span className="mt-0.5 block text-base tabular-nums">
+                  {Number(count).toLocaleString()}건
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="min-h-12 w-full justify-between sm:hidden"
+            >
+              <span className="inline-flex items-center gap-2">
+                <Filter className="h-4 w-4" /> 알림 필터
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {hasActiveFilters
+                  ? `${activeFilterChips.length}개 적용`
+                  : "열기"}
+              </span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent
+            side="bottom"
+            className="max-h-[88dvh] rounded-t-2xl"
+            data-testid="notifications-mobile-filter-sheet"
+          >
+            <SheetHeader>
+              <SheetTitle>알림 필터</SheetTitle>
+              <SheetDescription>
+                처리할 업무와 확인할 알림을 필요한 조건으로 좁혀보세요.
+              </SheetDescription>
+            </SheetHeader>
+            <div className="grid grid-cols-1 gap-3 px-4 pb-2">
+              <Select
+                value={priorityFilter}
+                onValueChange={value => {
+                  setPriorityFilter(value as PriorityFilter);
+                  setOffset(0);
+                  setSelectedNotificationIds([]);
+                }}
+              >
+                <SelectTrigger aria-label="알림 우선순위" className="min-h-12">
+                  <SelectValue placeholder="우선순위" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 우선순위</SelectItem>
+                  <SelectItem value="urgent">긴급</SelectItem>
+                  <SelectItem value="today">오늘 처리</SelectItem>
+                  <SelectItem value="general">일반</SelectItem>
+                  <SelectItem value="done">알림 정리</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={actionFilter}
+                onValueChange={value => {
+                  setActionFilter(value as ActionFilter);
+                  setOffset(0);
+                  setSelectedNotificationIds([]);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="업무 처리 필요 여부"
+                  className="min-h-12"
+                >
+                  <SelectValue placeholder="업무 상태" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 업무 상태</SelectItem>
+                  <SelectItem value="required">처리 필요</SelectItem>
+                  <SelectItem value="informational">확인용 알림</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={processStatusFilter}
+                onValueChange={handleFilterChange(setProcessStatusFilter)}
+              >
+                <SelectTrigger aria-label="알림 기록 상태" className="min-h-12">
+                  <SelectValue placeholder="알림 기록 상태" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 기록 상태</SelectItem>
+                  <SelectItem value="미확인">미확인</SelectItem>
+                  <SelectItem value="확인">확인</SelectItem>
+                  <SelectItem value="처리완료">처리완료</SelectItem>
+                  <SelectItem value="보류">보류</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={isReadFilter}
+                onValueChange={handleFilterChange(setIsReadFilter)}
+              >
+                <SelectTrigger aria-label="알림 읽음 상태" className="min-h-12">
+                  <SelectValue placeholder="읽음 상태" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 읽음 상태</SelectItem>
+                  <SelectItem value="unread">읽지 않음</SelectItem>
+                  <SelectItem value="read">읽음</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={typeFilter}
+                onValueChange={handleFilterChange(setTypeFilter)}
+              >
+                <SelectTrigger aria-label="알림 유형" className="min-h-12">
+                  <SelectValue placeholder="알림 유형" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 유형</SelectItem>
+                  {Object.entries(typeLabels).map(([key, label]) => (
+                    <SelectItem key={key} value={key}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  type="date"
+                  aria-label="알림 조회 시작일"
+                  value={dateFrom}
+                  onChange={event => {
+                    setDateFrom(event.target.value);
+                    setOffset(0);
+                    setSelectedNotificationIds([]);
+                  }}
+                  className="min-h-12"
+                />
+                <Input
+                  type="date"
+                  aria-label="알림 조회 종료일"
+                  value={dateTo}
+                  onChange={event => {
+                    setDateTo(event.target.value);
+                    setOffset(0);
+                    setSelectedNotificationIds([]);
+                  }}
+                  className="min-h-12"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-12"
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilters}
+                >
+                  전체 초기화
+                </Button>
+                <SheetClose asChild>
+                  <Button type="button" className="min-h-12">
+                    결과 보기
+                  </Button>
+                </SheetClose>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+        {hasActiveFilters && (
+          <div
+            className="flex gap-2 overflow-x-auto pb-1 sm:hidden"
+            aria-label="적용된 알림 필터"
+          >
+            {activeFilterChips.map(chip => (
+              <button
+                key={chip.key}
+                type="button"
+                onClick={chip.clear}
+                className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 shadow-sm"
+                aria-label={`${chip.label} 필터 해제`}
+              >
+                {chip.label}
+                <X className="h-3 w-3" />
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* 서버 사이드 필터 */}
-        <Card className="shadow-sm">
+        <Card className="hidden shadow-sm sm:block">
           <CardContent className="p-4">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-foreground">
               <Filter className="h-4 w-4 text-ring" /> 알림 필터
@@ -551,10 +923,14 @@ export default function Notifications() {
                 value={priorityFilter}
                 onValueChange={v => {
                   setPriorityFilter(v as PriorityFilter);
+                  setOffset(0);
                   setSelectedNotificationIds([]);
                 }}
               >
-                <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-32">
+                <SelectTrigger
+                  aria-label="알림 우선순위"
+                  className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-32"
+                >
                   <SelectValue placeholder="우선순위" />
                 </SelectTrigger>
                 <SelectContent>
@@ -562,15 +938,38 @@ export default function Notifications() {
                   <SelectItem value="urgent">긴급</SelectItem>
                   <SelectItem value="today">오늘 처리</SelectItem>
                   <SelectItem value="general">일반</SelectItem>
-                  <SelectItem value="done">처리완료</SelectItem>
+                  <SelectItem value="done">알림 정리</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={actionFilter}
+                onValueChange={value => {
+                  setActionFilter(value as ActionFilter);
+                  setOffset(0);
+                  setSelectedNotificationIds([]);
+                }}
+              >
+                <SelectTrigger
+                  aria-label="업무 처리 필요 여부"
+                  className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-32"
+                >
+                  <SelectValue placeholder="업무 상태" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 업무 상태</SelectItem>
+                  <SelectItem value="required">처리 필요</SelectItem>
+                  <SelectItem value="informational">확인용 알림</SelectItem>
                 </SelectContent>
               </Select>
               <Select
                 value={processStatusFilter}
                 onValueChange={handleFilterChange(setProcessStatusFilter)}
               >
-                <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-28">
-                  <SelectValue placeholder="처리상태" />
+                <SelectTrigger
+                  aria-label="알림 기록 상태"
+                  className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-28"
+                >
+                  <SelectValue placeholder="알림 상태" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">전체 상태</SelectItem>
@@ -584,7 +983,10 @@ export default function Notifications() {
                 value={isReadFilter}
                 onValueChange={handleFilterChange(setIsReadFilter)}
               >
-                <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-24">
+                <SelectTrigger
+                  aria-label="알림 읽음 상태"
+                  className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-24"
+                >
                   <SelectValue placeholder="읽음" />
                 </SelectTrigger>
                 <SelectContent>
@@ -597,7 +999,10 @@ export default function Notifications() {
                 value={typeFilter}
                 onValueChange={handleFilterChange(setTypeFilter)}
               >
-                <SelectTrigger className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36">
+                <SelectTrigger
+                  aria-label="알림 유형"
+                  className="min-h-12 w-full rounded-xl bg-muted/40 text-xs sm:h-9 sm:min-h-9 sm:w-36"
+                >
                   <SelectValue placeholder="알림 유형" />
                 </SelectTrigger>
                 <SelectContent>
@@ -611,6 +1016,7 @@ export default function Notifications() {
               </Select>
               <Input
                 type="date"
+                aria-label="알림 조회 시작일"
                 value={dateFrom}
                 onChange={e => {
                   setDateFrom(e.target.value);
@@ -621,6 +1027,7 @@ export default function Notifications() {
               />
               <Input
                 type="date"
+                aria-label="알림 조회 종료일"
                 value={dateTo}
                 onChange={e => {
                   setDateTo(e.target.value);
@@ -671,27 +1078,28 @@ export default function Notifications() {
         </Card>
 
         <section
-          className="space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-3 shadow-sm"
+          className="space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm sm:p-3"
           data-testid="notifications-priority-section"
         >
           <div>
             <p className="text-sm font-semibold text-foreground">
               알림 우선순위
             </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">
               먼저 처리할 알림을 확인하세요
             </p>
           </div>
-          <div className="grid gap-2 sm:grid-cols-4">
+          <div className="flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-4 sm:overflow-visible sm:pb-0">
             <button
               type="button"
               data-testid="notifications-priority-chip-urgent"
               aria-pressed={priorityFilter === "urgent"}
-              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
+              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
               onClick={() => {
                 setPriorityFilter(
                   priorityFilter === "urgent" ? "all" : "urgent"
                 );
+                setOffset(0);
                 setSelectedNotificationIds([]);
               }}
             >
@@ -699,7 +1107,7 @@ export default function Notifications() {
               <p className="text-lg font-bold tabular-nums text-foreground">
                 {priorityCounts.urgent}
               </p>
-              <p className="text-xs text-muted-foreground">
+              <p className="hidden text-xs text-muted-foreground sm:block">
                 기한 임박 업무
               </p>
             </button>
@@ -707,9 +1115,10 @@ export default function Notifications() {
               type="button"
               data-testid="notifications-priority-chip-today"
               aria-pressed={priorityFilter === "today"}
-              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("today", priorityFilter === "today")}`}
+              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("today", priorityFilter === "today")}`}
               onClick={() => {
                 setPriorityFilter(priorityFilter === "today" ? "all" : "today");
+                setOffset(0);
                 setSelectedNotificationIds([]);
               }}
             >
@@ -717,17 +1126,20 @@ export default function Notifications() {
               <p className="text-lg font-bold tabular-nums text-foreground">
                 {priorityCounts.today}
               </p>
-              <p className="text-xs text-muted-foreground">오늘 확인할 업무</p>
+              <p className="hidden text-xs text-muted-foreground sm:block">
+                오늘 확인할 업무
+              </p>
             </button>
             <button
               type="button"
               data-testid="notifications-priority-chip-normal"
               aria-pressed={priorityFilter === "general"}
-              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("general", priorityFilter === "general")}`}
+              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("general", priorityFilter === "general")}`}
               onClick={() => {
                 setPriorityFilter(
                   priorityFilter === "general" ? "all" : "general"
                 );
+                setOffset(0);
                 setSelectedNotificationIds([]);
               }}
             >
@@ -735,23 +1147,28 @@ export default function Notifications() {
               <p className="text-lg font-bold tabular-nums text-foreground">
                 {priorityCounts.general}
               </p>
-              <p className="text-xs text-muted-foreground">정보성 알림</p>
+              <p className="hidden text-xs text-muted-foreground sm:block">
+                정보성 알림
+              </p>
             </button>
             <button
               type="button"
               data-testid="notifications-priority-chip-done"
               aria-pressed={priorityFilter === "done"}
-              className={`min-h-12 rounded-xl border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${priorityCardClass("done", priorityFilter === "done")}`}
+              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("done", priorityFilter === "done")}`}
               onClick={() => {
                 setPriorityFilter(priorityFilter === "done" ? "all" : "done");
+                setOffset(0);
                 setSelectedNotificationIds([]);
               }}
             >
-              <p className="text-xs font-semibold">처리완료</p>
+              <p className="text-xs font-semibold">알림 정리</p>
               <p className="text-lg font-bold tabular-nums text-foreground">
                 {priorityCounts.done}
               </p>
-              <p className="text-xs text-muted-foreground">완료된 업무</p>
+              <p className="hidden text-xs text-muted-foreground sm:block">
+                알림 기록만 정리됨
+              </p>
             </button>
           </div>
         </section>
@@ -771,7 +1188,7 @@ export default function Notifications() {
             onRetry={() => refetchNotifications()}
             fullPage
           />
-        ) : filteredNotifications.length === 0 ? (
+        ) : sortedNotifications.length === 0 ? (
           <div data-testid="notifications-mobile-empty-state">
             <EmptyState
               icon={BellOff}
@@ -824,9 +1241,9 @@ export default function Notifications() {
             />
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="flex flex-col gap-3">
             <Card
-              className="border-slate-200 bg-white shadow-sm"
+              className="order-2 border-slate-200 bg-white shadow-sm sm:order-1"
               data-testid="notifications-bulk-actions"
             >
               <CardContent className="flex flex-col gap-3 p-3 sm:flex-row sm:items-center sm:justify-between">
@@ -840,7 +1257,9 @@ export default function Notifications() {
                     disabled={
                       visibleNotificationIds.length === 0 || isBulkPending
                     }
-                    aria-label={getPageSelectAllLabel({ surface: "notification" })}
+                    aria-label={getPageSelectAllLabel({
+                      surface: "notification",
+                    })}
                     onCheckedChange={checked =>
                       toggleVisibleSelection(checked === true)
                     }
@@ -863,7 +1282,7 @@ export default function Notifications() {
                           openBulkCompleteConfirmation(selectedVisibleIds)
                         }
                       >
-                        선택한 알림 처리완료
+                        선택 알림 기록 정리
                       </Button>
                       <Button
                         data-testid="bulk-today-complete"
@@ -880,7 +1299,7 @@ export default function Notifications() {
                           )
                         }
                       >
-                        오늘 처리 대상 일괄 완료
+                        오늘 알림 기록 정리
                       </Button>
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
@@ -915,25 +1334,20 @@ export default function Notifications() {
                 processStatusColors[processStatus] ??
                 processStatusColors["미확인"];
               const priority = classifyNotificationPriority(n);
-              const primaryAction = getNotificationPrimaryRoute(n);
-              const canOpenCustomer =
-                n.relatedType === "customer" && n.relatedId;
-              const showScheduleQuickAction = hasScheduleContext(n);
-              const shouldShowPrimaryAction =
-                primaryAction.path !== "/notifications" &&
-                !(
-                  showScheduleQuickAction && primaryAction.path === "/calendar"
-                );
+              const primaryAction = resolveNotificationTarget(n, user?.role);
               const isSelected = selectedNotificationIds.includes(n.id);
               return (
                 <Card
                   key={n.id}
                   data-testid="notifications-mobile-notification-card"
-                  className={`crm-elevated-card overflow-hidden rounded-2xl border-l-4 transition-colors ${colorClass}`}
+                  className={`crm-elevated-card order-1 overflow-hidden rounded-2xl border-l-4 transition-colors sm:order-2 ${colorClass}`}
                 >
                   <CardContent className="p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-                      <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
+                      <div
+                        className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0"
+                        onClick={e => e.stopPropagation()}
+                      >
                         <Checkbox
                           touchTarget
                           checked={isSelected}
@@ -975,6 +1389,15 @@ export default function Notifications() {
                               읽지 않음
                             </span>
                           )}
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                              n.actionRequired
+                                ? "bg-amber-100 text-amber-900"
+                                : "bg-slate-100 text-slate-700"
+                            }`}
+                          >
+                            {n.actionRequired ? "처리 필요" : "확인용"}
+                          </span>
                           <span className="text-xs text-muted-foreground sm:ml-auto">
                             {new Date(n.createdAt).toLocaleString("ko-KR")}
                           </span>
@@ -984,6 +1407,12 @@ export default function Notifications() {
                         </p>
                         <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
                           {n.message}
+                        </p>
+                        <p
+                          className="mt-2 text-xs font-medium text-muted-foreground"
+                          data-testid="notification-source-state"
+                        >
+                          {getNotificationActionCopy(n)}
                         </p>
                         {n.dueAt && (
                           <div className="mt-2 flex flex-wrap gap-2 text-xs">
@@ -1014,7 +1443,10 @@ export default function Notifications() {
                             })
                           }
                         >
-                          <SelectTrigger className="min-h-12 w-full text-xs sm:h-7 sm:min-h-7 sm:w-24">
+                          <SelectTrigger
+                            aria-label={`${typeLabels[n.type] ?? "알림"} 알림 기록 상태`}
+                            className="min-h-12 w-full text-xs sm:h-7 sm:min-h-7 sm:w-24"
+                          >
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1048,80 +1480,27 @@ export default function Notifications() {
                               })
                             }
                           >
-                            처리완료
+                            알림 정리
                           </Button>
                         )}
-                        {shouldShowPrimaryAction && (
+                        {primaryAction && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="min-h-12 text-xs sm:h-7 sm:min-h-7"
-                            onClick={() => setLocation(primaryAction.path)}
+                            onClick={() => {
+                              if (!n.isRead) {
+                                markReadMutation.mutate({ id: n.id });
+                              }
+                              setLocation(primaryAction.path);
+                            }}
                           >
-                            {primaryAction.label}
+                            {n.actionRequired
+                              ? primaryAction.label
+                              : "관련 내용 확인"}
                           </Button>
                         )}
                       </div>
-                    </div>
-                    <div className="mt-3 flex flex-wrap gap-1.5 border-t border-slate-100 pt-3">
-                      {canOpenCustomer && (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="min-h-10 px-2 text-xs"
-                            onClick={() =>
-                              setLocation(`/customers/${n.relatedId}`)
-                            }
-                          >
-                            고객 보기
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="min-h-10 px-2 text-xs"
-                            onClick={() =>
-                              setLocation(
-                                `/customers/${n.relatedId}?action=quick-followup`
-                              )
-                            }
-                          >
-                            후속관리 등록
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="min-h-10 px-2 text-xs"
-                            onClick={() =>
-                              setLocation(
-                                `/calendar?customerId=${n.relatedId}&action=quick-create`
-                              )
-                            }
-                          >
-                            일정 등록
-                          </Button>
-                        </>
-                      )}
-                      {showScheduleQuickAction && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="min-h-10 px-2 text-xs"
-                          onClick={() => setLocation("/calendar")}
-                        >
-                          일정 보기
-                        </Button>
-                      )}
-                      {!canOpenCustomer && !hasScheduleContext(n) && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="min-h-10 px-2 text-xs"
-                          onClick={() => setLocation(primaryAction.path)}
-                        >
-                          관련 화면으로 이동
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -1214,13 +1593,13 @@ export default function Notifications() {
         <DialogContent className="max-h-[min(90vh,42rem)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <CheckCheck className="h-5 w-5 text-emerald-700" /> 처리완료 변경
+              <CheckCheck className="h-5 w-5 text-emerald-700" /> 알림 기록 정리
               확인
             </DialogTitle>
             <DialogDescription>
-              선택한 {bulkCompleteConfirmation?.ids.length ?? 0}개의 알림을
-              처리완료로 변경합니다. 알림은 삭제되지 않으며, 처리 상태만
-              변경됩니다.
+              선택한 {bulkCompleteConfirmation?.ids.length ?? 0}개의 알림을 정리
+              상태로 변경합니다. 알림은 삭제되지 않으며, 원본 업무의
+              완료·승인·실패 상태는 변경되지 않습니다.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
@@ -1237,7 +1616,7 @@ export default function Notifications() {
               disabled={isBulkPending}
               onClick={confirmBulkComplete}
             >
-              {isBulkPending ? "변경 중..." : "처리완료로 변경"}
+              {isBulkPending ? "변경 중..." : "알림 기록 정리"}
             </Button>
           </DialogFooter>
         </DialogContent>

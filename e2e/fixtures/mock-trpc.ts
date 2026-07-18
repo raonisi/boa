@@ -30,7 +30,13 @@ function userFor(role: Role, options?: MockOptions) {
   const accountStatus = options?.accountStatus ?? "active";
   const profileByRole: Record<
     Role,
-    { id: number; name: string; teamId: number | null; subBranchAdminId: number | null; parentUserId: number | null }
+    {
+      id: number;
+      name: string;
+      teamId: number | null;
+      subBranchAdminId: number | null;
+      parentUserId: number | null;
+    }
   > = {
     branch_admin: {
       id: 1,
@@ -281,6 +287,10 @@ const notificationsList = {
       createdAt: now,
       relatedType: "schedule",
       relatedId: 301,
+      category: "schedule",
+      actionRequired: true,
+      sourceAvailable: true,
+      sourceStatus: "예정",
     },
     {
       id: 402,
@@ -294,10 +304,32 @@ const notificationsList = {
       createdAt: oneHourAfterNow,
       relatedType: "customer",
       relatedId: customer.id,
+      category: "customer_follow_up",
+      actionRequired: false,
+      sourceAvailable: true,
+      sourceStatus: "미상담",
     },
   ],
   totalCount: 2,
   hasMore: false,
+  nextOffset: null,
+  counts: {
+    all: 2,
+    unread: 1,
+    actionRequired: 1,
+    byCategory: {
+      schedule: 1,
+      customer_follow_up: 1,
+      approval_admin: 0,
+      system: 0,
+    },
+    byPriority: {
+      urgent: 0,
+      today: 1,
+      general: 1,
+      done: 0,
+    },
+  },
 };
 
 const calendarSchedules = [
@@ -381,26 +413,37 @@ const salesReport = {
 const operationRisk = {
   period: { dateFrom: "2026-05-12", dateTo: "2026-05-18", label: "최근 7일" },
   overall: {
-    score: 18,
-    level: "caution",
-    message: "주의가 필요한 운영 이벤트가 있습니다.",
+    actionLevel: "immediate",
+    message: "실패 또는 충돌로 즉시 확인할 운영 항목이 있습니다.",
+    counts: { immediate: 1, actionRequired: 1, informational: 1 },
   },
   riskCards: [
     {
       category: "download",
       title: "다운로드 점검",
       count: 1,
-      score: 8,
-      level: "caution",
+      actionLevel: "action_required",
       description: "사유 확인 필요",
+      actionLabel: "다운로드 로그 확인",
+      href: "/logs",
     },
     {
       category: "handoff",
       title: "인수인계 점검",
       count: 0,
-      score: 0,
-      level: "normal",
+      actionLevel: "informational",
       description: "정상",
+      actionLabel: "인수인계 관리",
+      href: "/users/handoff",
+    },
+    {
+      category: "approval",
+      title: "일정 요청 처리",
+      count: 1,
+      actionLevel: "immediate",
+      description: "충돌 또는 반영 실패 요청을 먼저 확인하세요.",
+      actionLabel: "일정 요청 확인",
+      href: "/schedule-change-requests",
     },
   ],
   downloadRisk: { total: 1, repeatedUserCount: 0, shortReasonCount: 0 },
@@ -414,9 +457,11 @@ const operationRisk = {
   recentRiskEvents: [
     {
       id: "risk-1",
-      level: "low",
-      category: "download",
-      message: "[E2E] 다운로드 사유 확인",
+      actionLevel: "informational",
+      action: "DATA_DOWNLOAD",
+      targetType: "customer",
+      targetId: 101,
+      reason: "[E2E] 다운로드 사유 확인",
       createdAt: now,
     },
   ],
@@ -425,73 +470,6 @@ const operationRisk = {
       title: "다운로드 사유 점검",
       description: "사유와 대상 범위를 확인하세요.",
       category: "download",
-    },
-  ],
-};
-
-const scopedOperationRisk = {
-  scope: { role: "team_leader", label: "팀 리스크" },
-  period: {
-    dateFrom: "2026-05-12T00:00:00.000Z",
-    dateTo: "2026-05-18T23:59:59.999Z",
-    label: "최근 7일",
-  },
-  overall: {
-    score: 16,
-    level: "caution",
-    message: "주의가 필요한 팀 리스크가 있습니다.",
-  },
-  cards: [
-    {
-      category: "unresolved",
-      title: "미처리 후속관리",
-      count: 1,
-      score: 8,
-      level: "caution",
-      description:
-        "권한 범위 안의 예정/연기 후속관리 중 기한이 지난 항목입니다.",
-      actionLabel: "알림에서 확인",
-      href: "/notifications",
-    },
-    {
-      category: "unresolved",
-      title: "오래된 미완료 일정",
-      count: 1,
-      score: 10,
-      level: "caution",
-      description: "완료 또는 취소되지 않은 오래된 일정입니다.",
-      actionLabel: "캘린더 확인",
-      href: "/calendar",
-    },
-    {
-      category: "unresolved",
-      title: "장기 미관리 고객",
-      count: 0,
-      score: 0,
-      level: "normal",
-      description: "최근 관리 이력이 오래된 산하 고객입니다.",
-      actionLabel: "고객 DB 확인",
-      href: "/customers",
-    },
-    {
-      category: "unresolved",
-      title: "미확인 알림",
-      count: 1,
-      score: 3,
-      level: "normal",
-      description: "읽지 않았거나 처리 완료되지 않은 산하 업무 알림입니다.",
-      actionLabel: "알림센터 확인",
-      href: "/notifications",
-    },
-    {
-      category: "handoff",
-      title: "배정/인수인계 확인 필요",
-      count: 0,
-      score: 0,
-      level: "normal",
-      description: "권한 범위 안에서 담당자 배정 확인이 필요한 고객입니다.",
-      actionLabel: "DB 배정 확인",
-      href: "/customers/assign",
     },
   ],
 };
@@ -525,6 +503,7 @@ const downloadPreview = {
 const defaults: Record<string, unknown> = {
   "auth.me": userFor("branch_admin"),
   "notifications.unreadCount": 1,
+  "notifications.myUnreadCount": 1,
   "notifications.list": notificationsList,
   "dashboard.todayWork": todayWork,
   "recommendations.dashboardSummary": {
@@ -639,7 +618,6 @@ const defaults: Record<string, unknown> = {
   },
   "salesReports.summary": salesReport,
   "operationRisk.summary": operationRisk,
-  "operationRisk.scopedSummary": scopedOperationRisk,
   "pushNotifications.operationSummary": {
     total: 2,
     sent: 1,
@@ -791,7 +769,7 @@ const defaults: Record<string, unknown> = {
         type: "unread_notification",
         label: "미확인 알림",
         count: 1,
-        severity: "medium",
+        actionLevel: "informational",
         recommendation: "미확인 알림을 차례로 처리해 주세요.",
       },
     ],
@@ -819,7 +797,7 @@ const defaults: Record<string, unknown> = {
           priorityAManagementRate: null,
           newCustomerCount: 0,
         },
-        riskLevel: "low",
+        actionLevel: "informational",
         coachingPoint:
           "현재 흐름을 유지하되, 오늘 예정 업무를 먼저 마무리해 주세요.",
       },

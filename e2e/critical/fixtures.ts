@@ -19,6 +19,10 @@ export const CRITICAL_E2E_IDS = {
   },
   customers: {
     primary: 9201,
+    deleted: 9202,
+    merged: 9203,
+    outsideTeam: 9204,
+    inactive: 9205,
   },
   schedules: {
     branchAdmin: 9301,
@@ -28,7 +32,59 @@ export const CRITICAL_E2E_IDS = {
     otherMember: 9305,
     conflict: 9306,
     approval: 9307,
+    deleted: 9308,
   },
+  contracts: {
+    active: 9401,
+    deleted: 9402,
+  },
+  followUps: {
+    active: 9501,
+    deleted: 9502,
+  },
+  notifications: {
+    activeUncontacted: 9601,
+    activeLongUnmanaged: 9602,
+    activeReconsult: 9603,
+    completedReconsult: 9604,
+    deletedCustomer: 9605,
+    mergedCustomer: 9606,
+    activeContract: 9607,
+    deletedContract: 9608,
+    activeSchedule: 9609,
+    deletedSchedule: 9610,
+    activeFollowUp: 9611,
+    deletedFollowUp: 9612,
+    missingSource: 9613,
+    otherMember: 9614,
+    teamLeader: 9615,
+    subBranchAdmin: 9616,
+    branchAdmin: 9617,
+    inactive: 9618,
+    outsideSource: 9619,
+    inactiveCustomer: 9620,
+    bulkStart: 9700,
+  },
+  deleteRequests: {
+    pending: 11101,
+  },
+  activityLogs: {
+    deleteRequested: 11201,
+  },
+} as const;
+
+export const CRITICAL_E2E_BULK_NOTIFICATION_COUNT = 1001;
+export const CRITICAL_E2E_EXPECTED_NOTIFICATION_COUNTS = {
+  memberTotal: 15,
+  memberUnread: 13,
+  teamLeaderScopedTotal: 16,
+  teamLeaderScopedUnread: 14,
+  subBranchScopedTotal: 18,
+  subBranchScopedUnread: 16,
+  branchTotal: 1021,
+  branchUnread: 1019,
+  memberActionRequired: 6,
+  memberSourceAvailable: 7,
 } as const;
 
 export const CRITICAL_E2E_USERS = {

@@ -14,6 +14,7 @@ const workers = process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1;
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: ["**/critical/**", "**/accessibility/**"],
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
   timeout: 30_000,
   workers,
@@ -42,6 +43,7 @@ export default defineConfig({
       HOST: "127.0.0.1",
       NODE_ENV: "development",
       RAILWAY_ENVIRONMENT: "e2e",
+      PUSH_REMINDER_SCHEDULER_ENABLED: "false",
       VITE_OAUTH_PORTAL_URL: `${baseURL}/__e2e__/oauth`,
       VITE_APP_ID: "boa-e2e",
       VITE_MANUS_DEBUG_COLLECTOR: "0",

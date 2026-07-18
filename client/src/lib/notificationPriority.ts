@@ -1,14 +1,13 @@
-export type NotificationPriority = "urgent" | "today" | "general";
+import {
+  NOTIFICATION_TODAY_TYPES,
+  NOTIFICATION_URGENT_TYPES,
+  type NotificationPriority,
+} from "@shared/notificationActionCenter";
 
-const urgentTypes = new Set([
-  "schedule_incomplete",
-  "long_unmanaged_90",
-  "unpaid_lapse",
-  "reconsult",
-  "uncontacted_3days",
-]);
+export type { NotificationPriority } from "@shared/notificationActionCenter";
 
-const todayTypes = new Set(["schedule_today", "schedule_1hour", "birthday"]);
+const urgentTypes = new Set<string>(NOTIFICATION_URGENT_TYPES);
+const todayTypes = new Set<string>(NOTIFICATION_TODAY_TYPES);
 
 export function classifyNotificationPriority(notification: {
   type: string;

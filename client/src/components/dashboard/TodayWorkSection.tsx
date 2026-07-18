@@ -129,6 +129,7 @@ export function TodayWorkSection({
     utils.dashboard.todayWork.invalidate();
     utils.notifications.list.invalidate();
     utils.notifications.unreadCount.invalidate();
+    utils.notifications.myUnreadCount.invalidate();
     utils.followUps.listToday.invalidate();
     utils.followUps.listOverdue.invalidate();
     utils.schedules.list.invalidate();

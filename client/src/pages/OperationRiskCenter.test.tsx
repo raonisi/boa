@@ -9,6 +9,7 @@ describe("operation risk action metadata", () => {
       deadline: "오늘 중",
     });
     expect(getRiskActionMeta("handoff").nextAction).toContain("인수인계");
+    expect(getRiskActionMeta("approval").nextAction).toContain("충돌");
     expect(getRiskActionMeta("unknown")).toMatchObject({
       owner: "운영 담당",
       deadline: "오늘 중",

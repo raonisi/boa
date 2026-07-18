@@ -199,6 +199,66 @@ describe("mobile schedules scope", () => {
   });
 });
 
+describe("mobile notification action center", () => {
+  it("returns the flat scoped page and forwards action filters", async () => {
+    const listMock = vi.fn().mockResolvedValue({
+      items: [
+        {
+          id: 91,
+          type: "schedule_incomplete",
+          category: "schedule",
+          actionRequired: true,
+        },
+      ],
+      totalCount: 1,
+      hasMore: false,
+      nextOffset: null,
+      counts: {
+        all: 1,
+        unread: 1,
+        actionRequired: 1,
+        byCategory: {
+          schedule: 1,
+          customer_follow_up: 0,
+          approval_admin: 0,
+          system: 0,
+        },
+        byPriority: {
+          urgent: 1,
+          today: 0,
+          general: 0,
+          done: 0,
+        },
+      },
+    });
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));
+    vi.spyOn(appRouter, "createCaller").mockReturnValue({
+      notifications: { list: listMock },
+    } as ReturnType<typeof appRouter.createCaller>);
+
+    await withMobileServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/mobile/notifications?category=schedule&priority=urgent&actionRequired=true&targetType=schedule&limit=20`
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(listMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          category: "schedule",
+          priority: "urgent",
+          actionRequired: true,
+          targetType: "schedule",
+          limit: 20,
+        })
+      );
+      expect(Array.isArray(body.items)).toBe(true);
+      expect(body.items[0].id).toBe(91);
+      expect(body.counts.actionRequired).toBe(1);
+    });
+  });
+});
+
 describe("mobile auth.me", () => {
   it("returns a serialized active user", async () => {
     vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(testUser("active"));

@@ -1,6 +1,10 @@
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, AlertTriangle } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  OPERATION_RISK_ACTION_LEVEL_LABELS,
+  type OperationRiskActionLevel,
+} from "@shared/operationRiskActionLevel";
+import { AlertTriangle, User } from "lucide-react";
 import { Link } from "wouter";
 
 interface UserMetric {
@@ -17,20 +21,20 @@ interface UserMetric {
     priorityAUnmanagedCount: number;
     postContractUnmanagedCount: number;
   };
-  riskScore: number;
+  actionLevel: OperationRiskActionLevel;
 }
 
-export default function TopRiskUsers({ users }: { users: UserMetric[] }) {
+export default function AttentionUsers({ users }: { users: UserMetric[] }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <AlertTriangle className="h-5 w-5 text-destructive" />
+        <AlertTriangle className="h-5 w-5 text-amber-600" />
         <h2 className="text-lg font-semibold tracking-tight text-slate-900">
-          우선 조치 필요 팀원 TOP 5
+          확인 필요 구성원
         </h2>
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        {users.map((item, index) => {
+        {users.map(item => {
           const reasons = [];
           if (item.metrics.overdueFollowUpsCount > 0) reasons.push("후속지연");
           if (item.metrics.priorityAUnmanagedCount > 0)
@@ -47,42 +51,37 @@ export default function TopRiskUsers({ users }: { users: UserMetric[] }) {
               key={item.user.id}
               href={`/customers?agentId=${item.user.id}`}
             >
-              <Card className="cursor-pointer transition-all hover:border-destructive/50 hover:shadow-md">
-                <CardContent className="p-4 flex flex-col items-center text-center space-y-3">
-                  <div className="relative">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600">
-                      <User className="h-6 w-6" />
-                    </div>
-                    <div className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-destructive text-xs font-bold text-white shadow-sm ring-2 ring-white">
-                      {index + 1}
-                    </div>
+              <Card className="cursor-pointer transition-all hover:border-amber-300 hover:shadow-md">
+                <CardContent className="flex flex-col items-center space-y-3 p-4 text-center">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-600">
+                    <User className="h-6 w-6" />
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">
                       {item.user.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {item.riskScore}점
+                      {OPERATION_RISK_ACTION_LEVEL_LABELS[item.actionLevel]}
                     </p>
                   </div>
                   <div className="flex flex-wrap items-center justify-center gap-1">
-                    {reasons.slice(0, 2).map((r, i) => (
+                    {reasons.slice(0, 2).map(reason => (
                       <Badge
-                        key={i}
+                        key={reason}
                         variant="outline"
-                        className="text-xs px-1.5 py-0"
+                        className="px-1.5 py-0 text-xs"
                       >
-                        {r}
+                        {reason}
                       </Badge>
                     ))}
-                    {reasons.length > 2 && (
+                    {reasons.length > 2 ? (
                       <Badge
                         variant="outline"
-                        className="text-2xs px-1.5 py-0 text-muted-foreground"
+                        className="px-1.5 py-0 text-2xs text-muted-foreground"
                       >
                         +{reasons.length - 2}
                       </Badge>
-                    )}
+                    ) : null}
                   </div>
                 </CardContent>
               </Card>

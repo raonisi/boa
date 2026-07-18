@@ -3,6 +3,7 @@ import {
   asc,
   desc,
   eq,
+  getTableColumns,
   gte,
   inArray,
   isNotNull,
@@ -68,6 +69,7 @@ import {
   pushNotificationLogs,
   reminders,
   schedules,
+  scheduleChangeRequests,
   settings,
   statusHistory,
   teams,
@@ -81,6 +83,16 @@ import {
   InsertUserOnboardingAssignment,
   InsertUserOnboardingItemProgress,
 } from "../drizzle/schema";
+import {
+  NOTIFICATION_CONTRACT_TYPES,
+  NOTIFICATION_CUSTOMER_ACTION_TYPES,
+  NOTIFICATION_CUSTOMER_TYPES,
+  NOTIFICATION_SCHEDULE_TYPES,
+  NOTIFICATION_TODAY_TYPES,
+  NOTIFICATION_URGENT_TYPES,
+  type NotificationCategory,
+  type NotificationPriorityFilter,
+} from "@shared/notificationActionCenter";
 import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -1196,9 +1208,7 @@ export async function getCustomers(filter: {
     if (matchingAgentIds.length > 0) {
       searchConditions.push(inArray(customers.agentId, matchingAgentIds));
     }
-    conditions.push(
-      or(...searchConditions) as any
-    );
+    conditions.push(or(...searchConditions) as any);
   }
   if (filter.assignedDateFrom)
     conditions.push(gte(customers.assignedAt, filter.assignedDateFrom) as any);
@@ -1239,7 +1249,11 @@ export async function getCustomers(filter: {
     filter.sort === "name"
       ? [asc(customers.name), desc(customers.createdAt)]
       : filter.sort === "next_contact"
-        ? [sql`${nextFollowUpDate} is null`, asc(nextFollowUpDate), desc(customers.createdAt)]
+        ? [
+            sql`${nextFollowUpDate} is null`,
+            asc(nextFollowUpDate),
+            desc(customers.createdAt),
+          ]
         : filter.sort === "contract_value"
           ? [desc(activeContractPremiumTotal), desc(customers.createdAt)]
           : [desc(customers.createdAt)];
@@ -1287,9 +1301,9 @@ type CustomerSegmentMeta = {
   recentActivityAt: Date | null;
 };
 
-async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect>(
-  rows: T[]
-): Promise<(T & CustomerSegmentMeta)[]> {
+async function attachCustomerSegmentMeta<
+  T extends typeof customers.$inferSelect,
+>(rows: T[]): Promise<(T & CustomerSegmentMeta)[]> {
   if (rows.length === 0) return [];
   const db = await getDb();
   if (!db) {
@@ -1316,7 +1330,9 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
           customerId: contracts.customerId,
           contractCount: sql<number>`count(*)`,
           monthlyPremiumTotal: sql<number>`coalesce(sum(${contracts.monthlyPremium}), 0)`,
-          recentContractDate: sql<Date | string | null>`max(${contracts.contractDate})`,
+          recentContractDate: sql<
+            Date | string | null
+          >`max(${contracts.contractDate})`,
         })
         .from(contracts)
         .where(
@@ -1358,7 +1374,10 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
         })
         .from(followUps)
         .where(
-          and(inArray(followUps.customerId, customerIds), isNull(followUps.deletedAt))
+          and(
+            inArray(followUps.customerId, customerIds),
+            isNull(followUps.deletedAt)
+          )
         )
         .groupBy(followUps.customerId),
       db
@@ -1377,12 +1396,18 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
         .groupBy(activityLogs.targetId),
     ]);
 
-  const contractByCustomer = new Map(contractRows.map(row => [row.customerId, row]));
+  const contractByCustomer = new Map(
+    contractRows.map(row => [row.customerId, row])
+  );
   const consultationByCustomer = new Map(
     consultationRows.map(row => [row.customerId, row])
   );
-  const followUpByCustomer = new Map(followUpRows.map(row => [row.customerId, row]));
-  const activityByCustomer = new Map(activityRows.map(row => [row.customerId, row]));
+  const followUpByCustomer = new Map(
+    followUpRows.map(row => [row.customerId, row])
+  );
+  const activityByCustomer = new Map(
+    activityRows.map(row => [row.customerId, row])
+  );
 
   return rows.map(row => {
     const contract = contractByCustomer.get(row.id);
@@ -1413,7 +1438,10 @@ async function attachCustomerSegmentMeta<T extends typeof customers.$inferSelect
 }
 
 export async function getCustomerSegmentCounts(
-  filter: Omit<Parameters<typeof getCustomers>[0], "segment" | "withSegmentMeta">
+  filter: Omit<
+    Parameters<typeof getCustomers>[0],
+    "segment" | "withSegmentMeta"
+  >
 ): Promise<CustomerSegmentCounts> {
   const rows = await getCustomers({ ...filter, withSegmentMeta: true });
   const counts = emptyCustomerSegmentCounts();
@@ -1515,12 +1543,13 @@ export async function getCustomerById(id: number) {
   return result[0];
 }
 
-export async function createCustomer(data: InsertCustomer, client?: DbExecutor) {
+export async function createCustomer(
+  data: InsertCustomer,
+  client?: DbExecutor
+) {
   const db = client ?? (await getDb());
   if (!db) return;
-  const result = await db
-    .insert(customers)
-    .values({ ...data, isActive: true });
+  const result = await db.insert(customers).values({ ...data, isActive: true });
   return result as any;
 }
 
@@ -3182,49 +3211,48 @@ export async function getContractPermanentDeleteBlockers(contractId: number) {
     requestRows,
     notificationRows,
     reminderRows,
-  ] =
-    await Promise.all([
-      db
-        .select({ id: contractHistory.id })
-        .from(contractHistory)
-        .where(eq(contractHistory.contractId, contractId))
-        .limit(1),
-      db
-        .select({ id: contractLifecycleEvents.id })
-        .from(contractLifecycleEvents)
-        .where(eq(contractLifecycleEvents.contractId, contractId))
-        .limit(1),
-      db
-        .select({ id: deleteRequests.id })
-        .from(deleteRequests)
-        .where(
-          and(
-            eq(deleteRequests.targetType, "contract"),
-            eq(deleteRequests.targetId, contractId)
-          )
+  ] = await Promise.all([
+    db
+      .select({ id: contractHistory.id })
+      .from(contractHistory)
+      .where(eq(contractHistory.contractId, contractId))
+      .limit(1),
+    db
+      .select({ id: contractLifecycleEvents.id })
+      .from(contractLifecycleEvents)
+      .where(eq(contractLifecycleEvents.contractId, contractId))
+      .limit(1),
+    db
+      .select({ id: deleteRequests.id })
+      .from(deleteRequests)
+      .where(
+        and(
+          eq(deleteRequests.targetType, "contract"),
+          eq(deleteRequests.targetId, contractId)
         )
-        .limit(1),
-      db
-        .select({ id: notifications.id })
-        .from(notifications)
-        .where(
-          and(
-            eq(notifications.relatedType, "contract"),
-            eq(notifications.relatedId, contractId)
-          )
+      )
+      .limit(1),
+    db
+      .select({ id: notifications.id })
+      .from(notifications)
+      .where(
+        and(
+          eq(notifications.relatedType, "contract"),
+          eq(notifications.relatedId, contractId)
         )
-        .limit(1),
-      db
-        .select({ id: reminders.id })
-        .from(reminders)
-        .where(
-          and(
-            eq(reminders.relatedType, "contract"),
-            eq(reminders.relatedId, contractId)
-          )
+      )
+      .limit(1),
+    db
+      .select({ id: reminders.id })
+      .from(reminders)
+      .where(
+        and(
+          eq(reminders.relatedType, "contract"),
+          eq(reminders.relatedId, contractId)
         )
-        .limit(1),
-    ]);
+      )
+      .limit(1),
+  ]);
   return {
     contractHistory: historyRows.length,
     contractLifecycleEvents: lifecycleRows.length,
@@ -3316,8 +3344,7 @@ export async function getContractLifecycleEventsByCustomer(customerId: number) {
       eventType: contractLifecycleEvents.eventType,
       effectiveAt: contractLifecycleEvents.effectiveAt,
       reason: contractLifecycleEvents.reason,
-      monthlyPremiumSnapshot:
-        contractLifecycleEvents.monthlyPremiumSnapshot,
+      monthlyPremiumSnapshot: contractLifecycleEvents.monthlyPremiumSnapshot,
       actorId: contractLifecycleEvents.actorId,
       actorName: users.name,
       actorRole: users.role,
@@ -3398,6 +3425,33 @@ export async function getDeleteRequests(
     .from(deleteRequests)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(deleteRequests.createdAt));
+}
+
+export async function getScheduleChangeRequestRiskSummary(
+  dateFrom?: Date,
+  dateTo?: Date
+) {
+  const db = await getDb();
+  if (!db) {
+    return { pending: 0, conflict: 0, failed: 0 };
+  }
+  const conditions: any[] = [];
+  if (dateFrom)
+    conditions.push(gte(scheduleChangeRequests.createdAt, dateFrom));
+  if (dateTo) conditions.push(lte(scheduleChangeRequests.createdAt, dateTo));
+  const rows = await db
+    .select({
+      pending: sql<number>`SUM(CASE WHEN ${scheduleChangeRequests.status} = 'pending' THEN 1 ELSE 0 END)`,
+      conflict: sql<number>`SUM(CASE WHEN ${scheduleChangeRequests.status} = 'conflict' THEN 1 ELSE 0 END)`,
+      failed: sql<number>`SUM(CASE WHEN ${scheduleChangeRequests.status} = 'failed' THEN 1 ELSE 0 END)`,
+    })
+    .from(scheduleChangeRequests)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+  return {
+    pending: Number(rows[0]?.pending ?? 0),
+    conflict: Number(rows[0]?.conflict ?? 0),
+    failed: Number(rows[0]?.failed ?? 0),
+  };
 }
 
 export async function updateDeleteRequest(
@@ -3674,6 +3728,9 @@ export async function getNotificationsFiltered(filter: {
   limit?: number;
   offset?: number;
 }) {
+  if (filter.userIds !== undefined && filter.userIds.length === 0) {
+    return { items: [], totalCount: 0, hasMore: false };
+  }
   const db = await getDb();
   if (!db) return { items: [], totalCount: 0, hasMore: false };
   const limit = filter.limit ?? 50;
@@ -3726,6 +3783,402 @@ export async function getNotificationsFiltered(filter: {
   return { items, totalCount, hasMore: offset + limit < totalCount };
 }
 
+export type NotificationActionCenterFilter = {
+  userIds?: number[];
+  processStatus?: string;
+  isRead?: boolean;
+  type?: string;
+  dateFrom?: Date;
+  dateTo?: Date;
+  category?: NotificationCategory;
+  actionRequired?: boolean;
+  priority?: NotificationPriorityFilter;
+  targetType?:
+    | "customer"
+    | "contract"
+    | "schedule"
+    | "follow_up"
+    | "schedule_change_request"
+    | "delete_request";
+  limit?: number;
+  offset?: number;
+};
+
+/**
+ * Notification action-center query. Categories, counts and action state are
+ * derived from current source rows so read state never implies work completion.
+ */
+export async function getNotificationsActionCenter(
+  filter: NotificationActionCenterFilter
+) {
+  const emptyCounts = {
+    all: 0,
+    unread: 0,
+    actionRequired: 0,
+    byCategory: {
+      schedule: 0,
+      customer_follow_up: 0,
+      approval_admin: 0,
+      system: 0,
+    },
+    byPriority: {
+      urgent: 0,
+      today: 0,
+      general: 0,
+      done: 0,
+    },
+  };
+  if (filter.userIds !== undefined && filter.userIds.length === 0) {
+    return {
+      items: [],
+      totalCount: 0,
+      hasMore: false,
+      nextOffset: null,
+      counts: emptyCounts,
+    };
+  }
+
+  const db = await getDb();
+  if (!db) {
+    return {
+      items: [],
+      totalCount: 0,
+      hasMore: false,
+      nextOffset: null,
+      counts: emptyCounts,
+    };
+  }
+
+  const limit = filter.limit ?? 50;
+  const offset = filter.offset ?? 0;
+  const now = new Date();
+  const baseConditions: any[] = [];
+
+  if (filter.userIds !== undefined) {
+    baseConditions.push(inArray(notifications.userId, filter.userIds));
+  }
+  if (filter.processStatus) {
+    baseConditions.push(
+      eq(notifications.processStatus, filter.processStatus as any)
+    );
+  }
+  if (filter.isRead !== undefined) {
+    baseConditions.push(eq(notifications.isRead, filter.isRead));
+  }
+  if (filter.type) {
+    baseConditions.push(eq(notifications.type, filter.type as any));
+  }
+  if (filter.dateFrom) {
+    baseConditions.push(gte(notifications.createdAt, filter.dateFrom));
+  }
+  if (filter.dateTo) {
+    baseConditions.push(lte(notifications.createdAt, filter.dateTo));
+  }
+  if (filter.targetType) {
+    baseConditions.push(eq(notifications.relatedType, filter.targetType));
+  }
+  baseConditions.push(
+    or(isNull(notifications.dueAt), lte(notifications.dueAt, now))
+  );
+
+  const scheduleCategory = or(
+    eq(notifications.relatedType, "schedule"),
+    inArray(notifications.type, [...NOTIFICATION_SCHEDULE_TYPES] as any)
+  )!;
+  const approvalCategory = inArray(notifications.relatedType, [
+    "schedule_change_request",
+    "delete_request",
+  ]);
+  const customerCategory = or(
+    inArray(notifications.relatedType, ["customer", "follow_up", "contract"]),
+    inArray(notifications.type, [
+      ...NOTIFICATION_CUSTOMER_TYPES,
+      ...NOTIFICATION_CONTRACT_TYPES,
+    ] as any)
+  )!;
+  const categorySql = sql<string>`CASE
+    WHEN ${scheduleCategory} THEN 'schedule'
+    WHEN ${approvalCategory} THEN 'approval_admin'
+    WHEN ${customerCategory} THEN 'customer_follow_up'
+    ELSE 'system'
+  END`;
+  const systemCategory = sql<boolean>`(${categorySql}) = 'system'`;
+
+  const sourceStatusSql = sql<string | null>`CASE
+    WHEN ${notifications.relatedType} = 'schedule_change_request' THEN ${scheduleChangeRequests.status}
+    WHEN ${notifications.relatedType} = 'delete_request' THEN ${deleteRequests.status}
+    WHEN ${notifications.relatedType} = 'schedule' THEN ${schedules.status}
+    WHEN ${notifications.relatedType} = 'follow_up' THEN ${followUps.status}
+    WHEN ${notifications.relatedType} = 'contract' AND ${notifications.type} = 'unpaid_lapse' THEN ${contracts.paymentStatus}
+    WHEN ${notifications.relatedType} = 'contract' THEN ${contracts.contractStatus}
+    WHEN ${notifications.relatedType} = 'customer' THEN ${customers.consultStatus}
+    ELSE NULL
+  END`;
+  const customerSourceAvailableCondition = and(
+    isNotNull(customers.id),
+    eq(customers.isActive, true),
+    isNull(customers.deletedAt),
+    isNull(customers.mergedIntoCustomerId),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(customers.agentId, filter.userIds)])
+  )!;
+  const contractSourceAvailableCondition = and(
+    isNotNull(contracts.id),
+    eq(contracts.isActive, true),
+    isNull(contracts.deletedAt),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(contracts.agentId, filter.userIds)])
+  )!;
+  const scheduleSourceAvailableCondition = and(
+    isNotNull(schedules.id),
+    eq(schedules.isActive, true),
+    isNull(schedules.deletedAt),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(schedules.userId, filter.userIds)])
+  )!;
+  const followUpSourceAvailableCondition = and(
+    isNotNull(followUps.id),
+    isNull(followUps.deletedAt),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(followUps.assignedAgentId, filter.userIds)])
+  )!;
+  const sourceAvailableSql = sql<boolean>`CASE
+    WHEN ${notifications.relatedType} = 'schedule_change_request' THEN ${scheduleChangeRequests.id} IS NOT NULL
+    WHEN ${notifications.relatedType} = 'delete_request' THEN ${deleteRequests.id} IS NOT NULL
+    WHEN ${notifications.relatedType} = 'schedule' THEN ${scheduleSourceAvailableCondition}
+    WHEN ${notifications.relatedType} = 'follow_up' THEN ${followUpSourceAvailableCondition}
+    WHEN ${notifications.relatedType} = 'contract' THEN ${contractSourceAvailableCondition}
+    WHEN ${notifications.relatedType} = 'customer' THEN ${customerSourceAvailableCondition}
+    ELSE FALSE
+  END`;
+  const actionRequiredSql = sql<boolean>`(
+    (${notifications.relatedType} = 'schedule_change_request'
+      AND ${scheduleChangeRequests.status} IN ('pending', 'conflict', 'failed'))
+    OR (${notifications.relatedType} = 'delete_request'
+      AND ${deleteRequests.status} = 'pending')
+    OR (${notifications.relatedType} = 'schedule'
+      AND ${scheduleSourceAvailableCondition}
+      AND ${schedules.status} NOT IN ('완료', '취소', '노쇼'))
+    OR (${notifications.relatedType} = 'follow_up'
+      AND ${followUpSourceAvailableCondition}
+      AND ${followUps.status} IN ('scheduled', 'postponed'))
+    OR (${notifications.relatedType} = 'contract'
+      AND ${notifications.type} = 'unpaid_lapse'
+      AND ${contractSourceAvailableCondition}
+      AND (${contracts.paymentStatus} IN ('미납', '실효') OR ${contracts.contractStatus} = '해지'))
+    OR (${notifications.relatedType} = 'customer'
+      AND ${inArray(notifications.type, [...NOTIFICATION_CUSTOMER_ACTION_TYPES] as any)}
+      AND ${customerSourceAvailableCondition}
+      AND ${notifications.processStatus} IN ('미확인', '확인', '보류'))
+  )`;
+
+  const urgentTypeSql = inArray(notifications.type, [
+    ...NOTIFICATION_URGENT_TYPES,
+  ] as any);
+  const todayTypeOrDueSql = or(
+    inArray(notifications.type, [...NOTIFICATION_TODAY_TYPES] as any),
+    isNotNull(notifications.dueAt)
+  )!;
+  const prioritySql = sql<string>`CASE
+    WHEN ${notifications.processStatus} = '처리완료' THEN 'done'
+    WHEN ${urgentTypeSql} THEN 'urgent'
+    WHEN ${todayTypeOrDueSql} THEN 'today'
+    ELSE 'general'
+  END`;
+  const priorityWeightSql = sql<number>`CASE
+    WHEN ${notifications.processStatus} = '처리완료' THEN 3
+    WHEN ${urgentTypeSql} THEN 0
+    WHEN ${todayTypeOrDueSql} THEN 1
+    ELSE 2
+  END`;
+
+  const categoryCondition =
+    filter.category === "schedule"
+      ? scheduleCategory
+      : filter.category === "customer_follow_up"
+        ? customerCategory
+        : filter.category === "approval_admin"
+          ? approvalCategory
+          : filter.category === "system"
+            ? systemCategory
+            : undefined;
+  const actionCondition =
+    filter.actionRequired === true
+      ? actionRequiredSql
+      : filter.actionRequired === false
+        ? sql<boolean>`NOT (${actionRequiredSql})`
+        : undefined;
+  const priorityCondition =
+    filter.priority === "done"
+      ? eq(notifications.processStatus, "처리완료")
+      : filter.priority === "urgent"
+        ? sql<boolean>`${notifications.processStatus} <> '처리완료' AND ${urgentTypeSql}`
+        : filter.priority === "today"
+          ? sql<boolean>`${notifications.processStatus} <> '처리완료' AND NOT (${urgentTypeSql}) AND ${todayTypeOrDueSql}`
+          : filter.priority === "general"
+            ? sql<boolean>`${notifications.processStatus} <> '처리완료' AND NOT (${urgentTypeSql}) AND NOT (${todayTypeOrDueSql})`
+            : undefined;
+
+  const listConditions = [...baseConditions];
+  if (categoryCondition) listConditions.push(categoryCondition);
+  if (actionCondition) listConditions.push(actionCondition);
+  if (priorityCondition) listConditions.push(priorityCondition);
+
+  const categoryFacetConditions = [...baseConditions];
+  if (actionCondition) categoryFacetConditions.push(actionCondition);
+  if (priorityCondition) categoryFacetConditions.push(priorityCondition);
+
+  const priorityFacetConditions = [...baseConditions];
+  if (categoryCondition) priorityFacetConditions.push(categoryCondition);
+  if (actionCondition) priorityFacetConditions.push(actionCondition);
+
+  const listWhere = and(...listConditions);
+  const categoryFacetWhere = and(...categoryFacetConditions);
+  const priorityFacetWhere = and(...priorityFacetConditions);
+  const notificationColumns = getTableColumns(notifications);
+  const withSources = (query: any) =>
+    query
+      .leftJoin(
+        schedules,
+        and(
+          eq(notifications.relatedType, "schedule"),
+          eq(notifications.relatedId, schedules.id)
+        )
+      )
+      .leftJoin(
+        followUps,
+        and(
+          eq(notifications.relatedType, "follow_up"),
+          eq(notifications.relatedId, followUps.id)
+        )
+      )
+      .leftJoin(
+        contracts,
+        and(
+          eq(notifications.relatedType, "contract"),
+          eq(notifications.relatedId, contracts.id)
+        )
+      )
+      .leftJoin(
+        customers,
+        and(
+          eq(notifications.relatedType, "customer"),
+          eq(notifications.relatedId, customers.id)
+        )
+      )
+      .leftJoin(
+        deleteRequests,
+        and(
+          eq(notifications.relatedType, "delete_request"),
+          eq(notifications.relatedId, deleteRequests.id)
+        )
+      )
+      .leftJoin(
+        scheduleChangeRequests,
+        and(
+          eq(notifications.relatedType, "schedule_change_request"),
+          eq(notifications.relatedId, scheduleChangeRequests.id)
+        )
+      );
+
+  const [
+    rawItems,
+    filteredSummaryRows,
+    categorySummaryRows,
+    prioritySummaryRows,
+  ] = await Promise.all([
+    withSources(
+      db
+        .select({
+          ...notificationColumns,
+          category: categorySql,
+          priority: prioritySql,
+          actionRequired: actionRequiredSql,
+          sourceAvailable: sourceAvailableSql,
+          sourceStatus: sourceStatusSql,
+        })
+        .from(notifications)
+    )
+      .where(listWhere)
+      .orderBy(
+        asc(priorityWeightSql),
+        asc(notifications.isRead),
+        desc(notifications.createdAt),
+        desc(notifications.id)
+      )
+      .limit(limit)
+      .offset(offset),
+    withSources(
+      db
+        .select({
+          all: sql<number>`COUNT(*)`,
+          unread: sql<number>`SUM(CASE WHEN ${notifications.isRead} = FALSE THEN 1 ELSE 0 END)`,
+          actionRequired: sql<number>`SUM(CASE WHEN ${actionRequiredSql} THEN 1 ELSE 0 END)`,
+        })
+        .from(notifications)
+    ).where(listWhere),
+    withSources(
+      db
+        .select({
+          all: sql<number>`COUNT(*)`,
+          schedule: sql<number>`SUM(CASE WHEN ${scheduleCategory} THEN 1 ELSE 0 END)`,
+          customerFollowUp: sql<number>`SUM(CASE WHEN ${customerCategory} THEN 1 ELSE 0 END)`,
+          approvalAdmin: sql<number>`SUM(CASE WHEN ${approvalCategory} THEN 1 ELSE 0 END)`,
+          system: sql<number>`SUM(CASE WHEN ${systemCategory} THEN 1 ELSE 0 END)`,
+        })
+        .from(notifications)
+    ).where(categoryFacetWhere),
+    withSources(
+      db
+        .select({
+          urgent: sql<number>`SUM(CASE WHEN ${prioritySql} = 'urgent' THEN 1 ELSE 0 END)`,
+          today: sql<number>`SUM(CASE WHEN ${prioritySql} = 'today' THEN 1 ELSE 0 END)`,
+          general: sql<number>`SUM(CASE WHEN ${prioritySql} = 'general' THEN 1 ELSE 0 END)`,
+          done: sql<number>`SUM(CASE WHEN ${prioritySql} = 'done' THEN 1 ELSE 0 END)`,
+        })
+        .from(notifications)
+    ).where(priorityFacetWhere),
+  ]);
+
+  const filteredSummary = filteredSummaryRows[0];
+  const categorySummary = categorySummaryRows[0];
+  const prioritySummary = prioritySummaryRows[0];
+  const totalCount = Number(filteredSummary?.all ?? 0);
+  const items = rawItems.map((item: any) => ({
+    ...item,
+    actionRequired: Boolean(Number(item.actionRequired)),
+    sourceAvailable: Boolean(Number(item.sourceAvailable)),
+    targetAvailable: Boolean(Number(item.sourceAvailable)),
+  }));
+  return {
+    items,
+    totalCount,
+    hasMore: offset + limit < totalCount,
+    nextOffset: offset + limit < totalCount ? offset + limit : null,
+    counts: {
+      all: Number(categorySummary?.all ?? 0),
+      unread: Number(filteredSummary?.unread ?? 0),
+      actionRequired: Number(filteredSummary?.actionRequired ?? 0),
+      byCategory: {
+        schedule: Number(categorySummary?.schedule ?? 0),
+        customer_follow_up: Number(categorySummary?.customerFollowUp ?? 0),
+        approval_admin: Number(categorySummary?.approvalAdmin ?? 0),
+        system: Number(categorySummary?.system ?? 0),
+      },
+      byPriority: {
+        urgent: Number(prioritySummary?.urgent ?? 0),
+        today: Number(prioritySummary?.today ?? 0),
+        general: Number(prioritySummary?.general ?? 0),
+        done: Number(prioritySummary?.done ?? 0),
+      },
+    },
+  };
+}
+
 export async function getAllUsersByEmail(email: string) {
   const db = await getDb();
   if (!db) return [];
@@ -3756,20 +4209,56 @@ export async function getUsersByTeamId(teamId: number) {
     .where(and(eq(users.teamId, teamId), eq(users.accountStatus, "active")));
 }
 
-export async function getUnreadCount(userId: number) {
+export async function getUnreadCountByUserIds(userIds?: readonly number[]) {
+  if (userIds !== undefined && userIds.length === 0) return 0;
   const db = await getDb();
   if (!db) return 0;
+  const conditions = [
+    eq(notifications.isRead, false),
+    or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))!,
+  ];
+  if (userIds !== undefined) {
+    conditions.push(inArray(notifications.userId, [...userIds]));
+  }
   const result = await db
     .select({ count: sql<number>`count(*)` })
     .from(notifications)
-    .where(
-      and(
-        eq(notifications.userId, userId),
-        eq(notifications.isRead, false),
-        or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))
-      )
-    );
+    .where(and(...conditions));
   return result[0]?.count ?? 0;
+}
+
+export async function getUnreadCount(userId: number) {
+  return getUnreadCountByUserIds([userId]);
+}
+
+export async function getNotificationOperationRiskCounts(
+  inactiveUserIds: readonly number[]
+) {
+  const db = await getDb();
+  if (!db) return { unresolvedCount: 0, inactiveUnresolvedCount: 0 };
+
+  const unresolvedCondition = or(
+    eq(notifications.isRead, false),
+    eq(notifications.processStatus, "미확인")
+  )!;
+  const inactiveUnresolved =
+    inactiveUserIds.length === 0
+      ? sql<number>`0`
+      : sql<number>`SUM(CASE WHEN ${unresolvedCondition} AND ${inArray(notifications.userId, [...inactiveUserIds])} THEN 1 ELSE 0 END)`;
+  const rows = await db
+    .select({
+      unresolvedCount: sql<number>`SUM(CASE WHEN ${unresolvedCondition} THEN 1 ELSE 0 END)`,
+      inactiveUnresolvedCount: inactiveUnresolved,
+    })
+    .from(notifications)
+    .where(
+      or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))
+    );
+
+  return {
+    unresolvedCount: Number(rows[0]?.unresolvedCount ?? 0),
+    inactiveUnresolvedCount: Number(rows[0]?.inactiveUnresolvedCount ?? 0),
+  };
 }
 
 export async function createNotification(
@@ -3796,7 +4285,13 @@ export async function markAllNotificationsRead(userId: number) {
   await db
     .update(notifications)
     .set({ isRead: true })
-    .where(eq(notifications.userId, userId));
+    .where(
+      and(
+        eq(notifications.userId, userId),
+        eq(notifications.isRead, false),
+        or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))
+      )
+    );
 }
 
 export async function updateNotificationProcessStatus(
@@ -3807,7 +4302,7 @@ export async function updateNotificationProcessStatus(
   if (!db) return;
   await db
     .update(notifications)
-    .set({ processStatus, isRead: processStatus !== "미확인" })
+    .set({ processStatus })
     .where(eq(notifications.id, id));
 }
 
@@ -5489,11 +5984,7 @@ export async function getCustomerTimeline(
       row.targetType === "contract" &&
       row.targetId &&
       contractLifecycleType &&
-      hasLifecycleEventNear(
-        row.targetId,
-        contractLifecycleType,
-        row.createdAt
-      )
+      hasLifecycleEventNear(row.targetId, contractLifecycleType, row.createdAt)
     )
       continue;
     const requestLifecycleType =
@@ -6085,11 +6576,7 @@ export function normalizeBulkImportRow(
     consultStatus: pickString(row, "consultStatus", "상담상태"),
     memo: pickString(row, "memo", "메모"),
     consultationLog: pickString(row, "consultationLog", "상담기록"),
-    consultationDateTime: pickString(
-      row,
-      "consultationDateTime",
-      "상담일시"
-    ),
+    consultationDateTime: pickString(row, "consultationDateTime", "상담일시"),
     consultationMemo: pickString(row, "consultationMemo", "상담메모"),
     nextContactDate: pickString(row, "nextContactDate", "다음연락일"),
     subBranchAdminName: pickString(row, "subBranchAdminName", "부지점장"),
@@ -6276,7 +6763,10 @@ export async function validateBulkImportRow(
       }
 
       // 기존 DB 중복 검증
-      if (!options?.skipExistingPhoneCheck && existingPhones.has(normalizedPhone)) {
+      if (
+        !options?.skipExistingPhoneCheck &&
+        existingPhones.has(normalizedPhone)
+      ) {
         errors.push(`연락처가 기존 DB에 존재합니다. (${row.phone})`);
       }
     }

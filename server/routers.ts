@@ -41,12 +41,20 @@ import {
   type OrgUser,
 } from "./organizationHierarchy";
 import { googleCalendarRouter } from "./googleCalendar";
-import {
-  triggerGoogleCalendarSyncForFollowUp,
-} from "./googleCalendarHooks";
+import { triggerGoogleCalendarSyncForFollowUp } from "./googleCalendarHooks";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { CUSTOMER_SEGMENTS } from "@shared/customerSegment";
+import {
+  NOTIFICATION_CATEGORY_VALUES,
+  NOTIFICATION_PRIORITY_FILTER_VALUES,
+} from "@shared/notificationActionCenter";
+import {
+  classifyOperationRiskActionLevel,
+  compareOperationRiskActionLevel,
+  sortOperationRiskItems,
+  type OperationRiskActionLevel,
+} from "@shared/operationRiskActionLevel";
 import { getSessionCookieOptions } from "./_core/cookies";
 import {
   activeUserProcedure,
@@ -141,6 +149,8 @@ import {
   getTeamPermanentDeleteBlockers,
   getTeamById,
   getUnreadCount,
+  getUnreadCountByUserIds,
+  getNotificationOperationRiskCounts,
   getUserById,
   markAllNotificationsRead,
   markNotificationRead,
@@ -185,6 +195,8 @@ import {
   listPerformanceGoals,
   getAllNotifications,
   getNotificationsFiltered,
+  getNotificationsActionCenter,
+  getScheduleChangeRequestRiskSummary,
   normalizePhone,
   normalizeBulkImportRow,
   normalizeBulkImportConsultationResult,
@@ -1525,6 +1537,7 @@ const MEDIUM_RISK_ACTIONS = new Set([
   "IMPORT_BATCH_CANCEL_BLOCKED",
   "USER_FORCE_LOGOUT",
   "USER_ROLE_CHANGED",
+  "USER_BLOCKED",
 ]);
 const LOW_RISK_ACTIONS = new Set([
   "DELETE_REQUEST_CREATED",
@@ -1535,6 +1548,7 @@ const LOW_RISK_ACTIONS = new Set([
   "CONTRACT_RESTORED",
   "PERMANENT_DELETE_BLOCKED",
   "LOGIN_BLOCKED",
+  "USER_ACTIVATED",
 ]);
 const DOWNLOAD_ACTIONS = new Set(["DATA_DOWNLOAD", "DATA_DOWNLOAD_FAILED"]);
 const DELETE_AUDIT_ACTIONS = new Set([
@@ -1567,6 +1581,8 @@ const SECURITY_AUDIT_ACTIONS = new Set([
   "ALL_USERS_FORCE_LOGOUT",
   "USER_ROLE_CHANGED",
   "USER_STATUS_CHANGED",
+  "USER_BLOCKED",
+  "USER_ACTIVATED",
 ]);
 const RISK_ACTIONS = new Set([
   "DATA_DOWNLOAD",
@@ -1581,6 +1597,8 @@ const RISK_ACTIONS = new Set([
   "IMPORT_BATCH_CANCEL_BLOCKED",
   "USER_FORCE_LOGOUT",
   "USER_ROLE_CHANGED",
+  "USER_BLOCKED",
+  "USER_ACTIVATED",
   "DELETE_REQUEST_CREATED",
   "DELETE_REQUEST_REJECTED",
   "DELETE_REQUEST_CANCELLED",
@@ -1606,6 +1624,23 @@ function getRiskLevel(action: string): "high" | "medium" | "low" | "normal" {
   if (MEDIUM_RISK_ACTIONS.has(action)) return "medium";
   if (LOW_RISK_ACTIONS.has(action)) return "low";
   return "normal";
+}
+
+const IMMEDIATE_OPERATION_ACTIONS = new Set([
+  "DATA_DOWNLOAD_FAILED",
+  "LOGIN_BLOCKED",
+  "USER_OAUTH_LINK_CONFLICT",
+  "IMPORT_BATCH_CANCEL_BLOCKED",
+  "PERMANENT_DELETE_BLOCKED",
+  "CUSTOMER_MERGE_BLOCKED",
+]);
+
+const ACTION_REQUIRED_OPERATION_ACTIONS = new Set(["DELETE_REQUEST_CREATED"]);
+
+function getOperationActionLevel(action: string): OperationRiskActionLevel {
+  if (IMMEDIATE_OPERATION_ACTIONS.has(action)) return "immediate";
+  if (ACTION_REQUIRED_OPERATION_ACTIONS.has(action)) return "action_required";
+  return "informational";
 }
 
 function safeAuditText(value: unknown, maxLength = 160) {
@@ -1640,15 +1675,14 @@ function summarizeLogDetails(details?: string | null) {
   }
 }
 
-type OperationRiskLevel = "normal" | "caution" | "warning" | "danger";
-
 type OperationRiskCategory =
   | "download"
   | "deletion"
   | "account"
   | "handoff"
   | "push"
-  | "unresolved";
+  | "unresolved"
+  | "approval";
 
 const operationRiskPeriodInput = z
   .object({
@@ -1693,31 +1727,32 @@ function resolveOperationRiskRange(
   };
 }
 
-function operationRiskLevel(score: number): OperationRiskLevel {
-  if (score >= 70) return "danger";
-  if (score >= 45) return "warning";
-  if (score >= 15) return "caution";
-  return "normal";
-}
-
-function operationRiskMessage(level: OperationRiskLevel) {
-  if (level === "danger") return "즉시 확인이 필요한 운영 리스크가 있습니다.";
-  if (level === "warning") return "반복되거나 민감한 운영 이벤트를 확인하세요.";
-  if (level === "caution") return "확인 필요한 운영 이벤트가 있습니다.";
-  return "최근 고위험 운영 이벤트가 안정적입니다.";
+function operationRiskMessage(actionLevel: OperationRiskActionLevel) {
+  if (actionLevel === "immediate")
+    return "실패 또는 충돌로 즉시 확인할 운영 항목이 있습니다.";
+  if (actionLevel === "action_required")
+    return "완료되지 않아 처리할 운영 항목이 있습니다.";
+  return "현재 기간의 운영 항목은 참고 정보입니다.";
 }
 
 function compactRiskItem(params: {
   category: OperationRiskCategory;
   title: string;
   count: number;
-  score: number;
+  immediateCount?: number;
+  actionRequiredCount?: number;
   description: string;
   actionLabel: string;
   href: string;
 }) {
-  const level = operationRiskLevel(params.score);
-  return { ...params, score: Math.min(100, Math.max(0, params.score)), level };
+  const { immediateCount, actionRequiredCount, ...item } = params;
+  return {
+    ...item,
+    actionLevel: classifyOperationRiskActionLevel({
+      immediateCount,
+      actionRequiredCount,
+    }),
+  };
 }
 
 function countBy<T>(
@@ -1746,12 +1781,12 @@ async function buildOperationRiskReport(
     contracts,
     followUps,
     schedules,
-    notificationsResult,
     deleteRequests,
     handoffHistories,
     activityLogs,
     pushSummary,
     pushLogs,
+    scheduleRequestRisk,
   ] = await Promise.all([
     getAllUsers(),
     getCustomers({}),
@@ -1760,7 +1795,6 @@ async function buildOperationRiskReport(
       statuses: ["scheduled", "postponed", "completed", "cancelled"],
     }),
     getSchedules({}),
-    getNotificationsFiltered({ limit: 1000 }),
     getDeleteRequests({}),
     getHandoffHistories({ limit: 100 }),
     getActivityLogs(2000),
@@ -1770,6 +1804,7 @@ async function buildOperationRiskReport(
       dateTo: range.dateTo,
       limit: 100,
     }),
+    getScheduleChangeRequestRiskSummary(range.dateFrom, range.dateTo),
   ]);
 
   const logsInRange = activityLogs.filter(entry =>
@@ -1784,11 +1819,17 @@ async function buildOperationRiskReport(
       )
       .map(user => user.id)
   );
+  const notificationRiskCounts = await getNotificationOperationRiskCounts(
+    Array.from(inactiveUserIds)
+  );
   const now = new Date();
   const staleDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
   const downloadLogs = logsInRange.filter(entry =>
     DOWNLOAD_ACTIONS.has(entry.action)
+  );
+  const failedDownloadLogs = downloadLogs.filter(
+    entry => entry.action === "DATA_DOWNLOAD_FAILED"
   );
   const downloadsByUser = countBy(downloadLogs, entry => entry.userId);
   const repeatedDownloadUsers = Object.values(downloadsByUser).filter(
@@ -1823,6 +1864,9 @@ async function buildOperationRiskReport(
       "LOGIN_BLOCKED",
     ].includes(entry.action)
   );
+  const immediateAccountLogs = accountLogs.filter(entry =>
+    ["LOGIN_BLOCKED", "USER_OAUTH_LINK_CONFLICT"].includes(entry.action)
+  );
 
   const inactiveCustomers = customers.filter((customer: any) =>
     inactiveUserIds.has(Number(customer.agentId))
@@ -1842,17 +1886,12 @@ async function buildOperationRiskReport(
         String(schedule.status)
       )
   );
-  const inactiveNotifications = notificationsResult.items.filter(
-    (notification: any) =>
-      inactiveUserIds.has(Number(notification.userId)) &&
-      (!notification.isRead || notification.processStatus === "미확인")
-  );
   const unresolvedHandoffCount =
     inactiveCustomers.length +
     inactiveContracts.length +
     inactiveFollowUps.length +
     inactiveSchedules.length +
-    inactiveNotifications.length;
+    notificationRiskCounts.inactiveUnresolvedCount;
 
   const failedPushLogs = pushLogs.filter(
     entry =>
@@ -1878,44 +1917,55 @@ async function buildOperationRiskReport(
       schedule.startTime &&
       new Date(schedule.startTime).getTime() < staleDate.getTime()
   );
-  const unreadNotifications = notificationsResult.items.filter(
-    (notification: any) =>
-      !notification.isRead || notification.processStatus === "미확인"
-  );
   const unresolvedWorkCount =
     overdueFollowUps.length +
     staleSchedules.length +
-    unreadNotifications.length +
-    pendingDeleteRequests.length;
+    notificationRiskCounts.unresolvedCount;
+  const unresolvedActionCount = overdueFollowUps.length + staleSchedules.length;
 
-  const riskCards = [
+  const riskCards = sortOperationRiskItems([
+    compactRiskItem({
+      category: "approval",
+      title: "일정 요청 처리",
+      count:
+        scheduleRequestRisk.pending +
+        scheduleRequestRisk.conflict +
+        scheduleRequestRisk.failed,
+      immediateCount: scheduleRequestRisk.conflict + scheduleRequestRisk.failed,
+      actionRequiredCount: scheduleRequestRisk.pending,
+      description:
+        scheduleRequestRisk.conflict + scheduleRequestRisk.failed > 0
+          ? "충돌 또는 반영 실패 요청을 먼저 확인하세요."
+          : "승인 대기 중인 일정 변경 요청을 확인하세요.",
+      actionLabel: "일정 요청 확인",
+      href: "/schedule-change-requests",
+    }),
     compactRiskItem({
       category: "download",
       title: "데이터 다운로드 리스크",
       count: downloadLogs.length,
-      score:
-        downloadLogs.length * 4 +
-        repeatedDownloadUsers * 14 +
-        shortDownloadReasons * 8,
+      immediateCount: failedDownloadLogs.length,
+      actionRequiredCount: repeatedDownloadUsers + shortDownloadReasons,
       description:
-        repeatedDownloadUsers > 0
-          ? "짧은 기간 반복 다운로드 사용자를 확인하세요."
-          : "다운로드 사유와 대상 데이터를 점검하세요.",
+        failedDownloadLogs.length > 0
+          ? "실패한 다운로드 기록을 즉시 확인하세요."
+          : repeatedDownloadUsers > 0
+            ? "짧은 기간 반복 다운로드 사용자를 확인하세요."
+            : "완료된 다운로드 사유와 대상 데이터 기록입니다.",
       actionLabel: "다운로드 로그 확인",
       href: "/logs",
     }),
     compactRiskItem({
       category: "deletion",
       title: "삭제·복구 리스크",
-      count: deletionLogs.length + pendingDeleteRequests.length,
-      score:
-        deletionLogs.length * 5 +
-        permanentDeleteLogs.length * 25 +
-        pendingDeleteRequests.length * 6,
+      count: pendingDeleteRequests.length,
+      actionRequiredCount: pendingDeleteRequests.length,
       description:
-        permanentDeleteLogs.length > 0
-          ? "완전삭제 이력이 있어 즉시 확인이 필요합니다."
-          : "삭제 요청과 복구 흐름을 확인하세요.",
+        pendingDeleteRequests.length > 0
+          ? "승인 대기 중인 삭제 요청을 처리하세요."
+          : permanentDeleteLogs.length > 0
+            ? "완료된 완전삭제 이력을 참고용으로 확인할 수 있습니다."
+            : "완료된 삭제·복구 운영 기록입니다.",
       actionLabel: "삭제 데이터 확인",
       href: "/deleted-data",
     }),
@@ -1923,11 +1973,13 @@ async function buildOperationRiskReport(
       category: "account",
       title: "권한·계정 리스크",
       count: accountLogs.length,
-      score: accountLogs.length * 5 + criticalAccountLogs.length * 12,
+      immediateCount: immediateAccountLogs.length,
       description:
-        criticalAccountLogs.length > 0
-          ? "강제 로그아웃 또는 OAuth 초기화 이력을 확인하세요."
-          : "계정 상태와 권한 변경 이력을 점검하세요.",
+        immediateAccountLogs.length > 0
+          ? "차단 로그인 또는 OAuth 연결 충돌을 즉시 확인하세요."
+          : criticalAccountLogs.length > 0
+            ? "완료된 세션·OAuth 관리자 작업 기록입니다."
+            : "계정 상태와 권한 변경 운영 기록입니다.",
       actionLabel: "사용자 관리",
       href: "/users",
     }),
@@ -1935,10 +1987,7 @@ async function buildOperationRiskReport(
       category: "handoff",
       title: "인수인계 리스크",
       count: unresolvedHandoffCount,
-      score: Math.min(
-        100,
-        unresolvedHandoffCount * 6 + handoffHistories.length
-      ),
+      actionRequiredCount: unresolvedHandoffCount,
       description:
         unresolvedHandoffCount > 0
           ? "퇴사자/비활성 계정에 남은 업무가 있습니다."
@@ -1951,14 +2000,14 @@ async function buildOperationRiskReport(
       title: "푸시 알림 리스크",
       count:
         pushSummary.failed + pushSummary.skipped + pushSummary.inactiveTokens,
-      score:
-        pushSummary.failed * 10 +
-        pushSummary.skipped * 3 +
-        pushSummary.inactiveTokens * 4,
+      immediateCount: pushSummary.failed,
+      actionRequiredCount: pushSummary.inactiveTokens,
       description:
         pushSummary.failed > 0
-          ? "푸시 실패와 비활성 토큰을 확인하세요."
-          : "푸시 실패 로그가 낮은 수준입니다.",
+          ? "푸시 발송 실패를 즉시 확인하세요."
+          : pushSummary.inactiveTokens > 0
+            ? "비활성 토큰 정리 상태를 확인하세요."
+            : "정상 발송과 정책상 생략 기록입니다.",
       actionLabel: "푸시 운영 확인",
       href: "/push-notifications",
     }),
@@ -1966,27 +2015,25 @@ async function buildOperationRiskReport(
       category: "unresolved",
       title: "미처리 업무 리스크",
       count: unresolvedWorkCount,
-      score: Math.min(
-        100,
-        overdueFollowUps.length * 3 +
-          staleSchedules.length * 6 +
-          unreadNotifications.length +
-          pendingDeleteRequests.length * 5
-      ),
+      actionRequiredCount: unresolvedActionCount,
       description:
-        overdueFollowUps.length > 0
+        unresolvedActionCount > 0
           ? "미처리 후속관리와 오래된 일정을 우선 확인하세요."
-          : "미처리 운영 업무가 안정적입니다.",
+          : notificationRiskCounts.unresolvedCount > 0
+            ? "읽지 않은 알림은 참고용이며 업무 상태와 별도로 집계됩니다."
+            : "현재 미처리 운영 업무가 없습니다.",
       actionLabel: "업무 확인",
       href: "/notifications",
     }),
-  ];
+  ]);
 
-  const overallScore = Math.min(
-    100,
-    Math.round(riskCards.reduce((sum, card) => sum + card.score, 0) / 2)
-  );
-  const overallLevel = operationRiskLevel(overallScore);
+  const overallActionLevel = classifyOperationRiskActionLevel({
+    immediateCount: riskCards.filter(card => card.actionLevel === "immediate")
+      .length,
+    actionRequiredCount: riskCards.filter(
+      card => card.actionLevel === "action_required"
+    ).length,
+  });
 
   const recentRiskEvents = logsInRange
     .filter(
@@ -2012,7 +2059,7 @@ async function buildOperationRiskReport(
         action: entry.action,
         targetType: entry.targetType,
         targetId: entry.targetId,
-        riskLevel: getRiskLevel(entry.action),
+        actionLevel: getOperationActionLevel(entry.action),
         reason: details.reason,
         summary: details.summary,
       };
@@ -2026,9 +2073,18 @@ async function buildOperationRiskReport(
       dateTo: range.dateTo.toISOString(),
     },
     overall: {
-      score: overallScore,
-      level: overallLevel,
-      message: operationRiskMessage(overallLevel),
+      actionLevel: overallActionLevel,
+      message: operationRiskMessage(overallActionLevel),
+      counts: {
+        immediate: riskCards.filter(card => card.actionLevel === "immediate")
+          .length,
+        actionRequired: riskCards.filter(
+          card => card.actionLevel === "action_required"
+        ).length,
+        informational: riskCards.filter(
+          card => card.actionLevel === "informational"
+        ).length,
+      },
     },
     riskCards,
     downloadRisk: {
@@ -2056,7 +2112,7 @@ async function buildOperationRiskReport(
       inactiveContractCount: inactiveContracts.length,
       inactiveFollowUpCount: inactiveFollowUps.length,
       inactiveScheduleCount: inactiveSchedules.length,
-      inactiveNotificationCount: inactiveNotifications.length,
+      inactiveNotificationCount: notificationRiskCounts.inactiveUnresolvedCount,
       recentHandoffCount: handoffHistories.length,
     },
     pushRisk: {
@@ -2087,7 +2143,13 @@ async function buildOperationRiskReport(
       total: unresolvedWorkCount,
       overdueFollowUpCount: overdueFollowUps.length,
       staleScheduleCount: staleSchedules.length,
-      unreadNotificationCount: unreadNotifications.length,
+      unreadNotificationCount: notificationRiskCounts.unresolvedCount,
+      pendingDeleteRequestCount: pendingDeleteRequests.length,
+    },
+    approvalRisk: {
+      schedulePendingCount: scheduleRequestRisk.pending,
+      scheduleConflictCount: scheduleRequestRisk.conflict,
+      scheduleFailedCount: scheduleRequestRisk.failed,
       pendingDeleteRequestCount: pendingDeleteRequests.length,
     },
     recentRiskEvents,
@@ -2116,133 +2178,6 @@ async function buildOperationRiskReport(
         href: "/deleted-data",
       },
     ],
-  };
-}
-
-async function buildScopedOperationRiskSummary(
-  user: {
-    id: number;
-    role: string;
-    teamId: number | null;
-    accountStatus: string;
-  },
-  input?: z.infer<typeof operationRiskPeriodInput>
-) {
-  if (user.role !== "sub_branch_admin" && user.role !== "team_leader") {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Scoped operation risk is available to managers only.",
-    });
-  }
-
-  const range = resolveOperationRiskRange(input);
-  const scoped = await getScopedDashboardData(user);
-  const now = new Date();
-  const staleCustomerDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  const staleScheduleDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const activeCustomers = scoped.customerList.filter(
-    (customer: any) => customer.isActive !== false && !customer.deletedAt
-  );
-  const overdueFollowUps = scoped.followUpList.filter(
-    (followUp: any) =>
-      isOpenFollowUpStatus(String(followUp.status)) &&
-      followUp.nextContactDate &&
-      new Date(followUp.nextContactDate).getTime() < now.getTime()
-  );
-  const staleSchedules = scoped.scheduleList.filter(
-    (schedule: any) =>
-      !isFinishedScheduleStatus(String(schedule.status)) &&
-      schedule.startTime &&
-      new Date(schedule.startTime).getTime() < staleScheduleDate.getTime()
-  );
-  const unreadNotifications = scoped.notifications.filter((notification: any) =>
-    isUnreadNotification(notification)
-  );
-  const longUnmanagedCustomers = activeCustomers.filter((customer: any) => {
-    const candidate =
-      customer.lastContactDate ?? customer.updatedAt ?? customer.createdAt;
-    return (
-      candidate && new Date(candidate).getTime() < staleCustomerDate.getTime()
-    );
-  });
-  const assignmentNeeds = activeCustomers.filter(
-    (customer: any) =>
-      customer.assignmentStatus === "unassigned" ||
-      (!customer.agentId && !customer.subBranchAdminId)
-  );
-
-  const cards = [
-    compactRiskItem({
-      category: "unresolved",
-      title: "미처리 후속관리",
-      count: overdueFollowUps.length,
-      score: Math.min(100, overdueFollowUps.length * 8),
-      description:
-        "권한 범위 안의 예정/연기 후속관리 중 기한이 지난 항목입니다.",
-      actionLabel: "알림에서 확인",
-      href: "/notifications",
-    }),
-    compactRiskItem({
-      category: "unresolved",
-      title: "오래된 미완료 일정",
-      count: staleSchedules.length,
-      score: Math.min(100, staleSchedules.length * 10),
-      description: "완료 또는 취소되지 않은 오래된 일정입니다.",
-      actionLabel: "캘린더 확인",
-      href: "/calendar",
-    }),
-    compactRiskItem({
-      category: "unresolved",
-      title: "장기 미관리 고객",
-      count: longUnmanagedCustomers.length,
-      score: Math.min(100, longUnmanagedCustomers.length * 5),
-      description: "최근 관리 이력이 오래된 산하 고객입니다.",
-      actionLabel: "고객 DB 확인",
-      href: "/customers",
-    }),
-    compactRiskItem({
-      category: "unresolved",
-      title: "미확인 알림",
-      count: unreadNotifications.length,
-      score: Math.min(100, unreadNotifications.length * 3),
-      description: "읽지 않았거나 처리 완료되지 않은 산하 업무 알림입니다.",
-      actionLabel: "알림센터 확인",
-      href: "/notifications",
-    }),
-    compactRiskItem({
-      category: "handoff",
-      title: "배정/인수인계 확인 필요",
-      count: assignmentNeeds.length,
-      score: Math.min(100, assignmentNeeds.length * 8),
-      description: "권한 범위 안에서 담당자 배정 확인이 필요한 고객입니다.",
-      actionLabel: "DB 배정 확인",
-      href: "/customers/assign",
-    }),
-  ];
-  const overallScore = Math.min(
-    100,
-    Math.round(cards.reduce((sum, card) => sum + card.score, 0) / 2)
-  );
-  const overallLevel = operationRiskLevel(overallScore);
-
-  return {
-    scope: {
-      role: user.role,
-      label:
-        user.role === "sub_branch_admin" ? "산하 조직 리스크" : "팀 리스크",
-    },
-    period: {
-      preset: input?.period ?? "7d",
-      label: range.label,
-      dateFrom: range.dateFrom.toISOString(),
-      dateTo: range.dateTo.toISOString(),
-    },
-    overall: {
-      score: overallScore,
-      level: overallLevel,
-      message: operationRiskMessage(overallLevel),
-    },
-    cards,
   };
 }
 
@@ -2621,8 +2556,32 @@ function verifyBulkImportFilePolicy(input: {
   }
 }
 
+type NotificationAccessActor = {
+  id: number;
+  role: string;
+  teamId: number | null;
+};
+
+async function resolveNotificationAccessScope(
+  user: NotificationAccessActor
+): Promise<number[] | undefined> {
+  if (user.role === "branch_admin") return undefined;
+
+  if (user.role === "sub_branch_admin") {
+    const subordinates = await getUsersBySubBranchAdminId(user.id);
+    return Array.from(new Set([user.id, ...subordinates.map(item => item.id)]));
+  }
+
+  if (user.role === "team_leader" && user.teamId) {
+    const teamMembers = await getUsersByTeamId(user.teamId);
+    return Array.from(new Set([user.id, ...teamMembers.map(item => item.id)]));
+  }
+
+  return [user.id];
+}
+
 async function verifyNotificationAccess(
-  user: { id: number; role: string; teamId: number | null },
+  user: NotificationAccessActor,
   notificationId: number
 ) {
   const notification = await getNotificationById(notificationId);
@@ -2631,18 +2590,10 @@ async function verifyNotificationAccess(
       code: "NOT_FOUND",
       message: "알림을 찾을 수 없습니다.",
     });
-  if (user.role === "branch_admin") return notification;
-  if (notification.userId === user.id) return notification;
-  if (user.role === "sub_branch_admin") {
-    const subordinates = await getUsersBySubBranchAdminId(user.id);
-    if (subordinates.some(u => u.id === notification.userId))
-      return notification;
-  }
-  if (user.role === "team_leader" && user.teamId) {
-    const teamMembers = await getUsersByTeamId(user.teamId);
-    if (teamMembers.some(u => u.id === notification.userId))
-      return notification;
-  }
+
+  const userIds = await resolveNotificationAccessScope(user);
+  if (!userIds || userIds.includes(notification.userId)) return notification;
+
   throw new TRPCError({
     code: "FORBIDDEN",
     message: "해당 알림을 수정할 권한이 없습니다.",
@@ -3304,6 +3255,27 @@ function toDayStart(date: Date) {
 
 function toDayEnd(date: Date) {
   return getKstDayRange(date).end;
+}
+
+function parseNotificationFilterDate(
+  value: string | undefined,
+  boundary: "start" | "end"
+) {
+  if (!value) return undefined;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? parseKstLocalDateTime(value)
+    : new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `${boundary === "start" ? "dateFrom" : "dateTo"}이 올바르지 않습니다.`,
+    });
+  }
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? boundary === "start"
+      ? toDayStart(date)
+      : toDayEnd(date)
+    : date;
 }
 
 async function getFollowUpScope(user: {
@@ -5175,14 +5147,15 @@ async function buildAdminTeamInsights(user: {
         !c.deletedAt
     ).length;
 
-    const riskScore =
-      unconsultedDbCount * 2 +
-      overdueFollowUpsCount * 5 +
-      incompleteSchedulesCount * 3 +
-      longUnmanagedCount * 3 +
-      priorityAUnmanagedCount * 5 +
-      postContractUnmanagedCount * 4 +
-      unreadNotificationsCount * 1;
+    const actionLevel = classifyOperationRiskActionLevel({
+      actionRequiredCount:
+        unconsultedDbCount +
+        overdueFollowUpsCount +
+        incompleteSchedulesCount +
+        longUnmanagedCount +
+        priorityAUnmanagedCount +
+        postContractUnmanagedCount,
+    });
 
     return {
       user: {
@@ -5204,13 +5177,33 @@ async function buildAdminTeamInsights(user: {
         todayConsultationsCount,
         todayContractsCount,
       },
-      riskScore,
+      actionLevel,
     };
   });
 
-  const topRiskUsers = [...userMetrics]
-    .filter(m => m.riskScore > 0)
-    .sort((a, b) => b.riskScore - a.riskScore)
+  const sortedUserMetrics = [...userMetrics].sort((left, right) => {
+    const actionOrder = compareOperationRiskActionLevel(
+      left.actionLevel,
+      right.actionLevel
+    );
+    if (actionOrder !== 0) return actionOrder;
+
+    for (const key of [
+      "overdueFollowUpsCount",
+      "incompleteSchedulesCount",
+      "unconsultedDbCount",
+      "priorityAUnmanagedCount",
+      "longUnmanagedCount",
+      "postContractUnmanagedCount",
+      "unreadNotificationsCount",
+    ] as const) {
+      const difference = right.metrics[key] - left.metrics[key];
+      if (difference !== 0) return difference;
+    }
+    return left.user.id - right.user.id;
+  });
+  const attentionUsers = sortedUserMetrics
+    .filter(item => item.actionLevel !== "informational")
     .slice(0, 5);
 
   const summary = {
@@ -5238,8 +5231,8 @@ async function buildAdminTeamInsights(user: {
 
   return {
     summary,
-    topRiskUsers,
-    userMetrics: userMetrics.sort((a, b) => b.riskScore - a.riskScore),
+    attentionUsers,
+    userMetrics: sortedUserMetrics,
   };
 }
 
@@ -5407,7 +5400,10 @@ function buildCustomerListBaseFilter(input: CustomerListInput) {
   };
 }
 
-async function resolveCustomerListScopeFilter(user: any, input: CustomerListInput) {
+async function resolveCustomerListScopeFilter(
+  user: any,
+  input: CustomerListInput
+) {
   const baseFilter = buildCustomerListBaseFilter(input);
 
   if (input.scope === "all" && user.role === "member") {
@@ -5429,7 +5425,9 @@ async function resolveCustomerListScopeFilter(user: any, input: CustomerListInpu
   }
 
   if (input.scope === "mine") {
-    if (!["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role)) {
+    if (
+      !["branch_admin", "sub_branch_admin", "team_leader"].includes(user.role)
+    ) {
       throw new TRPCError({
         code: "FORBIDDEN",
         message: "담당자만 해당 필터로 조회할 수 있습니다.",
@@ -5510,7 +5508,10 @@ async function resolveConversionDashboardAgentIds(
   },
   input: ConversionDashboardInput = {}
 ) {
-  const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+  const [allUsers, allTeams] = await Promise.all([
+    getAllUsers(),
+    getAllTeams(),
+  ]);
   const activeUsers = (allUsers as any[]).filter(
     item => item.accountStatus === "active"
   );
@@ -5522,7 +5523,9 @@ async function resolveConversionDashboardAgentIds(
   let allowedIds = new Set(hierarchyIds.filter(id => activeUserIds.has(id)));
 
   if (input.teamIdFilter != null) {
-    const team = (allTeams as any[]).find(item => item.id === input.teamIdFilter);
+    const team = (allTeams as any[]).find(
+      item => item.id === input.teamIdFilter
+    );
     const teamUserIds = activeUsers
       .filter(item => item.teamId === input.teamIdFilter)
       .map(item => item.id);
@@ -7318,6 +7321,7 @@ export const appRouter = router({
             targetType: entry.targetType,
             targetId: entry.targetId,
             riskLevel: getRiskLevel(entry.action),
+            actionLevel: getOperationActionLevel(entry.action),
             reason: details.reason,
             summary: details.summary,
           };
@@ -7462,6 +7466,7 @@ export const appRouter = router({
               targetType: entry.targetType,
               targetId: entry.targetId,
               riskLevel: getRiskLevel(entry.action),
+              actionLevel: getOperationActionLevel(entry.action),
               reason: details.reason,
               summary: details.summary,
             };
@@ -7532,11 +7537,6 @@ export const appRouter = router({
       .query(
         async ({ input }) =>
           (await buildOperationRiskReport(input)).unresolvedWorkRisk
-      ),
-    scopedSummary: activeUserProcedure
-      .input(operationRiskPeriodInput)
-      .query(async ({ ctx, input }) =>
-        buildScopedOperationRiskSummary(ctx.user, input)
       ),
   }),
 
@@ -8580,7 +8580,10 @@ export const appRouter = router({
         const existingPhones = await getAllActiveCustomerPhones(customerScope);
         const scopedCustomers = await getCustomers(customerScope);
         const allActivePhones = await getAllActiveCustomerPhones({});
-        const scopedCustomersByPhone = new Map<string, typeof scopedCustomers>();
+        const scopedCustomersByPhone = new Map<
+          string,
+          typeof scopedCustomers
+        >();
         for (const customer of scopedCustomers) {
           if (!customer.phone) continue;
           const phone = normalizePhone(customer.phone);
@@ -8632,7 +8635,9 @@ export const appRouter = router({
             }
           }
           if (result.isValid) {
-            const parsedRow = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            const parsedRow = normalizeBulkImportRow(
+              input.rows[result.rowIndex]
+            );
             if (parsedRow.consultationDateTime?.trim()) {
               try {
                 parseImportDateTimeOrThrow(
@@ -8646,7 +8651,10 @@ export const appRouter = router({
             }
             if (parsedRow.nextContactDate?.trim()) {
               try {
-                parseImportDateTimeOrThrow(parsedRow.nextContactDate, "다음연락일");
+                parseImportDateTimeOrThrow(
+                  parsedRow.nextContactDate,
+                  "다음연락일"
+                );
               } catch (error) {
                 result.isValid = false;
                 result.errors.push("다음연락일 형식을 확인해 주세요.");
@@ -8738,7 +8746,10 @@ export const appRouter = router({
         const existingPhones = await getAllActiveCustomerPhones(customerScope);
         const scopedCustomers = await getCustomers(customerScope);
         const allActivePhones = await getAllActiveCustomerPhones({});
-        const scopedCustomersByPhone = new Map<string, typeof scopedCustomers>();
+        const scopedCustomersByPhone = new Map<
+          string,
+          typeof scopedCustomers
+        >();
         for (const customer of scopedCustomers) {
           if (!customer.phone) continue;
           const phone = normalizePhone(customer.phone);
@@ -8790,7 +8801,9 @@ export const appRouter = router({
             }
           }
           if (result.isValid) {
-            const parsedRow = normalizeBulkImportRow(input.rows[result.rowIndex]);
+            const parsedRow = normalizeBulkImportRow(
+              input.rows[result.rowIndex]
+            );
             if (parsedRow.consultationDateTime?.trim()) {
               try {
                 parseImportDateTimeOrThrow(
@@ -8804,7 +8817,10 @@ export const appRouter = router({
             }
             if (parsedRow.nextContactDate?.trim()) {
               try {
-                parseImportDateTimeOrThrow(parsedRow.nextContactDate, "다음연락일");
+                parseImportDateTimeOrThrow(
+                  parsedRow.nextContactDate,
+                  "다음연락일"
+                );
               } catch (error) {
                 result.isValid = false;
                 result.errors.push("다음연락일 형식을 확인해 주세요.");
@@ -8862,14 +8878,14 @@ export const appRouter = router({
 
           for (const result of validRows) {
             const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
-            const normalizedConsultationResult = normalizeBulkImportConsultationResult(
-              row.consultationLog
-            );
-            const normalizedStatusFromConsultation = normalizedConsultationResult
-              ? mapImportConsultationResultToCustomerStatus(
-                  normalizedConsultationResult
-                )
-              : undefined;
+            const normalizedConsultationResult =
+              normalizeBulkImportConsultationResult(row.consultationLog);
+            const normalizedStatusFromConsultation =
+              normalizedConsultationResult
+                ? mapImportConsultationResultToCustomerStatus(
+                    normalizedConsultationResult
+                  )
+                : undefined;
             const normalizedConsultStatus = row.consultStatus ?? "미상담";
             const customerPayload = {
               name: row.name!,
@@ -8886,7 +8902,9 @@ export const appRouter = router({
                     : undefined) as any,
               region: row.region,
               expectedPremium: row.expectedPremium
-                ? expectedPremiumStoredWonFromManwonInput(String(row.expectedPremium))
+                ? expectedPremiumStoredWonFromManwonInput(
+                    String(row.expectedPremium)
+                  )
                 : undefined,
               availableTime: row.availableTime,
               source: row.source,
@@ -8938,7 +8956,10 @@ export const appRouter = router({
 
             if (normalizedConsultationResult && customerId > 0) {
               const consultationOccurredAt = row.consultationDateTime?.trim()
-                ? parseImportDateTimeOrThrow(row.consultationDateTime, "상담일시")
+                ? parseImportDateTimeOrThrow(
+                    row.consultationDateTime,
+                    "상담일시"
+                  )
                 : importedAt;
               const nextContactAt = row.nextContactDate?.trim()
                 ? parseImportDateTimeOrThrow(row.nextContactDate, "다음연락일")
@@ -9019,13 +9040,15 @@ export const appRouter = router({
           ).length,
           consultationCreatedRows: validRows.filter(result => {
             const row = normalizeBulkImportRow(input.rows[result.rowIndex]);
-            return Boolean(normalizeBulkImportConsultationResult(row.consultationLog));
+            return Boolean(
+              normalizeBulkImportConsultationResult(row.consultationLog)
+            );
           }).length,
           createdCustomers: validRows.filter(
             result => !result.matchedExistingCustomerId
           ).length,
-          updatedCustomers: validRows.filter(
-            result => Boolean(result.matchedExistingCustomerId)
+          updatedCustomers: validRows.filter(result =>
+            Boolean(result.matchedExistingCustomerId)
           ).length,
           validationResults,
         };
@@ -10336,8 +10359,7 @@ export const appRouter = router({
                 changedFields,
                 contractStatus:
                   input.contractStatus ?? existing.contractStatus ?? "",
-                paymentStatus:
-                  paymentStatus ?? existing.paymentStatus ?? "",
+                paymentStatus: paymentStatus ?? existing.paymentStatus ?? "",
               },
             });
           }
@@ -11910,6 +11932,19 @@ export const appRouter = router({
             processStatus: z.string().optional(),
             isRead: z.boolean().optional(),
             type: z.string().optional(),
+            category: z.enum(NOTIFICATION_CATEGORY_VALUES).optional(),
+            actionRequired: z.boolean().optional(),
+            priority: z.enum(NOTIFICATION_PRIORITY_FILTER_VALUES).optional(),
+            targetType: z
+              .enum([
+                "customer",
+                "contract",
+                "schedule",
+                "follow_up",
+                "schedule_change_request",
+                "delete_request",
+              ])
+              .optional(),
             dateFrom: z.string().optional(),
             dateTo: z.string().optional(),
             limit: z.number().min(1).max(200).default(50),
@@ -11918,36 +11953,27 @@ export const appRouter = router({
           .optional()
       )
       .query(async ({ ctx, input }) => {
-        const user = ctx.user;
         const filter = {
           processStatus: input?.processStatus,
           isRead: input?.isRead,
           type: input?.type,
-          dateFrom: input?.dateFrom ? new Date(input.dateFrom) : undefined,
-          dateTo: input?.dateTo ? new Date(input.dateTo) : undefined,
+          category: input?.category,
+          actionRequired: input?.actionRequired,
+          priority: input?.priority,
+          targetType: input?.targetType,
+          dateFrom: parseNotificationFilterDate(input?.dateFrom, "start"),
+          dateTo: parseNotificationFilterDate(input?.dateTo, "end"),
           limit: input?.limit ?? 50,
           offset: input?.offset ?? 0,
         };
-        // branch_admin: 전체 알림 (userIds 제한 없음)
-        if (user.role === "branch_admin") {
-          return getNotificationsFiltered({ ...filter });
-        }
-        // sub_branch_admin: 본인 + 산하 팀원 알림
-        if (user.role === "sub_branch_admin") {
-          const subordinates = await getUsersBySubBranchAdminId(user.id);
-          const userIds = [user.id, ...subordinates.map(u => u.id)];
-          return getNotificationsFiltered({ ...filter, userIds });
-        }
-        // team_leader: 본인 + 본인 팀원 알림
-        if (user.role === "team_leader" && user.teamId) {
-          const teamMembers = await getUsersByTeamId(user.teamId);
-          const userIds = [user.id, ...teamMembers.map(u => u.id)];
-          return getNotificationsFiltered({ ...filter, userIds });
-        }
-        // member: 본인 알림만
-        return getNotificationsFiltered({ ...filter, userIds: [user.id] });
+        const userIds = await resolveNotificationAccessScope(ctx.user);
+        return getNotificationsActionCenter({ ...filter, userIds });
       }),
-    unreadCount: activeUserProcedure.query(async ({ ctx }) =>
+    unreadCount: activeUserProcedure.query(async ({ ctx }) => {
+      const userIds = await resolveNotificationAccessScope(ctx.user);
+      return getUnreadCountByUserIds(userIds);
+    }),
+    myUnreadCount: activeUserProcedure.query(async ({ ctx }) =>
       getUnreadCount(ctx.user.id)
     ),
     markRead: activeUserProcedure
@@ -11965,6 +11991,7 @@ export const appRouter = router({
         return { success: true };
       }),
     markAllRead: activeUserProcedure.mutation(async ({ ctx }) => {
+      // 읽음 여부는 수신자 개인 상태이므로 계층 범위가 아닌 본인 알림만 갱신한다.
       await markAllNotificationsRead(ctx.user.id);
       return { success: true };
     }),
@@ -12221,7 +12248,10 @@ export const appRouter = router({
     summary: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           scope: dashboard.scope,
@@ -12232,7 +12262,10 @@ export const appRouter = router({
     funnel: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           funnel: dashboard.funnel,
@@ -12242,7 +12275,10 @@ export const appRouter = router({
     byAgent: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           rows: dashboard.byAgent,
@@ -12252,7 +12288,10 @@ export const appRouter = router({
     staleDb: activeUserProcedure
       .input(conversionDashboardInputSchema)
       .query(async ({ ctx, input }) => {
-        const dashboard = await getScopedConversionDashboard(ctx.user, input ?? {});
+        const dashboard = await getScopedConversionDashboard(
+          ctx.user,
+          input ?? {}
+        );
         return {
           period: dashboard.period,
           staleDb: dashboard.staleDb,
@@ -12261,7 +12300,10 @@ export const appRouter = router({
 
     filters: activeUserProcedure.query(async ({ ctx }) => {
       const agentIds = await resolveConversionDashboardAgentIds(ctx.user, {});
-      const [allUsers, allTeams] = await Promise.all([getAllUsers(), getAllTeams()]);
+      const [allUsers, allTeams] = await Promise.all([
+        getAllUsers(),
+        getAllTeams(),
+      ]);
       const allowed = new Set(agentIds);
       return {
         presets: [
@@ -12271,7 +12313,9 @@ export const appRouter = router({
           { value: "custom", label: "직접 기간 선택" },
         ],
         agents: (allUsers as any[])
-          .filter(user => allowed.has(user.id) && user.accountStatus === "active")
+          .filter(
+            user => allowed.has(user.id) && user.accountStatus === "active"
+          )
           .map(user => ({
             id: user.id,
             name: user.name,

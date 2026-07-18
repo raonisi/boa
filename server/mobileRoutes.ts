@@ -20,6 +20,10 @@ import {
   parseMobileSearchQuery,
 } from "./mobileSearchFilters";
 import { sanitizeAuthError } from "./authErrorSanitizer";
+import {
+  NOTIFICATION_CATEGORY_VALUES,
+  NOTIFICATION_PRIORITY_FILTER_VALUES,
+} from "@shared/notificationActionCenter";
 
 const googleIdTokenBody = z.object({
   idToken: z.string().min(10),
@@ -717,7 +721,7 @@ export function registerMobileRoutes(app: Express) {
       const ctx: TrpcContext = { req, res, user };
       const caller = appRouter.createCaller(ctx);
       try {
-        const count = await caller.notifications.unreadCount();
+        const count = await caller.notifications.myUnreadCount();
         res.json({ count });
       } catch (e: unknown) {
         const msg =
@@ -751,6 +755,22 @@ export function registerMobileRoutes(app: Express) {
       .int()
       .min(0)
       .safeParse(req.query.offset);
+    const categoryParsed = z
+      .enum(NOTIFICATION_CATEGORY_VALUES)
+      .safeParse(req.query.category);
+    const priorityParsed = z
+      .enum(NOTIFICATION_PRIORITY_FILTER_VALUES)
+      .safeParse(req.query.priority);
+    const targetTypeParsed = z
+      .enum([
+        "customer",
+        "contract",
+        "schedule",
+        "follow_up",
+        "schedule_change_request",
+        "delete_request",
+      ])
+      .safeParse(req.query.targetType);
     const listInput = {
       limit: limitParsed.success ? limitParsed.data : 50,
       offset: offsetParsed.success ? offsetParsed.data : 0,
@@ -760,10 +780,28 @@ export function registerMobileRoutes(app: Express) {
           : req.query.isRead === "false"
             ? false
             : undefined,
+      category: categoryParsed.success ? categoryParsed.data : undefined,
+      priority: priorityParsed.success ? priorityParsed.data : undefined,
+      actionRequired:
+        req.query.actionRequired === "true"
+          ? true
+          : req.query.actionRequired === "false"
+            ? false
+            : undefined,
+      targetType: targetTypeParsed.success ? targetTypeParsed.data : undefined,
+      processStatus:
+        typeof req.query.processStatus === "string"
+          ? req.query.processStatus
+          : undefined,
+      type: typeof req.query.type === "string" ? req.query.type : undefined,
+      dateFrom:
+        typeof req.query.dateFrom === "string" ? req.query.dateFrom : undefined,
+      dateTo:
+        typeof req.query.dateTo === "string" ? req.query.dateTo : undefined,
     };
     try {
-      const items = await caller.notifications.list(listInput);
-      res.json({ items });
+      const page = await caller.notifications.list(listInput);
+      res.json(page);
     } catch (e: unknown) {
       const msg =
         e instanceof Error ? e.message : "Failed to list notifications";

@@ -9,6 +9,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { User, ChevronRight } from "lucide-react";
+import {
+  OPERATION_RISK_ACTION_LEVEL_LABELS,
+  type OperationRiskActionLevel,
+} from "@shared/operationRiskActionLevel";
 
 interface UserMetric {
   user: {
@@ -30,7 +34,7 @@ interface UserMetric {
     todayConsultationsCount: number;
     todayContractsCount: number;
   };
-  riskScore: number;
+  actionLevel: OperationRiskActionLevel;
 }
 
 export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
@@ -48,7 +52,7 @@ export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
         <TableHeader>
           <TableRow className="bg-muted/50">
             <TableHead className="w-[180px]">팀원</TableHead>
-            <TableHead className="text-center">위험도</TableHead>
+            <TableHead className="text-center">행동상태</TableHead>
             <TableHead className="text-center text-muted-foreground">
               미상담DB
             </TableHead>
@@ -90,21 +94,17 @@ export default function InsightTable({ metrics }: { metrics: UserMetric[] }) {
                 </div>
               </TableCell>
               <TableCell className="text-center">
-                {item.riskScore > 0 ? (
-                  <Badge
-                    variant={
-                      item.riskScore >= 30
-                        ? "destructive"
-                        : item.riskScore >= 10
-                          ? "secondary"
-                          : "outline"
-                    }
-                  >
-                    {item.riskScore}점
-                  </Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">안정</span>
-                )}
+                <Badge
+                  variant={
+                    item.actionLevel === "immediate"
+                      ? "destructive"
+                      : item.actionLevel === "action_required"
+                        ? "secondary"
+                        : "outline"
+                  }
+                >
+                  {OPERATION_RISK_ACTION_LEVEL_LABELS[item.actionLevel]}
+                </Badge>
               </TableCell>
               <TableCell className="text-center">
                 {item.metrics.unconsultedDbCount > 0 ? (

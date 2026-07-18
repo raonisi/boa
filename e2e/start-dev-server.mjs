@@ -42,6 +42,7 @@ const child = spawn(command, args, {
      * Prevents findAvailablePort() from silently binding 3188 when 3187 is busy.
      */
     RAILWAY_ENVIRONMENT: "e2e",
+    PUSH_REMINDER_SCHEDULER_ENABLED: "false",
   },
   shell: process.platform === "win32",
   stdio: "inherit",

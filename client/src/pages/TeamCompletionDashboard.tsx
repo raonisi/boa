@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button";
 import DashboardLayout from "@/components/DashboardLayout";
 import { ErrorState } from "@/components/ui/empty-state";
 import { USER_FACING_ERRORS } from "@/lib/userFacingMessages";
+import { OPERATION_RISK_ACTION_LEVEL_LABELS } from "@shared/operationRiskActionLevel";
 
 export default function TeamCompletionDashboard() {
   const [, setLocation] = useLocation();
@@ -176,16 +177,16 @@ export default function TeamCompletionDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">
-                코칭 필요 팀원
+                처리 필요 팀원
               </CardTitle>
               <Users className="h-4 w-4 text-destructive" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-destructive">
-                {data.summary.coachingNeededUserCount}명
+                {data.summary.actionRequiredUserCount}명
               </div>
               <p className="text-xs text-muted-foreground">
-                고위험 {data.summary.highRiskUserCount}명 포함
+                지연 후속관리 또는 처리 필요 알림이 있는 구성원
               </p>
             </CardContent>
           </Card>
@@ -194,22 +195,22 @@ export default function TeamCompletionDashboard() {
         <Card className="border-destructive/20 bg-destructive/5 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg text-destructive flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5" /> 우선 코칭 필요 팀원 TOP 5
+              <AlertTriangle className="h-5 w-5" /> 확인 필요 구성원
             </CardTitle>
             <CardDescription className="text-destructive/80">
-              업무 지연 위험도가 높아 관리자의 빠른 코칭이 필요한 팀원
+              실제 미처리 건수를 기준으로 관리자의 확인이 필요한 구성원
               목록입니다.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {data.topRiskUsers.length === 0 ? (
+            {data.attentionUsers.length === 0 ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
                 <CheckCircle2 className="h-4 w-4 text-emerald-500" /> 우선
                 코칭이 필요한 팀원이 없습니다.
               </div>
             ) : (
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                {data.topRiskUsers.map(user => (
+                {data.attentionUsers.map(user => (
                   <div
                     key={user.userId}
                     className="flex flex-col gap-2 rounded-lg border border-destructive/20 bg-white p-3"
@@ -218,19 +219,8 @@ export default function TeamCompletionDashboard() {
                       <span className="font-semibold text-slate-900">
                         {user.name}
                       </span>
-                      <Badge
-                        variant={
-                          user.riskLevel === "높음"
-                            ? "destructive"
-                            : "secondary"
-                        }
-                        className={
-                          user.riskLevel === "보통"
-                            ? "bg-amber-100 text-amber-800"
-                            : ""
-                        }
-                      >
-                        {user.riskLevel} (점수: {user.riskScore})
+                      <Badge variant="secondary">
+                        {OPERATION_RISK_ACTION_LEVEL_LABELS[user.actionLevel]}
                       </Badge>
                     </div>
                     <div className="text-xs text-slate-500">
@@ -267,7 +257,7 @@ export default function TeamCompletionDashboard() {
             <CardHeader>
               <CardTitle>팀원별 알림 처리율</CardTitle>
               <CardDescription>
-                알림 미확인 및 고위험 알림 방치 현황
+                알림 미확인 및 처리 필요 알림 현황
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0">
