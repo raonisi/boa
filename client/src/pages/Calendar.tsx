@@ -278,6 +278,19 @@ const typeColors: Record<string, string> = {
   기타: "bg-slate-400",
 };
 
+const calendarEventColors: Record<string, string> = {
+  고객상담: "bg-blue-700",
+  재통화: "bg-cyan-700",
+  계약예정: "bg-green-700",
+  보장분석: "bg-indigo-700",
+  해지방어: "bg-rose-700",
+  팀회의: "bg-purple-700",
+  교육: "bg-yellow-700",
+  외근: "bg-orange-700",
+  내부: "bg-gray-700",
+  기타: "bg-slate-700",
+};
+
 const reminderOffsetLabels: Record<string, string> = {
   "-1": "알림 없음",
   "0": "일정 시각",
@@ -1526,7 +1539,7 @@ export default function Calendar() {
                               {daySchedules.slice(0, 3).map(s => (
                                 <div
                                   key={s.id}
-                                  className={`text-xs text-white rounded px-1 py-0.5 truncate ${typeColors[s.type] ?? "bg-slate-400"}`}
+                                  className={`text-xs text-white rounded px-1 py-0.5 truncate ${calendarEventColors[s.type] ?? "bg-slate-700"}`}
                                   onClick={e => {
                                     e.stopPropagation();
                                     setSelectedSchedule(s);
@@ -1620,7 +1633,7 @@ export default function Calendar() {
                             {daySchedules.map(s => (
                               <div
                                 key={s.id}
-                                className={`text-xs text-white rounded px-1.5 py-1 ${typeColors[s.type] ?? "bg-slate-400"}`}
+                                className={`text-xs text-white rounded px-1.5 py-1 ${calendarEventColors[s.type] ?? "bg-slate-700"}`}
                                 onClick={e => {
                                   e.stopPropagation();
                                   setSelectedSchedule(s);
