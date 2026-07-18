@@ -411,12 +411,12 @@ test.describe("BOA CRM e2e smoke", () => {
     await expectStablePageShell(page, errors);
   });
 
-  test("mobile manager opens scoped operation risk from more menu", async ({
+  test("mobile manager sees branch-admin-only operation risk permission state", async ({
     page,
   }, testInfo) => {
     test.skip(
       !testInfo.project.name.includes("mobile"),
-      "mobile-only manager scoped risk smoke"
+      "mobile-only manager operation risk permission smoke"
     );
     await mockBoaTrpc(page, "team_leader");
     const errors = collectPageErrors(page);
@@ -432,9 +432,9 @@ test.describe("BOA CRM e2e smoke", () => {
 
     await expect(page).toHaveURL(/\/operation-risk$/);
     await expect(
-      page.getByRole("heading", { name: "팀 리스크" })
+      page.getByText(/권한|Permission|required|접근/).first()
     ).toBeVisible();
-    await expect(page.getByText("미처리 후속관리")).toBeVisible();
+    await expect(page.getByText("미처리 후속관리")).toHaveCount(0);
     await expect(page.getByText("DATA_DOWNLOAD")).toHaveCount(0);
     await expect(page.getByText("완전삭제")).toHaveCount(0);
     await expect(page.getByText("OAuth")).toHaveCount(0);
@@ -589,7 +589,7 @@ test.describe("BOA CRM e2e smoke", () => {
       /\/notifications\?category=schedule&priority=today/
     );
     await expect(
-      page.getByRole("button", { name: /우선순위: 오늘 필터 해제/ })
+      page.getByRole("button", { name: /우선순위: 오늘(?: 처리)? 필터 해제/ })
     ).toBeVisible();
     await expectNoHorizontalOverflow(page);
   });
@@ -609,6 +609,17 @@ test.describe("BOA CRM e2e smoke", () => {
     await expect(
       page.getByRole("heading", { name: "운영 리스크 센터" })
     ).toBeVisible();
+    await expect(
+      page.locator('section[aria-labelledby="operation-risk-immediate"]')
+    ).toBeVisible();
+    await expect(
+      page.locator('section[aria-labelledby="operation-risk-action_required"]')
+    ).toBeVisible();
+    await expect(
+      page.locator('section[aria-labelledby="operation-risk-informational"]')
+    ).toBeVisible();
+    await expect(page.getByText("리스크 점수")).toHaveCount(0);
+    await expect(page.getByText(/점수\s*\d+/)).toHaveCount(0);
     await expectNoBlockingAccessibilityViolations(page);
   });
 

@@ -994,7 +994,9 @@ describe("Bulk import branch-admin access policy", () => {
     vi.spyOn(db, "getCustomers").mockResolvedValue([]);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
     vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
-    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([{ insertId: 10 }] as any);
+    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([
+      { insertId: 10 },
+    ] as any);
     const createConsultationSpy = vi
       .spyOn(db, "createConsultation")
       .mockResolvedValue(undefined);
@@ -1002,16 +1004,18 @@ describe("Bulk import branch-admin access policy", () => {
       callback({})
     );
 
-    await appRouter.createCaller(createCtx("branch_admin", { userId: 1 })).customers.bulkImport({
-      fileName: "customers.csv",
-      rows: [
-        {
-          ...row,
-          name: "[TEST] No Consultation Log",
-          상담기록: "",
-        },
-      ],
-    });
+    await appRouter
+      .createCaller(createCtx("branch_admin", { userId: 1 }))
+      .customers.bulkImport({
+        fileName: "customers.csv",
+        rows: [
+          {
+            ...row,
+            name: "[TEST] No Consultation Log",
+            상담기록: "",
+          },
+        ],
+      });
 
     expect(createConsultationSpy).not.toHaveBeenCalled();
   });
@@ -1095,7 +1099,9 @@ describe("Bulk import branch-admin access policy", () => {
     vi.spyOn(db, "getCustomers").mockResolvedValue([]);
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
     vi.spyOn(db, "createImportBatch").mockResolvedValue(undefined);
-    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([{ insertId: 11 }] as any);
+    vi.spyOn(db, "bulkCreateCustomers").mockResolvedValue([
+      { insertId: 11 },
+    ] as any);
     vi.spyOn(db, "createConsultation").mockResolvedValue(undefined);
     vi.spyOn(db, "runDbTransaction").mockImplementation(async (callback: any) =>
       callback({})
@@ -1107,7 +1113,12 @@ describe("Bulk import branch-admin access policy", () => {
         fileName: "customers.csv",
         rows: [
           { ...row, name: "[TEST] Valid 상담기록", 상담기록: "상담 예정" },
-          { ...row, name: "[TEST] Invalid 상담기록", phone: "010-2000-0012", 상담기록: "알수없음" },
+          {
+            ...row,
+            name: "[TEST] Invalid 상담기록",
+            phone: "010-2000-0012",
+            상담기록: "알수없음",
+          },
         ],
       });
 
@@ -5204,6 +5215,11 @@ describe("PR6 operation risk center", () => {
       activityLogs: any[];
       pushSummary: any;
       pushLogs: any[];
+      scheduleRequestRisk: {
+        pending: number;
+        conflict: number;
+        failed: number;
+      };
     }> = {}
   ) {
     vi.spyOn(db, "getAllUsers").mockResolvedValue(
@@ -5256,6 +5272,9 @@ describe("PR6 operation risk center", () => {
     );
     vi.spyOn(db, "listPushNotificationLogs").mockResolvedValue(
       overrides.pushLogs ?? ([] as any)
+    );
+    vi.spyOn(db, "getScheduleChangeRequestRiskSummary").mockResolvedValue(
+      overrides.scheduleRequestRisk ?? { pending: 0, conflict: 0, failed: 0 }
     );
   }
 
@@ -5387,7 +5406,7 @@ describe("PR6 operation risk center", () => {
     const result = await caller.operationRisk.summary({ period: "7d" });
     const events = await caller.operationRisk.riskEvents({ period: "7d" });
 
-    expect(result.overall.score).toBeGreaterThan(0);
+    expect(result.overall.actionLevel).toBe("immediate");
     expect(result.downloadRisk.total).toBe(3);
     expect(result.downloadRisk.repeatedUserCount).toBe(1);
     expect(result.downloadRisk.shortReasonCount).toBe(1);
@@ -5401,6 +5420,7 @@ describe("PR6 operation risk center", () => {
     expect(serialized).not.toContain("010-1234-5678");
     expect(serialized).not.toContain("raw-token");
     expect(serialized).not.toContain("secret-dedupe");
+    expect(serialized).not.toContain('"score"');
     expect(createLogSpy).not.toHaveBeenCalled();
   });
 
@@ -5430,131 +5450,6 @@ describe("PR6 operation risk center", () => {
       appRouter
         .createCaller(createCtx("branch_admin", { accountStatus: "resigned" }))
         .operationRisk.summary({ period: "7d" })
-    ).rejects.toThrow();
-  });
-
-  it("allows sub_branch_admin and team_leader to view scoped read-only operation risk", async () => {
-    const now = new Date();
-    const oldDate = new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000);
-    const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([
-      {
-        id: 101,
-        agentId: 4,
-        isActive: true,
-        createdAt: oldDate,
-        updatedAt: oldDate,
-        lastContactDate: oldDate,
-        assignmentStatus: "assigned",
-      },
-      {
-        id: 102,
-        agentId: null,
-        subBranchAdminId: null,
-        isActive: true,
-        createdAt: oldDate,
-        updatedAt: oldDate,
-        assignmentStatus: "unassigned",
-      },
-    ] as any);
-    vi.spyOn(db, "getAllContracts").mockResolvedValue([] as any);
-    vi.spyOn(db, "getSchedules").mockResolvedValue([
-      {
-        id: 201,
-        userId: 4,
-        status: "scheduled",
-        startTime: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000),
-      },
-    ] as any);
-    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
-      items: [{ id: 301, userId: 4, isRead: false, processStatus: "unread" }],
-      totalCount: 1,
-      hasMore: false,
-    } as any);
-    vi.spyOn(db, "getFollowUps").mockResolvedValue([
-      {
-        id: 401,
-        assignedAgentId: 4,
-        status: "scheduled",
-        nextContactDate: new Date(now.getTime() - 24 * 60 * 60 * 1000),
-      },
-    ] as any);
-    vi.spyOn(db, "getAllUsers").mockResolvedValue([
-      { id: 2, role: "sub_branch_admin", accountStatus: "active" },
-      {
-        id: 3,
-        role: "team_leader",
-        accountStatus: "active",
-        parentUserId: 2,
-        teamId: 10,
-      },
-      {
-        id: 4,
-        role: "member",
-        accountStatus: "active",
-        parentUserId: 3,
-        teamId: 10,
-      },
-      {
-        id: 9,
-        role: "member",
-        accountStatus: "active",
-        parentUserId: 99,
-        teamId: 99,
-      },
-    ] as any);
-    vi.spyOn(db, "getAllTeams").mockResolvedValue([
-      { id: 10, managerId: 3, subBranchAdminId: 2 },
-    ] as any);
-    const getLogsSpy = vi.spyOn(db, "getActivityLogs").mockResolvedValue([
-      {
-        id: 1,
-        action: "DATA_DOWNLOAD",
-        details: JSON.stringify({ phone: "010-0000-0000" }),
-        createdAt: now,
-      },
-    ] as any);
-
-    const subBranchResult = await appRouter
-      .createCaller(createCtx("sub_branch_admin", { userId: 2 }))
-      .operationRisk.scopedSummary({ period: "7d" });
-    const teamResult = await appRouter
-      .createCaller(createCtx("team_leader", { userId: 3, teamId: 10 }))
-      .operationRisk.scopedSummary({ period: "7d" });
-
-    expect(subBranchResult.scope.role).toBe("sub_branch_admin");
-    expect(teamResult.scope.role).toBe("team_leader");
-    expect(subBranchResult.cards.map(card => card.title)).toEqual([
-      "미처리 후속관리",
-      "오래된 미완료 일정",
-      "장기 미관리 고객",
-      "미확인 알림",
-      "배정/인수인계 확인 필요",
-    ]);
-    expect(subBranchResult.cards.some(card => card.count > 0)).toBe(true);
-    expect(JSON.stringify(subBranchResult)).not.toContain("DATA_DOWNLOAD");
-    expect(JSON.stringify(subBranchResult)).not.toContain("010-0000-0000");
-    expect(getLogsSpy).not.toHaveBeenCalled();
-    expect(getCustomersSpy).toHaveBeenCalledWith({ agentIds: [2, 3, 4] });
-    expect(getCustomersSpy).toHaveBeenCalledWith({ agentIds: [3, 4] });
-  });
-
-  it("blocks member and inactive users from scoped operation risk", async () => {
-    await expect(
-      appRouter
-        .createCaller(createCtx("member"))
-        .operationRisk.scopedSummary({ period: "7d" })
-    ).rejects.toThrow();
-    await expect(
-      appRouter
-        .createCaller(createCtx("team_leader", { accountStatus: "inactive" }))
-        .operationRisk.scopedSummary({ period: "7d" })
-    ).rejects.toThrow();
-    await expect(
-      appRouter
-        .createCaller(
-          createCtx("sub_branch_admin", { accountStatus: "resigned" })
-        )
-        .operationRisk.scopedSummary({ period: "7d" })
     ).rejects.toThrow();
   });
 
@@ -5619,14 +5514,57 @@ describe("PR6 operation risk center", () => {
         dateTo: "2026-05-31",
       });
 
-    expect(result.overall.level).toBe("normal");
-    expect(result.overall.score).toBe(0);
-    expect(result.riskCards.every(card => Number.isFinite(card.score))).toBe(
-      true
-    );
+    expect(result.overall.actionLevel).toBe("informational");
+    expect(JSON.stringify(result)).not.toContain('"score"');
     expect(result.riskCards.every(card => card.count === 0)).toBe(true);
     expect(result.recentRiskEvents).toHaveLength(0);
     expect(result.pushRisk.recentFailures).toHaveLength(0);
+  });
+
+  it.each(["today", "30d", "month"] as const)(
+    "supports the %s operation risk period preset",
+    async period => {
+      mockOperationRiskSources();
+
+      const result = await appRouter
+        .createCaller(createCtx("branch_admin"))
+        .operationRisk.summary({ period });
+
+      expect(result.period.preset).toBe(period);
+      expect(new Date(result.period.dateFrom).getTime()).not.toBeNaN();
+      expect(new Date(result.period.dateTo).getTime()).not.toBeNaN();
+    }
+  );
+
+  it("maps workflow facts to action levels without count-based promotion", async () => {
+    mockOperationRiskSources({
+      scheduleRequestRisk: { pending: 25, conflict: 0, failed: 0 },
+    });
+
+    const pendingResult = await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .operationRisk.summary({ period: "7d" });
+    const approvalCard = pendingResult.riskCards.find(
+      card => card.category === "approval"
+    );
+
+    expect(approvalCard?.actionLevel).toBe("action_required");
+    expect(pendingResult.overall.actionLevel).toBe("action_required");
+    expect(pendingResult.riskCards[0]?.actionLevel).toBe("action_required");
+
+    vi.mocked(db.getScheduleChangeRequestRiskSummary).mockResolvedValue({
+      pending: 0,
+      conflict: 1,
+      failed: 1,
+    });
+    const immediateResult = await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .operationRisk.summary({ period: "7d" });
+    expect(
+      immediateResult.riskCards.find(card => card.category === "approval")
+        ?.actionLevel
+    ).toBe("immediate");
+    expect(immediateResult.riskCards[0]?.actionLevel).toBe("immediate");
   });
 });
 
@@ -8284,9 +8222,7 @@ describe("soft delete permissions and audit flow", () => {
       tx
     );
     expect(deactivateSpy).toHaveBeenCalledWith(10, tx, expect.any(Date));
-    expect(
-      contractLifecycle.recordContractLifecycleEvent
-    ).toHaveBeenCalledWith(
+    expect(contractLifecycle.recordContractLifecycleEvent).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({ contractId: 10, eventType: "deleted" })
     );
@@ -10474,9 +10410,7 @@ describe("delete request and deleted data lifecycle", () => {
       }),
       tx
     );
-    expect(
-      contractLifecycle.recordContractLifecycleEvent
-    ).toHaveBeenCalledWith(
+    expect(contractLifecycle.recordContractLifecycleEvent).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         contractId: 10,
@@ -10527,9 +10461,7 @@ describe("delete request and deleted data lifecycle", () => {
       expect.objectContaining({ monthlyPremium: 15000 }),
       tx
     );
-    expect(
-      contractLifecycle.recordContractLifecycleEvent
-    ).toHaveBeenCalledWith(
+    expect(contractLifecycle.recordContractLifecycleEvent).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         contractId: 10,
@@ -10577,9 +10509,7 @@ describe("delete request and deleted data lifecycle", () => {
     vi.spyOn(db, "runDbTransaction").mockImplementation(async callback =>
       callback(tx)
     );
-    const createSpy = vi
-      .spyOn(db, "createDeleteRequest")
-      .mockResolvedValue(77);
+    const createSpy = vi.spyOn(db, "createDeleteRequest").mockResolvedValue(77);
     const logSpy = vi
       .spyOn(db, "createActivityLog")
       .mockResolvedValue(undefined);
@@ -10712,9 +10642,7 @@ describe("delete request and deleted data lifecycle", () => {
       expect.objectContaining({ status: "approved", reviewedBy: 1 }),
       tx
     );
-    expect(
-      contractLifecycle.recordContractLifecycleEvent
-    ).toHaveBeenCalledWith(
+    expect(contractLifecycle.recordContractLifecycleEvent).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         contractId: 10,
@@ -10805,9 +10733,7 @@ describe("delete request and deleted data lifecycle", () => {
     expect(logSpy.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({ action: "DELETE_REQUEST_REJECTED" })
     );
-    expect(
-      contractLifecycle.recordContractLifecycleEvent
-    ).toHaveBeenCalledWith(
+    expect(contractLifecycle.recordContractLifecycleEvent).toHaveBeenCalledWith(
       tx,
       expect.objectContaining({
         contractId: 10,
@@ -10839,9 +10765,7 @@ describe("delete request and deleted data lifecycle", () => {
         .deletedData.restoreContract({ id: 10 })
     ).resolves.toEqual({ success: true });
     expect(restoreSpy).toHaveBeenCalled();
-    expect(
-      contractLifecycle.recordContractLifecycleEvent
-    ).toHaveBeenCalledWith(
+    expect(contractLifecycle.recordContractLifecycleEvent).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ contractId: 10, eventType: "restored" })
     );

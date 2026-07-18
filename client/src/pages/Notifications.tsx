@@ -62,7 +62,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearch } from "wouter";
 import { toast } from "sonner";
 
 const typeLabels: Record<string, string> = {
@@ -227,7 +227,9 @@ export default function Notifications() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
   const [location, setLocation] = useLocation();
-  const initialUrlState = parseNotificationUrlState(location);
+  const search = useSearch();
+  const notificationLocation = `${location}${search ? `?${search}` : ""}`;
+  const initialUrlState = parseNotificationUrlState(notificationLocation);
 
   // 서버 사이드 필터 상태
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>(
@@ -260,7 +262,9 @@ export default function Notifications() {
     useState<BulkCompleteConfirmation | null>(null);
 
   useEffect(() => {
-    const next = parseNotificationUrlState(location);
+    if (!location.startsWith("/notifications")) return;
+
+    const next = parseNotificationUrlState(notificationLocation);
     setPriorityFilter(next.priority);
     setCategoryFilter(next.category);
     setActionFilter(next.action);
@@ -271,7 +275,7 @@ export default function Notifications() {
     setDateTo(next.dateTo);
     setOffset(next.offset);
     setSelectedNotificationIds([]);
-  }, [location]);
+  }, [location, notificationLocation]);
 
   useEffect(() => {
     const nextLocation = buildNotificationUrlState({
@@ -285,7 +289,7 @@ export default function Notifications() {
       dateTo,
       offset,
     });
-    if (nextLocation !== location) {
+    if (nextLocation !== notificationLocation) {
       setLocation(nextLocation, { replace: true });
     }
     // Filter state is initialized from the URL; subsequent changes own it.
@@ -584,7 +588,7 @@ export default function Notifications() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-3 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-5">
+      <div className="space-y-2 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-5">
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="flex items-start justify-between gap-3 p-3 sm:items-center sm:p-5">
             <div className="min-w-0">

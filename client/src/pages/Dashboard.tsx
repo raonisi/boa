@@ -81,7 +81,7 @@ function AdminAttentionSection({ role }: { role?: string | null }) {
       description: "최근 7일 확인이 필요한 항목",
       value:
         operationRisk.data?.riskCards?.filter(
-          item => item.level !== "normal"
+          item => item.actionLevel !== "informational"
         ).length ?? 0,
       path: "/operation-risk",
       icon: AlertTriangle,
@@ -129,7 +129,10 @@ function AdminAttentionSection({ role }: { role?: string | null }) {
                 </div>
                 <div className="flex items-end justify-between gap-3">
                   {item.isLoading ? (
-                    <span className="h-8 w-12 animate-pulse rounded bg-muted" aria-label={`${item.title} 불러오는 중`} />
+                    <span
+                      className="h-8 w-12 animate-pulse rounded bg-muted"
+                      aria-label={`${item.title} 불러오는 중`}
+                    />
                   ) : item.isError ? (
                     <Button
                       type="button"

@@ -221,16 +221,6 @@ export default function AdminOperationsCenter() {
     { enabled: isBranchAdmin }
   );
 
-  const {
-    data: scopedRisk,
-    isLoading: scopedRiskLoading,
-    isError: scopedRiskError,
-    refetch: refetchScopedRisk,
-  } = trpc.operationRisk.scopedSummary.useQuery(
-    { period: "7d" },
-    { enabled: !!role && !isBranchAdmin }
-  );
-
   const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
     undefined,
     {
@@ -243,10 +233,9 @@ export default function AdminOperationsCenter() {
       enabled: isBranchAdmin,
     });
 
-  const summaryLoading = isBranchAdmin ? branchRiskLoading : scopedRiskLoading;
-  const summaryError = isBranchAdmin ? branchRiskError : scopedRiskError;
-  const refetchSummary = () =>
-    isBranchAdmin ? refetchBranchRisk() : refetchScopedRisk();
+  const summaryLoading = isBranchAdmin && branchRiskLoading;
+  const summaryError = isBranchAdmin && branchRiskError;
+  const refetchSummary = () => refetchBranchRisk();
 
   const summaryLinks = useMemo(() => {
     const links: Array<{
@@ -258,48 +247,15 @@ export default function AdminOperationsCenter() {
 
     if (isBranchAdmin && branchRisk) {
       const issueCount =
-        branchRisk.riskCards?.filter(item => item.level !== "normal").length ??
-        0;
+        branchRisk.riskCards?.filter(
+          item => item.actionLevel !== "informational"
+        ).length ?? 0;
       links.push({
         label: "오늘 확인할 운영 이슈",
         value: issueCount,
         route: "/operation-risk",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
+        roles: ["branch_admin"],
       });
-    } else if (scopedRisk) {
-      const issueCount =
-        scopedRisk.cards?.reduce(
-          (sum, card) => sum + (card.count > 0 ? 1 : 0),
-          0
-        ) ?? 0;
-      links.push({
-        label: "오늘 확인할 운영 이슈",
-        value: issueCount,
-        route: "/operation-risk",
-        roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-      });
-      const followUpDelay =
-        scopedRisk.cards?.find(card => card.title.includes("후속관리"))
-          ?.count ?? 0;
-      if (followUpDelay > 0) {
-        links.push({
-          label: "후속관리 지연",
-          value: followUpDelay,
-          route: "/admin/team-completion",
-          roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-        });
-      }
-      const longUnmanaged =
-        scopedRisk.cards?.find(card => card.title.includes("장기 미관리"))
-          ?.count ?? 0;
-      if (longUnmanaged > 0) {
-        links.push({
-          label: "장기 미관리 고객",
-          value: longUnmanaged,
-          route: "/aftercare-campaigns",
-          roles: ["branch_admin", "sub_branch_admin", "team_leader"],
-        });
-      }
     }
 
     if ((unreadCount ?? 0) > 0) {
@@ -341,7 +297,6 @@ export default function AdminOperationsCenter() {
     pushSummary,
     pushSummaryLoading,
     role,
-    scopedRisk,
     unreadCount,
   ]);
 
@@ -379,15 +334,17 @@ export default function AdminOperationsCenter() {
                   <span>{ROLE_SCOPE_HINTS[role!]}</span>
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="min-h-10 shrink-0"
-                onClick={() => refetchSummary()}
-              >
-                <RefreshCcw className="mr-2 h-4 w-4" />
-                요약 새로고침
-              </Button>
+              {isBranchAdmin ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10 shrink-0"
+                  onClick={() => refetchSummary()}
+                >
+                  <RefreshCcw className="mr-2 h-4 w-4" />
+                  요약 새로고침
+                </Button>
+              ) : null}
             </div>
 
             <div className="relative max-w-xl">

@@ -27,6 +27,11 @@ import { trpc } from "@/lib/trpc";
 import { cn } from "@/lib/utils";
 import { getRoleLabel, getTargetTypeLabel } from "@/lib/userRole";
 import {
+  OPERATION_RISK_ACTION_LEVEL_LABELS,
+  classifyOperationRiskActionLevel,
+  type OperationRiskActionLevel,
+} from "@shared/operationRiskActionLevel";
+import {
   Activity,
   AlertTriangle,
   ArrowRight,
@@ -48,37 +53,38 @@ import { useLocation } from "wouter";
 
 type Period = "today" | "7d" | "30d" | "month" | "custom";
 type AuditPeriod = "today" | "7d" | "30d" | "custom";
-type RiskLevel = "normal" | "caution" | "warning" | "danger";
 type OperationRiskTab = "summary" | "actions" | "logs" | "status";
 
 const validTabs: OperationRiskTab[] = ["summary", "actions", "logs", "status"];
 
-const levelLabels: Record<RiskLevel, string> = {
-  normal: "정상",
-  caution: "주의",
-  warning: "경고",
-  danger: "위험",
+const actionLevelClasses: Record<OperationRiskActionLevel, string> = {
+  immediate: "border-destructive/20 bg-destructive/10 text-destructive",
+  action_required: "border-boa-amber/30 bg-boa-amber/20 text-amber-900",
+  informational: "border-boa-green/20 bg-boa-green/12 text-boa-green",
 };
 
-const levelClasses: Record<RiskLevel, string> = {
-  normal: "border-boa-green/20 bg-boa-green/12 text-boa-green",
-  caution: "border-boa-amber/25 bg-boa-amber/16 text-amber-800",
-  warning: "border-boa-amber/30 bg-boa-amber/20 text-amber-900",
-  danger: "border-destructive/20 bg-destructive/10 text-destructive",
-};
+const actionLevelSections: Array<{
+  value: OperationRiskActionLevel;
+  description: string;
+}> = [
+  {
+    value: "immediate",
+    description: "실패·충돌·인증 이상처럼 관리자가 바로 확인할 항목",
+  },
+  {
+    value: "action_required",
+    description: "승인 대기·미처리 업무처럼 완료를 위해 조치할 항목",
+  },
+  {
+    value: "informational",
+    description: "완료·정상 운영 상태를 확인하는 참고 기록",
+  },
+];
 
-const eventLevelLabels: Record<string, string> = {
-  high: "위험",
-  medium: "경고",
-  low: "주의",
-  normal: "일반",
-};
-
-const eventLevelClasses: Record<string, string> = {
-  high: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
-  medium: "bg-boa-amber/20 text-amber-900 ring-1 ring-boa-amber/30",
-  low: "bg-boa-amber/16 text-amber-800 ring-1 ring-boa-amber/25",
-  normal: "bg-muted text-muted-foreground ring-1 ring-border/70",
+const eventActionLevelClasses: Record<OperationRiskActionLevel, string> = {
+  immediate: "bg-destructive/10 text-destructive ring-1 ring-destructive/20",
+  action_required: "bg-boa-amber/20 text-amber-900 ring-1 ring-boa-amber/30",
+  informational: "bg-muted text-muted-foreground ring-1 ring-border/70",
 };
 
 const categoryIcons = {
@@ -220,177 +226,6 @@ function getTabFromLocation(location: string): OperationRiskTab {
   return tab && validTabs.includes(tab) ? tab : "summary";
 }
 
-function ManagerScopedRiskView({
-  data,
-  isLoading,
-  isError,
-  onRefresh,
-  setLocation,
-}: {
-  data: any;
-  isLoading: boolean;
-  isError: boolean;
-  onRefresh: () => void;
-  setLocation: (path: string) => void;
-}) {
-  const level = (data?.overall?.level ?? "normal") as RiskLevel;
-  const cards = data?.cards ?? [];
-
-  return (
-    <div className="space-y-5">
-      <Card className="border-border/80 bg-white shadow-sm">
-        <CardContent className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-700">
-              산하 조직 리스크
-            </p>
-            <h1 className="mt-1 text-2xl font-bold text-foreground">
-              {data?.scope?.label ?? "산하 조직 리스크"}
-            </h1>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-              권한 범위 안에서 조치 가능한 고객, 후속관리, 일정, 알림 리스크만
-              read-only로 확인합니다. 운영 감사 로그와 위험 작업 상세는 지점장
-              전용으로 보호됩니다.
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onRefresh}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <RefreshCcw className="mr-2 h-4 w-4" />
-            )}
-            새로고침
-          </Button>
-        </CardContent>
-      </Card>
-
-      {isError ? (
-        <ErrorState
-          title="산하 조직 리스크를 불러오지 못했습니다."
-          description="잠시 후 다시 시도해 주세요."
-          retryLabel="다시 시도"
-          onRetry={onRefresh}
-        />
-      ) : isLoading ? (
-        <Card className="border-border/80 bg-white shadow-sm">
-          <CardContent className="grid gap-3 p-5 md:grid-cols-3">
-            {[0, 1, 2].map(item => (
-              <div
-                key={item}
-                className="h-28 animate-pulse rounded-xl bg-muted/60"
-              />
-            ))}
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <Card className="border-border/80 bg-white shadow-sm">
-            <CardContent className="grid gap-4 p-5 md:grid-cols-[1.2fr_0.8fr]">
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground">
-                  종합 상태
-                </p>
-                <div className="mt-2 flex items-center gap-3">
-                  <ShieldCheck
-                    className={cn(
-                      "h-6 w-6",
-                      level === "danger"
-                        ? "text-destructive"
-                        : level === "warning" || level === "caution"
-                          ? "text-amber-800"
-                          : "text-boa-green"
-                    )}
-                  />
-                  <span className="text-3xl font-bold text-foreground">
-                    {levelLabels[level]}
-                  </span>
-                  <Badge className={cn("border", levelClasses[level])}>
-                    점수 {data?.overall?.score ?? 0}
-                  </Badge>
-                </div>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {data?.overall?.message}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border bg-muted/50 p-4">
-                <p className="text-xs font-semibold text-muted-foreground">
-                  검토 범위
-                </p>
-                <p className="mt-1 text-sm font-bold text-foreground">
-                  {data?.scope?.label ?? "-"}
-                </p>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  권한 범위 안의 업무 리스크만 집계하며, 고객 상세 전문이나 감사
-                  로그 원문은 포함하지 않습니다.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {cards.map((card: any) => {
-              const cardLevel = (card.level ?? "normal") as RiskLevel;
-              return (
-                <Card
-                  key={card.title}
-                  className="border-border/80 bg-white shadow-sm"
-                >
-                  <CardContent className="flex h-full flex-col p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-foreground">
-                          {card.title}
-                        </p>
-                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                          {card.description}
-                        </p>
-                      </div>
-                      <Badge className={cn("border", levelClasses[cardLevel])}>
-                        {levelLabels[cardLevel]}
-                      </Badge>
-                    </div>
-                    <div className="mt-4 flex items-end justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground">
-                          대상
-                        </p>
-                        <p className="mt-1 text-3xl font-bold tabular-nums text-foreground">
-                          {formatNumber(card.count)}
-                        </p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setLocation(card.href)}
-                      >
-                        {card.actionLabel}
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-
-          {cards.length === 0 ? (
-            <EmptyState
-              title="오늘 확인할 위험 항목이 없습니다."
-              description="현재 산하 범위에서 조치가 필요한 업무 리스크가 없습니다."
-            />
-          ) : null}
-        </>
-      )}
-    </div>
-  );
-}
-
 export default function OperationRiskCenter() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
@@ -420,15 +255,6 @@ export default function OperationRiskCenter() {
       enabled: isBranchAdmin,
       placeholderData: previous => previous,
     });
-  const {
-    data: scopedSummary,
-    isLoading: isScopedLoading,
-    isError: isScopedError,
-    refetch: refetchScoped,
-  } = trpc.operationRisk.scopedSummary.useQuery(reportInput, {
-    enabled: !isBranchAdmin,
-    placeholderData: previous => previous,
-  });
   const { data: auditSummary } = trpc.adminAudit.summary.useQuery(undefined, {
     enabled: isBranchAdmin,
   });
@@ -457,29 +283,27 @@ export default function OperationRiskCenter() {
       }
     );
 
-  const overallLevel = (data?.overall.level ?? "normal") as RiskLevel;
+  const overallActionLevel = (data?.overall.actionLevel ??
+    "informational") as OperationRiskActionLevel;
   const metric = (key: keyof NonNullable<typeof auditSummary>["cards"]) =>
     Number(auditSummary?.cards?.[key] ?? 0);
-  const cautionCount =
+  const actionRequiredCount = metric("inactiveUsers");
+  const immediateCount = metric("recentLoginBlocked");
+  const informationalCount =
     metric("unreadNotifications") +
-    metric("inactiveUsers") +
     metric("softDeletedCustomers") +
-    metric("softDeletedContracts");
-  const riskCount =
+    metric("softDeletedContracts") +
     metric("recentDownloads") +
     metric("recentDeleteRestore") +
-    metric("recentLoginBlocked") +
     metric("recentSecurityActions");
 
   if (!isBranchAdmin) {
     return (
       <DashboardLayout>
-        <ManagerScopedRiskView
-          data={scopedSummary}
-          isLoading={isScopedLoading}
-          isError={isScopedError}
-          onRefresh={() => refetchScoped()}
-          setLocation={setLocation}
+        <EmptyState
+          icon={ShieldCheck}
+          title="운영 리스크 센터 접근 권한이 없습니다."
+          description="운영 리스크 데이터와 상세 운영 로그는 지점장만 확인할 수 있습니다."
         />
       </DashboardLayout>
     );
@@ -620,7 +444,7 @@ export default function OperationRiskCenter() {
             <SummaryTab
               data={data}
               isLoading={isLoading}
-              overallLevel={overallLevel}
+              overallActionLevel={overallActionLevel}
               setLocation={setLocation}
             />
           </TabsContent>
@@ -651,8 +475,9 @@ export default function OperationRiskCenter() {
           <TabsContent value="status" className="space-y-4">
             <StatusTab
               metric={metric}
-              cautionCount={cautionCount}
-              riskCount={riskCount}
+              immediateCount={immediateCount}
+              actionRequiredCount={actionRequiredCount}
+              informationalCount={informationalCount}
               setLocation={setLocation}
             />
           </TabsContent>
@@ -685,10 +510,10 @@ function TodayReviewSection({
   onViewActions: () => void;
 }) {
   const queueCards = (data?.riskCards ?? []).filter(
-    (card: any) => card.count > 0 && card.level !== "normal"
+    (card: any) => card.count > 0 && card.actionLevel !== "informational"
   );
-  const recentHighRisk = (data?.recentRiskEvents ?? []).filter(
-    (event: any) => event.riskLevel === "high"
+  const recentImmediateCount = (data?.recentRiskEvents ?? []).filter(
+    (event: any) => event.actionLevel === "immediate"
   ).length;
 
   if (isLoading) {
@@ -706,7 +531,7 @@ function TodayReviewSection({
     );
   }
 
-  if (queueCards.length === 0 && recentHighRisk === 0) {
+  if (queueCards.length === 0 && recentImmediateCount === 0) {
     return (
       <Card className="border-boa-green/20 bg-boa-green/8 shadow-sm">
         <CardContent className="p-5">
@@ -727,9 +552,9 @@ function TodayReviewSection({
         <CardTitle className="flex flex-wrap items-center gap-2 text-base text-foreground">
           <AlertTriangle className="h-4 w-4 text-amber-800" />
           오늘 확인 필요
-          {recentHighRisk > 0 ? (
+          {recentImmediateCount > 0 ? (
             <Badge className="border-amber-200 bg-boa-amber/16 text-amber-900">
-              최근 고위험 {recentHighRisk}건
+              최근 즉시 확인 {recentImmediateCount}건
             </Badge>
           ) : null}
         </CardTitle>
@@ -740,7 +565,7 @@ function TodayReviewSection({
             const Icon =
               categoryIcons[card.category as keyof typeof categoryIcons] ??
               AlertTriangle;
-            const level = card.level as RiskLevel;
+            const actionLevel = card.actionLevel as OperationRiskActionLevel;
             return (
               <div
                 key={card.category}
@@ -750,8 +575,10 @@ function TodayReviewSection({
                   <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted/50 text-foreground">
                     <Icon className="h-4 w-4" />
                   </span>
-                  <Badge className={cn("border", levelClasses[level])}>
-                    {levelLabels[level]}
+                  <Badge
+                    className={cn("border", actionLevelClasses[actionLevel])}
+                  >
+                    {OPERATION_RISK_ACTION_LEVEL_LABELS[actionLevel]}
                   </Badge>
                 </div>
                 <p className="mt-3 text-sm font-semibold text-foreground">
@@ -777,11 +604,11 @@ function TodayReviewSection({
             );
           })}
         </div>
-        {recentHighRisk > 0 ? (
+        {recentImmediateCount > 0 ? (
           <div className="flex flex-col gap-2 rounded-xl border border-border bg-white/80 p-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
-              최근 고위험 작업 {recentHighRisk}건이 기록되어 있습니다. 다운로드,
-              삭제·복구, 권한 변경 내역을 먼저 확인해 주세요.
+              최근 즉시 확인 작업 {recentImmediateCount}건이 기록되어 있습니다.
+              실패 또는 충돌 원인을 먼저 확인해 주세요.
             </p>
             <Button
               type="button"
@@ -790,7 +617,7 @@ function TodayReviewSection({
               className="min-h-10 shrink-0"
               onClick={onViewActions}
             >
-              최근 고위험 보기
+              즉시 확인 기록 보기
             </Button>
           </div>
         ) : null}
@@ -799,15 +626,87 @@ function TodayReviewSection({
   );
 }
 
+function OperationRiskActionCard({
+  card,
+  setLocation,
+}: {
+  card: any;
+  setLocation: (path: string) => void;
+}) {
+  const Icon =
+    categoryIcons[card.category as keyof typeof categoryIcons] ?? AlertTriangle;
+  const actionLevel = card.actionLevel as OperationRiskActionLevel;
+  const actionMeta = getRiskActionMeta(card.category);
+  return (
+    <Card className="border-border/80 bg-white shadow-sm">
+      <CardContent className="flex h-full flex-col p-4">
+        <div className="flex items-start justify-between gap-3">
+          <span
+            className={cn(
+              "flex h-10 w-10 items-center justify-center rounded-xl",
+              actionLevel === "immediate"
+                ? "bg-red-100 text-destructive"
+                : actionLevel === "action_required"
+                  ? "bg-amber-100 text-amber-800"
+                  : "bg-emerald-100 text-emerald-700"
+            )}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
+          <Badge className={cn("border", actionLevelClasses[actionLevel])}>
+            {OPERATION_RISK_ACTION_LEVEL_LABELS[actionLevel]}
+          </Badge>
+        </div>
+        <p className="mt-3 text-sm font-semibold text-foreground">
+          {card.title}
+        </p>
+        <p className="mt-2 text-3xl font-bold tabular-nums text-foreground">
+          {formatNumber(card.count)}
+        </p>
+        <p className="mt-2 min-h-10 text-xs leading-relaxed text-muted-foreground">
+          {card.description}
+        </p>
+        <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <p className="font-semibold text-muted-foreground">담당</p>
+              <p className="mt-0.5 font-bold text-foreground">
+                {actionMeta.owner}
+              </p>
+            </div>
+            <div>
+              <p className="font-semibold text-muted-foreground">기한</p>
+              <p className="mt-0.5 font-bold text-foreground">
+                {actionMeta.deadline}
+              </p>
+            </div>
+          </div>
+          <p className="mt-2 leading-relaxed">{actionMeta.nextAction}</p>
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="mt-auto min-h-10"
+          onClick={() => setLocation(card.href)}
+        >
+          확인하기: {card.actionLabel}
+          <ArrowRight className="ml-2 h-4 w-4" />
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
 function SummaryTab({
   data,
   isLoading,
-  overallLevel,
+  overallActionLevel,
   setLocation,
 }: {
   data: any;
   isLoading: boolean;
-  overallLevel: RiskLevel;
+  overallActionLevel: OperationRiskActionLevel;
   setLocation: (path: string) => void;
 }) {
   return (
@@ -818,23 +717,21 @@ function SummaryTab({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-muted-foreground">
-                  종합 리스크 등급
+                  최우선 행동등급
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <ShieldCheck
                     className={cn(
                       "h-6 w-6",
-                      overallLevel === "danger"
+                      overallActionLevel === "immediate"
                         ? "text-red-600"
-                        : overallLevel === "warning"
-                          ? "text-orange-600"
-                          : overallLevel === "caution"
-                            ? "text-amber-600"
-                            : "text-emerald-700"
+                        : overallActionLevel === "action_required"
+                          ? "text-amber-600"
+                          : "text-emerald-700"
                     )}
                   />
                   <span className="text-3xl font-bold text-foreground">
-                    {levelLabels[overallLevel]}
+                    {OPERATION_RISK_ACTION_LEVEL_LABELS[overallActionLevel]}
                   </span>
                 </div>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -842,119 +739,85 @@ function SummaryTab({
                     "운영 리스크 데이터를 계산하고 있습니다."}
                 </p>
               </div>
-              <Badge className={cn("border", levelClasses[overallLevel])}>
-                {levelLabels[overallLevel]}
+              <Badge
+                className={cn("border", actionLevelClasses[overallActionLevel])}
+              >
+                {OPERATION_RISK_ACTION_LEVEL_LABELS[overallActionLevel]}
               </Badge>
             </div>
-            <div className="rounded-2xl border border-border bg-muted/50 p-4">
-              <p className="text-xs font-semibold text-muted-foreground">
-                리스크 점수
-              </p>
-              <p className="mt-1 text-4xl font-bold tabular-nums text-foreground">
-                {isLoading ? "-" : (data?.overall.score ?? 0)}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                0점에 가까울수록 안정적이며, 70점 이상은 즉시 확인을 권장합니다.
-              </p>
+            <div className="grid grid-cols-3 gap-2 rounded-2xl border border-border bg-muted/50 p-3">
+              {actionLevelSections.map(section => (
+                <div
+                  key={section.value}
+                  className="rounded-xl border border-border bg-white p-3 text-center"
+                >
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {OPERATION_RISK_ACTION_LEVEL_LABELS[section.value]}
+                  </p>
+                  <p className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+                    {isLoading
+                      ? "-"
+                      : section.value === "immediate"
+                        ? (data?.overall.counts?.immediate ?? 0)
+                        : section.value === "action_required"
+                          ? (data?.overall.counts?.actionRequired ?? 0)
+                          : (data?.overall.counts?.informational ?? 0)}
+                  </p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
 
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-          {(data?.riskCards ?? []).map((card: any) => {
-            const Icon =
-              categoryIcons[card.category as keyof typeof categoryIcons] ??
-              AlertTriangle;
-            const level = card.level as RiskLevel;
-            const actionMeta = getRiskActionMeta(card.category);
+        <div className="space-y-3">
+          {actionLevelSections.map(section => {
+            const cards = (data?.riskCards ?? []).filter(
+              (card: any) => card.actionLevel === section.value
+            );
             return (
-              <Card
-                key={card.category}
-                className="border-border/80 bg-white shadow-sm"
+              <section
+                key={section.value}
+                className="rounded-2xl border border-border/80 bg-muted/20 p-3"
+                aria-labelledby={`operation-risk-${section.value}`}
               >
-                <CardContent className="flex h-full flex-col p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      className={cn(
-                        "flex h-10 w-10 items-center justify-center rounded-xl",
-                        level === "danger"
-                          ? "bg-red-100 text-destructive"
-                          : level === "warning"
-                            ? "bg-orange-100 text-orange-700"
-                            : level === "caution"
-                              ? "bg-amber-100 text-amber-800"
-                              : "bg-emerald-100 text-emerald-700"
-                      )}
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2
+                      id={`operation-risk-${section.value}`}
+                      className="text-sm font-bold text-foreground"
                     >
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <Badge className={cn("border", levelClasses[level])}>
-                      {levelLabels[level]}
-                    </Badge>
-                  </div>
-                  <p className="mt-3 text-sm font-semibold text-foreground">
-                    {card.title}
-                  </p>
-                  <div className="mt-2 flex items-end justify-between gap-3">
-                    <p className="text-3xl font-bold tabular-nums text-foreground">
-                      {formatNumber(card.count)}
-                    </p>
-                    <p className="text-xs font-semibold text-muted-foreground">
-                      점수 {formatNumber(card.score)}
+                      {OPERATION_RISK_ACTION_LEVEL_LABELS[section.value]}
+                    </h2>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {section.description}
                     </p>
                   </div>
-                  <p className="mt-2 min-h-10 text-xs leading-relaxed text-muted-foreground">
-                    {card.description}
-                  </p>
-                  <div className="mt-3 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="font-semibold text-muted-foreground">
-                          담당
-                        </p>
-                        <p className="mt-0.5 font-bold text-foreground">
-                          {actionMeta.owner}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="font-semibold text-muted-foreground">
-                          기한
-                        </p>
-                        <p className="mt-0.5 font-bold text-foreground">
-                          {actionMeta.deadline}
-                        </p>
-                      </div>
-                    </div>
-                    <p className="mt-2 leading-relaxed">
-                      {actionMeta.nextAction}
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="mt-auto min-h-10"
-                    onClick={() => setLocation(card.href)}
+                  <Badge
+                    className={cn("border", actionLevelClasses[section.value])}
                   >
-                    조치하기: {card.actionLabel}
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
-                </CardContent>
-              </Card>
+                    {cards.length}개 항목
+                  </Badge>
+                </div>
+                {isLoading ? (
+                  <div className="mt-3 h-28 animate-pulse rounded-xl bg-muted/60" />
+                ) : cards.length > 0 ? (
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    {cards.map((card: any) => (
+                      <OperationRiskActionCard
+                        key={card.category}
+                        card={card}
+                        setLocation={setLocation}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-3 rounded-xl border border-dashed border-border bg-white p-4 text-sm text-muted-foreground">
+                    해당 행동등급의 운영 항목이 없습니다.
+                  </p>
+                )}
+              </section>
             );
           })}
-          {isLoading
-            ? Array.from({ length: 6 }).map((_, index) => (
-                <Card
-                  key={index}
-                  className="border-border/80 bg-white shadow-sm"
-                >
-                  <CardContent className="p-4">
-                    <div className="h-32 animate-pulse rounded-xl bg-muted/60" />
-                  </CardContent>
-                </Card>
-              ))
-            : null}
         </div>
       </div>
 
@@ -1222,9 +1085,7 @@ function AuditLogsTab(props: {
             </Select>
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">
-              작업 코드
-            </Label>
+            <Label className="text-xs text-muted-foreground">작업 코드</Label>
             <Input
               aria-label="운영 로그 작업 코드"
               value={props.auditAction}
@@ -1289,7 +1150,7 @@ function AuditLogsTab(props: {
                 <TableHead>작업</TableHead>
                 <TableHead>대상</TableHead>
                 <TableHead>사유/요약</TableHead>
-                <TableHead>위험도</TableHead>
+                <TableHead>행동등급</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -1335,12 +1196,14 @@ function AuditLogsTab(props: {
                     <TableCell>
                       <Badge
                         className={
-                          eventLevelClasses[entry.riskLevel] ??
-                          eventLevelClasses.normal
+                          eventActionLevelClasses[
+                            entry.actionLevel as OperationRiskActionLevel
+                          ] ?? eventActionLevelClasses.informational
                         }
                       >
-                        {eventLevelLabels[entry.riskLevel] ??
-                          eventLevelLabels.normal}
+                        {OPERATION_RISK_ACTION_LEVEL_LABELS[
+                          entry.actionLevel as OperationRiskActionLevel
+                        ] ?? OPERATION_RISK_ACTION_LEVEL_LABELS.informational}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -1360,34 +1223,31 @@ function AuditLogsTab(props: {
 
 function StatusTab({
   metric,
-  cautionCount,
-  riskCount,
+  immediateCount,
+  actionRequiredCount,
+  informationalCount,
   setLocation,
 }: {
   metric: (key: any) => number;
-  cautionCount: number;
-  riskCount: number;
+  immediateCount: number;
+  actionRequiredCount: number;
+  informationalCount: number;
   setLocation: (path: string) => void;
 }) {
-  const health =
-    riskCount >= 10
-      ? {
-          label: "위험",
-          className: "bg-red-100 text-destructive",
-          helper:
-            "위험 작업이 많습니다. 상세 운영 로그와 조치 필요 탭을 확인하세요.",
-        }
-      : cautionCount > 0 || riskCount > 0
-        ? {
-            label: "주의",
-            className: "bg-amber-100 text-amber-800",
-            helper: "확인이 필요한 운영 항목이 있습니다.",
-          }
-        : {
-            label: "정상",
-            className: "bg-emerald-100 text-emerald-700",
-            helper: "현재 주요 운영 위험이 안정적입니다.",
-          };
+  const actionLevel = classifyOperationRiskActionLevel({
+    immediateCount,
+    actionRequiredCount,
+  });
+  const health = {
+    label: OPERATION_RISK_ACTION_LEVEL_LABELS[actionLevel],
+    className: actionLevelClasses[actionLevel],
+    helper:
+      actionLevel === "immediate"
+        ? "실패·충돌·인증 이상 항목을 즉시 확인하세요."
+        : actionLevel === "action_required"
+          ? "완료되지 않은 운영 항목을 처리하세요."
+          : "현재 운영 상태는 참고 정보입니다.",
+  };
 
   const cautionCards = [
     {
@@ -1396,6 +1256,7 @@ function StatusTab({
       helper: "알림 센터에서 처리하세요.",
       icon: Bell,
       href: "/notifications",
+      actionLevel: "informational",
     },
     {
       key: "inactiveUsers",
@@ -1403,6 +1264,7 @@ function StatusTab({
       helper: "계정 상태를 확인하세요.",
       icon: Users,
       href: "/users",
+      actionLevel: "action_required",
     },
     {
       key: "softDeletedCustomers",
@@ -1410,6 +1272,7 @@ function StatusTab({
       helper: "복구/정리 정책을 확인하세요.",
       icon: Database,
       href: "/deleted-data",
+      actionLevel: "informational",
     },
     {
       key: "softDeletedContracts",
@@ -1417,6 +1280,7 @@ function StatusTab({
       helper: "삭제 요청 이력을 확인하세요.",
       icon: Database,
       href: "/deleted-data",
+      actionLevel: "informational",
     },
   ] as const;
 
@@ -1437,7 +1301,7 @@ function StatusTab({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-xs font-semibold text-muted-foreground">
-                  운영 건강도
+                  운영 행동상태
                 </p>
                 <div className="mt-2 flex items-center gap-2">
                   <ShieldCheck className="h-5 w-5 text-emerald-700" />
@@ -1449,21 +1313,32 @@ function StatusTab({
                   {health.helper}
                 </p>
               </div>
-              <Badge className={health.className}>{health.label}</Badge>
+              <Badge className={cn("border", health.className)}>
+                {health.label}
+              </Badge>
             </div>
-            <div className="grid grid-cols-2 gap-2 text-sm">
-              <div className="rounded-xl border border-amber-100 bg-amber-50/70 p-3">
-                <p className="text-xs text-amber-800">주의 필요</p>
-                <p className="mt-1 text-2xl font-bold text-amber-900">
-                  {cautionCount}
-                </p>
-              </div>
-              <div className="rounded-xl border border-red-100 bg-red-50/70 p-3">
-                <p className="text-xs text-destructive">위험 작업</p>
-                <p className="mt-1 text-2xl font-bold text-red-800">
-                  {riskCount}
-                </p>
-              </div>
+            <div className="grid grid-cols-3 gap-2 text-sm">
+              {[
+                ["immediate", immediateCount],
+                ["action_required", actionRequiredCount],
+                ["informational", informationalCount],
+              ].map(([level, count]) => (
+                <div
+                  key={String(level)}
+                  className="rounded-xl border border-border bg-white p-3"
+                >
+                  <p className="text-xs text-muted-foreground">
+                    {
+                      OPERATION_RISK_ACTION_LEVEL_LABELS[
+                        level as OperationRiskActionLevel
+                      ]
+                    }
+                  </p>
+                  <p className="mt-1 text-2xl font-bold text-foreground">
+                    {count}
+                  </p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -1472,7 +1347,7 @@ function StatusTab({
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              주의 필요
+              운영 항목
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -1487,8 +1362,19 @@ function StatusTab({
                   <div className="flex items-center justify-between gap-2">
                     <Icon className="h-4 w-4 text-muted-foreground" />
                     {value > 0 && (
-                      <Badge className="bg-amber-100 text-amber-800">
-                        확인 필요
+                      <Badge
+                        className={cn(
+                          "border",
+                          actionLevelClasses[
+                            card.actionLevel as OperationRiskActionLevel
+                          ]
+                        )}
+                      >
+                        {
+                          OPERATION_RISK_ACTION_LEVEL_LABELS[
+                            card.actionLevel as OperationRiskActionLevel
+                          ]
+                        }
                       </Badge>
                     )}
                   </div>
@@ -1556,7 +1442,7 @@ function RiskEventsTable({ events }: { events: any[] }) {
             <TableHead>작업자</TableHead>
             <TableHead>대상</TableHead>
             <TableHead>요약</TableHead>
-            <TableHead>등급</TableHead>
+            <TableHead>행동등급</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -1599,11 +1485,14 @@ function RiskEventsTable({ events }: { events: any[] }) {
                 <TableCell>
                   <Badge
                     className={
-                      eventLevelClasses[event.riskLevel] ??
-                      eventLevelClasses.normal
+                      eventActionLevelClasses[
+                        event.actionLevel as OperationRiskActionLevel
+                      ] ?? eventActionLevelClasses.informational
                     }
                   >
-                    {eventLevelLabels[event.riskLevel] ?? "일반"}
+                    {OPERATION_RISK_ACTION_LEVEL_LABELS[
+                      event.actionLevel as OperationRiskActionLevel
+                    ] ?? OPERATION_RISK_ACTION_LEVEL_LABELS.informational}
                   </Badge>
                 </TableCell>
               </TableRow>
