@@ -12,10 +12,14 @@ export const CRITICAL_E2E_IDS = {
     otherMember: 9006,
     inactive: 9007,
     resigned: 9008,
+    subBranchAdminB: 9009,
+    teamLeaderB: 9010,
+    memberB: 9011,
   },
   teams: {
     primary: 9101,
     other: 9102,
+    branchB: 9103,
   },
   customers: {
     primary: 9201,
@@ -23,6 +27,12 @@ export const CRITICAL_E2E_IDS = {
     merged: 9203,
     outsideTeam: 9204,
     inactive: 9205,
+    unassignedTeamA1Database: 9206,
+    unassignedTeamA1Contracted: 9207,
+    unassignedTeamA2: 9208,
+    unassignedTeamB1: 9209,
+    unassignedNoOrganization: 9210,
+    unassignedTeamA1BulkStart: 9211,
   },
   schedules: {
     branchAdmin: 9301,
@@ -37,6 +47,7 @@ export const CRITICAL_E2E_IDS = {
   contracts: {
     active: 9401,
     deleted: 9402,
+    unassignedActive: 9403,
   },
   followUps: {
     active: 9501,
@@ -100,16 +111,46 @@ export const CRITICAL_E2E_USERS = {
     name: "[TEST] 부지점장",
     role: "sub_branch_admin",
   },
+  subBranchAdminB: {
+    id: CRITICAL_E2E_IDS.users.subBranchAdminB,
+    openId: "e2e_sub_branch_admin_b",
+    name: "[TEST] Sub Branch B",
+    role: "sub_branch_admin",
+  },
   teamLeader: {
     id: CRITICAL_E2E_IDS.users.teamLeader,
     openId: "e2e_team_leader",
     name: "[TEST] 팀장",
     role: "team_leader",
   },
+  otherTeamLeader: {
+    id: CRITICAL_E2E_IDS.users.otherTeamLeader,
+    openId: "e2e_other_team_leader",
+    name: "[TEST] Team Leader A2",
+    role: "team_leader",
+  },
+  teamLeaderB: {
+    id: CRITICAL_E2E_IDS.users.teamLeaderB,
+    openId: "e2e_team_leader_b",
+    name: "[TEST] Team Leader B1",
+    role: "team_leader",
+  },
   member: {
     id: CRITICAL_E2E_IDS.users.member,
     openId: "e2e_member",
     name: "[TEST] 팀원",
+    role: "member",
+  },
+  inactive: {
+    id: CRITICAL_E2E_IDS.users.inactive,
+    openId: "e2e_inactive",
+    name: "[TEST] Inactive",
+    role: "member",
+  },
+  resigned: {
+    id: CRITICAL_E2E_IDS.users.resigned,
+    openId: "e2e_resigned",
+    name: "[TEST] Resigned",
     role: "member",
   },
 } as const;

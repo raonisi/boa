@@ -89,6 +89,36 @@ const userRows = [
     ids.teams.primary,
     ids.users.subBranchAdmin,
   ],
+  [
+    ids.users.subBranchAdminB,
+    "e2e_sub_branch_admin_b",
+    "[TEST] Sub Branch B",
+    "sub_branch_admin",
+    "active",
+    ids.users.branchAdmin,
+    null,
+    null,
+  ],
+  [
+    ids.users.teamLeaderB,
+    "e2e_team_leader_b",
+    "[TEST] Team Leader B1",
+    "team_leader",
+    "active",
+    ids.users.subBranchAdminB,
+    ids.teams.branchB,
+    ids.users.subBranchAdminB,
+  ],
+  [
+    ids.users.memberB,
+    "e2e_member_b",
+    "[TEST] Member B1",
+    "member",
+    "active",
+    ids.users.teamLeaderB,
+    ids.teams.branchB,
+    ids.users.subBranchAdminB,
+  ],
 ] as const;
 
 const scheduleRows = [
@@ -154,42 +184,42 @@ export async function seedCriticalE2E() {
     await connection.beginTransaction();
 
     await connection.execute(
-      "DELETE FROM schedule_change_requests WHERE requesterId BETWEEN 9001 AND 9008 OR targetUserId BETWEEN 9001 AND 9008"
+      "DELETE FROM schedule_change_requests WHERE requesterId BETWEEN 9001 AND 9011 OR targetUserId BETWEEN 9001 AND 9011"
     );
     await connection.execute(
-      "DELETE FROM notifications WHERE userId BETWEEN 9001 AND 9008"
+      "DELETE FROM notifications WHERE userId BETWEEN 9001 AND 9011"
     );
     await connection.execute(
-      "DELETE FROM reminders WHERE userId BETWEEN 9001 AND 9008"
+      "DELETE FROM reminders WHERE userId BETWEEN 9001 AND 9011"
     );
     await connection.execute(
-      "DELETE FROM activity_logs WHERE userId BETWEEN 9001 AND 9008"
+      "DELETE FROM activity_logs WHERE userId BETWEEN 9001 AND 9011"
     );
     await connection.execute(
-      "DELETE FROM delete_requests WHERE id = ? OR requestedBy BETWEEN 9001 AND 9008",
+      "DELETE FROM delete_requests WHERE id = ? OR requestedBy BETWEEN 9001 AND 9011",
       [ids.deleteRequests.pending]
     );
     await connection.execute(
       "DELETE FROM follow_ups WHERE id BETWEEN 9501 AND 9502"
     );
     await connection.execute(
-      "DELETE FROM contracts WHERE id BETWEEN 9401 AND 9402"
+      "DELETE FROM contracts WHERE id BETWEEN 9401 AND 9403"
     );
     await connection.execute(
       "DELETE FROM schedules WHERE id BETWEEN 9301 AND 9308"
     );
     await connection.execute(
-      "DELETE FROM customers WHERE id BETWEEN 9201 AND 9205"
+      "DELETE FROM customers WHERE id BETWEEN 9201 AND 9220"
     );
     await connection.execute(
-      "DELETE FROM users WHERE id BETWEEN 9001 AND 9008"
+      "DELETE FROM users WHERE id BETWEEN 9001 AND 9011"
     );
     await connection.execute(
-      "DELETE FROM teams WHERE id BETWEEN 9101 AND 9102"
+      "DELETE FROM teams WHERE id BETWEEN 9101 AND 9103"
     );
 
     await connection.execute(
-      "INSERT INTO teams (id, name, managerId, subBranchAdminId, isActive) VALUES (?, ?, ?, ?, true), (?, ?, ?, ?, true)",
+      "INSERT INTO teams (id, name, managerId, subBranchAdminId, isActive) VALUES (?, ?, ?, ?, true), (?, ?, ?, ?, true), (?, ?, ?, ?, true)",
       [
         ids.teams.primary,
         "[TEST] 1팀",
@@ -199,6 +229,10 @@ export async function seedCriticalE2E() {
         "[TEST] 2팀",
         ids.users.otherTeamLeader,
         ids.users.subBranchAdmin,
+        ids.teams.branchB,
+        "[TEST] B1 Team",
+        ids.users.teamLeaderB,
+        ids.users.subBranchAdminB,
       ]
     );
 
@@ -236,6 +270,80 @@ export async function seedCriticalE2E() {
         ids.users.branchAdmin,
       ]
     );
+
+    const unassignedCustomerRows = [
+      [
+        ids.customers.unassignedTeamA1Database,
+        "[TEST] Shared Scope Token A1 Database",
+        ids.teams.primary,
+        ids.users.subBranchAdmin,
+        "assigned_to_sub_branch",
+        "상담예정",
+      ],
+      [
+        ids.customers.unassignedTeamA1Contracted,
+        "[TEST] Unassigned A1 Contracted",
+        ids.teams.primary,
+        ids.users.subBranchAdmin,
+        "assigned_to_sub_branch",
+        "상담예정",
+      ],
+      [
+        ids.customers.unassignedTeamA2,
+        "[TEST] Unassigned A2",
+        ids.teams.other,
+        ids.users.subBranchAdmin,
+        "assigned_to_sub_branch",
+        "설계중",
+      ],
+      [
+        ids.customers.unassignedTeamB1,
+        "[TEST] Shared Scope Token B1",
+        ids.teams.branchB,
+        ids.users.subBranchAdminB,
+        "assigned_to_sub_branch",
+        "상담예정",
+      ],
+      [
+        ids.customers.unassignedNoOrganization,
+        "[TEST] Unassigned No Organization",
+        null,
+        null,
+        "unassigned",
+        "부재",
+      ],
+    ] as const;
+
+    for (const row of unassignedCustomerRows) {
+      await connection.execute(
+        `INSERT INTO customers
+        (id, name, phone, source, agentId, assignedTeamId, assignedAt,
+         subBranchAdminId, assignmentStatus, consultStatus, priority,
+         privacyConsent, marketingConsent, isActive, createdBy)
+       VALUES (?, ?, NULL, '[TEST] synthetic scope', NULL, ?, NOW(), ?, ?, ?,
+         'B', false, false, true, ?)`,
+        [row[0], row[1], row[2], row[3], row[4], row[5], ids.users.branchAdmin]
+      );
+    }
+
+    for (let index = 0; index < 10; index += 1) {
+      await connection.execute(
+        `INSERT INTO customers
+        (id, name, phone, source, agentId, assignedTeamId, assignedAt,
+         subBranchAdminId, assignmentStatus, consultStatus, priority,
+         privacyConsent, marketingConsent, isActive, createdBy)
+       VALUES (?, ?, NULL, '[TEST] synthetic scope', NULL, ?, NOW(), ?,
+          'assigned_to_sub_branch', '통화완료', 'B', false, false,
+         true, ?)`,
+        [
+          ids.customers.unassignedTeamA1BulkStart + index,
+          `[TEST] Unassigned A1 Bulk ${index}`,
+          ids.teams.primary,
+          ids.users.subBranchAdmin,
+          ids.users.branchAdmin,
+        ]
+      );
+    }
 
     await connection.execute(
       `INSERT INTO customers
@@ -359,6 +467,19 @@ export async function seedCriticalE2E() {
         ids.contracts.active,
         ids.customers.primary,
         ids.users.member,
+        ids.users.branchAdmin,
+      ]
+    );
+    await connection.execute(
+      `INSERT INTO contracts
+      (id, customerId, agentId, company, productName, productGroup,
+       paymentStatus, contractStatus, isActive, createdBy)
+     VALUES (?, ?, ?, '[TEST] Synthetic Insurer', '[TEST] Synthetic Product',
+        '[TEST] Synthetic Group', '정상', '유지', true, ?)`,
+      [
+        ids.contracts.unassignedActive,
+        ids.customers.unassignedTeamA1Contracted,
+        ids.users.teamLeader,
         ids.users.branchAdmin,
       ]
     );

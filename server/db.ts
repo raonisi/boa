@@ -1125,6 +1125,9 @@ export async function getCustomers(filter: {
     conditions.push(eq(customers.isActive, true));
   }
 
+  // Organization access scope and business filters are independent. In
+  // particular, `unassigned` must narrow the actor's scope rather than replace
+  // it.
   if (filter.agentIds !== undefined) {
     if (filter.agentIds.length === 0) return [];
     conditions.push(
@@ -1132,8 +1135,6 @@ export async function getCustomers(filter: {
     );
   } else if (filter.agentId !== undefined) {
     conditions.push(eq(customers.agentId, filter.agentId));
-  } else if (filter.unassigned) {
-    conditions.push(isNull(customers.agentId));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db
       .select({ id: users.id })
@@ -1161,6 +1162,10 @@ export async function getCustomers(filter: {
         ...agentIds.map(id => eq(customers.agentId, id) as any)
       );
     conditions.push(or(...branchConditions) as any);
+  }
+
+  if (filter.unassigned) {
+    conditions.push(isNull(customers.agentId));
   }
 
   if (filter.assignmentStatus)
