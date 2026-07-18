@@ -1,20 +1,27 @@
 import express from "express";
 import type { Server } from "node:http";
+import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as db from "../db";
 import * as calendarClient from "../googleCalendarClient";
 import * as calendarSync from "../googleCalendarSync";
+import { googleCalendarRouter } from "../googleCalendar";
 import { ENV } from "./env";
-import {
-  buildGoogleCalendarOAuthAuthorizeUrl,
-  registerOAuthRoutes,
-} from "./oauth";
-import { issueOAuthState, OAUTH_STATE_TTL_MS } from "./oauthState";
+import { registerOAuthRoutes } from "./oauth";
+import { OAUTH_STATE_TTL_MS } from "./oauthState";
 import { sdk } from "./sdk";
+import { router } from "./trpc";
 
 const ORIGINAL_ENV = { ...ENV };
 const STATE_COOKIE = "boa_oauth_state_login";
 const CALENDAR_STATE_COOKIE = "boa_oauth_state_google_calendar";
+const oauthTestRouter = router({ googleCalendar: googleCalendarRouter });
+const BRANCH_ADMIN = {
+  id: 9001,
+  openId: "e2e_branch_admin",
+  role: "branch_admin",
+  accountStatus: "active",
+} as any;
 
 class HttpCookieJar {
   private readonly values = new Map<string, string>();
@@ -72,11 +79,35 @@ describe("browser-bound OAuth state", () => {
 
     vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 
-    const app = express();
-    app.get("/test/calendar-oauth/start", (req, res) => {
-      const state = issueOAuthState(req, res, "google_calendar");
-      res.redirect(302, buildGoogleCalendarOAuthAuthorizeUrl(baseUrl, state));
+    const nonceRows = new Map<
+      string,
+      { purpose: "login" | "google_calendar"; expiresAt: Date }
+    >();
+    vi.spyOn(db, "insertOAuthStateNonce").mockImplementation(async input => {
+      if (nonceRows.has(input.nonceDigest)) {
+        throw new Error("duplicate nonce digest");
+      }
+      nonceRows.set(input.nonceDigest, {
+        purpose: input.purpose,
+        expiresAt: input.expiresAt,
+      });
     });
+    vi.spyOn(db, "consumeOAuthStateNonce").mockImplementation(async input => {
+      const row = nonceRows.get(input.nonceDigest);
+      if (!row || row.purpose !== input.purpose) {
+        return false;
+      }
+      return nonceRows.delete(input.nonceDigest);
+    });
+
+    const app = express();
+    app.use(
+      "/api/trpc",
+      createExpressMiddleware({
+        router: oauthTestRouter,
+        createContext: ({ req, res }) => ({ req, res, user: BRANCH_ADMIN }),
+      })
+    );
     registerOAuthRoutes(app);
     server = await new Promise<Server>(resolve => {
       const listeningServer = app.listen(0, "127.0.0.1", () =>
@@ -100,8 +131,13 @@ describe("browser-bound OAuth state", () => {
     }
   });
 
-  async function request(path: string, jar: HttpCookieJar, updateJar = true) {
-    const cookie = jar.header();
+  async function request(
+    path: string,
+    jar: HttpCookieJar,
+    updateJar = true,
+    cookieOverride?: string
+  ) {
+    const cookie = cookieOverride ?? jar.header();
     const response = await fetch(`${baseUrl}${path}`, {
       redirect: "manual",
       headers: cookie ? { cookie } : undefined,
@@ -113,6 +149,26 @@ describe("browser-bound OAuth state", () => {
   async function startLogin(jar = new HttpCookieJar(), suffix = "") {
     const response = await request(`/api/oauth/start${suffix}`, jar);
     const authorizeUrl = new URL(response.headers.get("location")!);
+    return {
+      jar,
+      response,
+      authorizeUrl,
+      state: authorizeUrl.searchParams.get("state")!,
+    };
+  }
+
+  async function startCalendar(jar = new HttpCookieJar()) {
+    const query = new URLSearchParams({
+      batch: "1",
+      input: JSON.stringify({ "0": { json: null } }),
+    });
+    const response = await request(
+      `/api/trpc/googleCalendar.getOAuthConnectUrl?${query.toString()}`,
+      jar
+    );
+    const body = (await response.json()) as any;
+    const item = Array.isArray(body) ? body[0] : body;
+    const authorizeUrl = new URL(item.result.data.json.url);
     return {
       jar,
       response,
@@ -163,6 +219,11 @@ describe("browser-bound OAuth state", () => {
     );
     expect(first.state).not.toContain("callback");
 
+    const stored = vi.mocked(db.insertOAuthStateNonce).mock.calls[0][0];
+    expect(stored.nonceDigest).toMatch(/^[a-f0-9]{64}$/);
+    expect(stored.nonceDigest).not.toContain(first.state);
+    expect(stored.purpose).toBe("login");
+
     const setCookie = first.response.headers.get("set-cookie")!;
     expect(setCookie).toContain(`${STATE_COOKIE}=`);
     expect(setCookie).toContain("HttpOnly");
@@ -181,6 +242,7 @@ describe("browser-bound OAuth state", () => {
   it("accepts the matching browser state, issues a session, and consumes state", async () => {
     mockLoginUser();
     const flow = await startLogin();
+    const preservedCookie = flow.jar.header();
     const response = await request(
       `/api/oauth/callback?code=valid-code&state=${encodeURIComponent(flow.state)}`,
       flow.jar
@@ -195,10 +257,54 @@ describe("browser-bound OAuth state", () => {
 
     const replay = await request(
       `/api/oauth/callback?code=replay-code&state=${encodeURIComponent(flow.state)}`,
-      flow.jar
+      new HttpCookieJar(),
+      false,
+      preservedCookie
     );
     expect(replay.status).toBe(403);
     expect(sdk.exchangeGoogleCodeForToken).toHaveBeenCalledOnce();
+  });
+
+  it("allows exactly one of two concurrent callbacks with the same preserved cookie", async () => {
+    mockLoginUser();
+    const flow = await startLogin();
+    const preservedCookie = flow.jar.header();
+    const callback = `/api/oauth/callback?code=concurrent-code&state=${encodeURIComponent(flow.state)}`;
+
+    const responses = await Promise.all([
+      request(callback, new HttpCookieJar(), false, preservedCookie),
+      request(callback, new HttpCookieJar(), false, preservedCookie),
+    ]);
+
+    expect(responses.map(response => response.status).sort()).toEqual([
+      302, 403,
+    ]);
+    expect(sdk.exchangeGoogleCodeForToken).toHaveBeenCalledOnce();
+    expect(sdk.createSessionToken).toHaveBeenCalledOnce();
+    expect(db.consumeOAuthStateNonce).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed when nonce registration or atomic consumption is unavailable", async () => {
+    vi.mocked(db.insertOAuthStateNonce).mockRejectedValueOnce(
+      new Error("state store unavailable")
+    );
+    const failedStart = await request("/api/oauth/start", new HttpCookieJar());
+    expect(failedStart.status).toBe(503);
+    expect(failedStart.headers.get("location")).toBeNull();
+
+    mockLoginUser();
+    const flow = await startLogin();
+    vi.mocked(db.consumeOAuthStateNonce).mockRejectedValueOnce(
+      new Error("state store unavailable")
+    );
+    const failedCallback = await request(
+      `/api/oauth/callback?code=code&state=${flow.state}`,
+      flow.jar
+    );
+    expect(failedCallback.status).toBe(403);
+    expect(flow.jar.get(STATE_COOKIE)).toBeUndefined();
+    expect(sdk.exchangeGoogleCodeForToken).not.toHaveBeenCalled();
+    expect(sdk.createSessionToken).not.toHaveBeenCalled();
   });
 
   it("rejects missing, mismatched, tampered, and cross-browser state before exchange", async () => {
@@ -375,12 +481,7 @@ describe("browser-bound OAuth state", () => {
   });
 
   it("binds the Google Calendar callback to its own browser state", async () => {
-    const branchAdmin = {
-      id: 9001,
-      role: "branch_admin",
-      accountStatus: "active",
-    } as any;
-    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(branchAdmin);
+    vi.spyOn(sdk, "authenticateRequest").mockResolvedValue(BRANCH_ADMIN);
     const exchangeSpy = vi
       .spyOn(calendarClient, "exchangeGoogleCalendarAuthCode")
       .mockResolvedValue({
@@ -391,33 +492,81 @@ describe("browser-bound OAuth state", () => {
       undefined
     );
 
-    const flow = await request(
-      "/test/calendar-oauth/start",
-      new HttpCookieJar()
-    );
-    const jar = new HttpCookieJar();
-    jar.update(flow);
-    const state = new URL(flow.headers.get("location")!).searchParams.get(
-      "state"
-    )!;
-    expect(jar.get(CALENDAR_STATE_COOKIE)).toBeTruthy();
+    const flow = await startCalendar();
+    expect(flow.response.status).toBe(200);
+    expect(flow.jar.get(CALENDAR_STATE_COOKIE)).toBeTruthy();
 
     const wrongBrowser = await request(
-      `/api/oauth/google-calendar/callback?code=code&state=${state}`,
+      `/api/oauth/google-calendar/callback?code=code&state=${flow.state}`,
       new HttpCookieJar()
     );
     expect(wrongBrowser.status).toBe(403);
     expect(exchangeSpy).not.toHaveBeenCalled();
 
     const success = await request(
-      `/api/oauth/google-calendar/callback?code=code&state=${state}`,
-      jar
+      `/api/oauth/google-calendar/callback?code=code&state=${flow.state}`,
+      flow.jar
     );
     expect(success.status).toBe(302);
     expect(success.headers.get("location")).toBe(
       "/google-calendar-integration?connected=1"
     );
-    expect(jar.get(CALENDAR_STATE_COOKIE)).toBeUndefined();
+    expect(flow.jar.get(CALENDAR_STATE_COOKIE)).toBeUndefined();
     expect(exchangeSpy).toHaveBeenCalledOnce();
+  });
+
+  it("isolates login and Calendar states, cookies, and atomic records", async () => {
+    const firstBrowser = new HttpCookieJar();
+    const login = await startLogin(firstBrowser);
+    const calendar = await startCalendar(firstBrowser);
+
+    const wrongCalendar = await request(
+      `/api/oauth/google-calendar/callback?state=${login.state}`,
+      firstBrowser
+    );
+    expect(wrongCalendar.status).toBe(403);
+    expect(firstBrowser.get(STATE_COOKIE)).toBeTruthy();
+    expect(firstBrowser.get(CALENDAR_STATE_COOKIE)).toBeUndefined();
+
+    const validLogin = await request(
+      `/api/oauth/callback?state=${login.state}`,
+      firstBrowser
+    );
+    expect(validLogin.status).toBe(400);
+
+    const secondBrowser = new HttpCookieJar();
+    const secondLogin = await startLogin(secondBrowser);
+    const secondCalendar = await startCalendar(secondBrowser);
+    const wrongLogin = await request(
+      `/api/oauth/callback?state=${secondCalendar.state}`,
+      secondBrowser
+    );
+    expect(wrongLogin.status).toBe(403);
+    expect(secondBrowser.get(STATE_COOKIE)).toBeUndefined();
+    expect(secondBrowser.get(CALENDAR_STATE_COOKIE)).toBeTruthy();
+
+    const validCalendar = await request(
+      `/api/oauth/google-calendar/callback?state=${secondCalendar.state}`,
+      secondBrowser
+    );
+    expect(validCalendar.status).toBe(400);
+
+    const loginOnly = await startLogin();
+    const loginCookieAtCalendar = await request(
+      `/api/oauth/google-calendar/callback?state=${loginOnly.state}`,
+      loginOnly.jar
+    );
+    expect(loginCookieAtCalendar.status).toBe(403);
+    expect(loginOnly.jar.get(STATE_COOKIE)).toBeTruthy();
+
+    const calendarOnly = await startCalendar();
+    const calendarCookieAtLogin = await request(
+      `/api/oauth/callback?state=${calendarOnly.state}`,
+      calendarOnly.jar
+    );
+    expect(calendarCookieAtLogin.status).toBe(403);
+    expect(calendarOnly.jar.get(CALENDAR_STATE_COOKIE)).toBeTruthy();
+
+    expect(secondLogin.state).not.toBe(secondCalendar.state);
   });
 });

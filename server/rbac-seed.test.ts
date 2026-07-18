@@ -28,6 +28,8 @@ function captureLoginOAuthCallback() {
   return async (req: any, res: any) => {
     ENV.googleClientId = "google-client-id";
     ENV.cookieSecret = "test-oauth-cookie-secret-at-least-32-bytes";
+    vi.spyOn(db, "insertOAuthStateNonce").mockResolvedValue(undefined);
+    vi.spyOn(db, "consumeOAuthStateNonce").mockResolvedValue(true);
 
     let stateCookie = "";
     let authorizeUrl = "";

@@ -43,6 +43,7 @@ export default defineConfig({
       NODE_ENV: "development",
       RAILWAY_ENVIRONMENT: "e2e",
       E2E_TEST_MODE: "true",
+      GOOGLE_CLIENT_ID: "boa-critical-e2e-google-client-id",
       PUSH_REMINDER_SCHEDULER_ENABLED: "false",
       VITE_OAUTH_PORTAL_URL: `${baseURL}/__e2e__/oauth-disabled`,
       VITE_APP_ID: "boa-e2e",

@@ -166,7 +166,7 @@ async function logOAuthEvent({
 }
 
 export function registerOAuthRoutes(app: Express) {
-  app.get("/api/oauth/start", (req: Request, res: Response) => {
+  app.get("/api/oauth/start", async (req: Request, res: Response) => {
     try {
       const redirectUri = getExpectedRedirectUri(req);
       if (!redirectUri || !ENV.googleClientId || !ENV.cookieSecret.trim()) {
@@ -174,7 +174,7 @@ export function registerOAuthRoutes(app: Express) {
         return;
       }
 
-      const state = issueOAuthState(req, res, "login");
+      const state = await issueOAuthState(req, res, "login");
       res.redirect(302, buildGoogleLoginOAuthAuthorizeUrl(redirectUri, state));
     } catch {
       console.error("[OAuth] Google authorization start failed");
@@ -184,7 +184,7 @@ export function registerOAuthRoutes(app: Express) {
 
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const state = getQueryParam(req, "state");
-    const stateResult = consumeOAuthState(req, res, "login", state);
+    const stateResult = await consumeOAuthState(req, res, "login", state);
     if (!stateResult.ok) {
       try {
         await logOAuthEvent({
@@ -284,7 +284,12 @@ export function registerOAuthRoutes(app: Express) {
     "/api/oauth/google-calendar/callback",
     async (req: Request, res: Response) => {
       const state = getQueryParam(req, "state");
-      const stateResult = consumeOAuthState(req, res, "google_calendar", state);
+      const stateResult = await consumeOAuthState(
+        req,
+        res,
+        "google_calendar",
+        state
+      );
       if (!stateResult.ok) {
         res
           .status(stateResult.reason === "missing_state" ? 400 : 403)

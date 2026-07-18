@@ -1,6 +1,12 @@
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import { parse as parseCookie } from "cookie";
 import type { CookieOptions, Request, Response } from "express";
+import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
 
@@ -23,7 +29,9 @@ type OAuthStateValidationResult =
         | "missing_cookie"
         | "invalid_cookie"
         | "expired_state"
-        | "state_mismatch";
+        | "state_mismatch"
+        | "state_consumed"
+        | "state_store_unavailable";
     };
 
 const STATE_COOKIE_CONFIG: Record<
@@ -59,6 +67,10 @@ function safeEqual(left: string, right: string) {
     leftBuffer.length === rightBuffer.length &&
     timingSafeEqual(leftBuffer, rightBuffer)
   );
+}
+
+function digestNonce(nonce: string) {
+  return createHash("sha256").update(nonce, "utf8").digest("hex");
 }
 
 function encodePayload(payload: OAuthStatePayload) {
@@ -129,18 +141,29 @@ function readStateCookie(req: Request, purpose: OAuthStatePurpose) {
   return parseCookie(cookieHeader)[STATE_COOKIE_CONFIG[purpose].name];
 }
 
-export function issueOAuthState(
+export async function issueOAuthState(
   req: Request,
   res: Response,
   purpose: OAuthStatePurpose,
   now = Date.now()
 ) {
   const nonce = randomBytes(32).toString("base64url");
+  const expiresAt = now + OAUTH_STATE_TTL_MS;
   const cookieValue = encodePayload({
     purpose,
     nonce,
-    expiresAt: now + OAUTH_STATE_TTL_MS,
+    expiresAt,
   });
+  try {
+    await db.insertOAuthStateNonce({
+      nonceDigest: digestNonce(nonce),
+      purpose,
+      expiresAt: new Date(expiresAt),
+    });
+  } catch (error) {
+    clearStateCookie(req, res, purpose);
+    throw error;
+  }
   res.cookie(
     STATE_COOKIE_CONFIG[purpose].name,
     cookieValue,
@@ -149,28 +172,39 @@ export function issueOAuthState(
   return nonce;
 }
 
-export function consumeOAuthState(
+export async function consumeOAuthState(
   req: Request,
   res: Response,
   purpose: OAuthStatePurpose,
   presentedState: string | undefined,
   now = Date.now()
-): OAuthStateValidationResult {
-  const cookieValue = readStateCookie(req, purpose);
-  clearStateCookie(req, res, purpose);
+): Promise<OAuthStateValidationResult> {
+  try {
+    const cookieValue = readStateCookie(req, purpose);
+    if (!presentedState) return { ok: false, reason: "missing_state" };
+    if (!cookieValue) return { ok: false, reason: "missing_cookie" };
 
-  if (!presentedState) return { ok: false, reason: "missing_state" };
-  if (!cookieValue) return { ok: false, reason: "missing_cookie" };
+    const payload = decodePayload(cookieValue);
+    if (!payload || payload.purpose !== purpose) {
+      return { ok: false, reason: "invalid_cookie" };
+    }
+    if (payload.expiresAt <= now) {
+      return { ok: false, reason: "expired_state" };
+    }
+    if (!safeEqual(payload.nonce, presentedState)) {
+      return { ok: false, reason: "state_mismatch" };
+    }
 
-  const payload = decodePayload(cookieValue);
-  if (!payload || payload.purpose !== purpose) {
-    return { ok: false, reason: "invalid_cookie" };
+    try {
+      const consumed = await db.consumeOAuthStateNonce({
+        nonceDigest: digestNonce(payload.nonce),
+        purpose,
+      });
+      return consumed ? { ok: true } : { ok: false, reason: "state_consumed" };
+    } catch {
+      return { ok: false, reason: "state_store_unavailable" };
+    }
+  } finally {
+    clearStateCookie(req, res, purpose);
   }
-  if (payload.expiresAt <= now) {
-    return { ok: false, reason: "expired_state" };
-  }
-  if (!safeEqual(payload.nonce, presentedState)) {
-    return { ok: false, reason: "state_mismatch" };
-  }
-  return { ok: true };
 }

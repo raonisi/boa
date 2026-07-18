@@ -227,7 +227,7 @@ export const googleCalendarRouter = router({
       return { success: true };
     }),
 
-  getOAuthConnectUrl: branchAdminProcedure.query(({ ctx }) => {
+  getOAuthConnectUrl: branchAdminProcedure.query(async ({ ctx }) => {
     const forwardedProto = (
       ctx.req.headers["x-forwarded-proto"] as string | undefined
     )
@@ -247,7 +247,15 @@ export const googleCalendarRouter = router({
         message: "요청 origin을 확인할 수 없습니다.",
       });
     }
-    const state = issueOAuthState(ctx.req, ctx.res, "google_calendar");
+    let state: string;
+    try {
+      state = await issueOAuthState(ctx.req, ctx.res, "google_calendar");
+    } catch {
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Google Calendar OAuth is temporarily unavailable.",
+      });
+    }
     return { url: buildGoogleCalendarOAuthAuthorizeUrl(origin, state) };
   }),
 
