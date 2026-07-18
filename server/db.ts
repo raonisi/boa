@@ -85,6 +85,7 @@ import {
 } from "../drizzle/schema";
 import {
   NOTIFICATION_CONTRACT_TYPES,
+  NOTIFICATION_CUSTOMER_ACTION_TYPES,
   NOTIFICATION_CUSTOMER_TYPES,
   NOTIFICATION_SCHEDULE_TYPES,
   NOTIFICATION_TODAY_TYPES,
@@ -3913,13 +3914,45 @@ export async function getNotificationsActionCenter(
     WHEN ${notifications.relatedType} = 'customer' THEN ${customers.consultStatus}
     ELSE NULL
   END`;
+  const customerSourceAvailableCondition = and(
+    isNotNull(customers.id),
+    eq(customers.isActive, true),
+    isNull(customers.deletedAt),
+    isNull(customers.mergedIntoCustomerId),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(customers.agentId, filter.userIds)])
+  )!;
+  const contractSourceAvailableCondition = and(
+    isNotNull(contracts.id),
+    eq(contracts.isActive, true),
+    isNull(contracts.deletedAt),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(contracts.agentId, filter.userIds)])
+  )!;
+  const scheduleSourceAvailableCondition = and(
+    isNotNull(schedules.id),
+    eq(schedules.isActive, true),
+    isNull(schedules.deletedAt),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(schedules.userId, filter.userIds)])
+  )!;
+  const followUpSourceAvailableCondition = and(
+    isNotNull(followUps.id),
+    isNull(followUps.deletedAt),
+    ...(filter.userIds === undefined
+      ? []
+      : [inArray(followUps.assignedAgentId, filter.userIds)])
+  )!;
   const sourceAvailableSql = sql<boolean>`CASE
     WHEN ${notifications.relatedType} = 'schedule_change_request' THEN ${scheduleChangeRequests.id} IS NOT NULL
     WHEN ${notifications.relatedType} = 'delete_request' THEN ${deleteRequests.id} IS NOT NULL
-    WHEN ${notifications.relatedType} = 'schedule' THEN ${schedules.id} IS NOT NULL
-    WHEN ${notifications.relatedType} = 'follow_up' THEN ${followUps.id} IS NOT NULL
-    WHEN ${notifications.relatedType} = 'contract' THEN ${contracts.id} IS NOT NULL
-    WHEN ${notifications.relatedType} = 'customer' THEN ${customers.id} IS NOT NULL
+    WHEN ${notifications.relatedType} = 'schedule' THEN ${scheduleSourceAvailableCondition}
+    WHEN ${notifications.relatedType} = 'follow_up' THEN ${followUpSourceAvailableCondition}
+    WHEN ${notifications.relatedType} = 'contract' THEN ${contractSourceAvailableCondition}
+    WHEN ${notifications.relatedType} = 'customer' THEN ${customerSourceAvailableCondition}
     ELSE FALSE
   END`;
   const actionRequiredSql = sql<boolean>`(
@@ -3928,20 +3961,19 @@ export async function getNotificationsActionCenter(
     OR (${notifications.relatedType} = 'delete_request'
       AND ${deleteRequests.status} = 'pending')
     OR (${notifications.relatedType} = 'schedule'
-      AND ${schedules.id} IS NOT NULL
-      AND ${schedules.isActive} = TRUE
-      AND ${schedules.deletedAt} IS NULL
+      AND ${scheduleSourceAvailableCondition}
       AND ${schedules.status} NOT IN ('완료', '취소', '노쇼'))
     OR (${notifications.relatedType} = 'follow_up'
-      AND ${followUps.id} IS NOT NULL
-      AND ${followUps.deletedAt} IS NULL
+      AND ${followUpSourceAvailableCondition}
       AND ${followUps.status} IN ('scheduled', 'postponed'))
     OR (${notifications.relatedType} = 'contract'
       AND ${notifications.type} = 'unpaid_lapse'
-      AND ${contracts.id} IS NOT NULL
-      AND ${contracts.isActive} = TRUE
-      AND ${contracts.deletedAt} IS NULL
+      AND ${contractSourceAvailableCondition}
       AND (${contracts.paymentStatus} IN ('미납', '실효') OR ${contracts.contractStatus} = '해지'))
+    OR (${notifications.relatedType} = 'customer'
+      AND ${inArray(notifications.type, [...NOTIFICATION_CUSTOMER_ACTION_TYPES] as any)}
+      AND ${customerSourceAvailableCondition}
+      AND ${notifications.processStatus} IN ('미확인', '확인', '보류'))
   )`;
 
   const urgentTypeSql = inArray(notifications.type, [
@@ -4177,20 +4209,56 @@ export async function getUsersByTeamId(teamId: number) {
     .where(and(eq(users.teamId, teamId), eq(users.accountStatus, "active")));
 }
 
-export async function getUnreadCount(userId: number) {
+export async function getUnreadCountByUserIds(userIds?: readonly number[]) {
+  if (userIds !== undefined && userIds.length === 0) return 0;
   const db = await getDb();
   if (!db) return 0;
+  const conditions = [
+    eq(notifications.isRead, false),
+    or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))!,
+  ];
+  if (userIds !== undefined) {
+    conditions.push(inArray(notifications.userId, [...userIds]));
+  }
   const result = await db
     .select({ count: sql<number>`count(*)` })
     .from(notifications)
-    .where(
-      and(
-        eq(notifications.userId, userId),
-        eq(notifications.isRead, false),
-        or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))
-      )
-    );
+    .where(and(...conditions));
   return result[0]?.count ?? 0;
+}
+
+export async function getUnreadCount(userId: number) {
+  return getUnreadCountByUserIds([userId]);
+}
+
+export async function getNotificationOperationRiskCounts(
+  inactiveUserIds: readonly number[]
+) {
+  const db = await getDb();
+  if (!db) return { unresolvedCount: 0, inactiveUnresolvedCount: 0 };
+
+  const unresolvedCondition = or(
+    eq(notifications.isRead, false),
+    eq(notifications.processStatus, "미확인")
+  )!;
+  const inactiveUnresolved =
+    inactiveUserIds.length === 0
+      ? sql<number>`0`
+      : sql<number>`SUM(CASE WHEN ${unresolvedCondition} AND ${inArray(notifications.userId, [...inactiveUserIds])} THEN 1 ELSE 0 END)`;
+  const rows = await db
+    .select({
+      unresolvedCount: sql<number>`SUM(CASE WHEN ${unresolvedCondition} THEN 1 ELSE 0 END)`,
+      inactiveUnresolvedCount: inactiveUnresolved,
+    })
+    .from(notifications)
+    .where(
+      or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))
+    );
+
+  return {
+    unresolvedCount: Number(rows[0]?.unresolvedCount ?? 0),
+    inactiveUnresolvedCount: Number(rows[0]?.inactiveUnresolvedCount ?? 0),
+  };
 }
 
 export async function createNotification(

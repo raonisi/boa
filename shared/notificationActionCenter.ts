@@ -31,11 +31,7 @@ export const NOTIFICATION_CONTRACT_TYPES = [
   "unpaid_lapse",
 ] as const;
 
-export const NOTIFICATION_LEGACY_ACTION_TYPES = [
-  "contract_90",
-  "contract_180",
-  "contract_365",
-  "birthday",
+export const NOTIFICATION_CUSTOMER_ACTION_TYPES = [
   "uncontacted_3days",
   "long_unmanaged_90",
   "reconsult",

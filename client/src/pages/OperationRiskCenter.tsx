@@ -28,7 +28,6 @@ import { cn } from "@/lib/utils";
 import { getRoleLabel, getTargetTypeLabel } from "@/lib/userRole";
 import {
   OPERATION_RISK_ACTION_LEVEL_LABELS,
-  classifyOperationRiskActionLevel,
   type OperationRiskActionLevel,
 } from "@shared/operationRiskActionLevel";
 import {
@@ -287,15 +286,9 @@ export default function OperationRiskCenter() {
     "informational") as OperationRiskActionLevel;
   const metric = (key: keyof NonNullable<typeof auditSummary>["cards"]) =>
     Number(auditSummary?.cards?.[key] ?? 0);
-  const actionRequiredCount = metric("inactiveUsers");
-  const immediateCount = metric("recentLoginBlocked");
-  const informationalCount =
-    metric("unreadNotifications") +
-    metric("softDeletedCustomers") +
-    metric("softDeletedContracts") +
-    metric("recentDownloads") +
-    metric("recentDeleteRestore") +
-    metric("recentSecurityActions");
+  const immediateCount = data?.overall.counts.immediate ?? 0;
+  const actionRequiredCount = data?.overall.counts.actionRequired ?? 0;
+  const informationalCount = data?.overall.counts.informational ?? 0;
 
   if (!isBranchAdmin) {
     return (
@@ -475,6 +468,7 @@ export default function OperationRiskCenter() {
           <TabsContent value="status" className="space-y-4">
             <StatusTab
               metric={metric}
+              actionLevel={overallActionLevel}
               immediateCount={immediateCount}
               actionRequiredCount={actionRequiredCount}
               informationalCount={informationalCount}
@@ -1223,21 +1217,19 @@ function AuditLogsTab(props: {
 
 function StatusTab({
   metric,
+  actionLevel,
   immediateCount,
   actionRequiredCount,
   informationalCount,
   setLocation,
 }: {
   metric: (key: any) => number;
+  actionLevel: OperationRiskActionLevel;
   immediateCount: number;
   actionRequiredCount: number;
   informationalCount: number;
   setLocation: (path: string) => void;
 }) {
-  const actionLevel = classifyOperationRiskActionLevel({
-    immediateCount,
-    actionRequiredCount,
-  });
   const health = {
     label: OPERATION_RISK_ACTION_LEVEL_LABELS[actionLevel],
     className: actionLevelClasses[actionLevel],

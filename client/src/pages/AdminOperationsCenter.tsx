@@ -221,7 +221,7 @@ export default function AdminOperationsCenter() {
     { enabled: isBranchAdmin }
   );
 
-  const { data: unreadCount } = trpc.notifications.unreadCount.useQuery(
+  const { data: unreadCount } = trpc.notifications.myUnreadCount.useQuery(
     undefined,
     {
       enabled: canAccessAdminOperationsCenter(user),

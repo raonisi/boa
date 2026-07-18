@@ -19,6 +19,10 @@ import {
 import { buildFirstContactSlaInsights } from "./sla";
 import { buildTeamCompletionInsights } from "./teamCompletion";
 import { getHierarchyScopeUserIds } from "./routers";
+import {
+  classifyOperationRiskActionLevel,
+  compareOperationRiskActionLevel,
+} from "@shared/operationRiskActionLevel";
 
 type AppUser = {
   id: number;
@@ -343,23 +347,20 @@ function isNewContractMetricTarget(contract: any) {
   );
 }
 
-function calculateUserRiskLevel(metrics: {
+function deriveUserActionLevel(metrics: {
   overdueFollowUpCount: number;
   unreadNotificationCount: number;
   unconsultedDbCount: number;
   incompleteScheduleCount: number;
   longUnmanagedCustomerCount: number;
 }) {
-  const score =
-    metrics.overdueFollowUpCount * 5 +
-    metrics.unreadNotificationCount * 1 +
-    metrics.unconsultedDbCount * 2 +
-    metrics.incompleteScheduleCount * 3 +
-    metrics.longUnmanagedCustomerCount * 3;
-  if (score >= 20) return "high";
-  if (score >= 8) return "medium";
-  if (score > 0) return "low";
-  return "normal";
+  return classifyOperationRiskActionLevel({
+    actionRequiredCount:
+      metrics.overdueFollowUpCount +
+      metrics.unconsultedDbCount +
+      metrics.incompleteScheduleCount +
+      metrics.longUnmanagedCustomerCount,
+  });
 }
 
 function buildCoachingPoint(metrics: {
@@ -716,7 +717,7 @@ export async function buildManagementReport(
           isDateInRange(customer.createdAt, period.dateFrom, period.dateTo)
         ).length,
       };
-      const riskLevel = calculateUserRiskLevel(metrics);
+      const actionLevel = deriveUserActionLevel(metrics);
       return {
         userId: visibleUser.id,
         name: visibleUser.name ?? `사용자 #${visibleUser.id}`,
@@ -726,18 +727,27 @@ export async function buildManagementReport(
           scope.subBranchById.get(visibleUser.subBranchAdminId ?? -1) ??
           "기본 부지점",
         metrics,
-        riskLevel,
+        actionLevel,
         coachingPoint: buildCoachingPoint(metrics),
       };
     })
-    .sort((a, b) => {
-      const score = (item: typeof a) =>
-        item.metrics.overdueFollowUpCount * 5 +
-        item.metrics.unreadNotificationCount +
-        item.metrics.unconsultedDbCount * 2 +
-        item.metrics.incompleteScheduleCount * 3 +
-        item.metrics.longUnmanagedCustomerCount * 3;
-      return score(b) - score(a);
+    .sort((left, right) => {
+      const actionOrder = compareOperationRiskActionLevel(
+        left.actionLevel,
+        right.actionLevel
+      );
+      if (actionOrder !== 0) return actionOrder;
+      for (const key of [
+        "overdueFollowUpCount",
+        "incompleteScheduleCount",
+        "unconsultedDbCount",
+        "longUnmanagedCustomerCount",
+        "unreadNotificationCount",
+      ] as const) {
+        const difference = right.metrics[key] - left.metrics[key];
+        if (difference !== 0) return difference;
+      }
+      return left.userId - right.userId;
     });
 
   const summary = {
@@ -867,28 +877,34 @@ export async function buildManagementReport(
       type: "overdue_follow_up",
       label: "지연 후속관리",
       count: summary.overdueFollowUpCount,
-      severity: summary.overdueFollowUpCount > 0 ? "high" : "normal",
+      actionLevel: classifyOperationRiskActionLevel({
+        actionRequiredCount: summary.overdueFollowUpCount,
+      }),
       recommendation: "지연 후속관리를 오늘 중 우선 확인해 주세요.",
     },
     {
       type: "incomplete_schedule",
       label: "미완료 일정",
       count: summary.incompleteScheduleCount,
-      severity: summary.incompleteScheduleCount > 0 ? "medium" : "normal",
+      actionLevel: classifyOperationRiskActionLevel({
+        actionRequiredCount: summary.incompleteScheduleCount,
+      }),
       recommendation: "미완료 일정을 완료 또는 재조정해 주세요.",
     },
     {
       type: "unread_notification",
       label: "미확인 알림",
       count: summary.unreadNotificationCount,
-      severity: summary.unreadNotificationCount > 0 ? "medium" : "normal",
+      actionLevel: "informational" as const,
       recommendation: "미확인 알림을 차례로 처리해 주세요.",
     },
     {
       type: "long_unmanaged",
       label: "장기 미관리 고객",
       count: summary.longUnmanagedCustomerCount,
-      severity: summary.longUnmanagedCustomerCount > 0 ? "medium" : "normal",
+      actionLevel: classifyOperationRiskActionLevel({
+        actionRequiredCount: summary.longUnmanagedCustomerCount,
+      }),
       recommendation: "장기 미관리 고객 관리 계획을 점검해 주세요.",
     },
     {
@@ -898,7 +914,7 @@ export async function buildManagementReport(
         (sum, item) => sum + item.metrics.unconsultedDbCount,
         0
       ),
-      severity: "medium",
+      actionLevel: "action_required" as const,
       recommendation: "미상담 DB를 연락 우선순위로 정리해 주세요.",
     },
   ].filter(issue => issue.count > 0);

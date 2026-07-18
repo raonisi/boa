@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/card";
 import InsightCards from "@/components/team-insights/InsightCards";
 import InsightTable from "@/components/team-insights/InsightTable";
-import TopRiskUsers from "@/components/team-insights/TopRiskUsers";
+import AttentionUsers from "@/components/team-insights/AttentionUsers";
 import { ErrorState } from "@/components/ui/empty-state";
 import DashboardLayout from "@/components/DashboardLayout";
 
@@ -60,15 +60,15 @@ export default function TeamInsights() {
 
         <InsightCards summary={data.summary} />
 
-        {data.topRiskUsers.length > 0 && (
-          <TopRiskUsers users={data.topRiskUsers} />
+        {data.attentionUsers.length > 0 && (
+          <AttentionUsers users={data.attentionUsers} />
         )}
 
         <Card>
           <CardHeader>
             <CardTitle>팀원별 상세 현황</CardTitle>
             <CardDescription>
-              모든 팀원의 활동 지표와 리스크 점수를 확인합니다.
+              모든 팀원의 실제 미처리 건수와 행동상태를 확인합니다.
             </CardDescription>
           </CardHeader>
           <CardContent>

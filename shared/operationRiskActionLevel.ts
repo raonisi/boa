@@ -33,7 +33,7 @@ export function getOperationRiskActionLevelForStatus(
   return "informational";
 }
 
-function compareActionLevel(
+export function compareOperationRiskActionLevel(
   left: OperationRiskActionLevel,
   right: OperationRiskActionLevel
 ) {
@@ -54,7 +54,7 @@ export function sortOperationRiskItems<
   return items
     .map((item, index) => ({ item, index }))
     .sort((left, right) => {
-      const actionLevelOrder = compareActionLevel(
+      const actionLevelOrder = compareOperationRiskActionLevel(
         left.item.actionLevel,
         right.item.actionLevel
       );

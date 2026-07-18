@@ -94,6 +94,12 @@ describe("notification action center scope", () => {
     const querySpy = vi
       .spyOn(db, "getNotificationsActionCenter")
       .mockResolvedValue(emptyPage as any);
+    const scopedUnreadSpy = vi
+      .spyOn(db, "getUnreadCountByUserIds")
+      .mockResolvedValue(0);
+    const personalUnreadSpy = vi
+      .spyOn(db, "getUnreadCount")
+      .mockResolvedValue(0);
     vi.spyOn(db, "getUsersBySubBranchAdminId").mockResolvedValue([
       { id: 21 },
       { id: 22 },
@@ -121,6 +127,22 @@ describe("notification action center scope", () => {
       .createCaller(createCtx("member", { userId: 4 }))
       .notifications.list({ isRead: false });
 
+    await appRouter
+      .createCaller(createCtx("branch_admin", { userId: 1 }))
+      .notifications.unreadCount();
+    await appRouter
+      .createCaller(createCtx("sub_branch_admin", { userId: 2 }))
+      .notifications.unreadCount();
+    await appRouter
+      .createCaller(createCtx("team_leader", { userId: 3, teamId: 10 }))
+      .notifications.unreadCount();
+    await appRouter
+      .createCaller(createCtx("member", { userId: 4 }))
+      .notifications.unreadCount();
+    await appRouter
+      .createCaller(createCtx("team_leader", { userId: 3, teamId: 10 }))
+      .notifications.myUnreadCount();
+
     expect(querySpy.mock.calls[0]?.[0].userIds).toBeUndefined();
     expect(querySpy.mock.calls[0]?.[0]).toEqual(
       expect.objectContaining({
@@ -132,6 +154,13 @@ describe("notification action center scope", () => {
     expect(querySpy.mock.calls[1]?.[0].userIds).toEqual([2, 21, 22]);
     expect(querySpy.mock.calls[2]?.[0].userIds).toEqual([3, 31, 32]);
     expect(querySpy.mock.calls[3]?.[0].userIds).toEqual([4]);
+    expect(scopedUnreadSpy.mock.calls.map(call => call[0])).toEqual([
+      undefined,
+      [2, 21, 22],
+      [3, 31, 32],
+      [4],
+    ]);
+    expect(personalUnreadSpy).toHaveBeenCalledWith(3);
   });
 
   it("blocks inactive and resigned callers before querying counts", async () => {
@@ -5246,11 +5275,21 @@ describe("PR6 operation risk center", () => {
     vi.spyOn(db, "getSchedules").mockResolvedValue(
       overrides.schedules ?? ([] as any)
     );
-    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
-      items: overrides.notifications ?? [],
-      totalCount: overrides.notifications?.length ?? 0,
-      hasMore: false,
-    } as any);
+    const inactiveUserIds = new Set(
+      (overrides.users ?? [])
+        .filter(user => ["inactive", "resigned"].includes(user.accountStatus))
+        .map(user => user.id)
+    );
+    const unresolvedNotifications = (overrides.notifications ?? []).filter(
+      notification =>
+        !notification.isRead || notification.processStatus === "미확인"
+    );
+    vi.spyOn(db, "getNotificationOperationRiskCounts").mockResolvedValue({
+      unresolvedCount: unresolvedNotifications.length,
+      inactiveUnresolvedCount: unresolvedNotifications.filter(notification =>
+        inactiveUserIds.has(notification.userId)
+      ).length,
+    });
     vi.spyOn(db, "getDeleteRequests").mockResolvedValue(
       overrides.deleteRequests ?? ([] as any)
     );
@@ -5411,6 +5450,9 @@ describe("PR6 operation risk center", () => {
     expect(result.downloadRisk.repeatedUserCount).toBe(1);
     expect(result.downloadRisk.shortReasonCount).toBe(1);
     expect(result.deletionRisk.permanentDeleteCount).toBe(1);
+    expect(
+      result.riskCards.find(card => card.category === "deletion")?.count
+    ).toBe(1);
     expect(result.accountRisk.criticalCount).toBe(1);
     expect(result.handoffRisk.unresolvedCount).toBeGreaterThan(0);
     expect(result.pushRisk.failed).toBe(1);
@@ -9016,6 +9058,11 @@ describe("adminTeamInsights", () => {
       result.userMetrics.find((m: any) => m.user.id === 4)?.metrics
         .unconsultedDbCount
     ).toBe(1);
+    expect(
+      result.userMetrics.find((m: any) => m.user.id === 4)?.actionLevel
+    ).toBe("action_required");
+    expect(result.attentionUsers[0]?.user.id).toBe(4);
+    expect(JSON.stringify(result)).not.toMatch(/riskScore|점수/);
     expect(result.userMetrics.some((m: any) => m.user.id === 5)).toBe(false); // Inactive excluded
   });
 
@@ -11449,6 +11496,9 @@ describe("managementReports", () => {
     expect(result.users.some(user => user.userId === 5)).toBe(true);
     expect(result.summary.consultationCount).toBeGreaterThan(0);
     expect(result.summary.followUpCompletionRate).not.toBeNull();
+    expect(result.users.every(user => "actionLevel" in user)).toBe(true);
+    expect(result.topIssues.every(issue => "actionLevel" in issue)).toBe(true);
+    expect(JSON.stringify(result)).not.toMatch(/riskScore|점수/);
   });
 
   it("scopes sub_branch_admin reports to managed users only", async () => {

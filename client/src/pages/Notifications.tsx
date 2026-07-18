@@ -355,6 +355,7 @@ export default function Notifications() {
     onSuccess: () => {
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
+      utils.notifications.myUnreadCount.invalidate();
     },
   });
 
@@ -363,6 +364,7 @@ export default function Notifications() {
       setShowMarkAllReadDialog(false);
       utils.notifications.list.invalidate();
       utils.notifications.unreadCount.invalidate();
+      utils.notifications.myUnreadCount.invalidate();
       toast.success("내 알림이 모두 읽음 처리되었습니다.");
     },
   });
@@ -372,6 +374,7 @@ export default function Notifications() {
       onSuccess: () => {
         utils.notifications.list.invalidate();
         utils.notifications.unreadCount.invalidate();
+        utils.notifications.myUnreadCount.invalidate();
       },
       onError: () => toast.error("상태 변경에 실패했습니다."),
     });
@@ -439,6 +442,7 @@ export default function Notifications() {
       await Promise.all([
         utils.notifications.list.invalidate(),
         utils.notifications.unreadCount.invalidate(),
+        utils.notifications.myUnreadCount.invalidate(),
       ]);
       toast.success(`${selectedVisibleIds.length}개 알림을 읽음 처리했습니다.`);
     } catch {
@@ -469,6 +473,7 @@ export default function Notifications() {
       await Promise.all([
         utils.notifications.list.invalidate(),
         utils.notifications.unreadCount.invalidate(),
+        utils.notifications.myUnreadCount.invalidate(),
       ]);
       toast.success(`${ids.length}개 알림 기록을 정리했습니다.`);
       setBulkCompleteConfirmation(null);

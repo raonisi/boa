@@ -721,7 +721,7 @@ export function registerMobileRoutes(app: Express) {
       const ctx: TrpcContext = { req, res, user };
       const caller = appRouter.createCaller(ctx);
       try {
-        const count = await caller.notifications.unreadCount();
+        const count = await caller.notifications.myUnreadCount();
         res.json({ count });
       } catch (e: unknown) {
         const msg =

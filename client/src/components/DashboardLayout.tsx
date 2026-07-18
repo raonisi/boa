@@ -132,7 +132,7 @@ function DashboardLayoutContent({
     data: unreadCount,
     isLoading: isUnreadLoading,
     isError: isUnreadError,
-  } = trpc.notifications.unreadCount.useQuery(undefined, {
+  } = trpc.notifications.myUnreadCount.useQuery(undefined, {
     refetchInterval: 30000,
   });
   const unreadBadgeInput = {

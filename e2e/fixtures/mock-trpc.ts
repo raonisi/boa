@@ -503,6 +503,7 @@ const downloadPreview = {
 const defaults: Record<string, unknown> = {
   "auth.me": userFor("branch_admin"),
   "notifications.unreadCount": 1,
+  "notifications.myUnreadCount": 1,
   "notifications.list": notificationsList,
   "dashboard.todayWork": todayWork,
   "recommendations.dashboardSummary": {
@@ -768,7 +769,7 @@ const defaults: Record<string, unknown> = {
         type: "unread_notification",
         label: "미확인 알림",
         count: 1,
-        severity: "medium",
+        actionLevel: "informational",
         recommendation: "미확인 알림을 차례로 처리해 주세요.",
       },
     ],
@@ -796,7 +797,7 @@ const defaults: Record<string, unknown> = {
           priorityAManagementRate: null,
           newCustomerCount: 0,
         },
-        riskLevel: "low",
+        actionLevel: "informational",
         coachingPoint:
           "현재 흐름을 유지하되, 오늘 예정 업무를 먼저 마무리해 주세요.",
       },

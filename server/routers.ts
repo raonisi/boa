@@ -51,6 +51,7 @@ import {
 } from "@shared/notificationActionCenter";
 import {
   classifyOperationRiskActionLevel,
+  compareOperationRiskActionLevel,
   sortOperationRiskItems,
   type OperationRiskActionLevel,
 } from "@shared/operationRiskActionLevel";
@@ -148,6 +149,8 @@ import {
   getTeamPermanentDeleteBlockers,
   getTeamById,
   getUnreadCount,
+  getUnreadCountByUserIds,
+  getNotificationOperationRiskCounts,
   getUserById,
   markAllNotificationsRead,
   markNotificationRead,
@@ -1778,7 +1781,6 @@ async function buildOperationRiskReport(
     contracts,
     followUps,
     schedules,
-    notificationsResult,
     deleteRequests,
     handoffHistories,
     activityLogs,
@@ -1793,7 +1795,6 @@ async function buildOperationRiskReport(
       statuses: ["scheduled", "postponed", "completed", "cancelled"],
     }),
     getSchedules({}),
-    getNotificationsFiltered({ limit: 1000 }),
     getDeleteRequests({}),
     getHandoffHistories({ limit: 100 }),
     getActivityLogs(2000),
@@ -1817,6 +1818,9 @@ async function buildOperationRiskReport(
           user.accountStatus === "inactive" || user.accountStatus === "resigned"
       )
       .map(user => user.id)
+  );
+  const notificationRiskCounts = await getNotificationOperationRiskCounts(
+    Array.from(inactiveUserIds)
   );
   const now = new Date();
   const staleDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
@@ -1882,17 +1886,12 @@ async function buildOperationRiskReport(
         String(schedule.status)
       )
   );
-  const inactiveNotifications = notificationsResult.items.filter(
-    (notification: any) =>
-      inactiveUserIds.has(Number(notification.userId)) &&
-      (!notification.isRead || notification.processStatus === "미확인")
-  );
   const unresolvedHandoffCount =
     inactiveCustomers.length +
     inactiveContracts.length +
     inactiveFollowUps.length +
     inactiveSchedules.length +
-    inactiveNotifications.length;
+    notificationRiskCounts.inactiveUnresolvedCount;
 
   const failedPushLogs = pushLogs.filter(
     entry =>
@@ -1918,14 +1917,10 @@ async function buildOperationRiskReport(
       schedule.startTime &&
       new Date(schedule.startTime).getTime() < staleDate.getTime()
   );
-  const unreadNotifications = notificationsResult.items.filter(
-    (notification: any) =>
-      !notification.isRead || notification.processStatus === "미확인"
-  );
   const unresolvedWorkCount =
     overdueFollowUps.length +
     staleSchedules.length +
-    unreadNotifications.length;
+    notificationRiskCounts.unresolvedCount;
   const unresolvedActionCount = overdueFollowUps.length + staleSchedules.length;
 
   const riskCards = sortOperationRiskItems([
@@ -1963,7 +1958,7 @@ async function buildOperationRiskReport(
     compactRiskItem({
       category: "deletion",
       title: "삭제·복구 리스크",
-      count: deletionLogs.length + pendingDeleteRequests.length,
+      count: pendingDeleteRequests.length,
       actionRequiredCount: pendingDeleteRequests.length,
       description:
         pendingDeleteRequests.length > 0
@@ -2024,7 +2019,7 @@ async function buildOperationRiskReport(
       description:
         unresolvedActionCount > 0
           ? "미처리 후속관리와 오래된 일정을 우선 확인하세요."
-          : unreadNotifications.length > 0
+          : notificationRiskCounts.unresolvedCount > 0
             ? "읽지 않은 알림은 참고용이며 업무 상태와 별도로 집계됩니다."
             : "현재 미처리 운영 업무가 없습니다.",
       actionLabel: "업무 확인",
@@ -2117,7 +2112,7 @@ async function buildOperationRiskReport(
       inactiveContractCount: inactiveContracts.length,
       inactiveFollowUpCount: inactiveFollowUps.length,
       inactiveScheduleCount: inactiveSchedules.length,
-      inactiveNotificationCount: inactiveNotifications.length,
+      inactiveNotificationCount: notificationRiskCounts.inactiveUnresolvedCount,
       recentHandoffCount: handoffHistories.length,
     },
     pushRisk: {
@@ -2148,7 +2143,7 @@ async function buildOperationRiskReport(
       total: unresolvedWorkCount,
       overdueFollowUpCount: overdueFollowUps.length,
       staleScheduleCount: staleSchedules.length,
-      unreadNotificationCount: unreadNotifications.length,
+      unreadNotificationCount: notificationRiskCounts.unresolvedCount,
       pendingDeleteRequestCount: pendingDeleteRequests.length,
     },
     approvalRisk: {
@@ -2561,8 +2556,32 @@ function verifyBulkImportFilePolicy(input: {
   }
 }
 
+type NotificationAccessActor = {
+  id: number;
+  role: string;
+  teamId: number | null;
+};
+
+async function resolveNotificationAccessScope(
+  user: NotificationAccessActor
+): Promise<number[] | undefined> {
+  if (user.role === "branch_admin") return undefined;
+
+  if (user.role === "sub_branch_admin") {
+    const subordinates = await getUsersBySubBranchAdminId(user.id);
+    return Array.from(new Set([user.id, ...subordinates.map(item => item.id)]));
+  }
+
+  if (user.role === "team_leader" && user.teamId) {
+    const teamMembers = await getUsersByTeamId(user.teamId);
+    return Array.from(new Set([user.id, ...teamMembers.map(item => item.id)]));
+  }
+
+  return [user.id];
+}
+
 async function verifyNotificationAccess(
-  user: { id: number; role: string; teamId: number | null },
+  user: NotificationAccessActor,
   notificationId: number
 ) {
   const notification = await getNotificationById(notificationId);
@@ -2571,18 +2590,10 @@ async function verifyNotificationAccess(
       code: "NOT_FOUND",
       message: "알림을 찾을 수 없습니다.",
     });
-  if (user.role === "branch_admin") return notification;
-  if (notification.userId === user.id) return notification;
-  if (user.role === "sub_branch_admin") {
-    const subordinates = await getUsersBySubBranchAdminId(user.id);
-    if (subordinates.some(u => u.id === notification.userId))
-      return notification;
-  }
-  if (user.role === "team_leader" && user.teamId) {
-    const teamMembers = await getUsersByTeamId(user.teamId);
-    if (teamMembers.some(u => u.id === notification.userId))
-      return notification;
-  }
+
+  const userIds = await resolveNotificationAccessScope(user);
+  if (!userIds || userIds.includes(notification.userId)) return notification;
+
   throw new TRPCError({
     code: "FORBIDDEN",
     message: "해당 알림을 수정할 권한이 없습니다.",
@@ -5136,14 +5147,15 @@ async function buildAdminTeamInsights(user: {
         !c.deletedAt
     ).length;
 
-    const riskScore =
-      unconsultedDbCount * 2 +
-      overdueFollowUpsCount * 5 +
-      incompleteSchedulesCount * 3 +
-      longUnmanagedCount * 3 +
-      priorityAUnmanagedCount * 5 +
-      postContractUnmanagedCount * 4 +
-      unreadNotificationsCount * 1;
+    const actionLevel = classifyOperationRiskActionLevel({
+      actionRequiredCount:
+        unconsultedDbCount +
+        overdueFollowUpsCount +
+        incompleteSchedulesCount +
+        longUnmanagedCount +
+        priorityAUnmanagedCount +
+        postContractUnmanagedCount,
+    });
 
     return {
       user: {
@@ -5165,13 +5177,33 @@ async function buildAdminTeamInsights(user: {
         todayConsultationsCount,
         todayContractsCount,
       },
-      riskScore,
+      actionLevel,
     };
   });
 
-  const topRiskUsers = [...userMetrics]
-    .filter(m => m.riskScore > 0)
-    .sort((a, b) => b.riskScore - a.riskScore)
+  const sortedUserMetrics = [...userMetrics].sort((left, right) => {
+    const actionOrder = compareOperationRiskActionLevel(
+      left.actionLevel,
+      right.actionLevel
+    );
+    if (actionOrder !== 0) return actionOrder;
+
+    for (const key of [
+      "overdueFollowUpsCount",
+      "incompleteSchedulesCount",
+      "unconsultedDbCount",
+      "priorityAUnmanagedCount",
+      "longUnmanagedCount",
+      "postContractUnmanagedCount",
+      "unreadNotificationsCount",
+    ] as const) {
+      const difference = right.metrics[key] - left.metrics[key];
+      if (difference !== 0) return difference;
+    }
+    return left.user.id - right.user.id;
+  });
+  const attentionUsers = sortedUserMetrics
+    .filter(item => item.actionLevel !== "informational")
     .slice(0, 5);
 
   const summary = {
@@ -5199,8 +5231,8 @@ async function buildAdminTeamInsights(user: {
 
   return {
     summary,
-    topRiskUsers,
-    userMetrics: userMetrics.sort((a, b) => b.riskScore - a.riskScore),
+    attentionUsers,
+    userMetrics: sortedUserMetrics,
   };
 }
 
@@ -11921,7 +11953,6 @@ export const appRouter = router({
           .optional()
       )
       .query(async ({ ctx, input }) => {
-        const user = ctx.user;
         const filter = {
           processStatus: input?.processStatus,
           isRead: input?.isRead,
@@ -11935,29 +11966,14 @@ export const appRouter = router({
           limit: input?.limit ?? 50,
           offset: input?.offset ?? 0,
         };
-        // branch_admin: 전체 알림 (userIds 제한 없음)
-        if (user.role === "branch_admin") {
-          return getNotificationsActionCenter({ ...filter });
-        }
-        // sub_branch_admin: 본인 + 산하 팀원 알림
-        if (user.role === "sub_branch_admin") {
-          const subordinates = await getUsersBySubBranchAdminId(user.id);
-          const userIds = [user.id, ...subordinates.map(u => u.id)];
-          return getNotificationsActionCenter({ ...filter, userIds });
-        }
-        // team_leader: 본인 + 본인 팀원 알림
-        if (user.role === "team_leader" && user.teamId) {
-          const teamMembers = await getUsersByTeamId(user.teamId);
-          const userIds = [user.id, ...teamMembers.map(u => u.id)];
-          return getNotificationsActionCenter({ ...filter, userIds });
-        }
-        // member: 본인 알림만
-        return getNotificationsActionCenter({
-          ...filter,
-          userIds: [user.id],
-        });
+        const userIds = await resolveNotificationAccessScope(ctx.user);
+        return getNotificationsActionCenter({ ...filter, userIds });
       }),
-    unreadCount: activeUserProcedure.query(async ({ ctx }) =>
+    unreadCount: activeUserProcedure.query(async ({ ctx }) => {
+      const userIds = await resolveNotificationAccessScope(ctx.user);
+      return getUnreadCountByUserIds(userIds);
+    }),
+    myUnreadCount: activeUserProcedure.query(async ({ ctx }) =>
       getUnreadCount(ctx.user.id)
     ),
     markRead: activeUserProcedure
@@ -11975,6 +11991,7 @@ export const appRouter = router({
         return { success: true };
       }),
     markAllRead: activeUserProcedure.mutation(async ({ ctx }) => {
+      // 읽음 여부는 수신자 개인 상태이므로 계층 범위가 아닌 본인 알림만 갱신한다.
       await markAllNotificationsRead(ctx.user.id);
       return { success: true };
     }),

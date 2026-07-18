@@ -1,28 +1,38 @@
 import { inArray, and, gte, lte } from "drizzle-orm";
 import { getDb } from "./db";
 import { notifications, followUps } from "../drizzle/schema";
+import {
+  classifyOperationRiskActionLevel,
+  compareOperationRiskActionLevel,
+} from "@shared/operationRiskActionLevel";
 
-const HIGH_RISK_NOTIFICATION_TYPES = [
+const ACTION_REQUIRED_NOTIFICATION_TYPES = [
   "contract_90",
   "contract_180",
   "contract_365",
   "uncontacted_3days",
   "long_unmanaged_90",
+  "reconsult",
   "unpaid_lapse",
 ];
 
-function calculateRiskScore(metrics: any) {
-  let score = 0;
-  score += metrics.unreadNotificationCount * 1;
-  score += metrics.unreadOver24hCount * 3;
-  score += metrics.highRiskNotificationCount * 5;
-  score += metrics.overdueFollowUpCount * 4;
-  score += metrics.overdueOver3DaysCount * 8;
-  if (metrics.followUpCompletionRate < 50 && metrics.validFollowUpCount > 0)
-    score += 10;
-  if (metrics.notificationCompletionRate < 50 && metrics.notificationCount > 0)
-    score += 8;
-  return score;
+function compareAttentionUsers(left: any, right: any) {
+  const actionOrder = compareOperationRiskActionLevel(
+    left.actionLevel,
+    right.actionLevel
+  );
+  if (actionOrder !== 0) return actionOrder;
+
+  for (const key of [
+    "overdueFollowUpCount",
+    "actionRequiredNotificationCount",
+    "unreadOver24hCount",
+    "unreadNotificationCount",
+  ] as const) {
+    const difference = Number(right.metrics[key]) - Number(left.metrics[key]);
+    if (difference !== 0) return difference;
+  }
+  return Number(left.userId) - Number(right.userId);
 }
 
 export async function buildTeamCompletionInsights(
@@ -50,11 +60,10 @@ export async function buildTeamCompletionInsights(
         completedFollowUpCount: 0,
         overdueFollowUpCount: 0,
         followUpCompletionRate: 0,
-        highRiskUserCount: 0,
-        coachingNeededUserCount: 0,
+        actionRequiredUserCount: 0,
       },
       users: [],
-      topRiskUsers: [],
+      attentionUsers: [],
     };
   }
 
@@ -100,7 +109,7 @@ export async function buildTeamCompletionInsights(
     let unreadNotificationCount = 0;
     let completedNotificationCount = 0;
     let unreadOver24hCount = 0;
-    let highRiskNotificationCount = 0;
+    let actionRequiredNotificationCount = 0;
 
     userNotifs.forEach(n => {
       const isUnread = n.processStatus === "미확인" || !n.isRead;
@@ -115,8 +124,13 @@ export async function buildTeamCompletionInsights(
         unreadOver24hCount++;
       }
 
-      if (isUnread && HIGH_RISK_NOTIFICATION_TYPES.includes(n.type)) {
-        highRiskNotificationCount++;
+      const isDue = !n.dueAt || new Date(n.dueAt).getTime() <= now.getTime();
+      if (
+        n.processStatus !== "처리완료" &&
+        isDue &&
+        ACTION_REQUIRED_NOTIFICATION_TYPES.includes(n.type)
+      ) {
+        actionRequiredNotificationCount++;
       }
     });
 
@@ -181,7 +195,7 @@ export async function buildTeamCompletionInsights(
       completedNotificationCount,
       notificationCompletionRate,
       unreadOver24hCount,
-      highRiskNotificationCount,
+      actionRequiredNotificationCount,
       followUpCount,
       validFollowUpCount,
       todayFollowUpCount,
@@ -194,21 +208,21 @@ export async function buildTeamCompletionInsights(
       overdueOver3DaysCount,
     };
 
-    const riskScore = calculateRiskScore(metrics);
-    let riskLevel = "낮음";
-    if (riskScore >= 30) riskLevel = "높음";
-    else if (riskScore >= 10) riskLevel = "보통";
+    const actionLevel = classifyOperationRiskActionLevel({
+      actionRequiredCount:
+        overdueFollowUpCount + actionRequiredNotificationCount,
+    });
 
     const reasons: string[] = [];
-    if (unreadNotificationCount >= 10)
+    if (unreadNotificationCount > 0)
       reasons.push(`미확인 알림 ${unreadNotificationCount}건`);
-    if (unreadOver24hCount >= 5)
+    if (unreadOver24hCount > 0)
       reasons.push(`24시간 이상 미확인 ${unreadOver24hCount}건`);
-    if (metrics.followUpCompletionRate < 50 && validFollowUpCount >= 5)
-      reasons.push(`후속관리 완료율 ${metrics.followUpCompletionRate}%`);
-    if (overdueFollowUpCount >= 5)
+    if (actionRequiredNotificationCount > 0)
+      reasons.push(`처리 필요 알림 ${actionRequiredNotificationCount}건`);
+    if (overdueFollowUpCount > 0)
       reasons.push(`지연 후속관리 ${overdueFollowUpCount}건`);
-    if (overdueOver3DaysCount >= 3)
+    if (overdueOver3DaysCount > 0)
       reasons.push(`3일 이상 지연 ${overdueOver3DaysCount}건`);
 
     const team = visibleTeams.find(t => t.id === u.teamId);
@@ -220,15 +234,14 @@ export async function buildTeamCompletionInsights(
       teamName: team?.name ?? "미지정",
       subBranchName: "기본 부지점",
       metrics,
-      riskScore,
-      riskLevel,
+      actionLevel,
       reasons,
     };
   });
 
-  const topRiskUsers = usersOutput
-    .filter(u => u.riskScore >= 10)
-    .sort((a, b) => b.riskScore - a.riskScore)
+  const sortedUsers = [...usersOutput].sort(compareAttentionUsers);
+  const attentionUsers = sortedUsers
+    .filter(u => u.actionLevel !== "informational")
     .slice(0, 5);
 
   let totalUserCount = usersOutput.length;
@@ -239,8 +252,7 @@ export async function buildTeamCompletionInsights(
   let totalValidFollowUpCount = 0;
   let totalCompletedFollowUpCount = 0;
   let totalOverdueFollowUpCount = 0;
-  let highRiskUserCount = 0;
-  let coachingNeededUserCount = 0;
+  let actionRequiredUserCount = 0;
 
   usersOutput.forEach(u => {
     totalNotificationCount += u.metrics.notificationCount;
@@ -250,8 +262,7 @@ export async function buildTeamCompletionInsights(
     totalValidFollowUpCount += u.metrics.validFollowUpCount;
     totalCompletedFollowUpCount += u.metrics.completedFollowUpCount;
     totalOverdueFollowUpCount += u.metrics.overdueFollowUpCount;
-    if (u.riskLevel === "높음") highRiskUserCount++;
-    if (u.riskScore >= 10) coachingNeededUserCount++;
+    if (u.actionLevel !== "informational") actionRequiredUserCount++;
   });
 
   const summary = {
@@ -274,15 +285,14 @@ export async function buildTeamCompletionInsights(
             (totalCompletedFollowUpCount / totalValidFollowUpCount) * 100
           )
         : 0,
-    highRiskUserCount,
-    coachingNeededUserCount,
+    actionRequiredUserCount,
   };
 
   return {
     scope: { role: user.role, userId: user.id },
     period: { dateFrom, dateTo },
     summary,
-    topRiskUsers,
-    users: usersOutput,
+    attentionUsers,
+    users: sortedUsers,
   };
 }

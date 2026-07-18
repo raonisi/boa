@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { OPERATION_RISK_ACTION_LEVEL_LABELS } from "@shared/operationRiskActionLevel";
 
 const REPORT_TYPE_LABELS: Record<string, string> = {
   daily: "일일 운영 보고서",
@@ -54,13 +55,6 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
   monthly: "월간 관리 보고서",
   team: "팀장 보고서",
   sub_branch: "부지점 보고서",
-};
-
-const RISK_LABELS: Record<string, string> = {
-  normal: "정상",
-  low: "주의",
-  medium: "점검 필요",
-  high: "우선 확인",
 };
 
 function KpiCard({
@@ -442,7 +436,7 @@ export default function ManagementReports() {
                           미확인 알림
                         </TableHead>
                         <TableHead className="text-right">신규 계약</TableHead>
-                        <TableHead>위험도</TableHead>
+                        <TableHead>행동상태</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -473,7 +467,9 @@ export default function ManagementReports() {
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              {RISK_LABELS[row.riskLevel] ?? row.riskLevel}
+                              {OPERATION_RISK_ACTION_LEVEL_LABELS[
+                                row.actionLevel
+                              ] ?? row.actionLevel}
                             </Badge>
                           </TableCell>
                         </TableRow>
@@ -498,7 +494,9 @@ export default function ManagementReports() {
                           </p>
                         </div>
                         <Badge variant="outline">
-                          {RISK_LABELS[row.riskLevel] ?? row.riskLevel}
+                          {OPERATION_RISK_ACTION_LEVEL_LABELS[
+                            row.actionLevel
+                          ] ?? row.actionLevel}
                         </Badge>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
