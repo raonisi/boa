@@ -12,6 +12,7 @@ import {
 } from "./_core/procedures";
 import { router } from "./_core/trpc";
 import { buildGoogleCalendarOAuthAuthorizeUrl } from "./_core/oauth";
+import { issueOAuthState } from "./_core/oauthState";
 import { createActivityLog, getScheduleById, getUserById } from "./db";
 import {
   disableGoogleCalendarIntegration,
@@ -237,18 +238,17 @@ export const googleCalendarRouter = router({
     )
       ?.split(",")[0]
       ?.trim();
-    const origin =
-      (ctx.req.headers.origin as string | undefined) ??
-      (forwardedProto && forwardedHost
-        ? `${forwardedProto}://${forwardedHost}`
-        : undefined);
+    const host = forwardedHost ?? ctx.req.headers.host;
+    const protocol = forwardedProto ?? ctx.req.protocol;
+    const origin = host ? `${protocol}://${host}` : undefined;
     if (!origin) {
       throw new TRPCError({
         code: "BAD_REQUEST",
         message: "요청 origin을 확인할 수 없습니다.",
       });
     }
-    return { url: buildGoogleCalendarOAuthAuthorizeUrl(origin) };
+    const state = issueOAuthState(ctx.req, ctx.res, "google_calendar");
+    return { url: buildGoogleCalendarOAuthAuthorizeUrl(origin, state) };
   }),
 
   upsertCalendarIntegration: branchAdminProcedure

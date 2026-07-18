@@ -9,8 +9,9 @@ import {
   refreshLongUnmanagedReminder,
 } from "./notifications";
 import { registerOAuthRoutes } from "./_core/oauth";
+import { ENV } from "./_core/env";
 import { sdk } from "./_core/sdk";
-import { buildGoogleAuthorizeUrl } from "../client/src/const";
+import { buildGoogleOAuthStartUrl } from "../client/src/const";
 
 function captureLoginOAuthCallback() {
   const handlers = new Map<string, (...args: unknown[]) => unknown>();
@@ -19,10 +20,49 @@ function captureLoginOAuthCallback() {
       handlers.set(path, handler);
     },
   } as any);
+  const start = handlers.get("/api/oauth/start");
   const callback = handlers.get("/api/oauth/callback");
-  if (!callback) throw new Error("Login OAuth callback was not registered");
-  return callback;
+  if (!start || !callback)
+    throw new Error("Login OAuth routes were not registered");
+
+  return async (req: any, res: any) => {
+    ENV.googleClientId = "google-client-id";
+    ENV.cookieSecret = "test-oauth-cookie-secret-at-least-32-bytes";
+
+    let stateCookie = "";
+    let authorizeUrl = "";
+    await start(
+      {
+        protocol: "http",
+        headers: { host: "127.0.0.1:3000" },
+      },
+      {
+        cookie: (name: string, value: string) => {
+          stateCookie = `${name}=${value}`;
+        },
+        redirect: (_status: number, url: string) => {
+          authorizeUrl = url;
+        },
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockReturnThis(),
+      }
+    );
+
+    const requestedState = String(req.query?.state ?? "");
+    const isIntentionalMismatch = requestedState === "attacker-state";
+    req.query.state = isIntentionalMismatch
+      ? "attacker-state"
+      : new URL(authorizeUrl).searchParams.get("state");
+    req.headers = { ...req.headers, cookie: stateCookie };
+    res.clearCookie ??= vi.fn();
+    return callback(req, res);
+  };
 }
+
+const ORIGINAL_OAUTH_ENV = {
+  googleClientId: ENV.googleClientId,
+  cookieSecret: ENV.cookieSecret,
+};
 
 type Role = "branch_admin" | "sub_branch_admin" | "team_leader" | "member";
 
@@ -345,7 +385,11 @@ function setupSeedDb() {
   vi.spyOn(db, "createActivityLog").mockResolvedValue(undefined);
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  ENV.googleClientId = ORIGINAL_OAUTH_ENV.googleClientId;
+  ENV.cookieSecret = ORIGINAL_OAUTH_ENV.cookieSecret;
+});
 
 describe("seed-backed RBAC integration", () => {
   it("scopes list queries by seeded organization hierarchy", async () => {
@@ -702,29 +746,16 @@ describe("notification generation paths", () => {
 });
 
 describe("OAuth pre-registration guard", () => {
-  it("builds a Google authorize URL with the CRM callback redirect URI", () => {
-    const url = new URL(
-      buildGoogleAuthorizeUrl({
-        clientId: "google-client-id",
-        origin: "http://127.0.0.1:3000",
-      })
+  it("starts Google OAuth through the same-origin server endpoint", () => {
+    expect(buildGoogleOAuthStartUrl({ origin: "http://127.0.0.1:3000" })).toBe(
+      "http://127.0.0.1:3000/api/oauth/start"
     );
-
-    expect(url.origin + url.pathname).toBe(
-      "https://accounts.google.com/o/oauth2/v2/auth"
-    );
-    expect(url.searchParams.get("client_id")).toBe("google-client-id");
-    expect(url.searchParams.get("redirect_uri")).toBe(
-      "http://127.0.0.1:3000/api/oauth/callback"
-    );
-    expect(url.searchParams.get("response_type")).toBe("code");
-    expect(url.searchParams.get("scope")).toBe("openid email profile");
   });
 
-  it("rejects empty Google client IDs before building the authorize URL", () => {
-    expect(() =>
-      buildGoogleAuthorizeUrl({ clientId: "", origin: "http://127.0.0.1:3000" })
-    ).toThrow();
+  it("normalizes a trailing slash on the server OAuth start URL", () => {
+    expect(buildGoogleOAuthStartUrl({ origin: "http://127.0.0.1:3000/" })).toBe(
+      "http://127.0.0.1:3000/api/oauth/start"
+    );
   });
 
   it("does not auto-create an active member for an unregistered OAuth email", async () => {
@@ -744,12 +775,11 @@ describe("OAuth pre-registration guard", () => {
 
     const status = vi.fn().mockReturnThis();
     const json = vi.fn().mockReturnThis();
-    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
     await callback(
       {
         query: {
           code: "code",
-          state: Buffer.from(redirectUri).toString("base64"),
+          state: "valid-flow-placeholder",
         },
         protocol: "http",
         headers: { host: "127.0.0.1:3000" },
@@ -776,9 +806,7 @@ describe("OAuth pre-registration guard", () => {
       {
         query: {
           code: "code",
-          state: Buffer.from("http://evil.test/api/oauth/callback").toString(
-            "base64"
-          ),
+          state: "attacker-state",
         },
         protocol: "http",
         headers: { host: "127.0.0.1:3000" },
@@ -807,12 +835,11 @@ describe("OAuth pre-registration guard", () => {
 
     const status = vi.fn().mockReturnThis();
     const json = vi.fn().mockReturnThis();
-    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
     await callback(
       {
         query: {
           code: "code",
-          state: Buffer.from(redirectUri).toString("base64"),
+          state: "valid-flow-placeholder",
         },
         protocol: "http",
         headers: { host: "127.0.0.1:3000" },
@@ -853,12 +880,11 @@ describe("OAuth pre-registration guard", () => {
 
     const redirect = vi.fn();
     const cookie = vi.fn();
-    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
     await callback(
       {
         query: {
           code: "code",
-          state: Buffer.from(redirectUri).toString("base64"),
+          state: "valid-flow-placeholder",
         },
         protocol: "http",
         headers: { host: "127.0.0.1:3000" },
@@ -911,12 +937,11 @@ describe("OAuth pre-registration guard", () => {
 
     const status = vi.fn().mockReturnThis();
     const json = vi.fn().mockReturnThis();
-    const redirectUri = "http://127.0.0.1:3000/api/oauth/callback";
     await callback(
       {
         query: {
           code: "code",
-          state: Buffer.from(redirectUri).toString("base64"),
+          state: "valid-flow-placeholder",
         },
         protocol: "http",
         headers: { host: "127.0.0.1:3000" },

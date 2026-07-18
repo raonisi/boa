@@ -111,7 +111,7 @@ export async function completeGoogleLoginWithUserInfo(
           targetType: "user",
           beforeValue: { loginStatus: preRegisteredUser.loginStatus },
           afterValue: { loginStatus: "linked" },
-          metadata: { email: normalizedEmail, provider: "google" },
+          metadata: { provider: "google" },
         }),
         ipAddress,
         userAgent,

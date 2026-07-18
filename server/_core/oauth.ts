@@ -5,6 +5,7 @@ import type { Express, Request, Response } from "express";
 import * as db from "../db";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
+import { consumeOAuthState, issueOAuthState } from "./oauthState";
 import {
   GoogleLoginError,
   completeGoogleLoginWithUserInfo,
@@ -60,14 +61,6 @@ function oauthLogDetails(data: {
   });
 }
 
-function decodeState(state: string): string | null {
-  try {
-    return Buffer.from(state, "base64").toString("utf8");
-  } catch {
-    return null;
-  }
-}
-
 function getRequestOrigin(req: Request) {
   const forwardedProto = (
     req.headers["x-forwarded-proto"] as string | undefined
@@ -94,22 +87,24 @@ function getCalendarRedirectUri(req: Request) {
   return origin ? `${origin}/api/oauth/google-calendar/callback` : null;
 }
 
-function encodeCalendarOAuthState(redirectUri: string) {
-  return `calendar:${Buffer.from(redirectUri, "utf8").toString("base64")}`;
-}
-
-function decodeCalendarOAuthState(state: string): string | null {
-  if (!state.startsWith("calendar:")) return null;
-  try {
-    return Buffer.from(state.slice("calendar:".length), "base64").toString(
-      "utf8"
-    );
-  } catch {
-    return null;
+function buildGoogleLoginOAuthAuthorizeUrl(redirectUri: string, state: string) {
+  if (!ENV.googleClientId) {
+    throw new Error("Google OAuth Client ID is not configured");
   }
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.searchParams.set("client_id", ENV.googleClientId);
+  url.searchParams.set("redirect_uri", redirectUri);
+  url.searchParams.set("response_type", "code");
+  url.searchParams.set("scope", "openid email profile");
+  url.searchParams.set("prompt", "select_account");
+  url.searchParams.set("state", state);
+  return url.toString();
 }
 
-export function buildGoogleCalendarOAuthAuthorizeUrl(origin: string) {
+export function buildGoogleCalendarOAuthAuthorizeUrl(
+  origin: string,
+  state: string
+) {
   if (!ENV.googleClientId) {
     throw new Error("Google OAuth Client ID is not configured");
   }
@@ -124,7 +119,7 @@ export function buildGoogleCalendarOAuthAuthorizeUrl(origin: string) {
   );
   url.searchParams.set("access_type", "offline");
   url.searchParams.set("prompt", "consent");
-  url.searchParams.set("state", encodeCalendarOAuthState(redirectUri));
+  url.searchParams.set("state", state);
   return url.toString();
 }
 
@@ -171,24 +166,60 @@ async function logOAuthEvent({
 }
 
 export function registerOAuthRoutes(app: Express) {
-  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-    const expectedRedirectUri = getExpectedRedirectUri(req);
-    const stateRedirectUri = state ? decodeState(state) : null;
+  app.get("/api/oauth/start", (req: Request, res: Response) => {
+    try {
+      const redirectUri = getExpectedRedirectUri(req);
+      if (!redirectUri || !ENV.googleClientId || !ENV.cookieSecret.trim()) {
+        res.status(503).json({ error: "Google OAuth is not configured" });
+        return;
+      }
 
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
+      const state = issueOAuthState(req, res, "login");
+      res.redirect(302, buildGoogleLoginOAuthAuthorizeUrl(redirectUri, state));
+    } catch {
+      console.error("[OAuth] Google authorization start failed");
+      res.status(503).json({ error: "Google OAuth is not configured" });
+    }
+  });
+
+  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
+    const state = getQueryParam(req, "state");
+    const stateResult = consumeOAuthState(req, res, "login", state);
+    if (!stateResult.ok) {
+      try {
+        await logOAuthEvent({
+          action: "LOGIN_BLOCKED",
+          metadata: { reason: `oauth_state_${stateResult.reason}` },
+          req,
+        });
+      } catch {
+        console.error("[OAuth] Failed to record blocked login");
+      }
+      res
+        .status(stateResult.reason === "missing_state" ? 400 : 403)
+        .json({ error: "OAuth state validation failed" });
       return;
     }
 
-    if (!expectedRedirectUri || stateRedirectUri !== expectedRedirectUri) {
+    const expectedRedirectUri = getExpectedRedirectUri(req);
+    if (!expectedRedirectUri) {
       await logOAuthEvent({
         action: "LOGIN_BLOCKED",
-        metadata: { reason: "state_mismatch" },
+        metadata: { reason: "redirect_uri_unavailable" },
         req,
       });
-      res.status(403).json({ error: "OAuth state validation failed" });
+      res.status(500).json({ error: "Google OAuth callback failed" });
+      return;
+    }
+
+    const code = getQueryParam(req, "code");
+    if (!code) {
+      await logOAuthEvent({
+        action: "LOGIN_BLOCKED",
+        metadata: { reason: "authorization_code_missing" },
+        req,
+      });
+      res.status(400).json({ error: "Authorization code is required" });
       return;
     }
 
@@ -238,13 +269,13 @@ export function registerOAuthRoutes(app: Express) {
       });
 
       res.redirect(302, "/");
-    } catch (error) {
+    } catch {
       await logOAuthEvent({
         action: "LOGIN_BLOCKED",
         metadata: { reason: "google_oauth_failed" },
         req,
       });
-      console.error("[OAuth] Google callback failed", error);
+      console.error("[OAuth] Google callback failed");
       res.status(500).json({ error: "Google OAuth callback failed" });
     }
   });
@@ -252,18 +283,24 @@ export function registerOAuthRoutes(app: Express) {
   app.get(
     "/api/oauth/google-calendar/callback",
     async (req: Request, res: Response) => {
-      const code = getQueryParam(req, "code");
       const state = getQueryParam(req, "state");
-      const expectedRedirectUri = getCalendarRedirectUri(req);
-      const stateRedirectUri = state ? decodeCalendarOAuthState(state) : null;
-
-      if (!code || !state || !expectedRedirectUri) {
-        res.status(400).json({ error: "code and state are required" });
+      const stateResult = consumeOAuthState(req, res, "google_calendar", state);
+      if (!stateResult.ok) {
+        res
+          .status(stateResult.reason === "missing_state" ? 400 : 403)
+          .json({ error: "OAuth state validation failed" });
         return;
       }
 
-      if (stateRedirectUri !== expectedRedirectUri) {
-        res.status(403).json({ error: "OAuth state validation failed" });
+      const expectedRedirectUri = getCalendarRedirectUri(req);
+      if (!expectedRedirectUri) {
+        res.status(500).json({ error: "Google Calendar OAuth failed" });
+        return;
+      }
+
+      const code = getQueryParam(req, "code");
+      if (!code) {
+        res.status(400).json({ error: "Authorization code is required" });
         return;
       }
 
@@ -271,7 +308,7 @@ export function registerOAuthRoutes(app: Express) {
         let user: User;
         try {
           user = await sdk.authenticateRequest(req);
-        } catch (error) {
+        } catch {
           res.status(401).json({ error: "Login required" });
           return;
         }
@@ -310,8 +347,8 @@ export function registerOAuthRoutes(app: Express) {
         });
 
         res.redirect(302, "/google-calendar-integration?connected=1");
-      } catch (error) {
-        console.error("[OAuth] Google Calendar callback failed", error);
+      } catch {
+        console.error("[OAuth] Google Calendar callback failed");
         res
           .status(500)
           .json({ error: "Google Calendar OAuth callback failed" });
