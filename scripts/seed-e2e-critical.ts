@@ -2,6 +2,7 @@ import { pathToFileURL } from "node:url";
 import mysql from "mysql2/promise";
 import {
   assertCriticalE2EEnvironment,
+  buildCriticalE2EScheduleFixture,
   CRITICAL_E2E_BULK_NOTIFICATION_COUNT,
   CRITICAL_E2E_IDS,
 } from "../e2e/critical/fixtures";
@@ -176,9 +177,7 @@ const scheduleRows = [
 export async function seedCriticalE2E() {
   assertCriticalE2EEnvironment();
   const connection = await mysql.createConnection(process.env.DATABASE_URL!);
-  const startAt = new Date(Date.now() + 2 * 60 * 60 * 1000);
-  startAt.setMinutes(0, 0, 0);
-  const endAt = new Date(startAt.getTime() + 60 * 60 * 1000);
+  const { startAt, endAt } = buildCriticalE2EScheduleFixture();
 
   try {
     await connection.beginTransaction();

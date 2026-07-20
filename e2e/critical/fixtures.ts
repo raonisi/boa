@@ -1,6 +1,41 @@
 import path from "node:path";
+import {
+  formatKstLocalDate,
+  getKstLocalDateTimeAfter,
+  parseKstLocalDateTime,
+} from "@shared/timePolicy";
 
 export const CRITICAL_E2E_DATABASE = "boa_e2e";
+export const CRITICAL_E2E_REFERENCE_INSTANT = "2026-06-15T00:30:00.000Z";
+
+export function buildCriticalE2EScheduleFixture(
+  referenceInstant: Date | string = CRITICAL_E2E_REFERENCE_INSTANT,
+  dayOffset = 0
+) {
+  const reference =
+    referenceInstant instanceof Date
+      ? new Date(referenceInstant.getTime())
+      : new Date(referenceInstant);
+  if (Number.isNaN(reference.getTime())) {
+    throw new Error("Critical E2E reference instant must be a valid date");
+  }
+
+  const dateKey = getKstLocalDateTimeAfter(reference, { days: dayOffset }).slice(
+    0,
+    10
+  );
+  const startAt = parseKstLocalDateTime(`${dateKey}T10:00`);
+  const endAt = parseKstLocalDateTime(`${dateKey}T11:00`);
+
+  if (
+    formatKstLocalDate(startAt) !== dateKey ||
+    formatKstLocalDate(endAt) !== dateKey
+  ) {
+    throw new Error("Critical E2E schedule must remain on one KST date");
+  }
+
+  return { reference, dateKey, startAt, endAt };
+}
 
 export const CRITICAL_E2E_IDS = {
   users: {
