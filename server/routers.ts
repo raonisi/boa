@@ -42,6 +42,15 @@ import {
 } from "./organizationHierarchy";
 import { googleCalendarRouter } from "./googleCalendar";
 import { triggerGoogleCalendarSyncForFollowUp } from "./googleCalendarHooks";
+import {
+  getOperationRiskAggregates,
+  getOperationRiskRecentItems,
+  OPERATION_RISK_ACTION_REQUIRED_ACTIONS,
+  OPERATION_RISK_DELETE_ACTIONS,
+  OPERATION_RISK_DOWNLOAD_ACTIONS,
+  OPERATION_RISK_IMMEDIATE_ACTIONS,
+  OPERATION_RISK_SECURITY_ACTIONS,
+} from "./operationRiskData";
 import { COOKIE_NAME } from "@shared/const";
 import { expectedPremiumStoredWonFromManwonInput } from "@shared/expectedPremium";
 import { CUSTOMER_SEGMENTS } from "@shared/customerSegment";
@@ -196,7 +205,6 @@ import {
   getAllNotifications,
   getNotificationsFiltered,
   getNotificationsActionCenter,
-  getScheduleChangeRequestRiskSummary,
   normalizePhone,
   normalizeBulkImportRow,
   normalizeBulkImportConsultationResult,
@@ -248,6 +256,7 @@ import {
 import {
   formatKstLocalDate,
   getKstDayRange,
+  isLocalDateString,
   isSameKstDate,
   parseKstLocalDateTime,
 } from "@shared/timePolicy";
@@ -1550,40 +1559,9 @@ const LOW_RISK_ACTIONS = new Set([
   "LOGIN_BLOCKED",
   "USER_ACTIVATED",
 ]);
-const DOWNLOAD_ACTIONS = new Set(["DATA_DOWNLOAD", "DATA_DOWNLOAD_FAILED"]);
-const DELETE_AUDIT_ACTIONS = new Set([
-  "DELETE_REQUEST_CREATED",
-  "DELETE_REQUEST_APPROVED",
-  "DELETE_REQUEST_REJECTED",
-  "DELETE_REQUEST_CANCELLED",
-  "CONTRACT_DEACTIVATED_BY_REQUEST",
-  "CUSTOMER_DEACTIVATED",
-  "CONTRACT_DEACTIVATED",
-  "TEAM_DEACTIVATED",
-  "CUSTOMER_DEACTIVATED_BY_BATCH_CANCELLED",
-  "TEAM_RESTORED",
-  "CUSTOMER_RESTORED",
-  "CONTRACT_RESTORED",
-  "TEAM_PERMANENTLY_DELETED",
-  "CUSTOMER_PERMANENTLY_DELETED",
-  "CONTRACT_PERMANENTLY_DELETED",
-  "PERMANENT_DELETE_BLOCKED",
-  "IMPORT_BATCH_CANCELLED",
-  "IMPORT_BATCH_CANCEL_BLOCKED",
-]);
-const SECURITY_AUDIT_ACTIONS = new Set([
-  "USER_LOGIN",
-  "LOGIN_BLOCKED",
-  "USER_OAUTH_LINKED",
-  "USER_OAUTH_LINK_CONFLICT",
-  "USER_OAUTH_RESET",
-  "USER_FORCE_LOGOUT",
-  "ALL_USERS_FORCE_LOGOUT",
-  "USER_ROLE_CHANGED",
-  "USER_STATUS_CHANGED",
-  "USER_BLOCKED",
-  "USER_ACTIVATED",
-]);
+const DOWNLOAD_ACTIONS = new Set<string>(OPERATION_RISK_DOWNLOAD_ACTIONS);
+const DELETE_AUDIT_ACTIONS = new Set<string>(OPERATION_RISK_DELETE_ACTIONS);
+const SECURITY_AUDIT_ACTIONS = new Set<string>(OPERATION_RISK_SECURITY_ACTIONS);
 const RISK_ACTIONS = new Set([
   "DATA_DOWNLOAD",
   "TEAM_PERMANENTLY_DELETED",
@@ -1626,16 +1604,13 @@ function getRiskLevel(action: string): "high" | "medium" | "low" | "normal" {
   return "normal";
 }
 
-const IMMEDIATE_OPERATION_ACTIONS = new Set([
-  "DATA_DOWNLOAD_FAILED",
-  "LOGIN_BLOCKED",
-  "USER_OAUTH_LINK_CONFLICT",
-  "IMPORT_BATCH_CANCEL_BLOCKED",
-  "PERMANENT_DELETE_BLOCKED",
-  "CUSTOMER_MERGE_BLOCKED",
-]);
+const IMMEDIATE_OPERATION_ACTIONS = new Set<string>(
+  OPERATION_RISK_IMMEDIATE_ACTIONS
+);
 
-const ACTION_REQUIRED_OPERATION_ACTIONS = new Set(["DELETE_REQUEST_CREATED"]);
+const ACTION_REQUIRED_OPERATION_ACTIONS = new Set<string>(
+  OPERATION_RISK_ACTION_REQUIRED_ACTIONS
+);
 
 function getOperationActionLevel(action: string): OperationRiskActionLevel {
   if (IMMEDIATE_OPERATION_ACTIONS.has(action)) return "immediate";
@@ -1689,6 +1664,44 @@ const operationRiskPeriodInput = z
     period: z.enum(["today", "7d", "30d", "month", "custom"]).default("7d"),
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
+    limit: z.number().int().min(1).max(100).default(20),
+    offset: z.number().int().min(0).max(100_000).default(0),
+  })
+  .superRefine((value, ctx) => {
+    if (value.dateFrom && !isLocalDateString(value.dateFrom)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dateFrom"],
+        message: "dateFrom must be a valid YYYY-MM-DD date",
+      });
+    }
+    if (value.dateTo && !isLocalDateString(value.dateTo)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dateTo"],
+        message: "dateTo must be a valid YYYY-MM-DD date",
+      });
+    }
+    if (value.period === "custom" && (!value.dateFrom || !value.dateTo)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dateFrom"],
+        message: "custom period requires dateFrom and dateTo",
+      });
+    }
+    if (
+      value.dateFrom &&
+      value.dateTo &&
+      isLocalDateString(value.dateFrom) &&
+      isLocalDateString(value.dateTo) &&
+      value.dateFrom > value.dateTo
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["dateTo"],
+        message: "dateTo must be on or after dateFrom",
+      });
+    }
   })
   .optional();
 
@@ -1707,16 +1720,17 @@ function resolveOperationRiskRange(
     };
   }
   if (input?.period === "month") {
+    const currentKstMonthStart = `${formatKstLocalDate(now).slice(0, 7)}-01`;
     return {
-      dateFrom: new Date(now.getFullYear(), now.getMonth(), 1),
+      dateFrom: getKstDayRange(currentKstMonthStart).start,
       dateTo: toDayEnd(now),
       label: "이번 달",
     };
   }
   if (input?.period === "custom" && input.dateFrom && input.dateTo) {
     return {
-      dateFrom: toDayStart(new Date(input.dateFrom)),
-      dateTo: toDayEnd(new Date(input.dateTo)),
+      dateFrom: getKstDayRange(input.dateFrom).start,
+      dateTo: getKstDayRange(input.dateTo).end,
       label: "직접 선택",
     };
   }
@@ -1755,22 +1769,6 @@ function compactRiskItem(params: {
   };
 }
 
-function countBy<T>(
-  items: T[],
-  getKey: (item: T) => string | number | null | undefined
-) {
-  return items.reduce<Record<string, number>>((acc, item) => {
-    const key = getKey(item);
-    if (key === null || key === undefined || key === "") return acc;
-    acc[String(key)] = (acc[String(key)] ?? 0) + 1;
-    return acc;
-  }, {});
-}
-
-function getSafeMetadataReason(details?: string | null) {
-  return summarizeLogDetails(details).reason;
-}
-
 async function buildOperationRiskReport(
   input?: z.infer<typeof operationRiskPeriodInput>
 ) {
@@ -1781,12 +1779,9 @@ async function buildOperationRiskReport(
     contracts,
     followUps,
     schedules,
-    deleteRequests,
     handoffHistories,
-    activityLogs,
-    pushSummary,
-    pushLogs,
-    scheduleRequestRisk,
+    riskAggregates,
+    recentItems,
   ] = await Promise.all([
     getAllUsers(),
     getCustomers({}),
@@ -1795,22 +1790,19 @@ async function buildOperationRiskReport(
       statuses: ["scheduled", "postponed", "completed", "cancelled"],
     }),
     getSchedules({}),
-    getDeleteRequests({}),
     getHandoffHistories({ limit: 100 }),
-    getActivityLogs(2000),
-    getPushNotificationOperationSummary(range.dateFrom, range.dateTo),
-    listPushNotificationLogs({
+    getOperationRiskAggregates({
       dateFrom: range.dateFrom,
       dateTo: range.dateTo,
-      limit: 100,
     }),
-    getScheduleChangeRequestRiskSummary(range.dateFrom, range.dateTo),
+    getOperationRiskRecentItems({
+      dateFrom: range.dateFrom,
+      dateTo: range.dateTo,
+      limit: input?.limit ?? 20,
+      offset: input?.offset ?? 0,
+    }),
   ]);
 
-  const logsInRange = activityLogs.filter(entry =>
-    isWithinDateRange(new Date(entry.createdAt), range.dateFrom, range.dateTo)
-  );
-  const userById = new Map(users.map(user => [user.id, user]));
   const inactiveUserIds = new Set(
     users
       .filter(
@@ -1825,48 +1817,15 @@ async function buildOperationRiskReport(
   const now = new Date();
   const staleDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-  const downloadLogs = logsInRange.filter(entry =>
-    DOWNLOAD_ACTIONS.has(entry.action)
-  );
-  const failedDownloadLogs = downloadLogs.filter(
-    entry => entry.action === "DATA_DOWNLOAD_FAILED"
-  );
-  const downloadsByUser = countBy(downloadLogs, entry => entry.userId);
-  const repeatedDownloadUsers = Object.values(downloadsByUser).filter(
-    count => count >= 3
-  ).length;
-  const shortDownloadReasons = downloadLogs.filter(entry => {
-    const reason = getSafeMetadataReason(entry.details);
-    return !reason || reason.trim().length < 5;
-  }).length;
-
-  const deletionLogs = logsInRange.filter(entry =>
-    DELETE_AUDIT_ACTIONS.has(entry.action)
-  );
-  const permanentDeleteLogs = deletionLogs.filter(entry =>
-    entry.action.includes("PERMANENTLY_DELETED")
-  );
-  const pendingDeleteRequests = deleteRequests.filter(
-    request => request.status === "pending"
-  );
-
-  const accountLogs = logsInRange.filter(
-    entry =>
-      SECURITY_AUDIT_ACTIONS.has(entry.action) ||
-      entry.action === "USER_ROLE_CHANGED" ||
-      entry.action === "USER_STATUS_CHANGED"
-  );
-  const criticalAccountLogs = accountLogs.filter(entry =>
-    [
-      "USER_OAUTH_RESET",
-      "USER_FORCE_LOGOUT",
-      "ALL_USERS_FORCE_LOGOUT",
-      "LOGIN_BLOCKED",
-    ].includes(entry.action)
-  );
-  const immediateAccountLogs = accountLogs.filter(entry =>
-    ["LOGIN_BLOCKED", "USER_OAUTH_LINK_CONFLICT"].includes(entry.action)
-  );
+  const activityRisk = riskAggregates.activity;
+  const pushSummary = riskAggregates.push;
+  const scheduleRequestRisk = {
+    pending: riskAggregates.current.schedulePendingCount,
+    conflict: riskAggregates.scheduleHistory.conflictCount,
+    failed: riskAggregates.scheduleHistory.failedCount,
+  };
+  const pendingDeleteRequestCount =
+    riskAggregates.current.pendingDeleteRequestCount;
 
   const inactiveCustomers = customers.filter((customer: any) =>
     inactiveUserIds.has(Number(customer.agentId))
@@ -1892,16 +1851,6 @@ async function buildOperationRiskReport(
     inactiveFollowUps.length +
     inactiveSchedules.length +
     notificationRiskCounts.inactiveUnresolvedCount;
-
-  const failedPushLogs = pushLogs.filter(
-    entry =>
-      entry.status === "failed" || entry.status === "invalid_token_deactivated"
-  );
-  const skippedPushLogs = pushLogs.filter(
-    entry =>
-      String(entry.status).startsWith("skipped") ||
-      entry.status === "duplicate_skipped"
-  );
 
   const overdueFollowUps = followUps.filter(
     (followUp: any) =>
@@ -1943,13 +1892,15 @@ async function buildOperationRiskReport(
     compactRiskItem({
       category: "download",
       title: "데이터 다운로드 리스크",
-      count: downloadLogs.length,
-      immediateCount: failedDownloadLogs.length,
-      actionRequiredCount: repeatedDownloadUsers + shortDownloadReasons,
+      count: activityRisk.downloadTotal,
+      immediateCount: activityRisk.failedDownloadCount,
+      actionRequiredCount:
+        activityRisk.repeatedDownloadUserCount +
+        activityRisk.shortDownloadReasonCount,
       description:
-        failedDownloadLogs.length > 0
+        activityRisk.failedDownloadCount > 0
           ? "실패한 다운로드 기록을 즉시 확인하세요."
-          : repeatedDownloadUsers > 0
+          : activityRisk.repeatedDownloadUserCount > 0
             ? "짧은 기간 반복 다운로드 사용자를 확인하세요."
             : "완료된 다운로드 사유와 대상 데이터 기록입니다.",
       actionLabel: "다운로드 로그 확인",
@@ -1958,26 +1909,30 @@ async function buildOperationRiskReport(
     compactRiskItem({
       category: "deletion",
       title: "삭제·복구 리스크",
-      count: pendingDeleteRequests.length,
-      actionRequiredCount: pendingDeleteRequests.length,
+      count: pendingDeleteRequestCount + activityRisk.failedDeletionActionCount,
+      immediateCount: activityRisk.failedDeletionActionCount,
+      actionRequiredCount: pendingDeleteRequestCount,
       description:
-        pendingDeleteRequests.length > 0
-          ? "승인 대기 중인 삭제 요청을 처리하세요."
-          : permanentDeleteLogs.length > 0
-            ? "완료된 완전삭제 이력을 참고용으로 확인할 수 있습니다."
-            : "완료된 삭제·복구 운영 기록입니다.",
+        activityRisk.failedDeletionActionCount > 0
+          ? "차단된 삭제·취소 관리자 작업을 즉시 확인하세요."
+          : pendingDeleteRequestCount > 0
+            ? "승인 대기 중인 삭제 요청을 처리하세요."
+            : activityRisk.permanentDeleteCount > 0
+              ? "완료된 완전삭제 이력을 참고용으로 확인할 수 있습니다."
+              : "완료된 삭제·복구 운영 기록입니다.",
       actionLabel: "삭제 데이터 확인",
       href: "/deleted-data",
     }),
     compactRiskItem({
       category: "account",
       title: "권한·계정 리스크",
-      count: accountLogs.length,
-      immediateCount: immediateAccountLogs.length,
+      count: activityRisk.accountTotal,
+      immediateCount:
+        activityRisk.loginBlockedCount + activityRisk.failedAdminActionCount,
       description:
-        immediateAccountLogs.length > 0
-          ? "차단 로그인 또는 OAuth 연결 충돌을 즉시 확인하세요."
-          : criticalAccountLogs.length > 0
+        activityRisk.loginBlockedCount + activityRisk.failedAdminActionCount > 0
+          ? "차단 로그인 또는 관리자 작업 실패를 즉시 확인하세요."
+          : activityRisk.criticalAccountCount > 0
             ? "완료된 세션·OAuth 관리자 작업 기록입니다."
             : "계정 상태와 권한 변경 운영 기록입니다.",
       actionLabel: "사용자 관리",
@@ -1999,9 +1954,14 @@ async function buildOperationRiskReport(
       category: "push",
       title: "푸시 알림 리스크",
       count:
-        pushSummary.failed + pushSummary.skipped + pushSummary.inactiveTokens,
+        pushSummary.failed +
+        pushSummary.policySkipped +
+        pushSummary.duplicateSkipped +
+        pushSummary.invalidTokenDeactivated +
+        pushSummary.inactiveTokens,
       immediateCount: pushSummary.failed,
-      actionRequiredCount: pushSummary.inactiveTokens,
+      actionRequiredCount:
+        pushSummary.invalidTokenDeactivated + pushSummary.inactiveTokens,
       description:
         pushSummary.failed > 0
           ? "푸시 발송 실패를 즉시 확인하세요."
@@ -2035,35 +1995,27 @@ async function buildOperationRiskReport(
     ).length,
   });
 
-  const recentRiskEvents = logsInRange
-    .filter(
-      entry =>
-        RISK_ACTIONS.has(entry.action) ||
-        SECURITY_AUDIT_ACTIONS.has(entry.action)
-    )
-    .slice(0, 20)
-    .map(entry => {
-      const actor = userById.get(entry.userId);
-      const details = summarizeLogDetails(entry.details);
-      return {
-        id: entry.id,
-        createdAt: entry.createdAt,
-        actor: actor
-          ? {
-              id: actor.id,
-              name: actor.name,
-              role: actor.role,
-              email: actor.email ? maskEmail(actor.email) : null,
-            }
-          : null,
-        action: entry.action,
-        targetType: entry.targetType,
-        targetId: entry.targetId,
-        actionLevel: getOperationActionLevel(entry.action),
-        reason: details.reason,
-        summary: details.summary,
-      };
-    });
+  const recentRiskEvents = recentItems.activity.map(entry => {
+    const details = summarizeLogDetails(entry.details);
+    return {
+      id: entry.id,
+      createdAt: entry.createdAt,
+      actor: entry.actorName
+        ? {
+            id: entry.userId,
+            name: entry.actorName,
+            role: entry.actorRole,
+            email: entry.actorEmail ? maskEmail(entry.actorEmail) : null,
+          }
+        : null,
+      action: entry.action,
+      targetType: entry.targetType,
+      targetId: entry.targetId,
+      actionLevel: getOperationActionLevel(entry.action),
+      reason: details.reason,
+      summary: details.summary,
+    };
+  });
 
   return {
     period: {
@@ -2088,19 +2040,23 @@ async function buildOperationRiskReport(
     },
     riskCards,
     downloadRisk: {
-      total: downloadLogs.length,
-      repeatedUserCount: repeatedDownloadUsers,
-      shortReasonCount: shortDownloadReasons,
-      byUser: downloadsByUser,
+      total: activityRisk.downloadTotal,
+      failedCount: activityRisk.failedDownloadCount,
+      repeatedUserCount: activityRisk.repeatedDownloadUserCount,
+      shortReasonCount: activityRisk.shortDownloadReasonCount,
+      byUser: activityRisk.downloadsByUser,
     },
     deletionRisk: {
-      total: deletionLogs.length,
-      permanentDeleteCount: permanentDeleteLogs.length,
-      pendingDeleteRequestCount: pendingDeleteRequests.length,
+      total: activityRisk.deletionTotal,
+      permanentDeleteCount: activityRisk.permanentDeleteCount,
+      failedAdminActionCount: activityRisk.failedDeletionActionCount,
+      pendingDeleteRequestCount,
     },
     accountRisk: {
-      total: accountLogs.length,
-      criticalCount: criticalAccountLogs.length,
+      total: activityRisk.accountTotal,
+      criticalCount: activityRisk.criticalAccountCount,
+      loginBlockedCount: activityRisk.loginBlockedCount,
+      failedAdminActionCount: activityRisk.failedAdminActionCount,
       inactiveUsers: users.filter(user => user.accountStatus === "inactive")
         .length,
       resignedUsers: users.filter(user => user.accountStatus === "resigned")
@@ -2119,9 +2075,12 @@ async function buildOperationRiskReport(
       total: pushSummary.total,
       sent: pushSummary.sent,
       failed: pushSummary.failed,
-      skipped: pushSummary.skipped,
+      skipped: pushSummary.policySkipped + pushSummary.duplicateSkipped,
+      policySkipped: pushSummary.policySkipped,
+      duplicateSkipped: pushSummary.duplicateSkipped,
+      invalidTokenDeactivated: pushSummary.invalidTokenDeactivated,
       inactiveTokens: pushSummary.inactiveTokens,
-      recentFailures: failedPushLogs.slice(0, 10).map(entry => ({
+      recentFailures: recentItems.pushFailures.map(entry => ({
         id: entry.id,
         type: entry.type,
         userId: entry.userId,
@@ -2137,20 +2096,20 @@ async function buildOperationRiskReport(
           : null,
         createdAt: entry.createdAt,
       })),
-      skippedCount: skippedPushLogs.length,
+      skippedCount: pushSummary.policySkipped + pushSummary.duplicateSkipped,
     },
     unresolvedWorkRisk: {
       total: unresolvedWorkCount,
       overdueFollowUpCount: overdueFollowUps.length,
       staleScheduleCount: staleSchedules.length,
       unreadNotificationCount: notificationRiskCounts.unresolvedCount,
-      pendingDeleteRequestCount: pendingDeleteRequests.length,
+      pendingDeleteRequestCount,
     },
     approvalRisk: {
       schedulePendingCount: scheduleRequestRisk.pending,
       scheduleConflictCount: scheduleRequestRisk.conflict,
       scheduleFailedCount: scheduleRequestRisk.failed,
-      pendingDeleteRequestCount: pendingDeleteRequests.length,
+      pendingDeleteRequestCount,
     },
     recentRiskEvents,
     guides: [
