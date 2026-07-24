@@ -1,0 +1,168 @@
+name: Production Deployment Gate
+
+on:
+  workflow_run:
+    workflows: ["Quality Gate"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  eligibility:
+    name: production-deploy-eligibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      eligible: ${{ steps.evaluate.outputs.eligible }}
+      candidate_sha: ${{ steps.evaluate.outputs.candidate_sha }}
+      gate_run_id: ${{ steps.evaluate.outputs.gate_run_id }}
+    steps:
+      - name: Check out current main gate implementation
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Evaluate exact Quality Gate run
+        id: evaluate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARMING_SWITCH: ${{ vars.PRODUCTION_DEPLOY_ENABLED }}
+          CANDIDATE_SHA: ${{ github.event.workflow_run.head_sha }}
+          GATE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GATE_EVENT: ${{ github.event.workflow_run.event }}
+          GATE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GATE_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          GATE_RUN_ID: ${{ github.event.workflow_run.id }}
+          GATE_WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main_sha="$(gh api "/repos/${REPOSITORY}/commits/main" --jq .sha)"
+          checkout_sha="$(git rev-parse HEAD)"
+          gh api "/repos/${REPOSITORY}/actions/runs/${GATE_RUN_ID}/jobs?filter=latest&per_page=100" > "${RUNNER_TEMP}/gate-jobs.json"
+          jq -n \
+            --arg armingSwitch "${ARMING_SWITCH:-}" \
+            --arg workflowName "${GATE_WORKFLOW_NAME:-}" \
+            --arg conclusion "${GATE_CONCLUSION:-}" \
+            --arg event "${GATE_EVENT:-}" \
+            --arg headBranch "${GATE_HEAD_BRANCH:-}" \
+            --arg repository "${REPOSITORY:-}" \
+            --arg headRepository "${GATE_HEAD_REPOSITORY:-}" \
+            --arg runId "${GATE_RUN_ID:-}" \
+            --arg candidateSha "${CANDIDATE_SHA:-}" \
+            --arg currentMainSha "${current_main_sha}" \
+            --arg checkoutSha "${checkout_sha}" \
+            --slurpfile jobPayload "${RUNNER_TEMP}/gate-jobs.json" \
+            '{armingSwitch:$armingSwitch,workflowName:$workflowName,conclusion:$conclusion,event:$event,headBranch:$headBranch,repository:$repository,headRepository:$headRepository,runId:$runId,candidateSha:$candidateSha,currentMainSha:$currentMainSha,checkoutSha:$checkoutSha,jobs:$jobPayload[0].jobs}' \
+            > "${RUNNER_TEMP}/gate-input.json"
+          node scripts/verify-production-deploy-eligibility.mjs \
+            "${RUNNER_TEMP}/gate-input.json" \
+            --github-output "${GITHUB_OUTPUT}"
+
+  deploy:
+    name: deploy-production
+    needs: eligibility
+    if: needs.eligibility.outputs.eligible == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: production
+    concurrency:
+      group: boa-production-deploy
+      cancel-in-progress: false
+    env:
+      PRODUCTION_DEPLOY_ENABLED: ${{ vars.PRODUCTION_DEPLOY_ENABLED }}
+      RAILWAY_PRE_DEPLOY_VERIFIED: ${{ vars.RAILWAY_PRE_DEPLOY_VERIFIED }}
+      RAILWAY_PROJECT_ID: ${{ vars.RAILWAY_PROJECT_ID }}
+      RAILWAY_SERVICE_ID: ${{ vars.RAILWAY_SERVICE_ID }}
+      RAILWAY_ENVIRONMENT_ID: ${{ vars.RAILWAY_ENVIRONMENT_ID }}
+      EXPECTED_COMMIT_SHA: ${{ needs.eligibility.outputs.candidate_sha }}
+    steps:
+      - name: Check out the exact eligible SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.eligibility.outputs.candidate_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - name: Revalidate current main and deployment configuration
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          GATE_RUN_ID: ${{ needs.eligibility.outputs.gate_run_id }}
+          GATE_WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          GATE_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          GATE_EVENT: ${{ github.event.workflow_run.event }}
+          GATE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          GATE_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main_sha="$(gh api "/repos/${REPOSITORY}/commits/main" --jq .sha)"
+          checkout_sha="$(git rev-parse HEAD)"
+          gh api "/repos/${REPOSITORY}/actions/runs/${GATE_RUN_ID}/jobs?filter=latest&per_page=100" > "${RUNNER_TEMP}/deploy-gate-jobs.json"
+          jq -n \
+            --arg armingSwitch "${PRODUCTION_DEPLOY_ENABLED:-}" \
+            --arg workflowName "${GATE_WORKFLOW_NAME:-}" \
+            --arg conclusion "${GATE_CONCLUSION:-}" \
+            --arg event "${GATE_EVENT:-}" \
+            --arg headBranch "${GATE_HEAD_BRANCH:-}" \
+            --arg repository "${REPOSITORY:-}" \
+            --arg headRepository "${GATE_HEAD_REPOSITORY:-}" \
+            --arg runId "${GATE_RUN_ID:-}" \
+            --arg candidateSha "${EXPECTED_COMMIT_SHA:-}" \
+            --arg currentMainSha "${current_main_sha}" \
+            --arg checkoutSha "${checkout_sha}" \
+            --slurpfile jobPayload "${RUNNER_TEMP}/deploy-gate-jobs.json" \
+            '{armingSwitch:$armingSwitch,workflowName:$workflowName,conclusion:$conclusion,event:$event,headBranch:$headBranch,repository:$repository,headRepository:$headRepository,runId:$runId,candidateSha:$candidateSha,currentMainSha:$currentMainSha,checkoutSha:$checkoutSha,jobs:$jobPayload[0].jobs}' \
+            > "${RUNNER_TEMP}/deploy-gate-input.json"
+          node scripts/verify-production-deploy-eligibility.mjs \
+            "${RUNNER_TEMP}/deploy-gate-input.json" \
+            --strict
+          node scripts/verify-production-deploy-eligibility.mjs --validate-config
+      - name: Install pinned Railway CLI
+        run: npm install --global @railway/cli@5.28.0
+      - name: Upload exact checkout to Railway production
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          latest_main_sha="$(gh api "/repos/${REPOSITORY}/commits/main" --jq .sha)"
+          if [[ "${latest_main_sha}" != "${EXPECTED_COMMIT_SHA}" ]]; then
+            echo "Deployment blocked: candidate is no longer the current main tip."
+            exit 1
+          fi
+          railway variable set "APP_COMMIT_SHA=${EXPECTED_COMMIT_SHA}" \
+            --service "${RAILWAY_SERVICE_ID}" \
+            --environment "${RAILWAY_ENVIRONMENT_ID}" \
+            --skip-deploys \
+            --json \
+            > "${RUNNER_TEMP}/railway-variable-result.json" \
+            2> "${RUNNER_TEMP}/railway-variable-error.log"
+          set +e
+          railway up --ci \
+            --project "${RAILWAY_PROJECT_ID}" \
+            --service "${RAILWAY_SERVICE_ID}" \
+            --environment "${RAILWAY_ENVIRONMENT_ID}" \
+            > "${RUNNER_TEMP}/railway-deploy.log" \
+            2>&1
+          railway_status=$?
+          set -e
+          if [[ ${railway_status} -ne 0 ]]; then
+            echo "Railway deployment failed. Inspect the protected Railway deployment logs."
+            exit "${railway_status}"
+          fi
+      - name: Verify production health and exact SHA
+        run: node scripts/verify-production-health.mjs

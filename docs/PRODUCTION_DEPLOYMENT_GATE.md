@@ -1,0 +1,83 @@
+# BOA CRM Production Deployment Gate
+
+Production promotion is fail-closed. Railway GitHub auto-deploy must remain disabled, and this workflow must remain unarmed until every external setting below is verified.
+
+## Deployment path map
+
+| Path                       | Present before PR-C                  | Can deploy production | Final policy                                            |
+| -------------------------- | ------------------------------------ | --------------------- | ------------------------------------------------------- |
+| Railway GitHub auto-deploy | Yes                                  | Historically yes      | Keep disabled                                           |
+| GitHub Actions             | Quality Gate only                    | No                    | Add an unarmed exact-SHA gate                           |
+| Railway CLI                | No repository workflow or local link | Not configured        | Use only from the protected workflow after manual setup |
+| Deploy Hook                | Not found                            | No known path         | Do not add                                              |
+| Railway UI                 | Yes                                  | Yes                   | Emergency operator path only; current `main` only       |
+
+GitHub deployment history identifies the connected environment as `handsome-sparkle / production`, but that label is not sufficient proof of the Railway project, service, environment IDs, or service settings. Do not copy it into workflow configuration as a guessed identifier.
+
+## Code-enforced gate
+
+`.github/workflows/production-deploy.yml` runs after `Quality Gate` completes and requires all of the following:
+
+- source event is a `push` to `main` in `raonisi/boa`, not a PR or fork;
+- the candidate is the current `main` tip and the exact checked-out SHA;
+- `check`, `unit-test`, `coverage`, `build`, `bundle-budget`, `e2e-critical`, and `accessibility` each completed successfully;
+- `PRODUCTION_DEPLOY_ENABLED` is exactly `true`;
+- the queued job rechecks `main` immediately before deployment;
+- production jobs are serialized with `boa-production-deploy` and are not cancelled mid-deploy;
+- the protected Railway token and three validated Railway IDs exist;
+- `RAILWAY_PRE_DEPLOY_VERIFIED` is exactly `true`.
+
+The CLI uploads the exact checkout. Railway documents `RAILWAY_GIT_COMMIT_SHA` only for GitHub-triggered deployments, so the workflow stages `APP_COMMIT_SHA` without triggering a deploy and then uploads that checkout. Health verification requires three consecutive JSON responses from `/api/health` and `/api/version`, HTTP 200, the production environment label, and the matching seven-character SHA.
+
+Railway build, Pre-Deploy, and runtime output stays in Railway/GitHub job logs and is not uploaded as an artifact. The workflow reports only bounded gate and health results.
+
+## Required GitHub manual settings
+
+Create a protected GitHub environment named `production`. Keep these values out of repository files and PR text.
+
+Environment secret:
+
+- `RAILWAY_TOKEN`: a production-environment project token, not an account-wide token.
+
+Repository variable (the secret-free eligibility job must read this before the `production` environment is entered):
+
+- `PRODUCTION_DEPLOY_ENABLED=false` initially;
+
+Production environment variables:
+
+- `RAILWAY_PRE_DEPLOY_VERIFIED=false` until the dashboard is inspected;
+- `RAILWAY_PROJECT_ID`;
+- `RAILWAY_SERVICE_ID` for the BOA web service only;
+- `RAILWAY_ENVIRONMENT_ID` for production only.
+
+Recommended environment protection requires an authorized reviewer before the `deploy-production` job can access the token. Branch protection must continue requiring the seven Quality Gate jobs.
+
+## Required Railway manual verification
+
+In the BOA web service's production settings, verify and record:
+
+- GitHub auto-deploy is disabled;
+- the linked repository and branch are `raonisi/boa` and `main`;
+- Build Command is `pnpm install && pnpm build`;
+- Pre-Deploy Command is exactly `pnpm db:migrate`;
+- a failed Pre-Deploy stops the application release;
+- Start Command is `pnpm start`;
+- `https://raonisis.kr` belongs to this service and environment.
+
+Only after that review may `RAILWAY_PRE_DEPLOY_VERIFIED` become `true`. This repository does not run `pnpm db:migrate` from the GitHub runner; Railway must run it once as the configured Pre-Deploy command.
+
+## Activation sequence
+
+1. Review and merge PR-C with `PRODUCTION_DEPLOY_ENABLED=false`.
+2. Confirm the merged main Quality Gate passed and the production workflow did not deploy.
+3. Complete the GitHub and Railway checks above.
+4. Obtain explicit operator approval.
+5. Set `PRODUCTION_DEPLOY_ENABLED=true`.
+6. Trigger a new current-main Quality Gate run; do not reuse an old or PR run.
+7. Confirm Railway Pre-Deploy success, health HTTP 200, production label, and exact SHA.
+
+Until step 7 succeeds, the production gate is not operationally complete.
+
+## Emergency lock and rollback
+
+Set `PRODUCTION_DEPLOY_ENABLED=false` first and keep Railway auto-deploy disabled. Do not automatically redeploy an older artifact or roll back database migrations. Inspect any running workflow and Railway deployment, then choose an application rollback compatible with the already-applied schema.
