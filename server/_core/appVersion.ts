@@ -70,11 +70,17 @@ function getEnvironmentLabel(): SafeAppVersionMetadata["environmentLabel"] {
   if (process.env.NODE_ENV === "test") return "test";
   if (
     process.env.NODE_ENV === "production" ||
-    process.env.RAILWAY_ENVIRONMENT ||
     process.env.RAILWAY_SERVICE_ID
   ) {
     return "production";
   }
+  if (
+    process.env.E2E_TEST_MODE === "true" &&
+    process.env.RAILWAY_ENVIRONMENT === "e2e"
+  ) {
+    return "test";
+  }
+  if (process.env.RAILWAY_ENVIRONMENT === "production") return "production";
   return "development";
 }
 

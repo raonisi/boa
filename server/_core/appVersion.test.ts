@@ -53,6 +53,20 @@ describe("safe app version metadata", () => {
     expect(toCommitShort("1234567890abcdef")).toBeNull();
   });
 
+  it("keeps the synthetic E2E Railway marker out of production mode", () => {
+    process.env.NODE_ENV = "development";
+    process.env.E2E_TEST_MODE = "true";
+    process.env.RAILWAY_ENVIRONMENT = "e2e";
+    delete process.env.RAILWAY_SERVICE_ID;
+    process.env.GIT_COMMIT_SHA =
+      "1234567890abcdef1234567890abcdef12345678";
+
+    expect(getSafeAppVersionMetadata()).toMatchObject({
+      environmentLabel: "test",
+      commitSha: "1234567890abcdef1234567890abcdef12345678",
+    });
+  });
+
   it("keeps health compatible while exposing a safe version summary", async () => {
     process.env.APP_VERSION = "1.0.0";
     process.env.GIT_COMMIT_SHA = "1234567890abcdef1234567890abcdef12345678";
@@ -98,6 +112,8 @@ describe("safe app version metadata", () => {
 
   it("fails health closed in production when the stamped identity is absent", async () => {
     process.env.NODE_ENV = "production";
+    process.env.E2E_TEST_MODE = "true";
+    process.env.RAILWAY_ENVIRONMENT = "e2e";
     process.env.APP_COMMIT_SHA =
       "1234567890abcdef1234567890abcdef12345678";
 
