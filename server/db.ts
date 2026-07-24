@@ -4,6 +4,7 @@ import {
   desc,
   eq,
   getTableColumns,
+  gt,
   gte,
   inArray,
   isNotNull,
@@ -62,6 +63,7 @@ import {
   InsertUserDeviceToken,
   messageTemplates,
   notifications,
+  oauthStateNonces,
   onboardingTemplateItems,
   onboardingTemplates,
   performanceGoals,
@@ -186,6 +188,58 @@ export async function getDb() {
     }
   }
   return _db;
+}
+
+export async function insertOAuthStateNonce(input: {
+  nonceDigest: string;
+  purpose: "login" | "google_calendar";
+  expiresAt: Date;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("OAuth state store is unavailable");
+
+  const result = await db.insert(oauthStateNonces).values({
+    nonceDigest: input.nonceDigest,
+    purpose: input.purpose,
+    expiresAt: input.expiresAt,
+  });
+  const affectedRows = Number(
+    (result as any)?.[0]?.affectedRows ?? (result as any)?.affectedRows ?? 0
+  );
+  if (affectedRows !== 1) {
+    throw new Error("OAuth state registration failed");
+  }
+
+  try {
+    await db
+      .delete(oauthStateNonces)
+      .where(lte(oauthStateNonces.expiresAt, sql`CURRENT_TIMESTAMP`))
+      .limit(100);
+  } catch {
+    console.warn("[OAuth] Expired state cleanup failed");
+  }
+}
+
+export async function consumeOAuthStateNonce(input: {
+  nonceDigest: string;
+  purpose: "login" | "google_calendar";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("OAuth state store is unavailable");
+
+  const result = await db
+    .delete(oauthStateNonces)
+    .where(
+      and(
+        eq(oauthStateNonces.nonceDigest, input.nonceDigest),
+        eq(oauthStateNonces.purpose, input.purpose),
+        gt(oauthStateNonces.expiresAt, sql`CURRENT_TIMESTAMP`)
+      )
+    );
+  const affectedRows = Number(
+    (result as any)?.[0]?.affectedRows ?? (result as any)?.affectedRows ?? 0
+  );
+  return affectedRows === 1;
 }
 
 export async function runDbTransaction<T>(
@@ -1125,6 +1179,9 @@ export async function getCustomers(filter: {
     conditions.push(eq(customers.isActive, true));
   }
 
+  // Organization access scope and business filters are independent. In
+  // particular, `unassigned` must narrow the actor's scope rather than replace
+  // it.
   if (filter.agentIds !== undefined) {
     if (filter.agentIds.length === 0) return [];
     conditions.push(
@@ -1132,8 +1189,6 @@ export async function getCustomers(filter: {
     );
   } else if (filter.agentId !== undefined) {
     conditions.push(eq(customers.agentId, filter.agentId));
-  } else if (filter.unassigned) {
-    conditions.push(isNull(customers.agentId));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db
       .select({ id: users.id })
@@ -1161,6 +1216,10 @@ export async function getCustomers(filter: {
         ...agentIds.map(id => eq(customers.agentId, id) as any)
       );
     conditions.push(or(...branchConditions) as any);
+  }
+
+  if (filter.unassigned) {
+    conditions.push(isNull(customers.agentId));
   }
 
   if (filter.assignmentStatus)
