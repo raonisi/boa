@@ -28,6 +28,12 @@ import {
   resolveNewDeployment,
   shouldSkipDeployment,
 } from "./verify-railway-deployment.mjs";
+import {
+  ProductionWorkflowRatchetError,
+  validateProductionWorkflowActions,
+  validateProductionWorkflowRatchets,
+  validateProductionWorkflowTriggers,
+} from "./verify-production-workflow-ratchets.mjs";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
@@ -43,6 +49,22 @@ const RAILWAY_CONTEXT = Object.freeze({
   serviceId: SERVICE_ID,
   environmentId: ENVIRONMENT_ID,
 });
+const PINNED_ACTION = `owner/action@${SHA_A}`;
+
+function workflowWithTrigger(trigger) {
+  return `name: Fixture\n${trigger}\npermissions: {}\njobs: {}`;
+}
+
+function workflowWithUses(uses, { jobLevel = false } = {}) {
+  return jobLevel
+    ? `name: Fixture\non: push\njobs:\n  call:\n    uses: ${uses}`
+    : `name: Fixture\non: push\njobs:\n  test:\n    steps:\n      - uses: ${uses}`;
+}
+
+const SAFE_WORKFLOW_RUN_TRIGGER = `on:
+  workflow_run:
+    workflows: ["Quality Gate"]
+    types: [completed]`;
 
 function successfulJobs() {
   return REQUIRED_QUALITY_JOBS.map(name => ({
@@ -719,6 +741,133 @@ test("deployment or migration failure prevents health verification", async () =>
   assert.equal(stableHealthCalled, false);
 });
 
+test("workflow_run with the exact Quality Gate completion policy passes", () => {
+  const result = validateProductionWorkflowTriggers(
+    workflowWithTrigger(SAFE_WORKFLOW_RUN_TRIGGER)
+  );
+  assert.deepEqual(result.triggerKeys, ["workflow_run"]);
+  assert.deepEqual(result.workflowRun.workflows, ["Quality Gate"]);
+  assert.deepEqual(result.workflowRun.types, ["completed"]);
+});
+
+for (const [name, trigger, code] of [
+  ["scalar push", "on: push", "UNSAFE_TRIGGER_SET"],
+  ["flow-sequence push", "on: [push]", "UNSAFE_TRIGGER_SET"],
+  ["block-sequence push", "on:\n  - push", "UNSAFE_TRIGGER_SET"],
+  [
+    "workflow_run plus push",
+    `${SAFE_WORKFLOW_RUN_TRIGGER}\n  push:\n    branches: [main]`,
+    "UNSAFE_TRIGGER_SET",
+  ],
+  [
+    "workflow_run plus workflow_dispatch",
+    `${SAFE_WORKFLOW_RUN_TRIGGER}\n  workflow_dispatch:`,
+    "UNSAFE_TRIGGER_SET",
+  ],
+  ["pull_request", "on: pull_request", "UNSAFE_TRIGGER_SET"],
+  ["pull_request_target", "on: pull_request_target", "UNSAFE_TRIGGER_SET"],
+  ["schedule", "on: schedule", "UNSAFE_TRIGGER_SET"],
+  ["repository_dispatch", "on: repository_dispatch", "UNSAFE_TRIGGER_SET"],
+  [
+    "wrong workflow name",
+    `on:\n  workflow_run:\n    workflows: ["Other Gate"]\n    types: [completed]`,
+    "INVALID_WORKFLOW_RUN_WORKFLOWS",
+  ],
+  [
+    "additional workflow name",
+    `on:\n  workflow_run:\n    workflows: ["Quality Gate", "Other Gate"]\n    types: [completed]`,
+    "INVALID_WORKFLOW_RUN_WORKFLOWS",
+  ],
+  [
+    "wrong workflow_run type",
+    `on:\n  workflow_run:\n    workflows: ["Quality Gate"]\n    types: [requested]`,
+    "INVALID_WORKFLOW_RUN_TYPES",
+  ],
+  [
+    "additional workflow_run type",
+    `on:\n  workflow_run:\n    workflows: ["Quality Gate"]\n    types: [completed, requested]`,
+    "INVALID_WORKFLOW_RUN_TYPES",
+  ],
+]) {
+  test(`${name} production trigger fails closed`, () => {
+    assert.throws(
+      () => validateProductionWorkflowTriggers(workflowWithTrigger(trigger)),
+      error =>
+        error instanceof ProductionWorkflowRatchetError && error.code === code
+    );
+  });
+}
+
+test("external action pinned to a lowercase full commit SHA passes", () => {
+  const result = validateProductionWorkflowActions(
+    workflowWithUses(PINNED_ACTION)
+  );
+  assert.deepEqual(
+    result.externalActions.map(action => ({
+      action: action.action,
+      ref: action.ref,
+    })),
+    [{ action: "owner/action", ref: SHA_A }]
+  );
+});
+
+test("repository-local action passes without an external ref", () => {
+  const result = validateProductionWorkflowActions(
+    workflowWithUses("./.github/actions/local")
+  );
+  assert.equal(result.localActions.length, 1);
+  assert.equal(result.externalActions.length, 0);
+});
+
+for (const [name, uses, options] of [
+  ["version tag", "actions/checkout@v4"],
+  ["branch", "actions/setup-node@main"],
+  ["short SHA", "owner/action@abc1234"],
+  ["uppercase SHA", `owner/action@${"A".repeat(40)}`],
+  ["expression ref", "owner/action@${{ inputs.ref }}"],
+  [
+    "job-level reusable workflow",
+    "owner/repo/.github/workflows/deploy.yml@main",
+    { jobLevel: true },
+  ],
+  ["new arbitrary mutable action", "other/action@v1"],
+]) {
+  test(`${name} action ref fails closed`, () => {
+    assert.throws(
+      () => validateProductionWorkflowActions(workflowWithUses(uses, options)),
+      error => error instanceof ProductionWorkflowRatchetError
+    );
+  });
+}
+
+test("flow-map uses syntax cannot bypass action collection", () => {
+  for (const key of ["uses", '"uses"', "'uses'"]) {
+    const workflow = `name: Fixture\non: push\njobs: { test: { steps: [{ ${key}: other/action@main }] } }`;
+    assert.throws(
+      () => validateProductionWorkflowActions(workflow),
+      error =>
+        error instanceof ProductionWorkflowRatchetError &&
+        error.code === "UNSUPPORTED_USES_SYNTAX"
+    );
+  }
+});
+
+test("all current production workflow external actions use immutable refs", async () => {
+  const workflow = await readFile(
+    new URL("../.github/workflows/production-deploy.yml", import.meta.url),
+    "utf8"
+  );
+  const result = validateProductionWorkflowActions(workflow);
+  assert.equal(result.externalActions.length, 4);
+  assert.deepEqual(
+    [...new Set(result.externalActions.map(action => action.action))].sort(),
+    ["actions/checkout", "actions/setup-node"]
+  );
+  assert.ok(
+    result.externalActions.every(action => /^[0-9a-f]{40}$/.test(action.ref))
+  );
+});
+
 test("production workflow keeps secrets behind exact-SHA and arming gates", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/production-deploy.yml", import.meta.url),
@@ -728,13 +877,11 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
     new URL("./verify-railway-deployment.mjs", import.meta.url),
     "utf8"
   );
-  const triggerBlock = workflow.slice(
-    workflow.indexOf("on:"),
-    workflow.indexOf("permissions:")
-  );
-  assert.match(workflow, /workflow_run:/);
-  assert.match(workflow, /workflows: \["Quality Gate"\]/);
-  assert.doesNotMatch(triggerBlock, /workflow_dispatch|pull_request|push:/);
+  const ratchets = validateProductionWorkflowRatchets(workflow);
+  assert.deepEqual(ratchets.triggers.triggerKeys, ["workflow_run"]);
+  assert.deepEqual(ratchets.triggers.workflowRun.workflows, ["Quality Gate"]);
+  assert.deepEqual(ratchets.triggers.workflowRun.types, ["completed"]);
+  assert.equal(ratchets.actions.externalActions.length, 4);
   assert.match(workflow, /group: boa-production-deploy/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.match(workflow, /contents: read/);
@@ -758,18 +905,6 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
   assert.doesNotMatch(workflow, /railway variable set/);
   assert.doesNotMatch(railwayHelper, /"up"[\s\S]{0,300}"--ci"/);
   assert.doesNotMatch(railwayHelper, /"up"[\s\S]{0,300}"--json"/);
-  assert.match(
-    workflow,
-    /actions\/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4/g
-  );
-  assert.match(
-    workflow,
-    /actions\/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4/g
-  );
-  assert.doesNotMatch(
-    workflow,
-    /uses: (?:actions\/checkout|actions\/setup-node)@v\d/
-  );
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.doesNotMatch(workflow, /\|\| true/);
   assert.doesNotMatch(workflow, /pnpm db:migrate/);
