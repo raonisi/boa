@@ -27,6 +27,8 @@ jobs:
           cache: pnpm
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - name: Verify production deployment gate logic
+        run: node --test scripts/production-deploy-gate.test.mjs
       - run: pnpm check
 
   unit-test:

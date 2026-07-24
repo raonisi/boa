@@ -1,7 +1,10 @@
+import { RELEASE_SHA } from "../generated/releaseIdentity";
+
 export type SafeAppVersionMetadata = {
   ok: true;
   serviceName: "boa-crm";
   appVersion: string;
+  commitSha: string | null;
   commitShort: string | null;
   buildTime: string | null;
   environmentLabel: "production" | "development" | "test";
@@ -10,6 +13,7 @@ export type SafeAppVersionMetadata = {
 
 const SERVER_START_TIME = new Date().toISOString();
 const FALLBACK_APP_VERSION = "1.0.0";
+const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 const COMMIT_ENV_KEYS = [
   "APP_COMMIT_SHA",
@@ -41,12 +45,14 @@ function safeAppVersion(value: string | undefined) {
   return FALLBACK_APP_VERSION;
 }
 
+export function toCommitSha(value: string | null | undefined) {
+  return typeof value === "string" && FULL_SHA_PATTERN.test(value)
+    ? value
+    : null;
+}
+
 export function toCommitShort(value: string | null | undefined) {
-  const candidate = value?.trim();
-  if (!candidate) return null;
-  const normalized = candidate.replace(/^refs\/heads\//, "");
-  if (!/^[0-9a-f]{7,40}$/i.test(normalized)) return null;
-  return normalized.slice(0, 7).toLowerCase();
+  return toCommitSha(value)?.slice(0, 7) ?? null;
 }
 
 function toIsoTime(value: string | null) {
@@ -64,24 +70,38 @@ function getEnvironmentLabel(): SafeAppVersionMetadata["environmentLabel"] {
   if (process.env.NODE_ENV === "test") return "test";
   if (
     process.env.NODE_ENV === "production" ||
-    process.env.RAILWAY_ENVIRONMENT ||
     process.env.RAILWAY_SERVICE_ID
   ) {
     return "production";
   }
+  if (
+    process.env.E2E_TEST_MODE === "true" &&
+    process.env.RAILWAY_ENVIRONMENT === "e2e"
+  ) {
+    return "test";
+  }
+  if (process.env.RAILWAY_ENVIRONMENT === "production") return "production";
   return "development";
 }
 
 export function getSafeAppVersionMetadata(): SafeAppVersionMetadata {
+  const environmentLabel = getEnvironmentLabel();
+  const stampedCommitSha = toCommitSha(RELEASE_SHA);
+  const commitSha =
+    stampedCommitSha ??
+    (environmentLabel === "production"
+      ? null
+      : toCommitSha(firstEnvValue(COMMIT_ENV_KEYS)));
   return {
     ok: true,
     serviceName: "boa-crm",
     appVersion: safeAppVersion(
       process.env.APP_VERSION ?? process.env.npm_package_version
     ),
-    commitShort: toCommitShort(firstEnvValue(COMMIT_ENV_KEYS)),
+    commitSha,
+    commitShort: toCommitShort(commitSha),
     buildTime: toIsoTime(firstEnvValue(BUILD_TIME_ENV_KEYS)),
-    environmentLabel: getEnvironmentLabel(),
+    environmentLabel,
     serverStartTime: SERVER_START_TIME,
   };
 }
@@ -90,6 +110,8 @@ export function getHealthVersionSummary() {
   const metadata = getSafeAppVersionMetadata();
   return {
     appVersion: metadata.appVersion,
+    commitSha: metadata.commitSha,
     commitShort: metadata.commitShort,
+    environmentLabel: metadata.environmentLabel,
   };
 }
