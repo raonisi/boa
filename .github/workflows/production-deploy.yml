@@ -20,12 +20,12 @@ jobs:
       gate_run_id: ${{ steps.evaluate.outputs.gate_run_id }}
     steps:
       - name: Check out current main gate implementation
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.repository.default_branch }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
       - name: Evaluate exact Quality Gate run
@@ -85,12 +85,12 @@ jobs:
       EXPECTED_COMMIT_SHA: ${{ needs.eligibility.outputs.candidate_sha }}
     steps:
       - name: Check out the exact eligible SHA
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.eligibility.outputs.candidate_sha }}
           fetch-depth: 1
           persist-credentials: false
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .node-version
       - name: Revalidate current main and deployment configuration
@@ -103,7 +103,6 @@ jobs:
           GATE_EVENT: ${{ github.event.workflow_run.event }}
           GATE_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
           GATE_HEAD_REPOSITORY: ${{ github.event.workflow_run.head_repository.full_name }}
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         shell: bash
         run: |
           set -euo pipefail
@@ -128,10 +127,24 @@ jobs:
           node scripts/verify-production-deploy-eligibility.mjs \
             "${RUNNER_TEMP}/deploy-gate-input.json" \
             --strict
-          node scripts/verify-production-deploy-eligibility.mjs --validate-config
+      - name: Validate protected Railway configuration
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: node scripts/verify-production-deploy-eligibility.mjs --validate-config
+      - name: Stamp exact release identity into the upload source
+        shell: bash
+        run: |
+          set -euo pipefail
+          checkout_sha="$(git rev-parse HEAD)"
+          if [[ "${checkout_sha}" != "${EXPECTED_COMMIT_SHA}" ]]; then
+            echo "Deployment blocked: checkout identity changed before stamping."
+            exit 1
+          fi
+          node scripts/stamp-release-identity.mjs "${EXPECTED_COMMIT_SHA}"
+          node scripts/stamp-release-identity.mjs "${EXPECTED_COMMIT_SHA}" --verify
       - name: Install pinned Railway CLI
         run: npm install --global @railway/cli@5.28.0
-      - name: Upload exact checkout to Railway production
+      - name: Deploy and verify the exact Railway deployment
         env:
           GH_TOKEN: ${{ github.token }}
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
@@ -144,25 +157,4 @@ jobs:
             echo "Deployment blocked: candidate is no longer the current main tip."
             exit 1
           fi
-          railway variable set "APP_COMMIT_SHA=${EXPECTED_COMMIT_SHA}" \
-            --service "${RAILWAY_SERVICE_ID}" \
-            --environment "${RAILWAY_ENVIRONMENT_ID}" \
-            --skip-deploys \
-            --json \
-            > "${RUNNER_TEMP}/railway-variable-result.json" \
-            2> "${RUNNER_TEMP}/railway-variable-error.log"
-          set +e
-          railway up --ci \
-            --project "${RAILWAY_PROJECT_ID}" \
-            --service "${RAILWAY_SERVICE_ID}" \
-            --environment "${RAILWAY_ENVIRONMENT_ID}" \
-            > "${RUNNER_TEMP}/railway-deploy.log" \
-            2>&1
-          railway_status=$?
-          set -e
-          if [[ ${railway_status} -ne 0 ]]; then
-            echo "Railway deployment failed. Inspect the protected Railway deployment logs."
-            exit "${railway_status}"
-          fi
-      - name: Verify production health and exact SHA
-        run: node scripts/verify-production-health.mjs
+          node scripts/verify-railway-deployment.mjs

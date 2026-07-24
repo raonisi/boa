@@ -6,10 +6,13 @@ import {
 
 export function registerAppVersionRoutes(app: Express) {
   app.get("/api/health", (_req, res) => {
-    res.status(200).json({
-      ok: true,
+    const version = getHealthVersionSummary();
+    const hasProductionReleaseIdentity =
+      version.environmentLabel !== "production" || version.commitSha !== null;
+    res.status(hasProductionReleaseIdentity ? 200 : 503).json({
+      ok: hasProductionReleaseIdentity,
       service: "boa-crm",
-      version: getHealthVersionSummary(),
+      version,
     });
   });
 

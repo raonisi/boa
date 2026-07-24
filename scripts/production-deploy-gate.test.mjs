@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import {
   REQUIRED_QUALITY_JOBS,
@@ -11,10 +13,36 @@ import {
   pollProductionHealth,
   verifyProductionHealthOnce,
 } from "./verify-production-health.mjs";
+import {
+  ReleaseIdentityError,
+  renderReleaseIdentity,
+  stampReleaseIdentity,
+  validateReleaseSha,
+  verifyReleaseIdentity,
+} from "./stamp-release-identity.mjs";
+import {
+  createDeploymentSnapshot,
+  executeRailwayDeploymentGate,
+  pollTrackedDeployment,
+  RailwayDeploymentError,
+  resolveNewDeployment,
+  shouldSkipDeployment,
+} from "./verify-railway-deployment.mjs";
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
+const SHA_SAME_PREFIX = `${"a".repeat(7)}${"c".repeat(33)}`;
 const RAILWAY_ID = "123e4567-e89b-42d3-a456-426614174000";
+const SERVICE_ID = "223e4567-e89b-42d3-a456-426614174000";
+const ENVIRONMENT_ID = "323e4567-e89b-42d3-a456-426614174000";
+const DEPLOYMENT_A = "423e4567-e89b-42d3-a456-426614174000";
+const DEPLOYMENT_B = "523e4567-e89b-42d3-a456-426614174000";
+const DEPLOYMENT_C = "623e4567-e89b-42d3-a456-426614174000";
+const RAILWAY_CONTEXT = Object.freeze({
+  projectId: RAILWAY_ID,
+  serviceId: SERVICE_ID,
+  environmentId: ENVIRONMENT_ID,
+});
 
 function successfulJobs() {
   return REQUIRED_QUALITY_JOBS.map(name => ({
@@ -159,19 +187,30 @@ function jsonResponse(
   };
 }
 
-function successfulFetch() {
+function successfulFetch({
+  healthSha = SHA_A,
+  versionSha = healthSha,
+  environment = "production",
+  healthCommitSha = true,
+  versionCommitSha = true,
+} = {}) {
   return async url =>
     url.endsWith("/api/health")
       ? jsonResponse({
           ok: true,
           service: "boa-crm",
-          version: { commitShort: SHA_A.slice(0, 7) },
+          version: {
+            environmentLabel: environment,
+            ...(healthCommitSha ? { commitSha: healthSha } : {}),
+            commitShort: healthSha.slice(0, 7),
+          },
         })
       : jsonResponse({
           ok: true,
           serviceName: "boa-crm",
-          environmentLabel: "production",
-          commitShort: SHA_A.slice(0, 7),
+          environmentLabel: environment,
+          ...(versionCommitSha ? { commitSha: versionSha } : {}),
+          commitShort: versionSha.slice(0, 7),
         });
 }
 
@@ -182,9 +221,84 @@ test("health verification accepts HTTP 200 only when production and SHA match", 
   });
   assert.deepEqual(result, {
     ok: true,
+    commitSha: SHA_A,
     commitShort: SHA_A.slice(0, 7),
     environment: "production",
   });
+});
+
+for (const invalidSha of [
+  "a".repeat(39),
+  "a".repeat(41),
+  "A".repeat(40),
+  `${"a".repeat(39)}g`,
+  "development",
+]) {
+  test(`health verification rejects malformed expected SHA: ${invalidSha.length}`, async () => {
+    await assert.rejects(
+      verifyProductionHealthOnce({
+        expectedSha: invalidSha,
+        fetchImpl: successfulFetch(),
+      }),
+      error =>
+        error instanceof ProductionHealthError &&
+        error.code === "INVALID_EXPECTED_SHA"
+    );
+  });
+}
+
+test("health verification rejects a different full SHA with the same seven-character prefix", async () => {
+  await assert.rejects(
+    verifyProductionHealthOnce({
+      expectedSha: SHA_A,
+      fetchImpl: successfulFetch({ healthSha: SHA_SAME_PREFIX }),
+    }),
+    error =>
+      error instanceof ProductionHealthError &&
+      error.code === "HEALTH_PAYLOAD_MISMATCH"
+  );
+});
+
+test("health verification rejects missing full SHA and short-only payloads", async () => {
+  await assert.rejects(
+    verifyProductionHealthOnce({
+      expectedSha: SHA_A,
+      fetchImpl: successfulFetch({ healthCommitSha: false }),
+    }),
+    error =>
+      error instanceof ProductionHealthError &&
+      error.code === "HEALTH_PAYLOAD_MISMATCH"
+  );
+  await assert.rejects(
+    verifyProductionHealthOnce({
+      expectedSha: SHA_A,
+      fetchImpl: successfulFetch({ versionCommitSha: false }),
+    }),
+    error =>
+      error instanceof ProductionHealthError &&
+      error.code === "VERSION_PAYLOAD_MISMATCH"
+  );
+});
+
+test("health verification rejects development and endpoint SHA disagreement", async () => {
+  await assert.rejects(
+    verifyProductionHealthOnce({
+      expectedSha: SHA_A,
+      fetchImpl: successfulFetch({ environment: "development" }),
+    }),
+    error =>
+      error instanceof ProductionHealthError &&
+      error.code === "HEALTH_PAYLOAD_MISMATCH"
+  );
+  await assert.rejects(
+    verifyProductionHealthOnce({
+      expectedSha: SHA_A,
+      fetchImpl: successfulFetch({ versionSha: SHA_B }),
+    }),
+    error =>
+      error instanceof ProductionHealthError &&
+      error.code === "VERSION_PAYLOAD_MISMATCH"
+  );
 });
 
 for (const [name, fetchImpl, code] of [
@@ -201,7 +315,11 @@ for (const [name, fetchImpl, code] of [
         ? jsonResponse({
             ok: true,
             service: "boa-crm",
-            version: { commitShort: SHA_B.slice(0, 7) },
+            version: {
+              environmentLabel: "production",
+              commitSha: SHA_B,
+              commitShort: SHA_B.slice(0, 7),
+            },
           })
         : jsonResponse({}),
     "HEALTH_PAYLOAD_MISMATCH",
@@ -250,13 +368,373 @@ test("polling requires consecutive stable responses and times out fail-closed", 
   assert.equal(stable.attemptsUsed, 2);
 });
 
+test("release identity accepts only an exact lowercase full SHA", () => {
+  assert.equal(validateReleaseSha(SHA_A), SHA_A);
+  for (const invalid of [
+    "a".repeat(39),
+    "a".repeat(41),
+    "A".repeat(40),
+    `${"a".repeat(39)}g`,
+    ` ${SHA_A}`,
+  ]) {
+    assert.throws(
+      () => validateReleaseSha(invalid),
+      error =>
+        error instanceof ReleaseIdentityError &&
+        error.code === "INVALID_RELEASE_SHA"
+    );
+  }
+});
+
+test("release identity rendering serializes only the validated candidate", () => {
+  const rendered = renderReleaseIdentity(SHA_A);
+  assert.match(rendered, new RegExp(SHA_A));
+  assert.doesNotMatch(rendered, /token|secret|branch|pull_request/i);
+});
+
+test("release identity stamp is verified byte-for-byte and rejects stale source", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "boa-release-identity-"));
+  const outputPath = join(directory, "releaseIdentity.ts");
+  try {
+    await stampReleaseIdentity({ releaseSha: SHA_A, outputPath });
+    await verifyReleaseIdentity({ releaseSha: SHA_A, outputPath });
+    await writeFile(outputPath, renderReleaseIdentity(SHA_B), "utf8");
+    await assert.rejects(
+      verifyReleaseIdentity({ releaseSha: SHA_A, outputPath }),
+      error =>
+        error instanceof ReleaseIdentityError &&
+        error.code === "RELEASE_IDENTITY_MISMATCH"
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+const OLD_TIME = "2026-07-23T23:59:00.000Z";
+const BEFORE_TIME = "2026-07-24T00:00:00.000Z";
+const START_TIME = "2026-07-24T00:00:01.000Z";
+const NEW_TIME = "2026-07-24T00:00:02.000Z";
+const AFTER_TIME = "2026-07-24T00:00:03.000Z";
+
+function deployment(id, status, createdAt = NEW_TIME) {
+  return { id, status, createdAt };
+}
+
+function snapshot(
+  deployments,
+  capturedAt = AFTER_TIME,
+  context = RAILWAY_CONTEXT
+) {
+  return createDeploymentSnapshot({ deployments, capturedAt, context });
+}
+
+test("deployment resolver selects exactly one new scoped deployment", () => {
+  const before = snapshot(
+    [deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)],
+    BEFORE_TIME
+  );
+  const after = snapshot([
+    deployment(DEPLOYMENT_B, "BUILDING"),
+    deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME),
+  ]);
+  assert.equal(
+    resolveNewDeployment({ before, after, deploymentStartedAt: START_TIME }).id,
+    DEPLOYMENT_B
+  );
+});
+
+for (const [name, afterDeployments, code] of [
+  [
+    "zero new deployments",
+    [deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)],
+    "NEW_DEPLOYMENT_NOT_FOUND",
+  ],
+  [
+    "two new deployments",
+    [
+      deployment(DEPLOYMENT_B, "BUILDING"),
+      deployment(DEPLOYMENT_C, "QUEUED"),
+      deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME),
+    ],
+    "AMBIGUOUS_NEW_DEPLOYMENTS",
+  ],
+  [
+    "only a removed new deployment",
+    [
+      deployment(DEPLOYMENT_B, "REMOVED"),
+      deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME),
+    ],
+    "NEW_DEPLOYMENT_NOT_FOUND",
+  ],
+]) {
+  test(`deployment resolver fails closed for ${name}`, () => {
+    const before = snapshot(
+      [deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)],
+      BEFORE_TIME
+    );
+    const after = snapshot(afterDeployments);
+    assert.throws(
+      () =>
+        resolveNewDeployment({ before, after, deploymentStartedAt: START_TIME }),
+      error => error instanceof RailwayDeploymentError && error.code === code
+    );
+  });
+}
+
+test("deployment resolver rejects another service or environment context", () => {
+  const before = snapshot([], BEFORE_TIME);
+  for (const context of [
+    { ...RAILWAY_CONTEXT, serviceId: DEPLOYMENT_A },
+    { ...RAILWAY_CONTEXT, environmentId: DEPLOYMENT_A },
+  ]) {
+    const after = snapshot([deployment(DEPLOYMENT_B, "BUILDING")], AFTER_TIME, context);
+    assert.throws(
+      () =>
+        resolveNewDeployment({ before, after, deploymentStartedAt: START_TIME }),
+      error =>
+        error instanceof RailwayDeploymentError &&
+        error.code === "DEPLOYMENT_CONTEXT_MISMATCH"
+    );
+  }
+});
+
+test("deployment snapshot rejects unknown status fail-closed", () => {
+  assert.throws(
+    () => snapshot([deployment(DEPLOYMENT_A, "SLEEPING")]),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "UNKNOWN_DEPLOYMENT_STATUS"
+  );
+});
+
+test("deployment polling follows one immutable ID through SUCCESS", async () => {
+  const states = ["BUILDING", "DEPLOYING", "SUCCESS"];
+  let index = 0;
+  const result = await pollTrackedDeployment({
+    deploymentId: DEPLOYMENT_B,
+    expectedContext: RAILWAY_CONTEXT,
+    fetchSnapshot: async () =>
+      snapshot([
+        deployment(DEPLOYMENT_C, "SUCCESS"),
+        deployment(DEPLOYMENT_B, states[index++]),
+      ]),
+    attempts: 3,
+    intervalMs: 0,
+  });
+  assert.equal(result.deployment.id, DEPLOYMENT_B);
+  assert.equal(result.deployment.status, "SUCCESS");
+  assert.equal(result.attemptsUsed, 3);
+});
+
+for (const status of ["FAILED", "CRASHED", "REMOVED", "REMOVING", "SKIPPED"]) {
+  test(`deployment polling rejects terminal ${status}`, async () => {
+    await assert.rejects(
+      pollTrackedDeployment({
+        deploymentId: DEPLOYMENT_B,
+        expectedContext: RAILWAY_CONTEXT,
+        fetchSnapshot: async () => snapshot([deployment(DEPLOYMENT_B, status)]),
+        attempts: 1,
+        intervalMs: 0,
+      }),
+      error =>
+        error instanceof RailwayDeploymentError &&
+        error.code === `DEPLOYMENT_TERMINAL_FAILURE:${status}`
+    );
+  });
+}
+
+test("deployment polling times out and revalidates context", async () => {
+  await assert.rejects(
+    pollTrackedDeployment({
+      deploymentId: DEPLOYMENT_B,
+      expectedContext: RAILWAY_CONTEXT,
+      fetchSnapshot: async () =>
+        snapshot([deployment(DEPLOYMENT_B, "BUILDING")]),
+      attempts: 2,
+      intervalMs: 0,
+    }),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "DEPLOYMENT_STATUS_TIMEOUT"
+  );
+  await assert.rejects(
+    pollTrackedDeployment({
+      deploymentId: DEPLOYMENT_B,
+      expectedContext: RAILWAY_CONTEXT,
+      fetchSnapshot: async () =>
+        snapshot(
+          [deployment(DEPLOYMENT_B, "SUCCESS")],
+          AFTER_TIME,
+          { ...RAILWAY_CONTEXT, serviceId: DEPLOYMENT_A }
+        ),
+      attempts: 1,
+      intervalMs: 0,
+    }),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "DEPLOYMENT_CONTEXT_MISMATCH"
+  );
+});
+
+test("deployment completion calls health only after the tracked ID succeeds", async () => {
+  const events = [];
+  const snapshots = [
+    snapshot([deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)], BEFORE_TIME),
+    snapshot([
+      deployment(DEPLOYMENT_B, "BUILDING"),
+      deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME),
+    ]),
+    snapshot([deployment(DEPLOYMENT_B, "DEPLOYING")]),
+    snapshot([deployment(DEPLOYMENT_B, "SUCCESS")]),
+  ];
+  const result = await executeRailwayDeploymentGate({
+    candidateSha: SHA_A,
+    fetchSnapshot: async () => {
+      events.push("list");
+      return snapshots.shift();
+    },
+    upload: async () => {
+      events.push("upload");
+      return { exitCode: 0 };
+    },
+    checkCandidateHealth: async () => {
+      events.push("pre-health-miss");
+      throw new Error("not live");
+    },
+    verifyStableHealth: async () => events.push("stable-health"),
+    now: () => START_TIME,
+    sleep: async () => {},
+    registrationIntervalMs: 0,
+    statusIntervalMs: 0,
+  });
+  assert.equal(result.outcome, "deployed");
+  assert.equal(result.deploymentId, DEPLOYMENT_B);
+  assert.equal(result.status, "SUCCESS");
+  assert.equal(events.at(-1), "stable-health");
+});
+
+for (const name of [
+  "candidate already live",
+  "same Gate rerun",
+  "serialized concurrent second workflow",
+]) {
+  test(`${name} is an idempotent no-op`, async () => {
+    let uploaded = false;
+    let stableHealthCalled = false;
+    const before = snapshot([deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)]);
+    assert.equal(
+      shouldSkipDeployment({ before, candidateHealthMatches: true }),
+      true
+    );
+    const result = await executeRailwayDeploymentGate({
+      candidateSha: SHA_A,
+      fetchSnapshot: async () => before,
+      upload: async () => {
+        uploaded = true;
+        return { exitCode: 0 };
+      },
+      checkCandidateHealth: async () => {},
+      verifyStableHealth: async () => {
+        stableHealthCalled = true;
+      },
+    });
+    assert.equal(result.outcome, "already-deployed");
+    assert.equal(uploaded, false);
+    assert.equal(stableHealthCalled, false);
+  });
+}
+
+test("an existing in-progress deployment blocks a competing upload", async () => {
+  let uploaded = false;
+  await assert.rejects(
+    executeRailwayDeploymentGate({
+      candidateSha: SHA_A,
+      fetchSnapshot: async () =>
+        snapshot([deployment(DEPLOYMENT_A, "DEPLOYING", OLD_TIME)]),
+      upload: async () => {
+        uploaded = true;
+        return { exitCode: 0 };
+      },
+      checkCandidateHealth: async () => {},
+      verifyStableHealth: async () => {},
+    }),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "DEPLOYMENT_ALREADY_IN_PROGRESS"
+  );
+  assert.equal(uploaded, false);
+});
+
+test("a failed previous deployment with candidate not live allows one retry", async () => {
+  let uploadCount = 0;
+  const snapshots = [
+    snapshot([deployment(DEPLOYMENT_A, "FAILED", OLD_TIME)], BEFORE_TIME),
+    snapshot([deployment(DEPLOYMENT_B, "SUCCESS")]),
+    snapshot([deployment(DEPLOYMENT_B, "SUCCESS")]),
+  ];
+  const result = await executeRailwayDeploymentGate({
+    candidateSha: SHA_A,
+    fetchSnapshot: async () => snapshots.shift(),
+    upload: async () => ({ exitCode: (uploadCount += 1) - 1 }),
+    checkCandidateHealth: async () => {
+      throw new Error("candidate not live");
+    },
+    verifyStableHealth: async () => {},
+    now: () => START_TIME,
+    sleep: async () => {},
+    registrationIntervalMs: 0,
+    statusIntervalMs: 0,
+  });
+  assert.equal(result.outcome, "deployed");
+  assert.equal(uploadCount, 1);
+});
+
+test("deployment or migration failure prevents health verification", async () => {
+  let stableHealthCalled = false;
+  const snapshots = [
+    snapshot([], BEFORE_TIME),
+    snapshot([deployment(DEPLOYMENT_B, "FAILED")]),
+    snapshot([deployment(DEPLOYMENT_B, "FAILED")]),
+  ];
+  await assert.rejects(
+    executeRailwayDeploymentGate({
+      candidateSha: SHA_A,
+      fetchSnapshot: async () => snapshots.shift(),
+      upload: async () => ({ exitCode: 1 }),
+      checkCandidateHealth: async () => {
+        throw new Error("not live");
+      },
+      verifyStableHealth: async () => {
+        stableHealthCalled = true;
+      },
+      now: () => START_TIME,
+      sleep: async () => {},
+      registrationIntervalMs: 0,
+      statusIntervalMs: 0,
+    }),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "DEPLOYMENT_TERMINAL_FAILURE:FAILED"
+  );
+  assert.equal(stableHealthCalled, false);
+});
+
 test("production workflow keeps secrets behind exact-SHA and arming gates", async () => {
   const workflow = await readFile(
     new URL("../.github/workflows/production-deploy.yml", import.meta.url),
     "utf8"
   );
+  const railwayHelper = await readFile(
+    new URL("./verify-railway-deployment.mjs", import.meta.url),
+    "utf8"
+  );
+  const triggerBlock = workflow.slice(
+    workflow.indexOf("on:"),
+    workflow.indexOf("permissions:")
+  );
   assert.match(workflow, /workflow_run:/);
   assert.match(workflow, /workflows: \["Quality Gate"\]/);
+  assert.doesNotMatch(triggerBlock, /workflow_dispatch|pull_request|push:/);
   assert.match(workflow, /group: boa-production-deploy/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.match(workflow, /contents: read/);
@@ -265,6 +743,8 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
   assert.match(workflow, /vars\.PRODUCTION_DEPLOY_ENABLED/);
   assert.match(workflow, /secrets\.RAILWAY_TOKEN/);
   assert.equal(workflow.match(/secrets\.RAILWAY_TOKEN/g)?.length, 2);
+  const eligibilityJob = workflow.slice(0, workflow.indexOf("  deploy:"));
+  assert.doesNotMatch(eligibilityJob, /RAILWAY_TOKEN/);
   const deployJob = workflow.slice(workflow.indexOf("  deploy:"));
   const deployJobEnv = deployJob.slice(
     deployJob.indexOf("    env:"),
@@ -272,8 +752,24 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
   );
   assert.doesNotMatch(deployJobEnv, /RAILWAY_TOKEN/);
   assert.match(workflow, /@railway\/cli@5\.28\.0/);
-  assert.match(workflow, /railway up --ci/);
-  assert.match(workflow, /verify-production-health\.mjs/);
+  assert.match(workflow, /stamp-release-identity\.mjs/);
+  assert.match(workflow, /verify-railway-deployment\.mjs/);
+  assert.doesNotMatch(workflow, /railway up --ci|railway up --json/);
+  assert.doesNotMatch(workflow, /railway variable set/);
+  assert.doesNotMatch(railwayHelper, /"up"[\s\S]{0,300}"--ci"/);
+  assert.doesNotMatch(railwayHelper, /"up"[\s\S]{0,300}"--json"/);
+  assert.match(
+    workflow,
+    /actions\/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4/g
+  );
+  assert.match(
+    workflow,
+    /actions\/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4/g
+  );
+  assert.doesNotMatch(
+    workflow,
+    /uses: (?:actions\/checkout|actions\/setup-node)@v\d/
+  );
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.doesNotMatch(workflow, /\|\| true/);
   assert.doesNotMatch(workflow, /pnpm db:migrate/);

@@ -27,7 +27,9 @@ GitHub deployment history identifies the connected environment as `handsome-spar
 - the protected Railway token and three validated Railway IDs exist;
 - `RAILWAY_PRE_DEPLOY_VERIFIED` is exactly `true`.
 
-The CLI uploads the exact checkout. Railway documents `RAILWAY_GIT_COMMIT_SHA` only for GitHub-triggered deployments, so the workflow stages `APP_COMMIT_SHA` without triggering a deploy and then uploads that checkout. Health verification requires three consecutive JSON responses from `/api/health` and `/api/version`, HTTP 200, the production environment label, and the matching seven-character SHA.
+The CLI uploads the exact checkout. Railway documents `RAILWAY_GIT_COMMIT_SHA` only for GitHub-triggered deployments, so the workflow stamps the validated 40-character candidate SHA into `server/generated/releaseIdentity.ts` before upload and verifies that generated source byte-for-byte. Production does not fall back to a short SHA or an environment value when the stamp is absent.
+
+Before upload, the workflow records the service/environment deployment IDs and checks whether the candidate is already live with a latest successful Railway deployment. An exact match becomes an `already-deployed` no-op. A latest deployment that is already in progress blocks a competing upload for manual review. Otherwise, the pinned Railway CLI performs an attached `railway up` without `--ci` or `--json`. The gate then lists the same project, service, and environment again, requires exactly one new deployment ID created after upload began, and tracks only that ID to terminal `SUCCESS`. Zero or multiple new IDs, an unknown status, a failure status, or a timeout fails closed. Only after `SUCCESS` does health verification require three consecutive JSON responses from `/api/health` and `/api/version`, HTTP 200, the production environment label, identical 40-character `commitSha` values, and the expected display-only `commitShort`.
 
 Railway build, Pre-Deploy, and runtime output stays in Railway/GitHub job logs and is not uploaded as an artifact. The workflow reports only bounded gate and health results.
 
@@ -64,7 +66,7 @@ In the BOA web service's production settings, verify and record:
 - Start Command is `pnpm start`;
 - `https://raonisis.kr` belongs to this service and environment.
 
-Only after that review may `RAILWAY_PRE_DEPLOY_VERIFIED` become `true`. This repository does not run `pnpm db:migrate` from the GitHub runner; Railway must run it once as the configured Pre-Deploy command.
+Only after that review may `RAILWAY_PRE_DEPLOY_VERIFIED` become `true`. Railway CLI deployment listing does not independently expose the configured Pre-Deploy command, so this variable remains an explicit operator-attested configuration ratchet rather than inferred proof. This repository does not run `pnpm db:migrate` from the GitHub runner; Railway must run it once as the configured Pre-Deploy command. Railway documents that a failed Pre-Deploy command prevents the deployment from proceeding, and the gate additionally requires the exact new deployment ID to reach `SUCCESS` before health checks.
 
 ## Activation sequence
 
@@ -74,10 +76,12 @@ Only after that review may `RAILWAY_PRE_DEPLOY_VERIFIED` become `true`. This rep
 4. Obtain explicit operator approval.
 5. Set `PRODUCTION_DEPLOY_ENABLED=true`.
 6. Trigger a new current-main Quality Gate run; do not reuse an old or PR run.
-7. Confirm Railway Pre-Deploy success, health HTTP 200, production label, and exact SHA.
+7. Confirm the exact new Railway deployment ID reached `SUCCESS`, Railway Pre-Deploy did not fail, and both health endpoints report the exact full SHA.
 
 Until step 7 succeeds, the production gate is not operationally complete.
 
 ## Emergency lock and rollback
 
 Set `PRODUCTION_DEPLOY_ENABLED=false` first and keep Railway auto-deploy disabled. Do not automatically redeploy an older artifact or roll back database migrations. Inspect any running workflow and Railway deployment, then choose an application rollback compatible with the already-applied schema.
+
+The privileged production workflow pins `actions/checkout` and `actions/setup-node` to full upstream commit SHAs with their major-version intent documented inline. Update those pins through a reviewed PR after validating the new official action commits; do not replace them with mutable tags in the production workflow.

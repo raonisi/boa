@@ -3,7 +3,7 @@ import { pathToFileURL } from "node:url";
 export const PRODUCTION_HEALTH_URL = "https://raonisis.kr/api/health";
 export const PRODUCTION_VERSION_URL = "https://raonisis.kr/api/version";
 
-const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/i;
+const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
 
 export class ProductionHealthError extends Error {
   constructor(code) {
@@ -13,12 +13,11 @@ export class ProductionHealthError extends Error {
   }
 }
 
-function expectedShortSha(value) {
-  const candidate = typeof value === "string" ? value.trim().toLowerCase() : "";
-  if (!FULL_SHA_PATTERN.test(candidate)) {
+function expectedFullSha(value) {
+  if (typeof value !== "string" || !FULL_SHA_PATTERN.test(value)) {
     throw new ProductionHealthError("INVALID_EXPECTED_SHA");
   }
-  return candidate.slice(0, 7);
+  return value;
 }
 
 async function fetchJson(fetchImpl, url, requestTimeoutMs) {
@@ -49,7 +48,8 @@ export async function verifyProductionHealthOnce({
   fetchImpl = fetch,
   requestTimeoutMs = 8_000,
 }) {
-  const commitShort = expectedShortSha(expectedSha);
+  const commitSha = expectedFullSha(expectedSha);
+  const commitShort = commitSha.slice(0, 7);
   const health = await fetchJson(
     fetchImpl,
     PRODUCTION_HEALTH_URL,
@@ -58,6 +58,8 @@ export async function verifyProductionHealthOnce({
   if (
     health?.ok !== true ||
     health?.service !== "boa-crm" ||
+    health?.version?.environmentLabel !== "production" ||
+    health?.version?.commitSha !== commitSha ||
     health?.version?.commitShort !== commitShort
   ) {
     throw new ProductionHealthError("HEALTH_PAYLOAD_MISMATCH");
@@ -72,12 +74,17 @@ export async function verifyProductionHealthOnce({
     version?.ok !== true ||
     version?.serviceName !== "boa-crm" ||
     version?.environmentLabel !== "production" ||
+    version?.commitSha !== commitSha ||
     version?.commitShort !== commitShort
   ) {
     throw new ProductionHealthError("VERSION_PAYLOAD_MISMATCH");
   }
 
-  return { ok: true, commitShort, environment: "production" };
+  if (health.version.commitSha !== version.commitSha) {
+    throw new ProductionHealthError("ENDPOINT_SHA_MISMATCH");
+  }
+
+  return { ok: true, commitSha, commitShort, environment: "production" };
 }
 
 export async function pollProductionHealth({
