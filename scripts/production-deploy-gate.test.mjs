@@ -613,12 +613,28 @@ async function assertBoundaryFailure(options, expectedCode) {
   });
 }
 
+async function assertBoundaryPass(options) {
+  await withRailwayBoundaryFixture(options, async repositoryRoot => {
+    await assert.doesNotReject(
+      analyzeProductionRailwayBoundary({ repositoryRoot })
+    );
+  });
+}
+
 test("current production workflow derives the complete Railway helper graph", async () => {
   const result = await analyzeProductionRailwayBoundary({
     repositoryRoot: REPOSITORY_ROOT,
   });
   assert.equal(result.adapterImportCount, 1);
   assert.equal(result.adapterInvocationCount, 2);
+  assert.equal(result.typeChecked, true);
+  assert.deepEqual(result.processProperties, [
+    "argv",
+    "env",
+    "exitCode",
+    "pid",
+    "platform",
+  ]);
   assert.equal(result.entrypoints.length, 3);
   assert.ok(result.entrypoints.includes("scripts/stamp-release-identity.mjs"));
   assert.ok(
@@ -635,6 +651,184 @@ test("current production workflow derives the complete Railway helper graph", as
   assert.equal(
     result.files.includes("scripts/verify-production-workflow-ratchets.mjs"),
     false
+  );
+});
+
+for (const [name, source, expectedCode] of [
+  [
+    "computed getBuiltinModule and spawn exploit",
+    `import "./railway-command-adapter.mjs";
+     const cp = process["getBuiltin" + "Module"]("node:child_process");
+     cp["sp" + "awn"]("railway", ["link"]);`,
+    "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+  ],
+  [
+    "aliased global process loader",
+    `import "./railway-command-adapter.mjs";
+     const p = process;
+     const cp = p.getBuiltinModule("node:child_process");`,
+    "PROCESS_OBJECT_ALIAS_FORBIDDEN",
+  ],
+  [
+    "dynamic global process property",
+    `import "./railway-command-adapter.mjs";
+     const key = "getBuiltinModule";
+     const cp = process[key]("node:child_process");`,
+    "DYNAMIC_PROCESS_PROPERTY_ACCESS",
+  ],
+  [
+    "globalThis process acquisition",
+    `import "./railway-command-adapter.mjs";
+     const cp = globalThis["process"].getBuiltinModule("node:child_process");`,
+    "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+  ],
+  [
+    "Node global process acquisition",
+    `import "./railway-command-adapter.mjs";
+     const cp = global["process"].getBuiltinModule("node:child_process");`,
+    "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+  ],
+  [
+    "static node:process capability import",
+    `import processCapability from "node:process";
+     import "./railway-command-adapter.mjs";
+     processCapability.getBuiltinModule("node:child_process");`,
+    "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+  ],
+  [
+    "Reflect process escape",
+    `import "./railway-command-adapter.mjs";
+     const cp = Reflect.get(process, "getBuiltinModule")("node:child_process");`,
+    "PROCESS_OBJECT_ESCAPE_FORBIDDEN",
+  ],
+  [
+    "descriptor process escape",
+    `import "./railway-command-adapter.mjs";
+     const descriptor = Object.getOwnPropertyDescriptor(process, "getBuiltinModule");
+     descriptor.value("node:child_process");`,
+    "PROCESS_OBJECT_ESCAPE_FORBIDDEN",
+  ],
+]) {
+  test(`process capability policy rejects ${name}`, async () => {
+    await assertBoundaryFailure(
+      { files: { "scripts/root.mjs": source } },
+      expectedCode
+    );
+  });
+}
+
+for (const [name, source] of [
+  [
+    "local spawn function",
+    `import "./railway-command-adapter.mjs";
+     function spawn(value) { return value; }
+     spawn("local");`,
+  ],
+  [
+    "local exec function",
+    `import "./railway-command-adapter.mjs";
+     const exec = value => value;
+     exec("local");`,
+  ],
+  [
+    "local process parameter",
+    `import "./railway-command-adapter.mjs";
+     function run(process) { return process.value; }
+     run({ value: "local" });`,
+  ],
+  [
+    "local globalThis parameter",
+    `import "./railway-command-adapter.mjs";
+     function run(globalThis) { return globalThis.process; }
+     run({ process: "local" });`,
+  ],
+  [
+    "local global parameter",
+    `import "./railway-command-adapter.mjs";
+     function run(global) { return global.process; }
+     run({ process: "local" });`,
+  ],
+  [
+    "global process property allowlist",
+    `import "./railway-command-adapter.mjs";
+     process.env;
+     process.argv;
+     process.exitCode = 1;
+     process.pid;
+     process.platform;`,
+  ],
+]) {
+  test(`TypeChecker symbol identity allows ${name}`, async () => {
+    await assertBoundaryPass({ files: { "scripts/root.mjs": source } });
+  });
+}
+
+for (const [name, source, expectedCode] of [
+  [
+    "computed allowed process property",
+    `import "./railway-command-adapter.mjs"; process["env"];`,
+    "DYNAMIC_PROCESS_PROPERTY_ACCESS",
+  ],
+  [
+    "process destructuring",
+    `import "./railway-command-adapter.mjs"; const { env } = process;`,
+    "PROCESS_OBJECT_ALIAS_FORBIDDEN",
+  ],
+  [
+    "process argument escape",
+    `import "./railway-command-adapter.mjs"; Object.keys(process);`,
+    "PROCESS_OBJECT_ESCAPE_FORBIDDEN",
+  ],
+  [
+    "forbidden process property",
+    `import "./railway-command-adapter.mjs"; process.binding;`,
+    "FORBIDDEN_PROCESS_PROPERTY",
+  ],
+]) {
+  test(`global process allowlist rejects ${name}`, async () => {
+    await assertBoundaryFailure(
+      { files: { "scripts/root.mjs": source } },
+      expectedCode
+    );
+  });
+}
+
+test("ImportEquals module loading fails closed", async () => {
+  await assertBoundaryFailure(
+    {
+      entrypoints: ["scripts/root.ts"],
+      files: {
+        "scripts/root.ts": `import "./railway-command-adapter.mjs";
+          import helper = require("./helper.mjs");
+          helper;`,
+        "scripts/helper.mjs": "export default {};",
+      },
+    },
+    "IMPORT_EQUALS_FORBIDDEN"
+  );
+});
+
+test("TypeChecker fails closed on unresolved semantic symbols", async () => {
+  await assertBoundaryFailure(
+    {
+      files: {
+        "scripts/root.mjs": `import { missing } from "./railway-command-adapter.mjs";
+          missing();`,
+      },
+    },
+    "TYPECHECKER_SYMBOL_RESOLUTION_FAILED"
+  );
+});
+
+test("TypeChecker fails closed on production source parse diagnostics", async () => {
+  await assertBoundaryFailure(
+    {
+      files: {
+        "scripts/root.mjs": `import "./railway-command-adapter.mjs";
+          const malformed = ;`,
+      },
+    },
+    "TYPECHECKER_SYNTACTIC_DIAGNOSTIC"
   );
 });
 
@@ -735,7 +929,7 @@ for (const [name, mutate, expectedCode] of [
   [
     "global computed spawn call",
     source => `${source}\nglobalThis["spawn"]("railway", []);`,
-    "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+    "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
   ],
 ]) {
   test(`Railway adapter AST boundary rejects ${name}`, async () => {
@@ -772,8 +966,6 @@ for (const [name, source] of [
     "dynamic child_process import",
     'const childProcess = await import("node:child_process");',
   ],
-  ["member process call", "childProcess.exec(command);"],
-  ["computed process call", 'childProcess["fork"](command);'],
 ]) {
   test(`transitive Railway helper rejects ${name}`, async () => {
     await assertBoundaryFailure(
@@ -782,6 +974,22 @@ for (const [name, source] of [
     );
   });
 }
+
+test("local same-name process methods do not trigger child_process policy", async () => {
+  await assertBoundaryPass({
+    files: {
+      "scripts/root.mjs": `
+        import "./railway-command-adapter.mjs";
+        const childProcess = {
+          exec: value => value,
+          fork: value => value,
+        };
+        childProcess.exec("local");
+        childProcess["fork"]("local");
+      `,
+    },
+  });
+});
 
 test("workflow-added literal helper is discovered without a source allowlist", async () => {
   await withRailwayBoundaryFixture(
@@ -893,7 +1101,7 @@ for (const [name, source, expectedCode, extraFiles] of [
   [
     "getBuiltinModule loading",
     'import "./railway-command-adapter.mjs"; process.getBuiltinModule("node:fs");',
-    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    "FORBIDDEN_PROCESS_PROPERTY",
     {},
   ],
   [

@@ -22,13 +22,16 @@ const DEFAULT_REPOSITORY_ROOT = resolve(
   ".."
 );
 const PRODUCTION_MODULE_EXTENSIONS = Object.freeze([".mjs", ".js", ".ts"]);
-const CHILD_PROCESS_CALLS = new Set([
-  "exec",
-  "execFile",
-  "execFileSync",
-  "execSync",
-  "fork",
-  "spawn",
+const ALLOWED_PROCESS_PROPERTIES = Object.freeze([
+  "argv",
+  "env",
+  "exitCode",
+  "pid",
+  "platform",
+]);
+const ALLOWED_PROCESS_PROPERTY_SET = new Set(ALLOWED_PROCESS_PROPERTIES);
+const SYMBOL_RESOLUTION_DIAGNOSTICS = new Set([
+  2300, 2304, 2305, 2306, 2307, 2440, 2451, 2688, 2724, 2792,
 ]);
 const PINNED_RAILWAY_INSTALL =
   "npm install --global @railway/cli@5.28.0";
@@ -634,35 +637,29 @@ function isExactStringArray(node, expected) {
 }
 
 function assertAdapterRunnerInvocation(node, path) {
+  const [executable, args] = node.arguments;
+  const fixedBuilder =
+    ts.isCallExpression(args) &&
+    ts.isIdentifier(args.expression) &&
+    args.expression.text === "buildRailwayDeploymentListArgs";
+  const fixedHelp = [
+    ["--version"],
+    ["deployment", "list", "--help"],
+    ["up", "--help"],
+  ].some(expected => isExactStringArray(args, expected));
   if (
-    ts.isIdentifier(node.expression) &&
-    node.expression.text === "execFileImpl"
+    !ts.isIdentifier(executable) ||
+    executable.text !== "RAILWAY_CLI_EXECUTABLE" ||
+    (!fixedBuilder && !fixedHelp)
   ) {
-    const [executable, args] = node.arguments;
-    const fixedBuilder =
-      ts.isCallExpression(args) &&
-      ts.isIdentifier(args.expression) &&
-      args.expression.text === "buildRailwayDeploymentListArgs";
-    const fixedHelp = [
-      ["--version"],
-      ["deployment", "list", "--help"],
-      ["up", "--help"],
-    ].some(expected => isExactStringArray(args, expected));
-    if (
-      !ts.isIdentifier(executable) ||
-      executable.text !== "RAILWAY_CLI_EXECUTABLE" ||
-      (!fixedBuilder && !fixedHelp)
-    ) {
-      fail(
-        "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
-        `${path} contains an unsupported Railway execFile runner invocation.`
-      );
-    }
+    fail(
+      "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+      `${path} contains an unsupported Railway execFile runner invocation.`
+    );
   }
 }
 
-function assertImportedChildProcessCall(node, path) {
-  const name = node.expression.text;
+function assertImportedChildProcessCall(node, path, name) {
   if (name === "spawn") {
     const [executable, args] = node.arguments;
     const valid =
@@ -726,10 +723,121 @@ function isAssignmentOperator(kind) {
   return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
 }
 
-function validateAdapterTree(tree, path) {
+function getRequiredSymbol(checker, node, path) {
+  const symbol = checker.getSymbolAtLocation(node);
+  if (!symbol) {
+    fail(
+      "TYPECHECKER_SYMBOL_RESOLUTION_FAILED",
+      `${path} contains a symbol that TypeChecker could not resolve.`
+    );
+  }
+  return symbol;
+}
+
+function isChildProcessOrigin(checker, bindingSymbol, expectedName) {
+  if (!(bindingSymbol.flags & ts.SymbolFlags.Alias)) return false;
+  const target = checker.getAliasedSymbol(bindingSymbol);
+  return (
+    target.name === expectedName &&
+    target.declarations?.some(declaration =>
+      declaration
+        .getSourceFile()
+        .fileName.replaceAll("\\", "/")
+        .includes("/@types/node/child_process.d.ts")
+    )
+  );
+}
+
+function isVariableAlias(parent, identifier) {
+  return (
+    (ts.isVariableDeclaration(parent) && parent.initializer === identifier) ||
+    (ts.isBinaryExpression(parent) &&
+      parent.right === identifier &&
+      isAssignmentOperator(parent.operatorToken.kind))
+  );
+}
+
+function validateGlobalProcessUse(identifier, path) {
+  const parent = identifier.parent;
+  if (
+    ts.isPropertyAccessExpression(parent) &&
+    parent.expression === identifier
+  ) {
+    if (ALLOWED_PROCESS_PROPERTY_SET.has(parent.name.text)) return;
+    fail(
+      "FORBIDDEN_PROCESS_PROPERTY",
+      `${path} accesses forbidden process.${parent.name.text}.`
+    );
+  }
+  if (
+    ts.isElementAccessExpression(parent) &&
+    parent.expression === identifier
+  ) {
+    if (ts.isBinaryExpression(parent.argumentExpression)) {
+      fail(
+        "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+        `${path} computes a process capability.`
+      );
+    }
+    if (ts.isStringLiteral(parent.argumentExpression)) {
+      fail(
+        "DYNAMIC_PROCESS_PROPERTY_ACCESS",
+        `${path} must access process properties directly.`
+      );
+    }
+    fail(
+      "DYNAMIC_PROCESS_PROPERTY_ACCESS",
+      `${path} dynamically accesses a process property.`
+    );
+  }
+  if (isVariableAlias(parent, identifier)) {
+    fail(
+      "PROCESS_OBJECT_ALIAS_FORBIDDEN",
+      `${path} aliases the global process object.`
+    );
+  }
+  fail(
+    "PROCESS_OBJECT_ESCAPE_FORBIDDEN",
+    `${path} lets the global process object escape its property allowlist.`
+  );
+}
+
+function validateProcessCapabilities(
+  tree,
+  path,
+  { checker, globalObjectSymbol, globalProcessSymbol, globalThisSymbol }
+) {
+  const visit = node => {
+    if (ts.isIdentifier(node) && node.text === "process") {
+      const symbol = checker.getSymbolAtLocation(node);
+      if (symbol === globalProcessSymbol) validateGlobalProcessUse(node, path);
+    }
+    if (ts.isIdentifier(node) && node.text === "globalThis") {
+      const symbol = checker.getSymbolAtLocation(node);
+      if (symbol === globalThisSymbol) {
+        fail(
+          "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+          `${path} cannot access process capabilities through globalThis.`
+        );
+      }
+    }
+    if (ts.isIdentifier(node) && node.text === "global") {
+      const symbol = checker.getSymbolAtLocation(node);
+      if (symbol === globalObjectSymbol) {
+        fail(
+          "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+          `${path} cannot access process capabilities through the Node global object.`
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+}
+
+function validateAdapterTree(tree, path, checker) {
   let adapterImportCount = 0;
   let adapterInvocationCount = 0;
-  const importedBindings = new Set(["execFile", "spawn"]);
   let runnerInvocationCount = 0;
 
   const exactImports = tree.statements.filter(
@@ -767,12 +875,55 @@ function validateAdapterTree(tree, path) {
   }
   adapterImportCount = 1;
 
+  const importedBindings = new Map();
+  for (const element of elements.elements) {
+    const symbol = getRequiredSymbol(checker, element.name, path);
+    if (!isChildProcessOrigin(checker, symbol, element.name.text)) {
+      fail(
+        "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+        `${path} child_process import does not resolve to the canonical Node symbol.`
+      );
+    }
+    importedBindings.set(element.name.text, symbol);
+  }
+
+  const runnerSymbols = new Set();
+  const collectRunnerSymbols = node => {
+    if (
+      ts.isBindingElement(node) &&
+      ts.isIdentifier(node.name) &&
+      node.name.text === "execFileImpl"
+    ) {
+      const owner = findAncestor(node, candidate =>
+        ts.isFunctionDeclaration(candidate)
+      );
+      if (
+        [
+          "executeRailwayDeploymentList",
+          "verifyRailwayCliHelpContract",
+        ].includes(owner?.name?.text)
+      ) {
+        runnerSymbols.add(getRequiredSymbol(checker, node.name, path));
+      }
+    }
+    ts.forEachChild(node, collectRunnerSymbols);
+  };
+  collectRunnerSymbols(tree);
+  if (runnerSymbols.size !== 2) {
+    fail(
+      "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+      `${path} must expose exactly two constrained execFile runner bindings.`
+    );
+  }
+
   const visit = node => {
     if (
       ts.isImportDeclaration(node) &&
       node !== exactImports[0] &&
       ts.isStringLiteral(node.moduleSpecifier) &&
-      ["node:child_process", "child_process"].includes(node.moduleSpecifier.text)
+      ["node:child_process", "child_process"].includes(
+        node.moduleSpecifier.text
+      )
     ) {
       fail(
         "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
@@ -802,28 +953,6 @@ function validateAdapterTree(tree, path) {
       );
     }
 
-    if (
-      ts.isBinaryExpression(node) &&
-      isAssignmentOperator(node.operatorToken.kind) &&
-      ts.isIdentifier(node.left) &&
-      importedBindings.has(node.left.text)
-    ) {
-      fail(
-        "CHILD_PROCESS_BINDING_REASSIGNED",
-        `${path} reassigns an imported child_process binding.`
-      );
-    }
-    if (
-      (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
-      ts.isIdentifier(node.operand) &&
-      importedBindings.has(node.operand.text)
-    ) {
-      fail(
-        "CHILD_PROCESS_BINDING_REASSIGNED",
-        `${path} mutates an imported child_process binding.`
-      );
-    }
-
     if (ts.isFunctionDeclaration(node)) {
       const exported = node.modifiers?.some(
         modifier => modifier.kind === ts.SyntaxKind.ExportKeyword
@@ -843,69 +972,18 @@ function validateAdapterTree(tree, path) {
       }
     }
 
-    if (ts.isCallExpression(node)) {
-      if (
-        node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-        (ts.isIdentifier(node.expression) &&
-          ["require", "createRequire", "eval", "Function"].includes(
-            node.expression.text
-          )) ||
-        (ts.isIdentifier(node.expression) &&
-          node.expression.text === "Reflect" )
-      ) {
-        fail(
-          "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
-          `${path} contains unsupported dynamic module loading.`
-        );
-      }
-      if (
-        ts.isIdentifier(node.expression) &&
-        importedBindings.has(node.expression.text)
-      ) {
-        adapterInvocationCount += assertImportedChildProcessCall(node, path);
-      }
-      let indirectProcessCall = null;
-      if (ts.isPropertyAccessExpression(node.expression)) {
-        indirectProcessCall = node.expression.name.text;
-      } else if (
-        ts.isElementAccessExpression(node.expression) &&
-        ts.isStringLiteral(node.expression.argumentExpression)
-      ) {
-        indirectProcessCall = node.expression.argumentExpression.text;
-      }
-      if (indirectProcessCall && CHILD_PROCESS_CALLS.has(indirectProcessCall)) {
-        fail(
-          "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
-          `${path} contains an indirect child_process call.`
-        );
-      }
-      assertAdapterRunnerInvocation(node, path);
-      if (
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === "execFileImpl"
-      ) {
-        runnerInvocationCount += 1;
-      }
-    }
-
-    if (
-      ts.isNewExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === "Function"
-    ) {
-      fail(
-        "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
-        `${path} contains unsupported dynamic code loading.`
-      );
-    }
-
-    if (ts.isIdentifier(node) && importedBindings.has(node.text)) {
+    if (ts.isIdentifier(node)) {
+      const symbol = checker.getSymbolAtLocation(node);
+      const importedName = [...importedBindings].find(
+        ([, bindingSymbol]) => bindingSymbol === symbol
+      )?.[0];
+      const runnerBinding = symbol && runnerSymbols.has(symbol);
       const parent = node.parent;
       const inApprovedImport =
         ts.isImportSpecifier(parent) && parent.name === node && parent.parent === elements;
       const directApprovedCall =
         ts.isCallExpression(parent) && parent.expression === node;
-      if (!inApprovedImport && !directApprovedCall) {
+      if (importedName && !inApprovedImport && !directApprovedCall) {
         if (
           ts.isBinaryExpression(parent) &&
           parent.left === node &&
@@ -920,6 +998,29 @@ function validateAdapterTree(tree, path) {
           "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
           `${path} aliases or indirectly accesses an imported child_process binding.`
         );
+      }
+      if (importedName && directApprovedCall) {
+        adapterInvocationCount += assertImportedChildProcessCall(
+          parent,
+          path,
+          importedName
+        );
+      }
+      if (runnerBinding) {
+        const declarationName =
+          ts.isBindingElement(parent) && parent.name === node;
+        if (!declarationName && !directApprovedCall) {
+          fail(
+            ts.isElementAccessExpression(parent)
+              ? "DYNAMIC_PROTECTED_MEMBER_ACCESS"
+              : "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+            `${path} indirectly accesses a constrained Railway runner.`
+          );
+        }
+        if (directApprovedCall) {
+          assertAdapterRunnerInvocation(parent, path);
+          runnerInvocationCount += 1;
+        }
       }
     }
     ts.forEachChild(node, visit);
@@ -945,8 +1046,8 @@ function parseProductionSource(path, source) {
   );
   if (tree.parseDiagnostics.length > 0) {
     fail(
-      "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
-      `${path} could not be parsed safely.`
+      "TYPECHECKER_SYNTACTIC_DIAGNOSTIC",
+      `${path} has a TypeScript syntactic diagnostic.`
     );
   }
   return tree;
@@ -971,33 +1072,6 @@ function validateNonAdapterTree(tree, path) {
         `${path} imports child_process outside the Railway adapter.`
       );
     }
-    if (ts.isCallExpression(node)) {
-      if (
-        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-        childProcessSpecifier(node.arguments[0])
-      ) {
-        fail(
-          "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER",
-          `${path} dynamically imports child_process outside the Railway adapter.`
-        );
-      }
-      let callName = null;
-      if (ts.isIdentifier(node.expression)) callName = node.expression.text;
-      else if (ts.isPropertyAccessExpression(node.expression)) {
-        callName = node.expression.name.text;
-      } else if (
-        ts.isElementAccessExpression(node.expression) &&
-        ts.isStringLiteral(node.expression.argumentExpression)
-      ) {
-        callName = node.expression.argumentExpression.text;
-      }
-      if (callName && CHILD_PROCESS_CALLS.has(callName)) {
-        fail(
-          "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER",
-          `${path} invokes a process outside the Railway adapter.`
-        );
-      }
-    }
     ts.forEachChild(node, visit);
   };
   visit(tree);
@@ -1006,6 +1080,12 @@ function validateNonAdapterTree(tree, path) {
 function collectStaticRelativeImports(tree, path) {
   const imports = [];
   const visit = node => {
+    if (ts.isImportEqualsDeclaration(node)) {
+      fail(
+        "IMPORT_EQUALS_FORBIDDEN",
+        `${path} uses forbidden ImportEquals module loading.`
+      );
+    }
     if (ts.isCallExpression(node)) {
       const dynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
       const requireCall =
@@ -1036,7 +1116,6 @@ function collectStaticRelativeImports(tree, path) {
         "Function",
         "createRequire",
         "eval",
-        "getBuiltinModule",
         "require",
       ].includes(loaderName);
       if (dynamicImport || unsupportedCall) {
@@ -1067,10 +1146,16 @@ function collectStaticRelativeImports(tree, path) {
         );
       }
       const specifier = node.moduleSpecifier.text;
-      if (specifier === "node:module" && /\bcreateRequire\b/.test(node.getText(tree))) {
+      if (["node:process", "process"].includes(specifier)) {
+        fail(
+          "FORBIDDEN_PROCESS_CAPABILITY_ACCESS",
+          `${path} imports the Node process capability.`
+        );
+      }
+      if (["module", "node:module"].includes(specifier)) {
         fail(
           "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
-          `${path} imports createRequire.`
+          `${path} imports a forbidden Node loader module.`
         );
       }
       if (specifier.startsWith(".")) imports.push(specifier);
@@ -1222,6 +1307,158 @@ async function readProductionFile({
   return readFile(probe.absolutePath, "utf8");
 }
 
+function normalizedFileName(value) {
+  const normalized = resolve(value).replaceAll("\\", "/");
+  return process.platform === "win32" ? normalized.toLowerCase() : normalized;
+}
+
+function findProgramSourceFile(program, absolutePath) {
+  const expected = normalizedFileName(absolutePath);
+  return program
+    .getSourceFiles()
+    .find(sourceFile => normalizedFileName(sourceFile.fileName) === expected);
+}
+
+function findAmbientGlobalSymbol(program, checker, name, filePredicate) {
+  const symbols = new Set();
+  for (const sourceFile of program.getSourceFiles()) {
+    if (!sourceFile.isDeclarationFile || !filePredicate(sourceFile.fileName)) {
+      continue;
+    }
+    const visit = node => {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isIdentifier(node.name) &&
+        node.name.text === name
+      ) {
+        const symbol = checker.getSymbolAtLocation(node.name);
+        if (symbol) symbols.add(symbol);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sourceFile);
+  }
+  if (symbols.size !== 1) {
+    fail(
+      "TYPECHECKER_SYMBOL_RESOLUTION_FAILED",
+      `TypeChecker could not identify the canonical global ${name} symbol.`
+    );
+  }
+  return [...symbols][0];
+}
+
+function resolveIntrinsicGlobalSymbol(program, checker, name) {
+  const location = program
+    .getSourceFiles()
+    .find(sourceFile =>
+      sourceFile.fileName
+        .replaceAll("\\", "/")
+        .endsWith("/typescript/lib/lib.es5.d.ts")
+    );
+  const symbol =
+    location &&
+    checker.resolveName(name, location, ts.SymbolFlags.Value, false);
+  if (!symbol) {
+    fail(
+      "TYPECHECKER_SYMBOL_RESOLUTION_FAILED",
+      `TypeChecker could not identify the intrinsic global ${name} symbol.`
+    );
+  }
+  return symbol;
+}
+
+function createProductionTypeAnalysis(repositoryRoot, sourcePaths) {
+  const rootNames = sourcePaths.map(path =>
+    resolve(repositoryRoot, ...path.split("/"))
+  );
+  const options = {
+    allowJs: true,
+    checkJs: true,
+    forceConsistentCasingInFileNames: true,
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    noEmit: true,
+    skipLibCheck: true,
+    target: ts.ScriptTarget.ESNext,
+    typeRoots: [join(DEFAULT_REPOSITORY_ROOT, "node_modules", "@types")],
+    types: ["node"],
+  };
+  const program = ts.createProgram({ options, rootNames });
+  const optionDiagnostics = [
+    ...program.getOptionsDiagnostics(),
+    ...program.getGlobalDiagnostics(),
+  ];
+  if (optionDiagnostics.length > 0) {
+    fail(
+      "TYPECHECKER_PROGRAM_INVALID",
+      "TypeScript Program options or global types are invalid."
+    );
+  }
+  const checker = program.getTypeChecker();
+  const sourceFiles = new Map();
+  for (const path of sourcePaths) {
+    const sourceFile = findProgramSourceFile(
+      program,
+      resolve(repositoryRoot, ...path.split("/"))
+    );
+    if (!sourceFile) {
+      fail(
+        "TYPECHECKER_SYMBOL_RESOLUTION_FAILED",
+        `${path} is missing from the TypeScript Program.`
+      );
+    }
+    sourceFiles.set(path, sourceFile);
+  }
+  const globalProcessSymbol = findAmbientGlobalSymbol(
+    program,
+    checker,
+    "process",
+    fileName =>
+      fileName.replaceAll("\\", "/").includes("/@types/node/globals.d.ts")
+  );
+  const globalObjectSymbol = findAmbientGlobalSymbol(
+    program,
+    checker,
+    "global",
+    fileName =>
+      fileName.replaceAll("\\", "/").includes("/@types/node/globals.d.ts")
+  );
+  const globalThisSymbol = resolveIntrinsicGlobalSymbol(
+    program,
+    checker,
+    "globalThis"
+  );
+  return {
+    checker,
+    globalObjectSymbol,
+    globalProcessSymbol,
+    globalThisSymbol,
+    options,
+    program,
+    sourceFiles,
+  };
+}
+
+function validateTypeAnalysisDiagnostics({ program, sourceFiles }) {
+  for (const [path, sourceFile] of sourceFiles) {
+    if (program.getSyntacticDiagnostics(sourceFile).length > 0) {
+      fail(
+        "TYPECHECKER_SYNTACTIC_DIAGNOSTIC",
+        `${path} has a TypeScript syntactic diagnostic.`
+      );
+    }
+    const invalidatingDiagnostic = program
+      .getSemanticDiagnostics(sourceFile)
+      .find(diagnostic => SYMBOL_RESOLUTION_DIAGNOSTICS.has(diagnostic.code));
+    if (invalidatingDiagnostic) {
+      fail(
+        "TYPECHECKER_SYMBOL_RESOLUTION_FAILED",
+        `${path} has a semantic diagnostic that invalidates symbol analysis.`
+      );
+    }
+  }
+}
+
 export async function analyzeProductionRailwayBoundary({
   adapterPath = RAILWAY_PROCESS_ADAPTER_PATH,
   repositoryRoot = DEFAULT_REPOSITORY_ROOT,
@@ -1268,15 +1505,20 @@ export async function analyzeProductionRailwayBoundary({
     }
   }
 
+  const typeAnalysis = createProductionTypeAnalysis(
+    repositoryRoot,
+    [...sources.keys()]
+  );
   let adapterImportCount = 0;
   let adapterInvocationCount = 0;
-  for (const [path, entry] of sources) {
+  for (const [path, tree] of typeAnalysis.sourceFiles) {
+    validateProcessCapabilities(tree, path, typeAnalysis);
     if (path === adapterPath) {
-      const result = validateAdapterTree(entry.tree, path);
+      const result = validateAdapterTree(tree, path, typeAnalysis.checker);
       adapterImportCount += result.adapterImportCount;
       adapterInvocationCount += result.adapterInvocationCount;
     } else {
-      validateNonAdapterTree(entry.tree, path);
+      validateNonAdapterTree(tree, path);
     }
   }
   if (!sources.has(adapterPath) || adapterImportCount !== 1) {
@@ -1285,12 +1527,15 @@ export async function analyzeProductionRailwayBoundary({
       "Railway process execution must be owned by exactly one discovered adapter."
     );
   }
+  validateTypeAnalysisDiagnostics(typeAnalysis);
   return {
     adapterImportCount,
     adapterInvocationCount,
     adapterPath,
     entrypoints,
     files: [...sources.keys()].sort(),
+    processProperties: [...ALLOWED_PROCESS_PROPERTIES],
+    typeChecked: true,
   };
 }
 
