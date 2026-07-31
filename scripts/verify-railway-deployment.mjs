@@ -12,6 +12,18 @@ import {
 } from "./verify-production-health.mjs";
 
 const execFileAsync = promisify(execFile);
+const RAILWAY_CLI_EXECUTABLE =
+  process.platform === "win32" && process.env.APPDATA
+    ? join(
+        process.env.APPDATA,
+        "npm",
+        "node_modules",
+        "@railway",
+        "cli",
+        "bin",
+        "railway.exe"
+      )
+    : "railway";
 const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
 const RAILWAY_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -37,32 +49,38 @@ const KNOWN_STATUSES = new Set([
   "SUCCESS",
 ]);
 
-const RAILWAY_CLI_STAGE_FAILURE_CODES = Object.freeze({
-  "context-link": "RAILWAY_CONTEXT_LINK_FAILED",
-  "context-status": "RAILWAY_CONTEXT_STATUS_FAILED",
-  "deployment-list": "RAILWAY_DEPLOYMENT_LIST_FAILED",
-  upload: "RAILWAY_UPLOAD_COMMAND_FAILED",
-});
-
 const AUTH_FAILURE_PATTERNS = [
   /\bunauthorized\b/i,
-  /\bforbidden\b/i,
   /not auth(?:enticated|orized)/i,
   /authentication failed/i,
   /invalid (?:api )?token/i,
   /token (?:is )?(?:invalid|expired)/i,
 ];
 
-const KNOWN_CLI_FAILURE_PATTERNS = [
+const FORBIDDEN_FAILURE_PATTERNS = [
+  /\bforbidden\b/i,
+  /permission denied/i,
+  /insufficient permissions?/i,
+];
+
+const CONTEXT_NOT_FOUND_PATTERNS = [
+  /(?:project|environment|service).{0,40}not found/i,
+  /unknown (?:project|environment|service)/i,
+];
+
+const COMMAND_CONTRACT_FAILURE_PATTERNS = [
   /unexpected argument/i,
   /unknown (?:argument|option)/i,
   /wasn['’]t expected/i,
-  /not linked/i,
-  /no linked project/i,
-  /(?:project|environment|service|workspace).{0,40}not found/i,
-  /all environments.{0,20}restricted/i,
-  /no projects/i,
 ];
+
+const DEPLOYMENT_REGISTRATION_STATES = new Set([
+  "not_attempted",
+  "not_observed",
+  "observed",
+  "ambiguous",
+  "unknown",
+]);
 
 export class RailwayDeploymentError extends Error {
   constructor(code, details = {}) {
@@ -74,7 +92,6 @@ export class RailwayDeploymentError extends Error {
     this.exitCode = Number.isInteger(details.exitCode)
       ? details.exitCode
       : null;
-    this.deploymentCreated = details.deploymentCreated === true;
   }
 }
 
@@ -102,18 +119,49 @@ export function classifyRailwayCliFailure({
   command,
   exitCode,
   stderr,
+  timedOut = false,
 }) {
-  const safeStage = Object.hasOwn(RAILWAY_CLI_STAGE_FAILURE_CODES, stage)
+  const safeStage = ["preflight-list", "post-upload-list", "upload"].includes(
+    stage
+  )
     ? stage
     : "railway-cli";
   const text = safeErrorText(stderr);
   let code = "RAILWAY_CLI_UNKNOWN_FAILURE";
-  if (AUTH_FAILURE_PATTERNS.some(pattern => pattern.test(text))) {
-    code = "RAILWAY_AUTH_FAILED";
-  } else if (KNOWN_CLI_FAILURE_PATTERNS.some(pattern => pattern.test(text))) {
-    code =
-      RAILWAY_CLI_STAGE_FAILURE_CODES[safeStage] ??
-      "RAILWAY_CLI_UNKNOWN_FAILURE";
+  if (safeStage === "preflight-list") {
+    if (timedOut) {
+      code = "RAILWAY_DEPLOYMENT_LIST_TIMEOUT";
+    } else if (AUTH_FAILURE_PATTERNS.some(pattern => pattern.test(text))) {
+      code = "RAILWAY_PREFLIGHT_AUTH_FAILED";
+    } else if (FORBIDDEN_FAILURE_PATTERNS.some(pattern => pattern.test(text))) {
+      code = "RAILWAY_PREFLIGHT_FORBIDDEN";
+    } else if (CONTEXT_NOT_FOUND_PATTERNS.some(pattern => pattern.test(text))) {
+      code = "RAILWAY_PREFLIGHT_CONTEXT_NOT_FOUND";
+    } else if (
+      COMMAND_CONTRACT_FAILURE_PATTERNS.some(pattern => pattern.test(text))
+    ) {
+      code = "RAILWAY_DEPLOYMENT_LIST_COMMAND_FAILED";
+    }
+  } else if (safeStage === "post-upload-list") {
+    if (
+      timedOut ||
+      AUTH_FAILURE_PATTERNS.some(pattern => pattern.test(text)) ||
+      FORBIDDEN_FAILURE_PATTERNS.some(pattern => pattern.test(text)) ||
+      CONTEXT_NOT_FOUND_PATTERNS.some(pattern => pattern.test(text)) ||
+      COMMAND_CONTRACT_FAILURE_PATTERNS.some(pattern => pattern.test(text))
+    ) {
+      code = "RAILWAY_POST_UPLOAD_LIST_FAILED";
+    }
+  } else if (safeStage === "upload") {
+    if (
+      timedOut ||
+      AUTH_FAILURE_PATTERNS.some(pattern => pattern.test(text)) ||
+      FORBIDDEN_FAILURE_PATTERNS.some(pattern => pattern.test(text)) ||
+      CONTEXT_NOT_FOUND_PATTERNS.some(pattern => pattern.test(text)) ||
+      COMMAND_CONTRACT_FAILURE_PATTERNS.some(pattern => pattern.test(text))
+    ) {
+      code = "RAILWAY_UPLOAD_COMMAND_FAILED";
+    }
   }
   return new RailwayDeploymentError(code, {
     stage: safeStage,
@@ -144,30 +192,13 @@ export function validateRailwayContext(context) {
   return normalized;
 }
 
-export function buildRailwayLinkArgs(context) {
-  const validated = validateRailwayContext(context);
-  return [
-    "link",
-    "--project",
-    validated.projectId,
-    "--environment",
-    validated.environmentId,
-    "--service",
-    validated.serviceId,
-    "--json",
-  ];
-}
-
-export function buildRailwayStatusArgs(context) {
-  validateRailwayContext(context);
-  return ["status", "--json"];
-}
-
 export function buildRailwayDeploymentListArgs(context) {
   const validated = validateRailwayContext(context);
   return [
     "deployment",
     "list",
+    "--project",
+    validated.projectId,
     "--service",
     validated.serviceId,
     "--environment",
@@ -191,96 +222,6 @@ export function buildRailwayUploadArgs(context) {
   ];
 }
 
-function parseRailwayJson(stdout, { code, stage, command }) {
-  try {
-    return JSON.parse(stdout);
-  } catch {
-    throw new RailwayDeploymentError(code, { stage, command });
-  }
-}
-
-function contextMatches(actual, expected) {
-  return (
-    actual.projectId === expected.projectId &&
-    actual.environmentId === expected.environmentId &&
-    actual.serviceId === expected.serviceId
-  );
-}
-
-export function validateRailwayLinkOutput(stdout, context) {
-  const expected = validateRailwayContext(context);
-  const payload = parseRailwayJson(stdout, {
-    code: "RAILWAY_CONTEXT_LINK_FAILED",
-    stage: "context-link",
-    command: "link",
-  });
-  const actual = {
-    projectId: payload?.projectId?.toLowerCase?.(),
-    environmentId: payload?.environmentId?.toLowerCase?.(),
-    serviceId: payload?.serviceId?.toLowerCase?.(),
-  };
-  if (!contextMatches(actual, expected)) {
-    throw new RailwayDeploymentError("RAILWAY_CONTEXT_MISMATCH", {
-      stage: "context-link",
-      command: "link",
-    });
-  }
-  return expected;
-}
-
-function edgeNodes(value) {
-  return Array.isArray(value?.edges)
-    ? value.edges.map(edge => edge?.node).filter(Boolean)
-    : [];
-}
-
-export function validateRailwayStatusOutput(stdout, context) {
-  const expected = validateRailwayContext(context);
-  const payload = parseRailwayJson(stdout, {
-    code: "RAILWAY_CONTEXT_STATUS_FAILED",
-    stage: "context-status",
-    command: "status",
-  });
-  const projectId = payload?.id?.toLowerCase?.();
-  const environments = edgeNodes(payload?.environments);
-  const services = edgeNodes(payload?.services);
-  if (!projectId || environments.length === 0 || services.length === 0) {
-    throw new RailwayDeploymentError("RAILWAY_CONTEXT_STATUS_FAILED", {
-      stage: "context-status",
-      command: "status",
-    });
-  }
-  const environment = environments.find(
-    item => item?.id?.toLowerCase?.() === expected.environmentId
-  );
-  const projectHasService = services.some(
-    item => item?.id?.toLowerCase?.() === expected.serviceId
-  );
-  const environmentHasService = edgeNodes(environment?.serviceInstances).some(
-    item =>
-      (
-        item?.serviceId ??
-        item?.service_id ??
-        item?.service?.id
-      )?.toLowerCase?.() === expected.serviceId
-  );
-  const actual = {
-    projectId,
-    environmentId: environment?.id?.toLowerCase?.(),
-    serviceId:
-      projectHasService && environmentHasService
-        ? expected.serviceId
-        : undefined,
-  };
-  if (!contextMatches(actual, expected)) {
-    throw new RailwayDeploymentError("RAILWAY_CONTEXT_MISMATCH", {
-      stage: "context-status",
-      command: "status",
-    });
-  }
-  return expected;
-}
-
 export async function runRailwayCliCommand({
   args,
   stage,
@@ -288,7 +229,7 @@ export async function runRailwayCliCommand({
   execFileImpl = execFileAsync,
 }) {
   try {
-    const { stdout = "" } = await execFileImpl("railway", args, {
+    const { stdout = "" } = await execFileImpl(RAILWAY_CLI_EXECUTABLE, args, {
       encoding: "utf8",
       env: process.env,
       maxBuffer: 2 * 1024 * 1024,
@@ -303,26 +244,60 @@ export async function runRailwayCliCommand({
       command: args[0],
       exitCode: error?.code,
       stderr: error?.stderr,
+      timedOut:
+        error?.code === "ETIMEDOUT" ||
+        (error?.killed === true && error?.signal === "SIGTERM"),
     });
   }
 }
 
-export async function prepareRailwayCliContext(
-  context,
-  { runCommand = runRailwayCliCommand } = {}
-) {
-  const expected = validateRailwayContext(context);
-  const linkOutput = await runCommand({
-    args: buildRailwayLinkArgs(expected),
-    stage: "context-link",
-  });
-  validateRailwayLinkOutput(linkOutput, expected);
-  const statusOutput = await runCommand({
-    args: buildRailwayStatusArgs(expected),
-    stage: "context-status",
-  });
-  validateRailwayStatusOutput(statusOutput, expected);
-  return expected;
+export async function verifyRailwayCliHelpContract({
+  execFileImpl = execFileAsync,
+} = {}) {
+  const runHelp = async args => {
+    try {
+      const { stdout = "" } = await execFileImpl(RAILWAY_CLI_EXECUTABLE, args, {
+        encoding: "utf8",
+        env: process.env,
+        maxBuffer: 2 * 1024 * 1024,
+        shell: false,
+        timeout: 30_000,
+        windowsHide: true,
+      });
+      return stdout;
+    } catch (error) {
+      throw new RailwayDeploymentError("RAILWAY_CLI_CONTRACT_UNAVAILABLE", {
+        stage: "cli-contract",
+        command: args[0] ?? "version",
+        exitCode: error?.code,
+      });
+    }
+  };
+
+  const [versionOutput, deploymentListHelp, uploadHelp] = await Promise.all([
+    runHelp(["--version"]),
+    runHelp(["deployment", "list", "--help"]),
+    runHelp(["up", "--help"]),
+  ]);
+  const versionMatches = /^railway 5\.28\.0\s*$/m.test(versionOutput);
+  const listOptionsPresent = [
+    "--project",
+    "--service",
+    "--environment",
+    "--limit",
+    "--json",
+  ].every(option => deploymentListHelp.includes(option));
+  const uploadOptionsPresent = [
+    "--project",
+    "--service",
+    "--environment",
+  ].every(option => uploadHelp.includes(option));
+  if (!versionMatches || !listOptionsPresent || !uploadOptionsPresent) {
+    throw new RailwayDeploymentError("RAILWAY_CLI_CONTRACT_MISMATCH", {
+      stage: "cli-contract",
+    });
+  }
+  return { version: "5.28.0", listOptionsPresent, uploadOptionsPresent };
 }
 
 function sameContext(left, right) {
@@ -422,6 +397,23 @@ export function shouldSkipDeployment({ before, candidateHealthMatches }) {
   );
 }
 
+export function createRailwayDeploymentState() {
+  return {
+    uploadAttempted: false,
+    uploadCommandCompleted: false,
+    uploadExitCodeKnown: false,
+    deploymentRegistration: "not_attempted",
+    trackedDeploymentIdPresent: false,
+  };
+}
+
+function setDeploymentRegistration(state, value) {
+  if (!DEPLOYMENT_REGISTRATION_STATES.has(value)) {
+    throw new RailwayDeploymentError("INVALID_DEPLOYMENT_REGISTRATION_STATE");
+  }
+  state.deploymentRegistration = value;
+}
+
 export async function pollTrackedDeployment({
   deploymentId,
   expectedContext,
@@ -434,7 +426,7 @@ export async function pollTrackedDeployment({
     throw new RailwayDeploymentError("INVALID_POLL_ATTEMPTS");
   }
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
-    const snapshot = await fetchSnapshot();
+    const snapshot = await fetchSnapshot("post-upload");
     if (
       expectedContext &&
       !sameContext(validateRailwayContext(expectedContext), snapshot.context)
@@ -464,7 +456,7 @@ export async function executeRailwayDeploymentGate({
   upload,
   checkCandidateHealth,
   verifyStableHealth,
-  onDeploymentTracked = () => {},
+  deploymentState = createRailwayDeploymentState(),
   now = () => new Date().toISOString(),
   sleep = delay => new Promise(resolve => setTimeout(resolve, delay)),
   registrationAttempts = 6,
@@ -478,7 +470,7 @@ export async function executeRailwayDeploymentGate({
   ) {
     throw new RailwayDeploymentError("INVALID_CANDIDATE_SHA");
   }
-  const before = await fetchSnapshot();
+  const before = await fetchSnapshot("preflight");
   let candidateHealthMatches = false;
   try {
     await checkCandidateHealth(candidateSha);
@@ -497,7 +489,22 @@ export async function executeRailwayDeploymentGate({
   }
 
   const deploymentStartedAt = now();
-  const uploadResult = await upload();
+  deploymentState.uploadAttempted = true;
+  setDeploymentRegistration(deploymentState, "unknown");
+  let uploadResult;
+  try {
+    uploadResult = await upload();
+    deploymentState.uploadCommandCompleted = true;
+    deploymentState.uploadExitCodeKnown = Number.isInteger(
+      uploadResult?.exitCode
+    );
+  } catch (error) {
+    if (Number.isInteger(error?.exitCode)) {
+      deploymentState.uploadCommandCompleted = true;
+      deploymentState.uploadExitCodeKnown = true;
+    }
+    throw error;
+  }
   if (uploadResult?.exitCode !== 0) {
     throw new RailwayDeploymentError("RAILWAY_UPLOAD_COMMAND_FAILED", {
       stage: "upload",
@@ -508,24 +515,42 @@ export async function executeRailwayDeploymentGate({
   let resolved;
   let lastResolutionError;
   for (let attempt = 1; attempt <= registrationAttempts; attempt += 1) {
-    const after = await fetchSnapshot();
+    setDeploymentRegistration(deploymentState, "unknown");
+    const after = await fetchSnapshot("post-upload");
     try {
       resolved = resolveNewDeployment({ before, after, deploymentStartedAt });
+      setDeploymentRegistration(deploymentState, "observed");
+      deploymentState.trackedDeploymentIdPresent = true;
       break;
     } catch (error) {
-      lastResolutionError = error;
       if (
-        !(error instanceof RailwayDeploymentError) ||
-        error.code !== "NEW_DEPLOYMENT_NOT_FOUND" ||
-        attempt === registrationAttempts
+        error instanceof RailwayDeploymentError &&
+        error.code === "NEW_DEPLOYMENT_NOT_FOUND"
       ) {
+        setDeploymentRegistration(deploymentState, "not_observed");
+        lastResolutionError = new RailwayDeploymentError(
+          "RAILWAY_POST_UPLOAD_REGISTRATION_UNKNOWN",
+          { stage: "post-upload-registration", command: "deployment" }
+        );
+        if (attempt < registrationAttempts && registrationIntervalMs > 0) {
+          await sleep(registrationIntervalMs);
+        }
+        continue;
+      } else if (
+        error instanceof RailwayDeploymentError &&
+        error.code === "AMBIGUOUS_NEW_DEPLOYMENTS"
+      ) {
+        setDeploymentRegistration(deploymentState, "ambiguous");
+        throw new RailwayDeploymentError(
+          "RAILWAY_POST_UPLOAD_REGISTRATION_UNKNOWN",
+          { stage: "post-upload-registration", command: "deployment" }
+        );
+      } else {
         throw error;
       }
-      if (registrationIntervalMs > 0) await sleep(registrationIntervalMs);
     }
   }
   if (!resolved) throw lastResolutionError;
-  onDeploymentTracked(resolved.id);
 
   const tracked = await pollTrackedDeployment({
     deploymentId: resolved.id,
@@ -545,26 +570,53 @@ export async function executeRailwayDeploymentGate({
 
 export async function listDeploymentsFromCli(
   context,
-  { runCommand = runRailwayCliCommand } = {}
+  {
+    phase = "preflight",
+    runCommand = runRailwayCliCommand,
+    capturedAt = new Date().toISOString(),
+  } = {}
 ) {
+  const isPreflight = phase === "preflight";
+  if (!isPreflight && phase !== "post-upload") {
+    throw new RailwayDeploymentError("INVALID_DEPLOYMENT_LIST_PHASE");
+  }
+  const stage = isPreflight ? "preflight-list" : "post-upload-list";
   const stdout = await runCommand({
     args: buildRailwayDeploymentListArgs(context),
-    stage: "deployment-list",
+    stage,
   });
   let deployments;
   try {
     deployments = JSON.parse(stdout);
   } catch {
-    throw new RailwayDeploymentError("RAILWAY_DEPLOYMENT_LIST_INVALID_JSON", {
-      stage: "deployment-list",
-      command: "deployment",
-    });
+    throw new RailwayDeploymentError(
+      isPreflight
+        ? "RAILWAY_DEPLOYMENT_LIST_INVALID_JSON"
+        : "RAILWAY_POST_UPLOAD_LIST_FAILED",
+      {
+        stage,
+        command: "deployment",
+      }
+    );
   }
-  return createDeploymentSnapshot({
-    deployments,
-    context,
-    capturedAt: new Date().toISOString(),
-  });
+  try {
+    return createDeploymentSnapshot({
+      deployments,
+      context,
+      capturedAt,
+    });
+  } catch (error) {
+    throw new RailwayDeploymentError(
+      isPreflight
+        ? "RAILWAY_DEPLOYMENT_LIST_INVALID_SCHEMA"
+        : "RAILWAY_POST_UPLOAD_LIST_FAILED",
+      {
+        stage,
+        command: "deployment",
+        exitCode: error?.exitCode,
+      }
+    );
+  }
 }
 
 async function uploadExactCheckout(context) {
@@ -577,12 +629,16 @@ async function uploadExactCheckout(context) {
   let spawnError;
   try {
     exitCode = await new Promise((resolve, reject) => {
-      const child = spawn("railway", buildRailwayUploadArgs(context), {
-        env: process.env,
-        shell: false,
-        stdio: ["ignore", stdout, stderr],
-        timeout: 20 * 60 * 1000,
-      });
+      const child = spawn(
+        RAILWAY_CLI_EXECUTABLE,
+        buildRailwayUploadArgs(context),
+        {
+          env: process.env,
+          shell: false,
+          stdio: ["ignore", stdout, stderr],
+          timeout: 20 * 60 * 1000,
+        }
+      );
       child.once("error", reject);
       child.once("close", code => resolve(code));
     });
@@ -642,22 +698,21 @@ export function validateRailwayAuthenticationEnvironment(environment) {
 export async function executeRailwayCliDeploymentGate({
   context,
   candidateSha,
-  prepareContext = prepareRailwayCliContext,
   fetchSnapshot,
   upload,
   checkCandidateHealth,
   verifyStableHealth,
-  onDeploymentTracked,
+  deploymentState,
   ...options
 }) {
-  const expectedContext = await prepareContext(context);
+  const expectedContext = validateRailwayContext(context);
   return executeRailwayDeploymentGate({
     candidateSha,
-    fetchSnapshot: () => fetchSnapshot(expectedContext),
+    fetchSnapshot: phase => fetchSnapshot(expectedContext, phase),
     upload: () => upload(expectedContext),
     checkCandidateHealth,
     verifyStableHealth,
-    onDeploymentTracked,
+    deploymentState,
     ...options,
   });
 }
@@ -665,8 +720,13 @@ export async function executeRailwayCliDeploymentGate({
 export function createRailwayFailureDiagnostic({
   error,
   candidateSha,
-  deploymentCreated = false,
+  deploymentState = createRailwayDeploymentState(),
 }) {
+  const registration = DEPLOYMENT_REGISTRATION_STATES.has(
+    deploymentState?.deploymentRegistration
+  )
+    ? deploymentState.deploymentRegistration
+    : "unknown";
   return {
     stage: typeof error?.stage === "string" ? error.stage : "deployment-gate",
     code:
@@ -676,8 +736,12 @@ export function createRailwayFailureDiagnostic({
         : "RAILWAY_CLI_UNKNOWN_FAILURE",
     exitCode: Number.isInteger(error?.exitCode) ? error.exitCode : null,
     candidateSha: FULL_SHA_PATTERN.test(candidateSha) ? candidateSha : null,
-    deploymentCreated:
-      deploymentCreated === true || error?.deploymentCreated === true,
+    uploadAttempted: deploymentState?.uploadAttempted === true,
+    uploadCommandCompleted: deploymentState?.uploadCommandCompleted === true,
+    uploadExitCodeKnown: deploymentState?.uploadExitCodeKnown === true,
+    deploymentRegistration: registration,
+    trackedDeploymentIdPresent:
+      deploymentState?.trackedDeploymentIdPresent === true,
   };
 }
 
@@ -692,7 +756,7 @@ export async function writeRailwayFailureDiagnostic(path, diagnostic) {
 
 async function runCli() {
   const candidateSha = process.env.EXPECTED_COMMIT_SHA;
-  let deploymentCreated = false;
+  const deploymentState = createRailwayDeploymentState();
   try {
     if (process.env.RAILWAY_PRE_DEPLOY_VERIFIED !== "true") {
       throw new RailwayDeploymentError("PRE_DEPLOY_NOT_VERIFIED", {
@@ -708,14 +772,13 @@ async function runCli() {
     const result = await executeRailwayCliDeploymentGate({
       context,
       candidateSha,
-      fetchSnapshot: expectedContext => listDeploymentsFromCli(expectedContext),
+      deploymentState,
+      fetchSnapshot: (expectedContext, phase) =>
+        listDeploymentsFromCli(expectedContext, { phase }),
       upload: expectedContext => uploadExactCheckout(expectedContext),
       checkCandidateHealth: expectedSha =>
         verifyProductionHealthOnce({ expectedSha }),
       verifyStableHealth: expectedSha => pollProductionHealth({ expectedSha }),
-      onDeploymentTracked: () => {
-        deploymentCreated = true;
-      },
       sleep: delay => new Promise(resolve => setTimeout(resolve, delay)),
     });
     console.log(JSON.stringify({ ok: true, ...result }));
@@ -723,7 +786,7 @@ async function runCli() {
     const diagnostic = createRailwayFailureDiagnostic({
       error,
       candidateSha,
-      deploymentCreated,
+      deploymentState,
     });
     await writeRailwayFailureDiagnostic(
       process.env.RAILWAY_DEPLOY_DIAGNOSTIC_PATH,
