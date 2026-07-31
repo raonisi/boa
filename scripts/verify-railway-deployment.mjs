@@ -28,6 +28,17 @@ const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
 const RAILWAY_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const RAILWAY_PRODUCTION_COMMANDS = Object.freeze({
+  deploymentList: Object.freeze({
+    command: "railway",
+    subcommands: Object.freeze(["deployment", "list"]),
+  }),
+  upload: Object.freeze({
+    command: "railway",
+    subcommands: Object.freeze(["up"]),
+  }),
+});
+
 export const PROGRESS_DEPLOYMENT_STATUSES = Object.freeze([
   "INITIALIZING",
   "QUEUED",
@@ -195,8 +206,7 @@ export function validateRailwayContext(context) {
 export function buildRailwayDeploymentListArgs(context) {
   const validated = validateRailwayContext(context);
   return [
-    "deployment",
-    "list",
+    ...RAILWAY_PRODUCTION_COMMANDS.deploymentList.subcommands,
     "--project",
     validated.projectId,
     "--service",
@@ -212,7 +222,7 @@ export function buildRailwayDeploymentListArgs(context) {
 export function buildRailwayUploadArgs(context) {
   const validated = validateRailwayContext(context);
   return [
-    "up",
+    ...RAILWAY_PRODUCTION_COMMANDS.upload.subcommands,
     "--project",
     validated.projectId,
     "--service",
