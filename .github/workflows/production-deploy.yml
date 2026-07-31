@@ -145,8 +145,10 @@ jobs:
       - name: Install pinned Railway CLI
         run: npm install --global @railway/cli@5.28.0
       - name: Deploy and verify the exact Railway deployment
+        id: railway-deploy
         env:
           GH_TOKEN: ${{ github.token }}
+          RAILWAY_DEPLOY_DIAGNOSTIC_PATH: ${{ runner.temp }}/railway-deploy-diagnostic.json
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           REPOSITORY: ${{ github.repository }}
         shell: bash
@@ -158,3 +160,11 @@ jobs:
             exit 1
           fi
           node scripts/verify-railway-deployment.mjs
+      - name: Upload sanitized Railway failure diagnostic
+        if: ${{ failure() && steps.railway-deploy.outcome == 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: railway-deploy-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/railway-deploy-diagnostic.json
+          if-no-files-found: error
+          retention-days: 1
