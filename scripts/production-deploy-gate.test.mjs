@@ -21,12 +21,26 @@ import {
   verifyReleaseIdentity,
 } from "./stamp-release-identity.mjs";
 import {
+  buildRailwayDeploymentListArgs,
+  buildRailwayLinkArgs,
+  buildRailwayStatusArgs,
+  buildRailwayUploadArgs,
+  classifyRailwayCliFailure,
   createDeploymentSnapshot,
+  createRailwayFailureDiagnostic,
+  executeRailwayCliDeploymentGate,
   executeRailwayDeploymentGate,
+  listDeploymentsFromCli,
   pollTrackedDeployment,
+  prepareRailwayCliContext,
   RailwayDeploymentError,
   resolveNewDeployment,
+  runRailwayCliCommand,
   shouldSkipDeployment,
+  validateRailwayAuthenticationEnvironment,
+  validateRailwayLinkOutput,
+  validateRailwayStatusOutput,
+  writeRailwayFailureDiagnostic,
 } from "./verify-railway-deployment.mjs";
 import {
   ProductionWorkflowRatchetError,
@@ -450,6 +464,275 @@ function snapshot(
   return createDeploymentSnapshot({ deployments, capturedAt, context });
 }
 
+function railwayLinkOutput(context = RAILWAY_CONTEXT) {
+  return JSON.stringify({
+    projectId: context.projectId,
+    projectName: "fixture-project",
+    environmentId: context.environmentId,
+    environmentName: "production",
+    serviceId: context.serviceId,
+    serviceName: "fixture-service",
+  });
+}
+
+function railwayStatusOutput(context = RAILWAY_CONTEXT) {
+  return JSON.stringify({
+    id: context.projectId,
+    environments: {
+      edges: [
+        {
+          node: {
+            id: context.environmentId,
+            serviceInstances: {
+              edges: [{ node: { serviceId: context.serviceId } }],
+            },
+          },
+        },
+      ],
+    },
+    services: { edges: [{ node: { id: context.serviceId } }] },
+  });
+}
+
+test("Railway CLI argument contracts keep one allowlisted context", () => {
+  assert.deepEqual(buildRailwayLinkArgs(RAILWAY_CONTEXT), [
+    "link",
+    "--project",
+    RAILWAY_ID,
+    "--environment",
+    ENVIRONMENT_ID,
+    "--service",
+    SERVICE_ID,
+    "--json",
+  ]);
+  assert.deepEqual(buildRailwayStatusArgs(RAILWAY_CONTEXT), [
+    "status",
+    "--json",
+  ]);
+  const listArgs = buildRailwayDeploymentListArgs(RAILWAY_CONTEXT);
+  assert.deepEqual(listArgs, [
+    "deployment",
+    "list",
+    "--service",
+    SERVICE_ID,
+    "--environment",
+    ENVIRONMENT_ID,
+    "--limit",
+    "100",
+    "--json",
+  ]);
+  assert.equal(listArgs.includes("--project"), false);
+  assert.deepEqual(buildRailwayUploadArgs(RAILWAY_CONTEXT), [
+    "up",
+    "--project",
+    RAILWAY_ID,
+    "--service",
+    SERVICE_ID,
+    "--environment",
+    ENVIRONMENT_ID,
+  ]);
+});
+
+test("Railway CLI commands use argument arrays with shell disabled", async () => {
+  let invocation;
+  const args = buildRailwayLinkArgs(RAILWAY_CONTEXT);
+  const stdout = await runRailwayCliCommand({
+    args,
+    stage: "context-link",
+    execFileImpl: async (file, receivedArgs, options) => {
+      invocation = { file, receivedArgs, options };
+      return { stdout: railwayLinkOutput() };
+    },
+  });
+  assert.equal(stdout, railwayLinkOutput());
+  assert.equal(invocation.file, "railway");
+  assert.deepEqual(invocation.receivedArgs, args);
+  assert.equal(invocation.options.shell, false);
+  assert.equal(
+    invocation.receivedArgs.some(value => /token/i.test(value)),
+    false
+  );
+});
+
+test("linked Railway context is verified before deployment access", async () => {
+  const calls = [];
+  const result = await prepareRailwayCliContext(RAILWAY_CONTEXT, {
+    runCommand: async input => {
+      calls.push(input);
+      return input.stage === "context-link"
+        ? railwayLinkOutput()
+        : railwayStatusOutput();
+    },
+  });
+  assert.deepEqual(result, RAILWAY_CONTEXT);
+  assert.deepEqual(
+    calls.map(call => call.stage),
+    ["context-link", "context-status"]
+  );
+  assert.equal(calls[1].args.includes("--project"), false);
+});
+
+test("Railway link output rejects a different allowlisted UUID", () => {
+  assert.throws(
+    () =>
+      validateRailwayLinkOutput(
+        railwayLinkOutput({ ...RAILWAY_CONTEXT, projectId: DEPLOYMENT_A }),
+        RAILWAY_CONTEXT
+      ),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "RAILWAY_CONTEXT_MISMATCH"
+  );
+});
+
+for (const [name, context] of [
+  ["project", { ...RAILWAY_CONTEXT, projectId: DEPLOYMENT_A }],
+  ["environment", { ...RAILWAY_CONTEXT, environmentId: DEPLOYMENT_A }],
+  ["service", { ...RAILWAY_CONTEXT, serviceId: DEPLOYMENT_A }],
+]) {
+  test(`Railway status rejects the wrong ${name} UUID`, () => {
+    assert.throws(
+      () =>
+        validateRailwayStatusOutput(
+          railwayStatusOutput(context),
+          RAILWAY_CONTEXT
+        ),
+      error =>
+        error instanceof RailwayDeploymentError &&
+        error.code === "RAILWAY_CONTEXT_MISMATCH"
+    );
+  });
+}
+
+test("Railway authentication requires only the project token", () => {
+  assert.doesNotThrow(() =>
+    validateRailwayAuthenticationEnvironment({ RAILWAY_TOKEN: "present" })
+  );
+  assert.throws(
+    () => validateRailwayAuthenticationEnvironment({}),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "RAILWAY_TOKEN_MISSING"
+  );
+  assert.throws(
+    () =>
+      validateRailwayAuthenticationEnvironment({
+        RAILWAY_TOKEN: "present",
+        RAILWAY_API_TOKEN: "also-present",
+      }),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "RAILWAY_AUTH_FAILED"
+  );
+});
+
+test("Railway CLI failure classification only emits allowlisted details", () => {
+  const secret = "railway-secret-value";
+  const authError = classifyRailwayCliFailure({
+    stage: "deployment-list",
+    command: "deployment",
+    exitCode: 1,
+    stderr: `Unauthorized: token ${secret}`,
+  });
+  assert.equal(authError.code, "RAILWAY_AUTH_FAILED");
+  const unsupportedFlag = classifyRailwayCliFailure({
+    stage: "deployment-list",
+    command: "deployment",
+    exitCode: 2,
+    stderr: "unexpected argument '--project'",
+  });
+  assert.equal(unsupportedFlag.code, "RAILWAY_DEPLOYMENT_LIST_FAILED");
+  const unknown = classifyRailwayCliFailure({
+    stage: "deployment-list",
+    command: "deployment",
+    exitCode: 1,
+    stderr: `opaque failure ${secret}`,
+  });
+  assert.equal(unknown.code, "RAILWAY_CLI_UNKNOWN_FAILURE");
+  assert.doesNotMatch(JSON.stringify(authError), new RegExp(secret));
+});
+
+test("deployment list accepts normal and empty JSON but rejects malformed output", async () => {
+  const populated = await listDeploymentsFromCli(RAILWAY_CONTEXT, {
+    runCommand: async () =>
+      JSON.stringify([deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)]),
+  });
+  assert.equal(populated.deployments.length, 1);
+  const empty = await listDeploymentsFromCli(RAILWAY_CONTEXT, {
+    runCommand: async () => "[]",
+  });
+  assert.deepEqual(empty.deployments, []);
+  await assert.rejects(
+    listDeploymentsFromCli(RAILWAY_CONTEXT, {
+      runCommand: async () => "not-json",
+    }),
+    error =>
+      error instanceof RailwayDeploymentError &&
+      error.code === "RAILWAY_DEPLOYMENT_LIST_INVALID_JSON"
+  );
+});
+
+for (const [name, code] of [
+  ["link", "RAILWAY_CONTEXT_LINK_FAILED"],
+  ["status", "RAILWAY_CONTEXT_STATUS_FAILED"],
+  ["mismatch", "RAILWAY_CONTEXT_MISMATCH"],
+]) {
+  test(`${name} preflight failure prevents every upload`, async () => {
+    let uploaded = false;
+    await assert.rejects(
+      executeRailwayCliDeploymentGate({
+        context: RAILWAY_CONTEXT,
+        candidateSha: SHA_A,
+        prepareContext: async () => {
+          throw new RailwayDeploymentError(code, { stage: `context-${name}` });
+        },
+        fetchSnapshot: async () => snapshot([]),
+        upload: async () => {
+          uploaded = true;
+          return { exitCode: 0 };
+        },
+        checkCandidateHealth: async () => {},
+        verifyStableHealth: async () => {},
+      }),
+      error => error instanceof RailwayDeploymentError && error.code === code
+    );
+    assert.equal(uploaded, false);
+  });
+}
+
+test("sanitized Railway diagnostic excludes stderr and token text", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "boa-railway-diagnostic-"));
+  const outputPath = join(directory, "diagnostic.json");
+  const secret = "railway-secret-value";
+  try {
+    const error = classifyRailwayCliFailure({
+      stage: "deployment-list",
+      command: "deployment",
+      exitCode: 1,
+      stderr: `Forbidden ${secret}`,
+    });
+    const diagnostic = createRailwayFailureDiagnostic({
+      error,
+      candidateSha: SHA_A,
+      deploymentCreated: false,
+    });
+    await writeRailwayFailureDiagnostic(outputPath, diagnostic);
+    const serialized = await readFile(outputPath, "utf8");
+    assert.deepEqual(JSON.parse(serialized), {
+      stage: "deployment-list",
+      code: "RAILWAY_AUTH_FAILED",
+      exitCode: 1,
+      candidateSha: SHA_A,
+      deploymentCreated: false,
+    });
+    assert.doesNotMatch(serialized, new RegExp(secret));
+    assert.doesNotMatch(serialized, /Forbidden/);
+    assert.doesNotMatch(serialized, /stderr/);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("deployment resolver selects exactly one new scoped deployment", () => {
   const before = snapshot(
     [deployment(DEPLOYMENT_A, "SUCCESS", OLD_TIME)],
@@ -497,7 +780,11 @@ for (const [name, afterDeployments, code] of [
     const after = snapshot(afterDeployments);
     assert.throws(
       () =>
-        resolveNewDeployment({ before, after, deploymentStartedAt: START_TIME }),
+        resolveNewDeployment({
+          before,
+          after,
+          deploymentStartedAt: START_TIME,
+        }),
       error => error instanceof RailwayDeploymentError && error.code === code
     );
   });
@@ -509,10 +796,18 @@ test("deployment resolver rejects another service or environment context", () =>
     { ...RAILWAY_CONTEXT, serviceId: DEPLOYMENT_A },
     { ...RAILWAY_CONTEXT, environmentId: DEPLOYMENT_A },
   ]) {
-    const after = snapshot([deployment(DEPLOYMENT_B, "BUILDING")], AFTER_TIME, context);
+    const after = snapshot(
+      [deployment(DEPLOYMENT_B, "BUILDING")],
+      AFTER_TIME,
+      context
+    );
     assert.throws(
       () =>
-        resolveNewDeployment({ before, after, deploymentStartedAt: START_TIME }),
+        resolveNewDeployment({
+          before,
+          after,
+          deploymentStartedAt: START_TIME,
+        }),
       error =>
         error instanceof RailwayDeploymentError &&
         error.code === "DEPLOYMENT_CONTEXT_MISMATCH"
@@ -584,11 +879,10 @@ test("deployment polling times out and revalidates context", async () => {
       deploymentId: DEPLOYMENT_B,
       expectedContext: RAILWAY_CONTEXT,
       fetchSnapshot: async () =>
-        snapshot(
-          [deployment(DEPLOYMENT_B, "SUCCESS")],
-          AFTER_TIME,
-          { ...RAILWAY_CONTEXT, serviceId: DEPLOYMENT_A }
-        ),
+        snapshot([deployment(DEPLOYMENT_B, "SUCCESS")], AFTER_TIME, {
+          ...RAILWAY_CONTEXT,
+          serviceId: DEPLOYMENT_A,
+        }),
       attempts: 1,
       intervalMs: 0,
     }),
@@ -711,13 +1005,9 @@ test("a failed previous deployment with candidate not live allows one retry", as
   assert.equal(uploadCount, 1);
 });
 
-test("deployment or migration failure prevents health verification", async () => {
+test("upload command failure prevents deployment polling and health verification", async () => {
   let stableHealthCalled = false;
-  const snapshots = [
-    snapshot([], BEFORE_TIME),
-    snapshot([deployment(DEPLOYMENT_B, "FAILED")]),
-    snapshot([deployment(DEPLOYMENT_B, "FAILED")]),
-  ];
+  const snapshots = [snapshot([], BEFORE_TIME)];
   await assert.rejects(
     executeRailwayDeploymentGate({
       candidateSha: SHA_A,
@@ -736,8 +1026,9 @@ test("deployment or migration failure prevents health verification", async () =>
     }),
     error =>
       error instanceof RailwayDeploymentError &&
-      error.code === "DEPLOYMENT_TERMINAL_FAILURE:FAILED"
+      error.code === "RAILWAY_UPLOAD_COMMAND_FAILED"
   );
+  assert.equal(snapshots.length, 0);
   assert.equal(stableHealthCalled, false);
 });
 
@@ -858,10 +1149,10 @@ test("all current production workflow external actions use immutable refs", asyn
     "utf8"
   );
   const result = validateProductionWorkflowActions(workflow);
-  assert.equal(result.externalActions.length, 4);
+  assert.equal(result.externalActions.length, 5);
   assert.deepEqual(
     [...new Set(result.externalActions.map(action => action.action))].sort(),
-    ["actions/checkout", "actions/setup-node"]
+    ["actions/checkout", "actions/setup-node", "actions/upload-artifact"]
   );
   assert.ok(
     result.externalActions.every(action => /^[0-9a-f]{40}$/.test(action.ref))
@@ -881,7 +1172,7 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
   assert.deepEqual(ratchets.triggers.triggerKeys, ["workflow_run"]);
   assert.deepEqual(ratchets.triggers.workflowRun.workflows, ["Quality Gate"]);
   assert.deepEqual(ratchets.triggers.workflowRun.types, ["completed"]);
-  assert.equal(ratchets.actions.externalActions.length, 4);
+  assert.equal(ratchets.actions.externalActions.length, 5);
   assert.match(workflow, /group: boa-production-deploy/);
   assert.match(workflow, /cancel-in-progress: false/);
   assert.match(workflow, /contents: read/);
@@ -901,10 +1192,21 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
   assert.match(workflow, /@railway\/cli@5\.28\.0/);
   assert.match(workflow, /stamp-release-identity\.mjs/);
   assert.match(workflow, /verify-railway-deployment\.mjs/);
+  assert.match(workflow, /railway-deploy-diagnostic\.json/);
+  assert.match(workflow, /retention-days: 1/);
+  assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}/);
   assert.doesNotMatch(workflow, /railway up --ci|railway up --json/);
   assert.doesNotMatch(workflow, /railway variable set/);
   assert.doesNotMatch(railwayHelper, /"up"[\s\S]{0,300}"--ci"/);
   assert.doesNotMatch(railwayHelper, /"up"[\s\S]{0,300}"--json"/);
+  assert.match(railwayHelper, /"link"[\s\S]{0,300}"--project"/);
+  const deploymentListBuilder = railwayHelper.slice(
+    railwayHelper.indexOf("export function buildRailwayDeploymentListArgs"),
+    railwayHelper.indexOf("export function buildRailwayUploadArgs")
+  );
+  assert.doesNotMatch(deploymentListBuilder, /"--project"/);
+  assert.match(railwayHelper, /shell: false/);
+  assert.doesNotMatch(railwayHelper, /console\.(?:error|log)\([^\n]*stderr/);
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.doesNotMatch(workflow, /\|\| true/);
   assert.doesNotMatch(workflow, /pnpm db:migrate/);
