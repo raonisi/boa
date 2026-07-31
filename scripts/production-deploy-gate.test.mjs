@@ -3,7 +3,12 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import ts from "typescript";
+import {
+  buildRailwayCommand,
+  executeRailwayDeploymentList,
+  RAILWAY_COMMAND_MANIFEST,
+  RailwayCommandAdapterError,
+} from "./railway-command-adapter.mjs";
 import {
   REQUIRED_QUALITY_JOBS,
   evaluateProductionDeployEligibility,
@@ -32,10 +37,8 @@ import {
   executeRailwayDeploymentGate,
   listDeploymentsFromCli,
   pollTrackedDeployment,
-  RAILWAY_PRODUCTION_COMMANDS,
   RailwayDeploymentError,
   resolveNewDeployment,
-  runRailwayCliCommand,
   shouldSkipDeployment,
   validateRailwayAuthenticationEnvironment,
   verifyRailwayCliHelpContract,
@@ -43,9 +46,12 @@ import {
 } from "./verify-railway-deployment.mjs";
 import {
   ProductionWorkflowRatchetError,
+  RAILWAY_PROCESS_ADAPTER_PATH,
   validateProductionWorkflowActions,
+  validateProductionWorkflowRailwayCommands,
   validateProductionWorkflowRatchets,
   validateProductionWorkflowTriggers,
+  validateRailwayProcessBoundary,
 } from "./verify-production-workflow-ratchets.mjs";
 
 const SHA_A = "a".repeat(40);
@@ -63,128 +69,6 @@ const RAILWAY_CONTEXT = Object.freeze({
   environmentId: ENVIRONMENT_ID,
 });
 const PINNED_ACTION = `owner/action@${SHA_A}`;
-
-function validateRailwayCommandStructure({ args, source, kind = "args" }) {
-  const allowed = new Set(
-    Object.values(RAILWAY_PRODUCTION_COMMANDS).map(command =>
-      command.subcommands.join(" ")
-    )
-  );
-  const validate = signature => {
-    if (!allowed.has(signature)) {
-      throw new ProductionWorkflowRatchetError(
-        "UNSUPPORTED_RAILWAY_COMMAND",
-        `Railway command is not allowlisted: ${signature || "<empty>"}`
-      );
-    }
-    return signature;
-  };
-  const signatureFor = commandArgs =>
-    commandArgs[0] === "deployment"
-      ? commandArgs.slice(0, 2).join(" ")
-      : (commandArgs[0] ?? "");
-
-  if (kind === "args") {
-    return validate(signatureFor(args ?? []));
-  }
-
-  if (typeof source !== "string") {
-    throw new ProductionWorkflowRatchetError(
-      "INVALID_RAILWAY_COMMAND_SOURCE",
-      "Railway command source must be a string."
-    );
-  }
-
-  if (kind === "workflow") {
-    const signatures = [];
-    let blockIndent = null;
-    for (const rawLine of source.split(/\r?\n/)) {
-      if (!rawLine.trim() || rawLine.trimStart().startsWith("#")) continue;
-      const indent = rawLine.length - rawLine.trimStart().length;
-      const trimmed = rawLine.trim();
-      if (blockIndent !== null && indent > blockIndent) {
-        const command = trimmed.match(/^railway\s+(\S+)(?:\s+(\S+))?/);
-        if (command) {
-          signatures.push(
-            command[1] === "deployment"
-              ? `${command[1]} ${command[2] ?? ""}`.trim()
-              : command[1]
-          );
-        }
-        continue;
-      }
-      blockIndent = null;
-      const run = trimmed.match(/^-?\s*run:\s*(.*)$/);
-      if (!run) continue;
-      if (/^[|>][+-]?$/.test(run[1])) {
-        blockIndent = indent;
-        continue;
-      }
-      const command = run[1].match(/^railway\s+(\S+)(?:\s+(\S+))?/);
-      if (command) {
-        signatures.push(
-          command[1] === "deployment"
-            ? `${command[1]} ${command[2] ?? ""}`.trim()
-            : command[1]
-        );
-      }
-    }
-    return signatures.map(validate);
-  }
-
-  if (kind !== "javascript") {
-    throw new ProductionWorkflowRatchetError(
-      "INVALID_RAILWAY_COMMAND_SOURCE_KIND",
-      `Unsupported Railway source kind: ${kind}`
-    );
-  }
-
-  const syntaxTree = ts.createSourceFile(
-    "railway-command-fixture.mjs",
-    source,
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.JS
-  );
-  const signatures = [];
-  const runners = new Set(["execFile", "execFileAsync", "spawn"]);
-  const visit = node => {
-    if (
-      !ts.isCallExpression(node) ||
-      !ts.isIdentifier(node.expression) ||
-      !runners.has(node.expression.text)
-    ) {
-      ts.forEachChild(node, visit);
-      return;
-    }
-    const [executable, commandArguments] = node.arguments;
-    if (
-      !(
-        (ts.isStringLiteral(executable) && executable.text === "railway") ||
-        (ts.isIdentifier(executable) &&
-          executable.text === "RAILWAY_CLI_EXECUTABLE")
-      )
-    ) {
-      ts.forEachChild(node, visit);
-      return;
-    }
-    if (
-      ts.isCallExpression(commandArguments) &&
-      ts.isIdentifier(commandArguments.expression) &&
-      commandArguments.expression.text === "buildRailwayUploadArgs"
-    ) {
-      signatures.push(validate("up"));
-    } else if (ts.isArrayLiteralExpression(commandArguments)) {
-      const commandArgs = commandArguments.elements
-        .filter(ts.isStringLiteral)
-        .map(element => element.text);
-      signatures.push(validate(signatureFor(commandArgs)));
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(syntaxTree);
-  return signatures;
-}
 
 function workflowWithTrigger(trigger) {
   return `name: Fixture\n${trigger}\npermissions: {}\njobs: {}`;
@@ -587,13 +471,13 @@ function snapshot(
 
 test("Railway CLI argument contracts keep one allowlisted context", () => {
   assert.deepEqual(
-    Object.values(RAILWAY_PRODUCTION_COMMANDS).map(command => ({
-      command: command.command,
-      signature: command.subcommands.join(" "),
+    Object.entries(RAILWAY_COMMAND_MANIFEST).map(([operation, command]) => ({
+      operation,
+      signature: command.signature.join(" "),
     })),
     [
-      { command: "railway", signature: "deployment list" },
-      { command: "railway", signature: "up" },
+      { operation: "deployment-list", signature: "deployment list" },
+      { operation: "upload", signature: "up" },
     ]
   );
   const listArgs = buildRailwayDeploymentListArgs(RAILWAY_CONTEXT);
@@ -619,110 +503,175 @@ test("Railway CLI argument contracts keep one allowlisted context", () => {
     "--environment",
     ENVIRONMENT_ID,
   ]);
-  assert.equal(
-    validateRailwayCommandStructure({ args: listArgs }),
-    "deployment list"
-  );
-  assert.equal(
-    validateRailwayCommandStructure({
-      args: buildRailwayUploadArgs(RAILWAY_CONTEXT),
-    }),
-    "up"
-  );
-});
-
-for (const [name, args] of [
-  ["link args", ["link", "--project", RAILWAY_ID]],
-  ["status args", ["status", "--json"]],
-  ["login args", ["login"]],
-  ["variables args", ["variables"]],
-  ["run args", ["run"]],
-  ["shell args", ["shell"]],
-  ["connect args", ["connect"]],
-]) {
-  test(`Railway command ratchet rejects ${name}`, () => {
-    assert.throws(
-      () => validateRailwayCommandStructure({ args }),
-      error =>
-        error instanceof ProductionWorkflowRatchetError &&
-        error.code === "UNSUPPORTED_RAILWAY_COMMAND"
-    );
-  });
-}
-
-for (const [name, source] of [
-  ["spawn link", 'spawn("railway", ["link"])'],
-  ["execFile status", 'execFile("railway", ["status", "--json"])'],
-]) {
-  test(`Railway process invocation ratchet rejects ${name}`, () => {
-    assert.throws(
-      () => validateRailwayCommandStructure({ source, kind: "javascript" }),
-      error =>
-        error instanceof ProductionWorkflowRatchetError &&
-        error.code === "UNSUPPORTED_RAILWAY_COMMAND"
-    );
-  });
-}
-
-test("Railway process invocation ratchet accepts only explicit allowed commands", () => {
   assert.deepEqual(
-    validateRailwayCommandStructure({
-      source:
-        'execFile("railway", ["deployment", "list"]); spawn("railway", ["up"]);',
-      kind: "javascript",
-    }),
-    ["deployment list", "up"]
+    buildRailwayCommand({
+      operation: "deployment-list",
+      context: RAILWAY_CONTEXT,
+    }).args,
+    listArgs
   );
 });
 
+for (const operation of [
+  "link",
+  "status",
+  "login",
+  "variables",
+  "custom",
+  undefined,
+  [],
+  {},
+]) {
+  test(`Railway adapter rejects unsupported operation ${String(operation)}`, () => {
+    assert.throws(
+      () => buildRailwayCommand({ operation, context: RAILWAY_CONTEXT }),
+      error =>
+        error instanceof RailwayCommandAdapterError &&
+        error.code === "UNSUPPORTED_RAILWAY_OPERATION"
+    );
+  });
+}
+
+test("Railway adapter rejects arbitrary caller arguments before execution", () => {
+  assert.throws(
+    () =>
+      buildRailwayCommand({
+        operation: "upload",
+        context: RAILWAY_CONTEXT,
+        args: ["link"],
+      }),
+    error =>
+      error instanceof RailwayCommandAdapterError &&
+      error.code === "UNSUPPORTED_RAILWAY_OPERATION"
+  );
+});
+
+async function currentRailwayProductionSources() {
+  return Promise.all(
+    [
+      RAILWAY_PROCESS_ADAPTER_PATH,
+      "scripts/verify-railway-deployment.mjs",
+      "scripts/verify-production-workflow-ratchets.mjs",
+    ].map(async path => ({
+      path,
+      source: await readFile(new URL(`../${path}`, import.meta.url), "utf8"),
+    }))
+  );
+}
+
+test("current Railway process boundary has exactly one adapter", async () => {
+  const result = validateRailwayProcessBoundary(
+    await currentRailwayProductionSources()
+  );
+  assert.equal(result.adapterImportCount, 1);
+  assert.ok(result.adapterInvocationCount >= 2);
+});
+
 for (const [name, source] of [
-  ["single-line link", "steps:\n  - run: railway link --project project-id"],
-  ["block status", "steps:\n  - run: |\n      railway status --json"],
+  [
+    "direct spawn",
+    'import { spawn } from "node:child_process"; spawn("railway", ["link"]);',
+  ],
+  [
+    "direct execFile",
+    'import { execFile } from "node:child_process"; execFile("railway", ["status"]);',
+  ],
+  [
+    "aliased child_process import",
+    'import { spawn as launch } from "node:child_process"; launch("railway", dynamicArgs);',
+  ],
+  ["dynamic process invocation", "execFileImpl(executable, commandArgs);"],
+  ["unsupported member invocation", "childProcess.exec(command);"],
+  ["computed process invocation", "childProcess[runner](commandArgs);"],
+  ["dynamic module import", 'const cp = await import("node:child_process");'],
+]) {
+  test(`Railway boundary rejects ${name}`, async () => {
+    const sources = await currentRailwayProductionSources();
+    sources.push({ path: "scripts/unsafe-production-helper.mjs", source });
+    assert.throws(
+      () => validateRailwayProcessBoundary(sources),
+      error =>
+        error instanceof ProductionWorkflowRatchetError &&
+        error.code === "UNSUPPORTED_PROCESS_INVOCATION_SHAPE"
+    );
+  });
+}
+
+test("Railway adapter rejects caller-provided spawn arguments", async () => {
+  const sources = await currentRailwayProductionSources();
+  const adapter = sources.find(
+    source => source.path === RAILWAY_PROCESS_ADAPTER_PATH
+  );
+  adapter.source = adapter.source.replace(
+    "buildRailwayUploadArgs(context)",
+    "commandArgs"
+  );
+  assert.throws(
+    () => validateRailwayProcessBoundary(sources),
+    error =>
+      error instanceof ProductionWorkflowRatchetError &&
+      error.code === "UNSUPPORTED_PROCESS_INVOCATION_SHAPE"
+  );
+});
+
+test("Railway boundary ignores comments and fixture strings", async () => {
+  const sources = await currentRailwayProductionSources();
+  sources.push({
+    path: "scripts/fixture-description.mjs",
+    source: `
+      // spawn("railway", ["link"])
+      /* execFile("railway", ["status"]) */
+      const documentation = 'railway link --project example';
+    `,
+  });
+  assert.doesNotThrow(() => validateRailwayProcessBoundary(sources));
+});
+
+for (const [name, command] of [
+  ["direct link", "railway link"],
+  ["direct status", "railway status --json"],
+  ["direct upload", "railway up"],
+  ["direct deployment list", "railway deployment list"],
+  ["command wrapper", "command railway link"],
+  ["bash wrapper", 'bash -lc "railway link"'],
+  ["sh wrapper", "sh -c 'railway status'"],
+  ["environment wrapper", "env X=1 railway status"],
+  ["compound command", "railway link && node script.mjs"],
+  ["conditional command", "if true; then railway up; fi"],
+  ["variable wrapper", 'cmd=railway; "$cmd" status'],
 ]) {
   test(`Railway workflow ratchet rejects ${name}`, () => {
     assert.throws(
-      () => validateRailwayCommandStructure({ source, kind: "workflow" }),
+      () =>
+        validateProductionWorkflowRailwayCommands(
+          `steps:\n  - run: |\n      ${command}`
+        ),
       error =>
         error instanceof ProductionWorkflowRatchetError &&
-        error.code === "UNSUPPORTED_RAILWAY_COMMAND"
+        error.code === "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION"
     );
   });
 }
 
-test("Railway workflow ratchet accepts explicit allowed commands", () => {
+test("Railway workflow ratchet allows only pinned install and Node helper", () => {
   assert.deepEqual(
-    validateRailwayCommandStructure({
-      source:
-        "steps:\n  - run: railway deployment list --project project-id\n  - run: |\n      railway up --project project-id",
-      kind: "workflow",
-    }),
-    ["deployment list", "up"]
+    validateProductionWorkflowRailwayCommands(`steps:
+  - run: npm install --global @railway/cli@5.28.0
+  - run: |
+      set -euo pipefail
+      node scripts/verify-railway-deployment.mjs`),
+    { helperCount: 1, pinnedInstallCount: 1, runCount: 2 }
   );
 });
 
-test("Railway command ratchet ignores comments, documentation, and fixture strings", () => {
+test("Railway workflow ratchet ignores YAML comments", () => {
   assert.deepEqual(
-    validateRailwayCommandStructure({
-      source: `
-        // spawn("railway", ["link"])
-        /* execFile("railway", ["status"]) */
-        const documentation = 'railway link --project example';
-        const fixture = 'spawn("railway", ["status"])';
-      `,
-      kind: "javascript",
-    }),
-    []
-  );
-  assert.deepEqual(
-    validateRailwayCommandStructure({
-      source: `
-        # run: railway link --project example
-        steps:
-          - run: echo "railway status is forbidden"
-      `,
-      kind: "workflow",
-    }),
-    []
+    validateProductionWorkflowRailwayCommands(`
+      # run: railway link --project example
+      steps:
+        - run: echo "safe" # railway status is forbidden
+    `),
+    { helperCount: 0, pinnedInstallCount: 0, runCount: 1 }
   );
 });
 
@@ -737,9 +686,8 @@ test("installed Railway CLI 5.28.0 exposes the explicit-ID contract", async () =
 test("Railway CLI commands use argument arrays with shell disabled", async () => {
   let invocation;
   const args = buildRailwayDeploymentListArgs(RAILWAY_CONTEXT);
-  const stdout = await runRailwayCliCommand({
-    args,
-    stage: "preflight-list",
+  const stdout = await executeRailwayDeploymentList({
+    context: RAILWAY_CONTEXT,
     execFileImpl: async (file, receivedArgs, options) => {
       invocation = { file, receivedArgs, options };
       return { stdout: "[]" };
@@ -1641,29 +1589,22 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
     new URL("./verify-railway-deployment.mjs", import.meta.url),
     "utf8"
   );
-  assert.deepEqual(
-    validateRailwayCommandStructure({
-      source: railwayHelper,
-      kind: "javascript",
-    }),
-    ["up"]
+  const railwayAdapter = await readFile(
+    new URL("./railway-command-adapter.mjs", import.meta.url),
+    "utf8"
   );
-  assert.deepEqual(
-    validateRailwayCommandStructure({ source: workflow, kind: "workflow" }),
-    []
+  const boundary = validateRailwayProcessBoundary(
+    await currentRailwayProductionSources()
   );
-  assert.equal(
-    railwayHelper.match(/\bexecFileImpl\s*\(\s*RAILWAY_CLI_EXECUTABLE\s*,/g)
-      ?.length,
-    2
-  );
-  assert.equal(railwayHelper.match(/\bspawn\s*\(/g)?.length, 1);
-  assert.match(
-    railwayHelper,
-    /\bspawn\s*\(\s*RAILWAY_CLI_EXECUTABLE\s*,\s*buildRailwayUploadArgs\s*\(context\)/
-  );
-  assert.doesNotMatch(railwayHelper, /\b(?:execFile|execFileAsync)\s*\(/);
+  assert.equal(boundary.adapterImportCount, 1);
+  assert.doesNotMatch(railwayHelper, /node:child_process/);
+  assert.match(railwayAdapter, /node:child_process/);
   const ratchets = validateProductionWorkflowRatchets(workflow);
+  assert.deepEqual(ratchets.railwayCommands, {
+    helperCount: 1,
+    pinnedInstallCount: 1,
+    runCount: 6,
+  });
   assert.deepEqual(ratchets.triggers.triggerKeys, ["workflow_run"]);
   assert.deepEqual(ratchets.triggers.workflowRun.workflows, ["Quality Gate"]);
   assert.deepEqual(ratchets.triggers.workflowRun.types, ["completed"]);
@@ -1692,29 +1633,13 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
   assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}/);
   assert.doesNotMatch(workflow, /railway up --ci|railway up --json/);
   assert.doesNotMatch(workflow, /railway variable set/);
-  const deploymentListBuilder = railwayHelper.slice(
-    railwayHelper.indexOf("export function buildRailwayDeploymentListArgs"),
-    railwayHelper.indexOf("export function buildRailwayUploadArgs")
-  );
-  assert.match(
-    deploymentListBuilder,
-    /RAILWAY_PRODUCTION_COMMANDS\.deploymentList\.subcommands/
-  );
-  assert.match(deploymentListBuilder, /"--project"/);
-  const uploadBuilder = railwayHelper.slice(
-    railwayHelper.indexOf("export function buildRailwayUploadArgs"),
-    railwayHelper.indexOf("export async function runRailwayCliCommand")
-  );
-  assert.match(
-    uploadBuilder,
-    /RAILWAY_PRODUCTION_COMMANDS\.upload\.subcommands/
-  );
-  assert.doesNotMatch(uploadBuilder, /"--ci"|"--json"/);
+  assert.match(railwayAdapter, /RAILWAY_COMMAND_MANIFEST/);
+  assert.match(railwayAdapter, /"--project"/);
   assert.doesNotMatch(
-    railwayHelper,
+    railwayAdapter,
     /buildRailwayLinkArgs|prepareRailwayCliContext/
   );
-  assert.match(railwayHelper, /shell: false/);
+  assert.match(railwayAdapter, /shell: false/);
   assert.doesNotMatch(railwayHelper, /console\.(?:error|log)\([^\n]*stderr/);
   assert.doesNotMatch(workflow, /pull_request_target/);
   assert.doesNotMatch(workflow, /\|\| true/);

@@ -1,4 +1,12 @@
+import ts from "typescript";
+
 const FULL_COMMIT_SHA = /^[0-9a-f]{40}$/;
+export const RAILWAY_PROCESS_ADAPTER_PATH =
+  "scripts/railway-command-adapter.mjs";
+const PINNED_RAILWAY_INSTALL =
+  "npm install --global @railway/cli@5.28.0";
+const RAILWAY_NODE_HELPER =
+  "node scripts/verify-railway-deployment.mjs";
 
 export class ProductionWorkflowRatchetError extends Error {
   constructor(code, message) {
@@ -324,6 +332,278 @@ function assertExactValues(actual, expected, code, context) {
   }
 }
 
+function collectWorkflowRunScripts(source) {
+  if (typeof source !== "string") {
+    fail("INVALID_WORKFLOW", "Workflow source must be a string.");
+  }
+  const rawLines = source.replace(/^\uFEFF/, "").split(/\r?\n/);
+  const scripts = [];
+  for (let index = 0; index < rawLines.length; index += 1) {
+    const rawLine = rawLines[index];
+    if (/^\s*\t/.test(rawLine)) {
+      fail("UNSUPPORTED_YAML", `Tabs are not allowed at line ${index + 1}.`);
+    }
+    const uncommented = stripYamlComment(rawLine);
+    if (!uncommented.trim()) continue;
+    const indent = uncommented.length - uncommented.trimStart().length;
+    const content = uncommented.trimStart();
+    const candidate = content.startsWith("- ") ? content.slice(2) : content;
+    const mapping = splitMappingEntry(candidate);
+    if (!mapping) continue;
+    const key = parseScalar(mapping.rawKey, `Key at line ${index + 1}`);
+    if (key !== "run") continue;
+
+    if (/^[|>][+-]?$/.test(mapping.rawValue)) {
+      const block = [];
+      let next = index + 1;
+      for (; next < rawLines.length; next += 1) {
+        const blockLine = rawLines[next];
+        const blockIndent =
+          blockLine.length - blockLine.trimStart().length;
+        if (blockLine.trim() && blockIndent <= indent) break;
+        const line = stripYamlComment(blockLine).trim();
+        if (line) block.push({ line, lineNumber: next + 1 });
+      }
+      scripts.push({ lines: block, line: index + 1 });
+      index = next - 1;
+      continue;
+    }
+    if (!mapping.rawValue) {
+      fail(
+        "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION",
+        `run at line ${index + 1} must be a scalar or block scalar.`
+      );
+    }
+    scripts.push({
+      line: index + 1,
+      lines: [{ line: mapping.rawValue, lineNumber: index + 1 }],
+    });
+  }
+  return scripts;
+}
+
+export function validateProductionWorkflowRailwayCommands(source) {
+  const scripts = collectWorkflowRunScripts(source);
+  let pinnedInstallCount = 0;
+  let helperCount = 0;
+  for (const script of scripts) {
+    for (const entry of script.lines) {
+      const command = entry.line.trim();
+      if (command.includes("@railway/cli")) {
+        if (command !== PINNED_RAILWAY_INSTALL) {
+          fail(
+            "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION",
+            `Railway CLI install at line ${entry.lineNumber} is not the exact pinned command.`
+          );
+        }
+        pinnedInstallCount += 1;
+        continue;
+      }
+      if (command.includes("scripts/verify-railway-deployment.mjs")) {
+        if (command !== RAILWAY_NODE_HELPER) {
+          fail(
+            "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION",
+            `Railway helper at line ${entry.lineNumber} must be invoked directly by Node.`
+          );
+        }
+        helperCount += 1;
+        continue;
+      }
+      if (/\brailway\b/.test(command)) {
+        fail(
+          "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION",
+          `Direct or wrapped Railway invocation at line ${entry.lineNumber} is forbidden.`
+        );
+      }
+    }
+  }
+  return { helperCount, pinnedInstallCount, runCount: scripts.length };
+}
+
+function processCallName(expression) {
+  if (ts.isIdentifier(expression)) return expression.text;
+  if (ts.isPropertyAccessExpression(expression)) return expression.name.text;
+  return null;
+}
+
+function isExactStringArray(node, expected) {
+  return (
+    ts.isArrayLiteralExpression(node) &&
+    node.elements.length === expected.length &&
+    node.elements.every(
+      (element, index) =>
+        ts.isStringLiteral(element) && element.text === expected[index]
+    )
+  );
+}
+
+function assertAdapterInvocation(node, path) {
+  const name = processCallName(node.expression);
+  if (name === "spawn") {
+    const [executable, args] = node.arguments;
+    const valid =
+      ts.isIdentifier(executable) &&
+      executable.text === "RAILWAY_CLI_EXECUTABLE" &&
+      ts.isCallExpression(args) &&
+      ts.isIdentifier(args.expression) &&
+      args.expression.text === "buildRailwayUploadArgs";
+    if (!valid) {
+      fail(
+        "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+        `${path} contains an unsupported Railway upload invocation.`
+      );
+    }
+    return 1;
+  }
+  if (name !== "execFileImpl") return 0;
+  const [executable, args] = node.arguments;
+  const fixedBuilder =
+    ts.isCallExpression(args) &&
+    ts.isIdentifier(args.expression) &&
+    args.expression.text === "buildRailwayDeploymentListArgs";
+  const fixedHelp = [
+    ["--version"],
+    ["deployment", "list", "--help"],
+    ["up", "--help"],
+  ].some(expected => isExactStringArray(args, expected));
+  if (
+    !ts.isIdentifier(executable) ||
+    executable.text !== "RAILWAY_CLI_EXECUTABLE" ||
+    (!fixedBuilder && !fixedHelp)
+  ) {
+    fail(
+      "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+      `${path} contains an unsupported Railway execFile invocation.`
+    );
+  }
+  return 1;
+}
+
+export function validateRailwayProcessBoundary(
+  sources,
+  { adapterPath = RAILWAY_PROCESS_ADAPTER_PATH } = {}
+) {
+  if (!Array.isArray(sources) || sources.length === 0) {
+    fail(
+      "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+      "Production Railway sources must be provided explicitly."
+    );
+  }
+  let adapterImportCount = 0;
+  let adapterInvocationCount = 0;
+  let adapterSeen = false;
+  for (const entry of sources) {
+    if (typeof entry?.path !== "string" || typeof entry?.source !== "string") {
+      fail(
+        "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+        "Every production Railway source must include a path and source."
+      );
+    }
+    const isAdapter = entry.path.replaceAll("\\", "/") === adapterPath;
+    adapterSeen ||= isAdapter;
+    const tree = ts.createSourceFile(
+      entry.path,
+      entry.source,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.JS
+    );
+    if (tree.parseDiagnostics.length > 0) {
+      fail(
+        "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+        `${entry.path} could not be parsed safely.`
+      );
+    }
+    const visit = node => {
+      const childProcessImport =
+        ts.isImportDeclaration(node) &&
+        ts.isStringLiteral(node.moduleSpecifier) &&
+        node.moduleSpecifier.text === "node:child_process";
+      const childProcessRequire =
+        ts.isCallExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === "require" &&
+        node.arguments.length === 1 &&
+        ts.isStringLiteral(node.arguments[0]) &&
+        node.arguments[0].text === "node:child_process";
+      if (childProcessImport || childProcessRequire) {
+        if (!isAdapter) {
+          fail(
+            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+            `${entry.path} imports node:child_process outside the adapter.`
+          );
+        }
+        adapterImportCount += 1;
+      }
+      if (ts.isFunctionDeclaration(node) && isAdapter) {
+        const exported = node.modifiers?.some(
+          modifier => modifier.kind === ts.SyntaxKind.ExportKeyword
+        );
+        if (
+          exported &&
+          node.parameters.some(parameter =>
+            /\b(?:args|executable|subcommand|rawCommand)\b/.test(
+              parameter.name.getText(tree)
+            )
+          )
+        ) {
+          fail(
+            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+            `${entry.path} exports a generic process runner parameter.`
+          );
+        }
+      }
+      if (ts.isCallExpression(node)) {
+        if (
+          node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+          ts.isElementAccessExpression(node.expression)
+        ) {
+          fail(
+            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+            `${entry.path} contains a dynamic invocation shape.`
+          );
+        }
+        if (
+          ts.isIdentifier(node.expression) &&
+          node.expression.text === "require" &&
+          !childProcessRequire
+        ) {
+          fail(
+            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+            `${entry.path} contains an unsupported require invocation.`
+          );
+        }
+        const callName = processCallName(node.expression);
+        const isProcessCall = [
+          "exec",
+          "execFile",
+          "execFileAsync",
+          "execFileImpl",
+          "spawn",
+        ].includes(callName);
+        if (isProcessCall) {
+          if (!isAdapter) {
+            fail(
+              "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+              `${entry.path} invokes a process outside the adapter.`
+            );
+          }
+          adapterInvocationCount += assertAdapterInvocation(node, entry.path);
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(tree);
+  }
+  if (!adapterSeen || adapterImportCount !== 1 || adapterInvocationCount < 2) {
+    fail(
+      "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+      "Railway process execution must be owned by exactly one adapter."
+    );
+  }
+  return { adapterImportCount, adapterInvocationCount, adapterPath };
+}
+
 export function validateProductionWorkflowTriggers(source) {
   const lines = structuralLines(source);
   const topLevelOn = lines
@@ -508,6 +788,7 @@ export function validateProductionWorkflowActions(
 export function validateProductionWorkflowRatchets(source, options) {
   return {
     actions: validateProductionWorkflowActions(source, options),
+    railwayCommands: validateProductionWorkflowRailwayCommands(source),
     triggers: validateProductionWorkflowTriggers(source),
   };
 }
