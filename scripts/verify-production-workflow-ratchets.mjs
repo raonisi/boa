@@ -1,8 +1,35 @@
+import { readdir, readFile, realpath, stat } from "node:fs/promises";
+import {
+  dirname,
+  extname,
+  isAbsolute,
+  join,
+  posix,
+  relative,
+  resolve,
+  sep,
+} from "node:path";
+import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
 const FULL_COMMIT_SHA = /^[0-9a-f]{40}$/;
 export const RAILWAY_PROCESS_ADAPTER_PATH =
   "scripts/railway-command-adapter.mjs";
+export const PRODUCTION_WORKFLOW_PATH =
+  ".github/workflows/production-deploy.yml";
+const DEFAULT_REPOSITORY_ROOT = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  ".."
+);
+const PRODUCTION_MODULE_EXTENSIONS = Object.freeze([".mjs", ".js", ".ts"]);
+const CHILD_PROCESS_CALLS = new Set([
+  "exec",
+  "execFile",
+  "execFileSync",
+  "execSync",
+  "fork",
+  "spawn",
+]);
 const PINNED_RAILWAY_INSTALL =
   "npm install --global @railway/cli@5.28.0";
 const RAILWAY_NODE_HELPER =
@@ -364,7 +391,11 @@ function collectWorkflowRunScripts(source) {
         const line = stripYamlComment(blockLine).trim();
         if (line) block.push({ line, lineNumber: next + 1 });
       }
-      scripts.push({ lines: block, line: index + 1 });
+      scripts.push({
+        lines: block,
+        line: index + 1,
+        style: mapping.rawValue[0] === ">" ? "folded" : "literal",
+      });
       index = next - 1;
       continue;
     }
@@ -376,10 +407,180 @@ function collectWorkflowRunScripts(source) {
     }
     scripts.push({
       line: index + 1,
-      lines: [{ line: mapping.rawValue, lineNumber: index + 1 }],
+      lines: [
+        {
+          line: parseScalar(
+            mapping.rawValue,
+            `run at line ${index + 1}`
+          ),
+          lineNumber: index + 1,
+        },
+      ],
+      style: "scalar",
     });
   }
   return scripts;
+}
+
+function hasShellLineContinuation(value) {
+  let quote = null;
+  let escaped = false;
+  for (let index = 0; index < value.length; index += 1) {
+    const character = value[index];
+    if (quote === "'") {
+      if (character === "'") quote = null;
+      continue;
+    }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (quote === '"') {
+      if (character === '"') quote = null;
+      continue;
+    }
+    if (character === "'" || character === '"') quote = character;
+  }
+  return escaped && quote !== "'";
+}
+
+function logicalCommands(script) {
+  if (script.style === "folded") {
+    const first = script.lines[0]?.lineNumber ?? script.line;
+    return [
+      {
+        command: script.lines.map(entry => entry.line.trim()).join(" "),
+        lineNumber: first,
+      },
+    ];
+  }
+
+  const commands = [];
+  let pending = "";
+  let pendingLine = script.line;
+  for (const entry of script.lines) {
+    const line = entry.line.trim();
+    if (!line) continue;
+    if (!pending) pendingLine = entry.lineNumber;
+    if (hasShellLineContinuation(line)) {
+      pending += `${line.slice(0, -1).trimEnd()} `;
+      continue;
+    }
+    commands.push({ command: `${pending}${line}`.trim(), lineNumber: pendingLine });
+    pending = "";
+  }
+  if (pending) {
+    fail(
+      "UNSUPPORTED_PRODUCTION_NODE_ENTRYPOINT",
+      `run at line ${pendingLine} has an unterminated continuation.`
+    );
+  }
+  return commands;
+}
+
+function tokenizeShellCommand(command, lineNumber) {
+  const tokens = [];
+  let current = "";
+  let dynamic = false;
+  let quote = null;
+  let escaped = false;
+  let hasOperator = false;
+  const finish = () => {
+    if (current || dynamic) tokens.push({ dynamic, value: current });
+    current = "";
+    dynamic = false;
+  };
+
+  for (let index = 0; index < command.length; index += 1) {
+    const character = command[index];
+    if (quote === "'") {
+      if (character === "'") quote = null;
+      else current += character;
+      continue;
+    }
+    if (escaped) {
+      current += character;
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+    if (quote === '"') {
+      if (character === '"') quote = null;
+      else {
+        if (character === "$" || character === "`") dynamic = true;
+        current += character;
+      }
+      continue;
+    }
+    if (character === "'" || character === '"') {
+      quote = character;
+      continue;
+    }
+    if (/\s/.test(character)) {
+      finish();
+      continue;
+    }
+    if (";&|<>".includes(character)) {
+      finish();
+      hasOperator = true;
+      continue;
+    }
+    if (character === "$" || character === "`") dynamic = true;
+    current += character;
+  }
+  if (quote || escaped) {
+    fail(
+      "UNSUPPORTED_PRODUCTION_NODE_ENTRYPOINT",
+      `run at line ${lineNumber} has unsupported shell quoting.`
+    );
+  }
+  finish();
+  return { hasOperator, tokens };
+}
+
+function parseProductionNodeCommand(command, lineNumber) {
+  const parsed = tokenizeShellCommand(command, lineNumber);
+  const containsNode =
+    parsed.tokens.some(token => token.value === "node") ||
+    /\bnode\b/.test(command);
+  if (!containsNode) return null;
+
+  const [executable, entrypoint] = parsed.tokens;
+  const validEntrypoint =
+    executable?.value === "node" &&
+    executable.dynamic === false &&
+    entrypoint &&
+    entrypoint.dynamic === false &&
+    /^scripts\/[A-Za-z0-9._/-]+\.(?:mjs|js|ts)$/.test(entrypoint.value) &&
+    !entrypoint.value.includes("\\") &&
+    !entrypoint.value.split("/").some(part => part === "." || part === "..") &&
+    !isAbsolute(entrypoint.value) &&
+    !parsed.hasOperator;
+  if (!validEntrypoint) {
+    fail(
+      "UNSUPPORTED_PRODUCTION_NODE_ENTRYPOINT",
+      `run at line ${lineNumber} must invoke a literal scripts helper directly with Node.`
+    );
+  }
+  return entrypoint.value;
+}
+
+export function discoverProductionNodeEntrypoints(source) {
+  const entrypoints = new Set();
+  for (const script of collectWorkflowRunScripts(source)) {
+    for (const { command, lineNumber } of logicalCommands(script)) {
+      const entrypoint = parseProductionNodeCommand(command, lineNumber);
+      if (entrypoint) entrypoints.add(entrypoint);
+    }
+  }
+  return [...entrypoints].sort();
 }
 
 export function validateProductionWorkflowRailwayCommands(source) {
@@ -387,8 +588,8 @@ export function validateProductionWorkflowRailwayCommands(source) {
   let pinnedInstallCount = 0;
   let helperCount = 0;
   for (const script of scripts) {
-    for (const entry of script.lines) {
-      const command = entry.line.trim();
+    for (const entry of logicalCommands(script)) {
+      const command = entry.command.trim();
       if (command.includes("@railway/cli")) {
         if (command !== PINNED_RAILWAY_INSTALL) {
           fail(
@@ -399,31 +600,26 @@ export function validateProductionWorkflowRailwayCommands(source) {
         pinnedInstallCount += 1;
         continue;
       }
-      if (command.includes("scripts/verify-railway-deployment.mjs")) {
-        if (command !== RAILWAY_NODE_HELPER) {
-          fail(
-            "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION",
-            `Railway helper at line ${entry.lineNumber} must be invoked directly by Node.`
-          );
-        }
-        helperCount += 1;
-        continue;
-      }
       if (/\brailway\b/.test(command)) {
+        if (command === RAILWAY_NODE_HELPER) {
+          helperCount += 1;
+          continue;
+        }
         fail(
           "UNSUPPORTED_WORKFLOW_RAILWAY_INVOCATION",
           `Direct or wrapped Railway invocation at line ${entry.lineNumber} is forbidden.`
         );
       }
+      const nodeEntrypoint = parseProductionNodeCommand(
+        command,
+        entry.lineNumber
+      );
+      if (nodeEntrypoint) {
+        continue;
+      }
     }
   }
   return { helperCount, pinnedInstallCount, runCount: scripts.length };
-}
-
-function processCallName(expression) {
-  if (ts.isIdentifier(expression)) return expression.text;
-  if (ts.isPropertyAccessExpression(expression)) return expression.name.text;
-  return null;
 }
 
 function isExactStringArray(node, expected) {
@@ -437,8 +633,36 @@ function isExactStringArray(node, expected) {
   );
 }
 
-function assertAdapterInvocation(node, path) {
-  const name = processCallName(node.expression);
+function assertAdapterRunnerInvocation(node, path) {
+  if (
+    ts.isIdentifier(node.expression) &&
+    node.expression.text === "execFileImpl"
+  ) {
+    const [executable, args] = node.arguments;
+    const fixedBuilder =
+      ts.isCallExpression(args) &&
+      ts.isIdentifier(args.expression) &&
+      args.expression.text === "buildRailwayDeploymentListArgs";
+    const fixedHelp = [
+      ["--version"],
+      ["deployment", "list", "--help"],
+      ["up", "--help"],
+    ].some(expected => isExactStringArray(args, expected));
+    if (
+      !ts.isIdentifier(executable) ||
+      executable.text !== "RAILWAY_CLI_EXECUTABLE" ||
+      (!fixedBuilder && !fixedHelp)
+    ) {
+      fail(
+        "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+        `${path} contains an unsupported Railway execFile runner invocation.`
+      );
+    }
+  }
+}
+
+function assertImportedChildProcessCall(node, path) {
+  const name = node.expression.text;
   if (name === "spawn") {
     const [executable, args] = node.arguments;
     const valid =
@@ -449,159 +673,625 @@ function assertAdapterInvocation(node, path) {
       args.expression.text === "buildRailwayUploadArgs";
     if (!valid) {
       fail(
-        "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
+        "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
         `${path} contains an unsupported Railway upload invocation.`
       );
     }
     return 1;
   }
-  if (name !== "execFileImpl") return 0;
-  const [executable, args] = node.arguments;
-  const fixedBuilder =
-    ts.isCallExpression(args) &&
-    ts.isIdentifier(args.expression) &&
-    args.expression.text === "buildRailwayDeploymentListArgs";
-  const fixedHelp = [
-    ["--version"],
-    ["deployment", "list", "--help"],
-    ["up", "--help"],
-  ].some(expected => isExactStringArray(args, expected));
-  if (
-    !ts.isIdentifier(executable) ||
-    executable.text !== "RAILWAY_CLI_EXECUTABLE" ||
-    (!fixedBuilder && !fixedHelp)
-  ) {
+  const owner = findAncestor(
+    node,
+    candidate => ts.isFunctionDeclaration(candidate)
+  );
+  const [executable, args, options, callback] = node.arguments;
+  const valid =
+    owner?.name?.text === "executeRailwayFile" &&
+    ts.isIdentifier(executable) &&
+    executable.text === "executable" &&
+    ts.isIdentifier(args) &&
+    args.text === "args" &&
+    ts.isIdentifier(options) &&
+    options.text === "options" &&
+    (ts.isArrowFunction(callback) || ts.isFunctionExpression(callback));
+  if (!valid) {
     fail(
-      "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-      `${path} contains an unsupported Railway execFile invocation.`
+      "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+      `${path} must call execFile only through the approved Promise wrapper.`
     );
   }
   return 1;
 }
 
-export function validateRailwayProcessBoundary(
-  sources,
-  { adapterPath = RAILWAY_PROCESS_ADAPTER_PATH } = {}
-) {
-  if (!Array.isArray(sources) || sources.length === 0) {
-    fail(
-      "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-      "Production Railway sources must be provided explicitly."
-    );
+function findAncestor(node, predicate) {
+  let current = node.parent;
+  while (current) {
+    if (predicate(current)) return current;
+    current = current.parent;
   }
+  return null;
+}
+
+function bindingIdentifiers(name, result = []) {
+  if (!name) return result;
+  if (ts.isIdentifier(name)) result.push(name);
+  else if (ts.isObjectBindingPattern(name) || ts.isArrayBindingPattern(name)) {
+    for (const element of name.elements) {
+      if (ts.isBindingElement(element)) bindingIdentifiers(element.name, result);
+    }
+  }
+  return result;
+}
+
+function isAssignmentOperator(kind) {
+  return kind >= ts.SyntaxKind.FirstAssignment && kind <= ts.SyntaxKind.LastAssignment;
+}
+
+function validateAdapterTree(tree, path) {
   let adapterImportCount = 0;
   let adapterInvocationCount = 0;
-  let adapterSeen = false;
-  for (const entry of sources) {
-    if (typeof entry?.path !== "string" || typeof entry?.source !== "string") {
-      fail(
-        "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-        "Every production Railway source must include a path and source."
-      );
-    }
-    const isAdapter = entry.path.replaceAll("\\", "/") === adapterPath;
-    adapterSeen ||= isAdapter;
-    const tree = ts.createSourceFile(
-      entry.path,
-      entry.source,
-      ts.ScriptTarget.Latest,
-      true,
-      ts.ScriptKind.JS
-    );
-    if (tree.parseDiagnostics.length > 0) {
-      fail(
-        "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-        `${entry.path} could not be parsed safely.`
-      );
-    }
-    const visit = node => {
-      const childProcessImport =
-        ts.isImportDeclaration(node) &&
-        ts.isStringLiteral(node.moduleSpecifier) &&
-        node.moduleSpecifier.text === "node:child_process";
-      const childProcessRequire =
-        ts.isCallExpression(node) &&
-        ts.isIdentifier(node.expression) &&
-        node.expression.text === "require" &&
-        node.arguments.length === 1 &&
-        ts.isStringLiteral(node.arguments[0]) &&
-        node.arguments[0].text === "node:child_process";
-      if (childProcessImport || childProcessRequire) {
-        if (!isAdapter) {
-          fail(
-            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-            `${entry.path} imports node:child_process outside the adapter.`
-          );
-        }
-        adapterImportCount += 1;
-      }
-      if (ts.isFunctionDeclaration(node) && isAdapter) {
-        const exported = node.modifiers?.some(
-          modifier => modifier.kind === ts.SyntaxKind.ExportKeyword
-        );
-        if (
-          exported &&
-          node.parameters.some(parameter =>
-            /\b(?:args|executable|subcommand|rawCommand)\b/.test(
-              parameter.name.getText(tree)
-            )
-          )
-        ) {
-          fail(
-            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-            `${entry.path} exports a generic process runner parameter.`
-          );
-        }
-      }
-      if (ts.isCallExpression(node)) {
-        if (
-          node.expression.kind === ts.SyntaxKind.ImportKeyword ||
-          ts.isElementAccessExpression(node.expression)
-        ) {
-          fail(
-            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-            `${entry.path} contains a dynamic invocation shape.`
-          );
-        }
-        if (
-          ts.isIdentifier(node.expression) &&
-          node.expression.text === "require" &&
-          !childProcessRequire
-        ) {
-          fail(
-            "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-            `${entry.path} contains an unsupported require invocation.`
-          );
-        }
-        const callName = processCallName(node.expression);
-        const isProcessCall = [
-          "exec",
-          "execFile",
-          "execFileAsync",
-          "execFileImpl",
-          "spawn",
-        ].includes(callName);
-        if (isProcessCall) {
-          if (!isAdapter) {
-            fail(
-              "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-              `${entry.path} invokes a process outside the adapter.`
-            );
-          }
-          adapterInvocationCount += assertAdapterInvocation(node, entry.path);
-        }
-      }
-      ts.forEachChild(node, visit);
-    };
-    visit(tree);
-  }
-  if (!adapterSeen || adapterImportCount !== 1 || adapterInvocationCount < 2) {
+  const importedBindings = new Set(["execFile", "spawn"]);
+  let runnerInvocationCount = 0;
+
+  const exactImports = tree.statements.filter(
+    statement =>
+      ts.isImportDeclaration(statement) &&
+      ts.isStringLiteral(statement.moduleSpecifier) &&
+      ["node:child_process", "child_process"].includes(
+        statement.moduleSpecifier.text
+      )
+  );
+  if (exactImports.length !== 1) {
     fail(
-      "UNSUPPORTED_PROCESS_INVOCATION_SHAPE",
-      "Railway process execution must be owned by exactly one adapter."
+      "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+      `${path} must have exactly one child_process import.`
     );
   }
-  return { adapterImportCount, adapterInvocationCount, adapterPath };
+  const clause = exactImports[0].importClause;
+  const elements = clause?.namedBindings;
+  const validImport =
+    exactImports[0].moduleSpecifier.text === "node:child_process" &&
+    clause &&
+    !clause.name &&
+    elements &&
+    ts.isNamedImports(elements) &&
+    elements.elements.length === 2 &&
+    elements.elements.every(element => !element.propertyName) &&
+    ["execFile", "spawn"].every(name =>
+      elements.elements.some(element => element.name.text === name)
+    );
+  if (!validImport) {
+    fail(
+      "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+      `${path} must import non-aliased execFile and spawn bindings.`
+    );
+  }
+  adapterImportCount = 1;
+
+  const visit = node => {
+    if (
+      ts.isImportDeclaration(node) &&
+      node !== exactImports[0] &&
+      ts.isStringLiteral(node.moduleSpecifier) &&
+      ["node:child_process", "child_process"].includes(node.moduleSpecifier.text)
+    ) {
+      fail(
+        "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+        `${path} contains an additional child_process import.`
+      );
+    }
+    const declared = [];
+    if (ts.isVariableDeclaration(node)) bindingIdentifiers(node.name, declared);
+    else if (ts.isParameter(node)) bindingIdentifiers(node.name, declared);
+    else if (
+      (ts.isFunctionDeclaration(node) ||
+        ts.isClassDeclaration(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isClassExpression(node)) &&
+      node.name
+    ) {
+      declared.push(node.name);
+    } else if (ts.isCatchClause(node) && node.variableDeclaration) {
+      bindingIdentifiers(node.variableDeclaration.name, declared);
+    } else if (ts.isImportSpecifier(node) && node.parent.parent !== clause) {
+      declared.push(node.name);
+    }
+    if (declared.some(identifier => importedBindings.has(identifier.text))) {
+      fail(
+        "CHILD_PROCESS_BINDING_SHADOWED",
+        `${path} shadows an imported child_process binding.`
+      );
+    }
+
+    if (
+      ts.isBinaryExpression(node) &&
+      isAssignmentOperator(node.operatorToken.kind) &&
+      ts.isIdentifier(node.left) &&
+      importedBindings.has(node.left.text)
+    ) {
+      fail(
+        "CHILD_PROCESS_BINDING_REASSIGNED",
+        `${path} reassigns an imported child_process binding.`
+      );
+    }
+    if (
+      (ts.isPrefixUnaryExpression(node) || ts.isPostfixUnaryExpression(node)) &&
+      ts.isIdentifier(node.operand) &&
+      importedBindings.has(node.operand.text)
+    ) {
+      fail(
+        "CHILD_PROCESS_BINDING_REASSIGNED",
+        `${path} mutates an imported child_process binding.`
+      );
+    }
+
+    if (ts.isFunctionDeclaration(node)) {
+      const exported = node.modifiers?.some(
+        modifier => modifier.kind === ts.SyntaxKind.ExportKeyword
+      );
+      if (
+        exported &&
+        node.parameters.some(parameter =>
+          /\b(?:args|executable|subcommand|rawCommand)\b/.test(
+            parameter.name.getText(tree)
+          )
+        )
+      ) {
+        fail(
+          "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+          `${path} exports a generic process runner parameter.`
+        );
+      }
+    }
+
+    if (ts.isCallExpression(node)) {
+      if (
+        node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+        (ts.isIdentifier(node.expression) &&
+          ["require", "createRequire", "eval", "Function"].includes(
+            node.expression.text
+          )) ||
+        (ts.isIdentifier(node.expression) &&
+          node.expression.text === "Reflect" )
+      ) {
+        fail(
+          "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+          `${path} contains unsupported dynamic module loading.`
+        );
+      }
+      if (
+        ts.isIdentifier(node.expression) &&
+        importedBindings.has(node.expression.text)
+      ) {
+        adapterInvocationCount += assertImportedChildProcessCall(node, path);
+      }
+      let indirectProcessCall = null;
+      if (ts.isPropertyAccessExpression(node.expression)) {
+        indirectProcessCall = node.expression.name.text;
+      } else if (
+        ts.isElementAccessExpression(node.expression) &&
+        ts.isStringLiteral(node.expression.argumentExpression)
+      ) {
+        indirectProcessCall = node.expression.argumentExpression.text;
+      }
+      if (indirectProcessCall && CHILD_PROCESS_CALLS.has(indirectProcessCall)) {
+        fail(
+          "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+          `${path} contains an indirect child_process call.`
+        );
+      }
+      assertAdapterRunnerInvocation(node, path);
+      if (
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === "execFileImpl"
+      ) {
+        runnerInvocationCount += 1;
+      }
+    }
+
+    if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "Function"
+    ) {
+      fail(
+        "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+        `${path} contains unsupported dynamic code loading.`
+      );
+    }
+
+    if (ts.isIdentifier(node) && importedBindings.has(node.text)) {
+      const parent = node.parent;
+      const inApprovedImport =
+        ts.isImportSpecifier(parent) && parent.name === node && parent.parent === elements;
+      const directApprovedCall =
+        ts.isCallExpression(parent) && parent.expression === node;
+      if (!inApprovedImport && !directApprovedCall) {
+        if (
+          ts.isBinaryExpression(parent) &&
+          parent.left === node &&
+          isAssignmentOperator(parent.operatorToken.kind)
+        ) {
+          fail(
+            "CHILD_PROCESS_BINDING_REASSIGNED",
+            `${path} reassigns an imported child_process binding.`
+          );
+        }
+        fail(
+          "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+          `${path} aliases or indirectly accesses an imported child_process binding.`
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  if (adapterInvocationCount !== 2 || runnerInvocationCount !== 4) {
+    fail(
+      "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+      `${path} must retain the exact Railway process invocation set.`
+    );
+  }
+  return { adapterImportCount, adapterInvocationCount };
+}
+
+function parseProductionSource(path, source) {
+  const kind = path.endsWith(".ts") ? ts.ScriptKind.TS : ts.ScriptKind.JS;
+  const tree = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    kind
+  );
+  if (tree.parseDiagnostics.length > 0) {
+    fail(
+      "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+      `${path} could not be parsed safely.`
+    );
+  }
+  return tree;
+}
+
+function childProcessSpecifier(node) {
+  return (
+    ts.isStringLiteral(node) &&
+    ["node:child_process", "child_process"].includes(node.text)
+  );
+}
+
+function validateNonAdapterTree(tree, path) {
+  const visit = node => {
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier &&
+      childProcessSpecifier(node.moduleSpecifier)
+    ) {
+      fail(
+        "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER",
+        `${path} imports child_process outside the Railway adapter.`
+      );
+    }
+    if (ts.isCallExpression(node)) {
+      if (
+        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        childProcessSpecifier(node.arguments[0])
+      ) {
+        fail(
+          "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER",
+          `${path} dynamically imports child_process outside the Railway adapter.`
+        );
+      }
+      let callName = null;
+      if (ts.isIdentifier(node.expression)) callName = node.expression.text;
+      else if (ts.isPropertyAccessExpression(node.expression)) {
+        callName = node.expression.name.text;
+      } else if (
+        ts.isElementAccessExpression(node.expression) &&
+        ts.isStringLiteral(node.expression.argumentExpression)
+      ) {
+        callName = node.expression.argumentExpression.text;
+      }
+      if (callName && CHILD_PROCESS_CALLS.has(callName)) {
+        fail(
+          "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER",
+          `${path} invokes a process outside the Railway adapter.`
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+}
+
+function collectStaticRelativeImports(tree, path) {
+  const imports = [];
+  const visit = node => {
+    if (ts.isCallExpression(node)) {
+      const dynamicImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const requireCall =
+        ts.isIdentifier(node.expression) && node.expression.text === "require";
+      const dynamicChildProcessImport =
+        (dynamicImport || requireCall) &&
+        node.arguments.length === 1 &&
+        childProcessSpecifier(node.arguments[0]);
+      if (dynamicChildProcessImport) {
+        fail(
+          path === RAILWAY_PROCESS_ADAPTER_PATH
+            ? "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE"
+            : "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER",
+          `${path} cannot dynamically load child_process.`
+        );
+      }
+      let loaderName = null;
+      if (ts.isIdentifier(node.expression)) loaderName = node.expression.text;
+      else if (ts.isPropertyAccessExpression(node.expression)) {
+        loaderName = node.expression.name.text;
+      } else if (
+        ts.isElementAccessExpression(node.expression) &&
+        ts.isStringLiteral(node.expression.argumentExpression)
+      ) {
+        loaderName = node.expression.argumentExpression.text;
+      }
+      const unsupportedCall = [
+        "Function",
+        "createRequire",
+        "eval",
+        "getBuiltinModule",
+        "require",
+      ].includes(loaderName);
+      if (dynamicImport || unsupportedCall) {
+        fail(
+          "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+          `${path} contains unsupported dynamic module loading.`
+        );
+      }
+    }
+    if (
+      ts.isNewExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "Function"
+    ) {
+      fail(
+        "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+        `${path} contains unsupported dynamic code loading.`
+      );
+    }
+    if (
+      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+      node.moduleSpecifier
+    ) {
+      if (!ts.isStringLiteral(node.moduleSpecifier)) {
+        fail(
+          "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+          `${path} has a non-literal module specifier.`
+        );
+      }
+      const specifier = node.moduleSpecifier.text;
+      if (specifier === "node:module" && /\bcreateRequire\b/.test(node.getText(tree))) {
+        fail(
+          "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+          `${path} imports createRequire.`
+        );
+      }
+      if (specifier.startsWith(".")) imports.push(specifier);
+      else if (
+        specifier.startsWith("/") ||
+        /^[A-Za-z]:[\\/]/.test(specifier) ||
+        /^(?:file|https?):/.test(specifier)
+      ) {
+        fail(
+          "PRODUCTION_MODULE_PATH_ESCAPE",
+          `${path} imports an absolute or remote module.`
+        );
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  return imports;
+}
+
+function isInside(root, candidate) {
+  const result = relative(root, candidate);
+  return result === "" || (!result.startsWith(`..${sep}`) && result !== ".." && !isAbsolute(result));
+}
+
+async function probeExactFile(root, relativePath) {
+  let cursor = root;
+  for (const segment of relativePath.split("/")) {
+    let entries;
+    try {
+      entries = await readdir(cursor);
+    } catch {
+      return { status: "missing" };
+    }
+    if (!entries.includes(segment)) {
+      const caseMatch = entries.some(
+        entry => entry.toLocaleLowerCase("en-US") === segment.toLocaleLowerCase("en-US")
+      );
+      return { status: caseMatch ? "case-mismatch" : "missing" };
+    }
+    cursor = join(cursor, segment);
+  }
+  try {
+    if (!(await stat(cursor)).isFile()) return { status: "missing" };
+    return { absolutePath: cursor, realPath: await realpath(cursor), status: "ok" };
+  } catch {
+    return { status: "missing" };
+  }
+}
+
+async function resolveProductionModule({
+  importer,
+  repositoryRoot,
+  repositoryRealPath,
+  scriptsRealPath,
+  specifier,
+}) {
+  if (specifier.includes("\\") || specifier.split("/").includes("..")) {
+    fail(
+      "PRODUCTION_MODULE_PATH_ESCAPE",
+      `${importer} contains a forbidden module path.`
+    );
+  }
+  const base = posix.normalize(posix.join(posix.dirname(importer), specifier));
+  if (!base.startsWith("scripts/") || base.includes("../")) {
+    fail(
+      "PRODUCTION_MODULE_PATH_ESCAPE",
+      `${importer} imports outside scripts.`
+    );
+  }
+  const extension = extname(base);
+  const candidates = extension
+    ? [base]
+    : PRODUCTION_MODULE_EXTENSIONS.map(candidate => `${base}${candidate}`);
+  if (extension && !PRODUCTION_MODULE_EXTENSIONS.includes(extension)) {
+    fail(
+      "UNRESOLVED_PRODUCTION_MODULE",
+      `${importer} imports an unsupported module extension.`
+    );
+  }
+  const probes = await Promise.all(
+    candidates.map(candidate => probeExactFile(repositoryRoot, candidate))
+  );
+  if (probes.some(probe => probe.status === "case-mismatch")) {
+    fail(
+      "PRODUCTION_MODULE_CASE_MISMATCH",
+      `${importer} imports a path with incorrect casing.`
+    );
+  }
+  const matches = candidates
+    .map((candidate, index) => ({ candidate, ...probes[index] }))
+    .filter(candidate => candidate.status === "ok");
+  if (matches.length === 0) {
+    fail(
+      "UNRESOLVED_PRODUCTION_MODULE",
+      `${importer} imports a missing module.`
+    );
+  }
+  if (matches.length !== 1) {
+    fail(
+      "AMBIGUOUS_PRODUCTION_MODULE",
+      `${importer} imports an ambiguous extensionless module.`
+    );
+  }
+  const [match] = matches;
+  if (
+    !isInside(repositoryRealPath, match.realPath) ||
+    !isInside(scriptsRealPath, match.realPath)
+  ) {
+    fail(
+      "PRODUCTION_MODULE_PATH_ESCAPE",
+      `${importer} resolves through a symlink outside scripts.`
+    );
+  }
+  return match.candidate;
+}
+
+async function readProductionFile({
+  path,
+  repositoryRoot,
+  repositoryRealPath,
+  scriptsRealPath,
+}) {
+  const extension = extname(path);
+  if (
+    !path.startsWith("scripts/") ||
+    path.includes("\\") ||
+    path.split("/").some(part => part === "." || part === "..") ||
+    !PRODUCTION_MODULE_EXTENSIONS.includes(extension)
+  ) {
+    fail(
+      "PRODUCTION_MODULE_PATH_ESCAPE",
+      `${path} is not a supported scripts entrypoint.`
+    );
+  }
+  const probe = await probeExactFile(repositoryRoot, path);
+  if (probe.status === "case-mismatch") {
+    fail("PRODUCTION_MODULE_CASE_MISMATCH", `${path} has incorrect casing.`);
+  }
+  if (probe.status !== "ok") {
+    fail("UNRESOLVED_PRODUCTION_MODULE", `${path} does not exist.`);
+  }
+  if (
+    !isInside(repositoryRealPath, probe.realPath) ||
+    !isInside(scriptsRealPath, probe.realPath)
+  ) {
+    fail("PRODUCTION_MODULE_PATH_ESCAPE", `${path} escapes scripts.`);
+  }
+  return readFile(probe.absolutePath, "utf8");
+}
+
+export async function analyzeProductionRailwayBoundary({
+  adapterPath = RAILWAY_PROCESS_ADAPTER_PATH,
+  repositoryRoot = DEFAULT_REPOSITORY_ROOT,
+  workflowPath = PRODUCTION_WORKFLOW_PATH,
+} = {}) {
+  const repositoryRealPath = await realpath(repositoryRoot);
+  const scriptsRealPath = await realpath(join(repositoryRoot, "scripts"));
+  if (!isInside(repositoryRealPath, scriptsRealPath)) {
+    fail("PRODUCTION_MODULE_PATH_ESCAPE", "scripts resolves outside the repository.");
+  }
+  const workflowProbe = await probeExactFile(repositoryRoot, workflowPath);
+  if (workflowProbe.status === "case-mismatch") {
+    fail("PRODUCTION_MODULE_CASE_MISMATCH", `${workflowPath} has incorrect casing.`);
+  }
+  if (workflowProbe.status !== "ok" || !isInside(repositoryRealPath, workflowProbe.realPath)) {
+    fail("UNRESOLVED_PRODUCTION_MODULE", `${workflowPath} does not exist safely.`);
+  }
+  const workflowSource = await readFile(workflowProbe.absolutePath, "utf8");
+  validateProductionWorkflowRailwayCommands(workflowSource);
+  const entrypoints = discoverProductionNodeEntrypoints(workflowSource);
+  const queue = [...entrypoints];
+  const sources = new Map();
+  while (queue.length > 0) {
+    const path = queue.shift();
+    if (sources.has(path)) continue;
+    const source = await readProductionFile({
+      path,
+      repositoryRoot,
+      repositoryRealPath,
+      scriptsRealPath,
+    });
+    const tree = parseProductionSource(path, source);
+    const imports = collectStaticRelativeImports(tree, path);
+    sources.set(path, { source, tree });
+    for (const specifier of imports) {
+      const dependency = await resolveProductionModule({
+        importer: path,
+        repositoryRoot,
+        repositoryRealPath,
+        scriptsRealPath,
+        specifier,
+      });
+      if (!sources.has(dependency)) queue.push(dependency);
+    }
+  }
+
+  let adapterImportCount = 0;
+  let adapterInvocationCount = 0;
+  for (const [path, entry] of sources) {
+    if (path === adapterPath) {
+      const result = validateAdapterTree(entry.tree, path);
+      adapterImportCount += result.adapterImportCount;
+      adapterInvocationCount += result.adapterInvocationCount;
+    } else {
+      validateNonAdapterTree(entry.tree, path);
+    }
+  }
+  if (!sources.has(adapterPath) || adapterImportCount !== 1) {
+    fail(
+      "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+      "Railway process execution must be owned by exactly one discovered adapter."
+    );
+  }
+  return {
+    adapterImportCount,
+    adapterInvocationCount,
+    adapterPath,
+    entrypoints,
+    files: [...sources.keys()].sort(),
+  };
 }
 
 export function validateProductionWorkflowTriggers(source) {

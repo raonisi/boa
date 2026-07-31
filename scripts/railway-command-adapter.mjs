@@ -3,9 +3,6 @@ import { createWriteStream } from "node:fs";
 import { open, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
 const RAILWAY_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const RAILWAY_CLI_EXECUTABLE =
@@ -130,10 +127,24 @@ export function buildRailwayUploadArgs(context) {
   return buildRailwayCommand({ operation: "upload", context }).args;
 }
 
+function executeRailwayFile(executable, args, options) {
+  return new Promise((resolve, reject) => {
+    execFile(executable, args, options, (error, stdout, stderr) => {
+      if (error) {
+        error.stdout ??= stdout;
+        error.stderr ??= stderr;
+        reject(error);
+        return;
+      }
+      resolve({ stderr, stdout });
+    });
+  });
+}
+
 export async function executeRailwayDeploymentList({
   context,
   timeoutMs = 30_000,
-  execFileImpl = execFileAsync,
+  execFileImpl = executeRailwayFile,
 }) {
   try {
     const { stdout = "" } = await execFileImpl(
@@ -162,7 +173,7 @@ export async function executeRailwayDeploymentList({
 }
 
 export async function verifyRailwayCliHelpContract({
-  execFileImpl = execFileAsync,
+  execFileImpl = executeRailwayFile,
 } = {}) {
   const readHelp = async (command, invocation) => {
     try {

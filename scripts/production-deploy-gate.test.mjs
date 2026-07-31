@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   buildRailwayCommand,
   executeRailwayDeploymentList,
@@ -45,14 +53,17 @@ import {
   writeRailwayFailureDiagnostic,
 } from "./verify-railway-deployment.mjs";
 import {
+  analyzeProductionRailwayBoundary,
+  discoverProductionNodeEntrypoints,
   ProductionWorkflowRatchetError,
   RAILWAY_PROCESS_ADAPTER_PATH,
   validateProductionWorkflowActions,
   validateProductionWorkflowRailwayCommands,
   validateProductionWorkflowRatchets,
   validateProductionWorkflowTriggers,
-  validateRailwayProcessBoundary,
 } from "./verify-production-workflow-ratchets.mjs";
+
+const REPOSITORY_ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const SHA_A = "a".repeat(40);
 const SHA_B = "b".repeat(40);
@@ -546,26 +557,203 @@ test("Railway adapter rejects arbitrary caller arguments before execution", () =
   );
 });
 
-async function currentRailwayProductionSources() {
-  return Promise.all(
-    [
-      RAILWAY_PROCESS_ADAPTER_PATH,
-      "scripts/verify-railway-deployment.mjs",
-      "scripts/verify-production-workflow-ratchets.mjs",
-    ].map(async path => ({
-      path,
-      source: await readFile(new URL(`../${path}`, import.meta.url), "utf8"),
-    }))
-  );
+function boundaryWorkflow(entrypoints = ["scripts/root.mjs"]) {
+  return `name: Boundary fixture
+jobs:
+  verify:
+    steps:
+${entrypoints.map(path => `      - run: node ${path}`).join("\n")}`;
 }
 
-test("current Railway process boundary has exactly one adapter", async () => {
-  const result = validateRailwayProcessBoundary(
-    await currentRailwayProductionSources()
+async function withRailwayBoundaryFixture(
+  {
+    entrypoints = ["scripts/root.mjs"],
+    files = {
+      "scripts/root.mjs": 'import "./railway-command-adapter.mjs";',
+    },
+    workflow = boundaryWorkflow(entrypoints),
+  },
+  assertion
+) {
+  const root = await mkdtemp(join(tmpdir(), "boa-railway-boundary-"));
+  const adapterSource = await readFile(
+    join(REPOSITORY_ROOT, RAILWAY_PROCESS_ADAPTER_PATH),
+    "utf8"
   );
+  const fixtureFiles = {
+    [RAILWAY_PROCESS_ADAPTER_PATH]: adapterSource,
+    ...files,
+  };
+  try {
+    await mkdir(join(root, ".github", "workflows"), { recursive: true });
+    await writeFile(
+      join(root, ".github", "workflows", "production-deploy.yml"),
+      workflow,
+      "utf8"
+    );
+    for (const [path, source] of Object.entries(fixtureFiles)) {
+      const target = join(root, ...path.split("/"));
+      await mkdir(dirname(target), { recursive: true });
+      await writeFile(target, source, "utf8");
+    }
+    await assertion(root);
+  } finally {
+    await rm(root, { force: true, recursive: true });
+  }
+}
+
+async function assertBoundaryFailure(options, expectedCode) {
+  await withRailwayBoundaryFixture(options, async repositoryRoot => {
+    await assert.rejects(
+      analyzeProductionRailwayBoundary({ repositoryRoot }),
+      error =>
+        error instanceof ProductionWorkflowRatchetError &&
+        error.code === expectedCode
+    );
+  });
+}
+
+test("current production workflow derives the complete Railway helper graph", async () => {
+  const result = await analyzeProductionRailwayBoundary({
+    repositoryRoot: REPOSITORY_ROOT,
+  });
   assert.equal(result.adapterImportCount, 1);
-  assert.ok(result.adapterInvocationCount >= 2);
+  assert.equal(result.adapterInvocationCount, 2);
+  assert.equal(result.entrypoints.length, 3);
+  assert.ok(result.entrypoints.includes("scripts/stamp-release-identity.mjs"));
+  assert.ok(
+    result.entrypoints.includes(
+      "scripts/verify-production-deploy-eligibility.mjs"
+    )
+  );
+  assert.ok(
+    result.entrypoints.includes("scripts/verify-railway-deployment.mjs")
+  );
+  assert.equal(result.files.length, 5);
+  assert.ok(result.files.includes(RAILWAY_PROCESS_ADAPTER_PATH));
+  assert.ok(result.files.includes("scripts/verify-production-health.mjs"));
+  assert.equal(
+    result.files.includes("scripts/verify-production-workflow-ratchets.mjs"),
+    false
+  );
 });
+
+test("workflow Node discovery handles scalar, block, arguments, and continuations", () => {
+  assert.deepEqual(
+    discoverProductionNodeEntrypoints(`steps:
+  - run: node scripts/one.mjs --safe
+  - run: |
+      node scripts/two.js \\
+        --value "\${VALUE}"
+      node scripts/one.mjs`),
+    ["scripts/one.mjs", "scripts/two.js"]
+  );
+});
+
+for (const [name, mutate, expectedCode] of [
+  [
+    "spawn alias import",
+    source => source.replace("execFile, spawn", "execFile, spawn as launch"),
+    "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+  ],
+  [
+    "execFile alias import",
+    source => source.replace("execFile, spawn", "execFile as execute, spawn"),
+    "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+  ],
+  [
+    "namespace child_process import",
+    source =>
+      source.replace(
+        'import { execFile, spawn } from "node:child_process";',
+        'import * as childProcess from "node:child_process";'
+      ),
+    "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+  ],
+  [
+    "default child_process import",
+    source =>
+      source.replace(
+        'import { execFile, spawn } from "node:child_process";',
+        'import childProcess from "node:child_process";'
+      ),
+    "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+  ],
+  [
+    "require child_process",
+    source =>
+      source.replace(
+        'import { execFile, spawn } from "node:child_process";',
+        'const { execFile, spawn } = require("node:child_process");'
+      ),
+    "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+  ],
+  [
+    "dynamic child_process import",
+    source =>
+      source.replace(
+        'import { execFile, spawn } from "node:child_process";',
+        'const { execFile, spawn } = await import("node:child_process");'
+      ),
+    "UNSUPPORTED_CHILD_PROCESS_IMPORT_SHAPE",
+  ],
+  [
+    "spawn alias assignment",
+    source => `${source}\nconst launch = spawn;`,
+    "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+  ],
+  [
+    "execFile alias assignment",
+    source => `${source}\nconst execute = execFile;`,
+    "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+  ],
+  [
+    "spawn parameter shadow",
+    source => `${source}\nfunction shadow(spawn) { return spawn; }`,
+    "CHILD_PROCESS_BINDING_SHADOWED",
+  ],
+  [
+    "execFile local shadow",
+    source => `${source}\nfunction shadow() { const execFile = () => {}; }`,
+    "CHILD_PROCESS_BINDING_SHADOWED",
+  ],
+  [
+    "spawn reassignment",
+    source => `${source}\nspawn = () => {};`,
+    "CHILD_PROCESS_BINDING_REASSIGNED",
+  ],
+  [
+    "spawn call indirection",
+    source => source.replace("const child = spawn(", "const child = spawn.call(null,"),
+    "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+  ],
+  [
+    "Reflect apply indirection",
+    source => `${source}\nReflect.apply(spawn, null, []);`,
+    "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+  ],
+  [
+    "global computed spawn call",
+    source => `${source}\nglobalThis["spawn"]("railway", []);`,
+    "UNSUPPORTED_CHILD_PROCESS_CALL_SHAPE",
+  ],
+]) {
+  test(`Railway adapter AST boundary rejects ${name}`, async () => {
+    const source = await readFile(
+      join(REPOSITORY_ROOT, RAILWAY_PROCESS_ADAPTER_PATH),
+      "utf8"
+    );
+    await assertBoundaryFailure(
+      {
+        files: {
+          [RAILWAY_PROCESS_ADAPTER_PATH]: mutate(source),
+          "scripts/root.mjs": 'import "./railway-command-adapter.mjs";',
+        },
+      },
+      expectedCode
+    );
+  });
+}
 
 for (const [name, source] of [
   [
@@ -578,53 +766,238 @@ for (const [name, source] of [
   ],
   [
     "aliased child_process import",
-    'import { spawn as launch } from "node:child_process"; launch("railway", dynamicArgs);',
+    'import { spawn as launch } from "node:child_process"; launch("railway", []);',
   ],
-  ["dynamic process invocation", "execFileImpl(executable, commandArgs);"],
-  ["unsupported member invocation", "childProcess.exec(command);"],
-  ["computed process invocation", "childProcess[runner](commandArgs);"],
-  ["dynamic module import", 'const cp = await import("node:child_process");'],
+  [
+    "dynamic child_process import",
+    'const childProcess = await import("node:child_process");',
+  ],
+  ["member process call", "childProcess.exec(command);"],
+  ["computed process call", 'childProcess["fork"](command);'],
 ]) {
-  test(`Railway boundary rejects ${name}`, async () => {
-    const sources = await currentRailwayProductionSources();
-    sources.push({ path: "scripts/unsafe-production-helper.mjs", source });
-    assert.throws(
-      () => validateRailwayProcessBoundary(sources),
-      error =>
-        error instanceof ProductionWorkflowRatchetError &&
-        error.code === "UNSUPPORTED_PROCESS_INVOCATION_SHAPE"
+  test(`transitive Railway helper rejects ${name}`, async () => {
+    await assertBoundaryFailure(
+      { files: { "scripts/root.mjs": source } },
+      "CHILD_PROCESS_OUTSIDE_RAILWAY_ADAPTER"
     );
   });
 }
 
-test("Railway adapter rejects caller-provided spawn arguments", async () => {
-  const sources = await currentRailwayProductionSources();
-  const adapter = sources.find(
-    source => source.path === RAILWAY_PROCESS_ADAPTER_PATH
-  );
-  adapter.source = adapter.source.replace(
-    "buildRailwayUploadArgs(context)",
-    "commandArgs"
-  );
-  assert.throws(
-    () => validateRailwayProcessBoundary(sources),
-    error =>
-      error instanceof ProductionWorkflowRatchetError &&
-      error.code === "UNSUPPORTED_PROCESS_INVOCATION_SHAPE"
+test("workflow-added literal helper is discovered without a source allowlist", async () => {
+  await withRailwayBoundaryFixture(
+    {
+      entrypoints: ["scripts/root.mjs", "scripts/new-helper.mjs"],
+      files: {
+        "scripts/root.mjs": 'import "./railway-command-adapter.mjs";',
+        "scripts/new-helper.mjs": 'export { buildRailwayCommand } from "./railway-command-adapter.mjs";',
+      },
+    },
+    async repositoryRoot => {
+      const result = await analyzeProductionRailwayBoundary({ repositoryRoot });
+      assert.ok(result.entrypoints.includes("scripts/new-helper.mjs"));
+      assert.ok(result.files.includes("scripts/new-helper.mjs"));
+    }
   );
 });
 
-test("Railway boundary ignores comments and fixture strings", async () => {
-  const sources = await currentRailwayProductionSources();
-  sources.push({
-    path: "scripts/fixture-description.mjs",
-    source: `
-      // spawn("railway", ["link"])
-      /* execFile("railway", ["status"]) */
-      const documentation = 'railway link --project example';
-    `,
+for (const [name, command] of [
+  ["dynamic variable", 'node "$SCRIPT"'],
+  ["dynamic expansion", "node \${SCRIPT}"],
+  ["eval flag", 'node -e "process.exit(0)"'],
+  ["long eval flag", 'node --eval "process.exit(0)"'],
+  ["bash wrapper", 'bash -lc "node scripts/root.mjs"'],
+  ["shell wrapper", "sh -c 'node scripts/root.mjs'"],
+  ["eval wrapper", 'eval "node scripts/root.mjs"'],
+  ["command wrapper", "command node scripts/root.mjs"],
+  ["environment wrapper", "env X=1 node scripts/root.mjs"],
+  ["command substitution", 'result="$(node scripts/root.mjs)"'],
+  ["variable wrapper", 'runner=node; "$runner" scripts/root.mjs'],
+]) {
+  test(`production workflow rejects ${name} Node entrypoint`, async () => {
+    await assertBoundaryFailure(
+      { workflow: `steps:\n  - run: ${command}` },
+      "UNSUPPORTED_PRODUCTION_NODE_ENTRYPOINT"
+    );
   });
-  assert.doesNotThrow(() => validateRailwayProcessBoundary(sources));
+}
+
+test("recursive helper graph discovers three levels and static re-exports", async () => {
+  await withRailwayBoundaryFixture(
+    {
+      files: {
+        "scripts/root.mjs": 'export { level } from "./level-one.mjs";',
+        "scripts/level-one.mjs": 'import "./level-two.mjs"; export const level = 1;',
+        "scripts/level-two.mjs": 'import "./railway-command-adapter.mjs";',
+      },
+    },
+    async repositoryRoot => {
+      const result = await analyzeProductionRailwayBoundary({ repositoryRoot });
+      assert.ok(result.files.includes("scripts/level-two.mjs"));
+      assert.equal(result.files.length, 4);
+    }
+  );
+});
+
+test("recursive helper graph terminates on circular imports", async () => {
+  await withRailwayBoundaryFixture(
+    {
+      files: {
+        "scripts/root.mjs": 'import "./cycle.mjs";',
+        "scripts/cycle.mjs": 'import "./root.mjs"; import "./railway-command-adapter.mjs";',
+      },
+    },
+    async repositoryRoot => {
+      const result = await analyzeProductionRailwayBoundary({ repositoryRoot });
+      assert.equal(result.files.length, 3);
+    }
+  );
+});
+
+for (const [name, source, expectedCode, extraFiles] of [
+  [
+    "unresolved import",
+    'import "./missing.mjs";',
+    "UNRESOLVED_PRODUCTION_MODULE",
+    {},
+  ],
+  [
+    "parent path escape",
+    'import "../outside.mjs";',
+    "PRODUCTION_MODULE_PATH_ESCAPE",
+    {},
+  ],
+  [
+    "dynamic import",
+    'import "./railway-command-adapter.mjs"; await import("./late.mjs");',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    { "scripts/late.mjs": "export {};" },
+  ],
+  [
+    "require loading",
+    'import "./railway-command-adapter.mjs"; require("./late.mjs");',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    { "scripts/late.mjs": "export {};" },
+  ],
+  [
+    "createRequire loading",
+    'import { createRequire } from "node:module"; import "./railway-command-adapter.mjs"; createRequire(import.meta.url);',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    {},
+  ],
+  [
+    "member createRequire loading",
+    'import * as moduleApi from "node:module"; import "./railway-command-adapter.mjs"; moduleApi.createRequire(import.meta.url);',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    {},
+  ],
+  [
+    "getBuiltinModule loading",
+    'import "./railway-command-adapter.mjs"; process.getBuiltinModule("node:fs");',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    {},
+  ],
+  [
+    "eval loading",
+    'import "./railway-command-adapter.mjs"; eval("safe");',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    {},
+  ],
+  [
+    "Function constructor loading",
+    'import "./railway-command-adapter.mjs"; new Function("return 1");',
+    "UNSUPPORTED_PRODUCTION_MODULE_LOADING",
+    {},
+  ],
+  [
+    "ambiguous extensionless import",
+    'import "./ambiguous";',
+    "AMBIGUOUS_PRODUCTION_MODULE",
+    {
+      "scripts/ambiguous.js": "export {};",
+      "scripts/ambiguous.mjs": "export {};",
+    },
+  ],
+  [
+    "case-mismatched import",
+    'import "./CaseHelper.mjs";',
+    "PRODUCTION_MODULE_CASE_MISMATCH",
+    { "scripts/casehelper.mjs": "export {};" },
+  ],
+]) {
+  test(`recursive helper graph rejects ${name}`, async () => {
+    await assertBoundaryFailure(
+      { files: { "scripts/root.mjs": source, ...extraFiles } },
+      expectedCode
+    );
+  });
+}
+
+for (const [name, entrypoint, expectedCode, files] of [
+  [
+    "missing workflow entrypoint",
+    "scripts/missing.mjs",
+    "UNRESOLVED_PRODUCTION_MODULE",
+    {},
+  ],
+  [
+    "case-mismatched workflow entrypoint",
+    "scripts/Root.mjs",
+    "PRODUCTION_MODULE_CASE_MISMATCH",
+    {
+      "scripts/root.mjs": 'import "./railway-command-adapter.mjs";',
+    },
+  ],
+]) {
+  test(`production helper graph rejects ${name}`, async () => {
+    await assertBoundaryFailure(
+      { entrypoints: [entrypoint], files },
+      expectedCode
+    );
+  });
+}
+
+test("recursive helper graph rejects a symlink escape", async () => {
+  await withRailwayBoundaryFixture(
+    {
+      files: {
+        "outside/escaped.mjs": 'import "../scripts/railway-command-adapter.mjs";',
+        "scripts/root.mjs": 'import "./escaped/escaped.mjs";',
+      },
+    },
+    async repositoryRoot => {
+      await symlink(
+        join(repositoryRoot, "outside"),
+        join(repositoryRoot, "scripts", "escaped"),
+        "junction"
+      );
+      await assert.rejects(
+        analyzeProductionRailwayBoundary({ repositoryRoot }),
+        error =>
+          error instanceof ProductionWorkflowRatchetError &&
+          error.code === "PRODUCTION_MODULE_PATH_ESCAPE"
+      );
+    }
+  );
+});
+
+test("Railway graph ignores comments and fixture strings", async () => {
+  await withRailwayBoundaryFixture(
+    {
+      files: {
+        "scripts/root.mjs": `
+          import "./railway-command-adapter.mjs";
+          // spawn("railway", ["link"])
+          /* execFile("railway", ["status"]) */
+          const documentation = 'railway link --project example';
+        `,
+      },
+    },
+    async repositoryRoot => {
+      await assert.doesNotReject(
+        analyzeProductionRailwayBoundary({ repositoryRoot })
+      );
+    }
+  );
 });
 
 for (const [name, command] of [
@@ -1593,10 +1966,11 @@ test("production workflow keeps secrets behind exact-SHA and arming gates", asyn
     new URL("./railway-command-adapter.mjs", import.meta.url),
     "utf8"
   );
-  const boundary = validateRailwayProcessBoundary(
-    await currentRailwayProductionSources()
-  );
+  const boundary = await analyzeProductionRailwayBoundary({
+    repositoryRoot: REPOSITORY_ROOT,
+  });
   assert.equal(boundary.adapterImportCount, 1);
+  assert.equal(boundary.adapterInvocationCount, 2);
   assert.doesNotMatch(railwayHelper, /node:child_process/);
   assert.match(railwayAdapter, /node:child_process/);
   const ratchets = validateProductionWorkflowRatchets(workflow);
