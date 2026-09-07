@@ -6,6 +6,8 @@ type MockOptions = {
   permissions?: string[];
   accountStatus?: "active" | "inactive" | "resigned";
   customerDetailDenied?: boolean;
+  /** Query-state tests may replace a serialized synthetic response or defer it. */
+  transformResponse?: (procedure: string, response: unknown) => unknown | Promise<unknown>;
 };
 
 const fixtureToday = new Date();
@@ -912,11 +914,16 @@ async function fulfillTrpc(route: Route, role: Role, options?: MockOptions) {
     return serialize(responseFor(procedure, role, options));
   });
 
+  const transformedBody = options?.transformResponse
+    ? await Promise.all(body.map((response, index) =>
+        options.transformResponse!(procedures[index], response)))
+    : body;
+
   await route.fulfill({
     status: 200,
     contentType: "application/json",
     body: JSON.stringify(
-      url.searchParams.get("batch") === "1" ? body : body[0]
+      url.searchParams.get("batch") === "1" ? transformedBody : transformedBody[0]
     ),
   });
 }

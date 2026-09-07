@@ -7,6 +7,7 @@ import {
 import { CustomerAssignMobileActionBar } from "@/components/customers/CustomerAssignMobileActionBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState, ErrorState, ForbiddenInlineState } from "@/components/ui/empty-state";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +31,7 @@ import {
   WORKFLOW_COPY,
 } from "@/lib/assignmentWorkflowCopy";
 import { trpc } from "@/lib/trpc";
+import { getAssignmentScopeKey, useAssignmentQueries, type AssignmentQueries } from "@/lib/customerAssignQueries";
 import { formatUserWithRole } from "@/lib/userRole";
 import { UserPlus, Users } from "lucide-react";
 import {
@@ -133,12 +135,13 @@ export default function CustomerAssign() {
   const isBranchAdmin = user?.role === "branch_admin";
   const isSubBranchAdmin = user?.role === "sub_branch_admin";
   const isTeamLeader = user?.role === "team_leader";
+  const scopeKey = getAssignmentScopeKey(user);
 
   return (
     <DashboardLayout>
-      {isBranchAdmin && <BranchAdminAssign />}
-      {isSubBranchAdmin && <SubBranchAdminAssign />}
-      {isTeamLeader && <TeamLeaderAssign />}
+      {isBranchAdmin && <BranchAdminAssign key={scopeKey} />}
+      {isSubBranchAdmin && <SubBranchAdminAssign key={scopeKey} />}
+      {isTeamLeader && <TeamLeaderAssign key={scopeKey} />}
     </DashboardLayout>
   );
 }
@@ -172,10 +175,11 @@ function BranchAdminAssign() {
 
 function AssignToAgent() {
   const { user } = useAuth();
-  const { data: unassigned, refetch } = trpc.customers.list.useQuery({
+  const queries = useAssignmentQueries({
     unassigned: true,
   });
-  const { data: allUsers } = trpc.users.list.useQuery();
+  const { data: unassigned, refetch } = queries.customers;
+  const { data: allUsers } = queries.users;
 
   const agents = useMemo<AssignmentAgentOption[]>(
     () =>
@@ -200,9 +204,10 @@ function AssignToAgent() {
 
   return (
     <AssignmentPanel
+      queries={queries}
       customers={(unassigned ?? []) as CustomerRow[]}
       agents={agents}
-      title={`미배정 고객 목록 (${unassigned?.length ?? 0}명)`}
+      title="미배정 고객 목록"
       refetchCustomers={refetch}
       emptyAgentText="배정 가능한 조직원이 없습니다."
       selectPlaceholder="담당 조직원 선택"
@@ -237,6 +242,20 @@ function useResetSelectionOnFilterChange(
   }, [filters.search, filters.statusFilter, filters.sourceFilter, setSelected]);
 }
 
+function usePruneSelectionAfterRefresh(
+  setSelected: Dispatch<SetStateAction<number[]>>,
+  customers: CustomerRow[],
+  ready: boolean
+) {
+  useEffect(() => {
+    if (!ready) return;
+    setSelected(previous => {
+      const remaining = previous.filter(id => customers.some(customer => customer.id === id));
+      return remaining.length === previous.length ? previous : remaining;
+    });
+  }, [customers, ready, setSelected]);
+}
+
 function AssignToSubBranch() {
   const isMobile = useIsMobile();
   const utils = trpc.useUtils();
@@ -249,11 +268,12 @@ function AssignToSubBranch() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [result, setResult] = useState<AssignmentResult | null>(null);
 
-  const { data: unassigned, refetch } = trpc.customers.list.useQuery({
+  const queries = useAssignmentQueries({
     unassigned: true,
     assignmentStatus: "unassigned",
   });
-  const { data: allUsers } = trpc.users.list.useQuery();
+  const { data: unassigned, refetch } = queries.customers;
+  const { data: allUsers } = queries.users;
   const subBranchAdmins = ((allUsers ?? []) as UserRow[])
     .filter(candidate => candidate.role === "sub_branch_admin")
     .map<AssignmentAgentOption>(candidate => {
@@ -290,6 +310,9 @@ function AssignToSubBranch() {
     sourceFilter,
   });
 
+  usePruneSelectionAfterRefresh(setSelectedCustomers, customers,
+    queries.customers.isSuccess && !queries.customers.isFetching);
+
   const assignToSubBranchMutation =
     trpc.customers.assignToSubBranch.useMutation({
       onSuccess: () => {
@@ -300,6 +323,8 @@ function AssignToSubBranch() {
     });
 
   const handleAssign = async () => {
+    if (!queries.canAssign || !selectedTarget ||
+        selectedCustomers.some(id => !customers.some(customer => customer.id === id))) return;
     if (!selectedSubBranchAdmin || selectedCustomers.length === 0) {
       toast.error("부지점장과 고객을 선택하세요.");
       return;
@@ -351,8 +376,11 @@ function AssignToSubBranch() {
     }
   };
 
+  if (queries.accessError) return <AssignmentAccessState error={queries.accessError} />;
+
   return (
     <div className="space-y-4">
+      <AssignmentTargetState queries={queries} />
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">배분 설정</CardTitle>
@@ -368,7 +396,7 @@ function AssignToSubBranch() {
             <SelectContent>
               {subBranchAdmins.length === 0 ? (
                 <SelectItem value="none" disabled>
-                  부지점장 없음
+                  {queries.users.isPending ? "불러오는 중" : queries.users.isError ? "확인 불가" : "부지점장 없음"}
                 </SelectItem>
               ) : (
                 subBranchAdmins.map(subBranchAdmin => (
@@ -390,6 +418,7 @@ function AssignToSubBranch() {
             size="sm"
             className={isMobile ? "hidden" : undefined}
             disabled={
+              !queries.canAssign ||
               !selectedSubBranchAdmin ||
               !selectedTarget ||
               selectedCustomers.length === 0 ||
@@ -402,7 +431,7 @@ function AssignToSubBranch() {
               ? `${selectedCustomers.length}명 배분`
               : "배분하기"}
           </Button>
-          {subBranchAdmins.length === 0 && (
+          {queries.users.isSuccess && subBranchAdmins.length === 0 && (
             <p className="basis-full text-xs text-muted-foreground">
               사용자 관리에서 부지점장을 먼저 지정해주세요.
             </p>
@@ -419,6 +448,8 @@ function AssignToSubBranch() {
         onRetryFailed={ids => setSelectedCustomers(ids)}
       />
       <CustomerAssignCustomerList
+        queryState={queries.customerState}
+        onRetry={() => void refetch()}
         customers={filteredCustomers}
         totalCount={customers.length}
         selected={selectedCustomers}
@@ -440,7 +471,7 @@ function AssignToSubBranch() {
         onSourceFilterChange={setSourceFilter}
         statusOptions={uniqueValues(customers, "consultStatus")}
         sourceOptions={uniqueValues(customers, "source")}
-        title={`미배분 고객 목록 (${unassigned?.length ?? 0}명)`}
+        title="미배분 고객 목록"
         emptyTitle="미배분 고객 DB가 없습니다."
         emptyDescription="신규 고객 DB가 생기면 부지점장에게 배분할 수 있습니다."
         workflowKind="dbDistribution"
@@ -448,7 +479,7 @@ function AssignToSubBranch() {
       />
       <CustomerAssignMobileActionBar
         selectedCount={selectedVisibleCount}
-        canExecute={Boolean(selectedSubBranchAdmin)}
+        canExecute={queries.canAssign && Boolean(selectedTarget)}
         workflowKind="dbDistribution"
         actionLabel={
           selectedVisibleCount > 0
@@ -475,6 +506,7 @@ function AssignToSubBranch() {
         postAssigneeNote="배분 후 부지점장이 산하 조직원에게 다시 배정할 수 있습니다."
         confirmButtonLabel={WORKFLOW_COPY.dbDistribution.confirmButton}
         loading={assignToSubBranchMutation.isPending}
+        disabled={!queries.canAssign || !selectedTarget}
         onConfirm={handleAssign}
       />
     </div>
@@ -483,8 +515,9 @@ function AssignToSubBranch() {
 
 function SubBranchAdminAssign() {
   const { user } = useAuth();
-  const { data: myDb, refetch } = trpc.customers.list.useQuery({});
-  const { data: allUsers } = trpc.users.list.useQuery();
+  const queries = useAssignmentQueries();
+  const { data: myDb, refetch } = queries.customers;
+  const { data: allUsers } = queries.users;
 
   const assignedToMe = ((myDb ?? []) as CustomerRow[]).filter(
     customer => customer.assignmentStatus === "assigned_to_sub_branch"
@@ -512,9 +545,10 @@ function SubBranchAdminAssign() {
         description={`${WORKFLOW_COPY.dbAssignment.description} 배분받은 DB를 산하 팀장·팀원에게 배정합니다.`}
       />
       <AssignmentPanel
+        queries={queries}
         customers={assignedToMe}
         agents={myTeamMembers}
-        title={`배분받은 미배정 DB (${assignedToMe.length}명)`}
+        title="배분받은 미배정 DB"
         refetchCustomers={refetch}
         emptyAgentText="산하 조직원이 없습니다."
         selectPlaceholder="담당자 선택"
@@ -532,8 +566,9 @@ function SubBranchAdminAssign() {
 
 function TeamLeaderAssign() {
   const { user } = useAuth();
-  const { data: teamCustomers, refetch } = trpc.customers.list.useQuery({});
-  const { data: allUsers } = trpc.users.list.useQuery();
+  const queries = useAssignmentQueries();
+  const { data: teamCustomers, refetch } = queries.customers;
+  const { data: allUsers } = queries.users;
 
   const teamMembers = ((allUsers ?? []) as UserRow[])
     .filter(
@@ -557,9 +592,10 @@ function TeamLeaderAssign() {
         description={`${WORKFLOW_COPY.dbAssignment.description} 본인 팀 고객 DB를 산하 팀원에게 배정합니다.`}
       />
       <AssignmentPanel
+        queries={queries}
         customers={(teamCustomers ?? []) as CustomerRow[]}
         agents={teamMembers}
-        title={`팀 고객 DB (${teamCustomers?.length ?? 0}명)`}
+        title="팀 고객 DB"
         refetchCustomers={refetch}
         emptyAgentText="산하 팀원이 없습니다."
         selectPlaceholder="산하 팀원 선택"
@@ -574,6 +610,7 @@ function TeamLeaderAssign() {
 }
 
 function AssignmentPanel({
+  queries,
   customers,
   agents,
   title,
@@ -584,6 +621,7 @@ function AssignmentPanel({
   emptyCustomerDescription,
   helperText,
 }: {
+  queries: AssignmentQueries;
   customers: CustomerRow[];
   agents: AssignmentAgentOption[];
   title: string;
@@ -626,6 +664,9 @@ function AssignmentPanel({
     sourceFilter,
   });
 
+  usePruneSelectionAfterRefresh(setSelectedCustomers, customers,
+    queries.customers.isSuccess && !queries.customers.isFetching);
+
   const assignMutation = trpc.customers.assign.useMutation({
     onSuccess: () => {
       refetchCustomers();
@@ -635,6 +676,8 @@ function AssignmentPanel({
   });
 
   const handleAssign = async () => {
+    if (!queries.canAssign || !selectedAgentUser ||
+        selectedCustomers.some(id => !customers.some(customer => customer.id === id))) return;
     if (!selectedAgent || selectedCustomers.length === 0) {
       toast.error("담당자와 고객을 선택하세요.");
       return;
@@ -686,8 +729,11 @@ function AssignmentPanel({
     }
   };
 
+  if (queries.accessError) return <AssignmentAccessState error={queries.accessError} />;
+
   return (
     <div className="space-y-4">
+      <AssignmentTargetState queries={queries} />
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">배정 설정</CardTitle>
@@ -700,7 +746,7 @@ function AssignmentPanel({
             <SelectContent>
               {agents.length === 0 ? (
                 <SelectItem value="none" disabled>
-                  {emptyAgentText}
+                  {queries.users.isPending ? "불러오는 중" : queries.users.isError ? "확인 불가" : emptyAgentText}
                 </SelectItem>
               ) : (
                 agents.map(agent => (
@@ -720,6 +766,7 @@ function AssignmentPanel({
             size="sm"
             className={isMobile ? "hidden" : undefined}
             disabled={
+              !queries.canAssign ||
               !selectedAgent ||
               !selectedAgentUser ||
               selectedCustomers.length === 0 ||
@@ -749,6 +796,8 @@ function AssignmentPanel({
         onRetryFailed={ids => setSelectedCustomers(ids)}
       />
       <CustomerAssignCustomerList
+        queryState={queries.customerState}
+        onRetry={refetchCustomers}
         customers={filteredCustomers}
         totalCount={customers.length}
         selected={selectedCustomers}
@@ -778,7 +827,7 @@ function AssignmentPanel({
       />
       <CustomerAssignMobileActionBar
         selectedCount={selectedVisibleCount}
-        canExecute={Boolean(selectedAgentUser)}
+        canExecute={queries.canAssign && Boolean(selectedAgentUser)}
         workflowKind="dbAssignment"
         actionLabel={
           selectedVisibleCount > 0
@@ -807,6 +856,7 @@ function AssignmentPanel({
         postAssigneeNote={WORKFLOW_COPY.dbAssignment.postAssigneeNote}
         confirmButtonLabel={WORKFLOW_COPY.dbAssignment.confirmButton}
         loading={assignMutation.isPending}
+        disabled={!queries.canAssign || !selectedAgentUser}
         onConfirm={handleAssign}
       />
     </div>
@@ -826,6 +876,19 @@ function PageHeader({
       <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>
     </div>
   );
+}
+
+function AssignmentAccessState({ error }: { error: NonNullable<AssignmentQueries["accessError"]> }) {
+  if (error === "forbidden") return <ForbiddenInlineState />;
+  // The existing global query-error subscription owns login redirection.
+  return <EmptyState variant="forbidden" title="다시 로그인이 필요합니다" description={USER_FACING_ERRORS.sessionExpired} />;
+}
+
+function AssignmentTargetState({ queries }: { queries: AssignmentQueries }) {
+  if (!queries.users.isError) return null;
+  return <ErrorState compact title="배정 대상자를 불러오지 못했습니다"
+    description="배정 대상자를 다시 확인한 후 배정할 수 있습니다."
+    retryLabel="배정 대상자 다시 불러오기" onRetry={() => void queries.users.refetch()} />;
 }
 
 function toggleId(selected: number[], id: number) {
@@ -899,6 +962,7 @@ function AssignmentConfirmDialog({
   postAssigneeNote,
   confirmButtonLabel,
   loading,
+  disabled,
   onConfirm,
 }: {
   open: boolean;
@@ -911,6 +975,7 @@ function AssignmentConfirmDialog({
   postAssigneeNote: string;
   confirmButtonLabel: string;
   loading: boolean;
+  disabled: boolean;
   onConfirm: () => void;
 }) {
   return (
@@ -950,7 +1015,7 @@ function AssignmentConfirmDialog({
           >
             {WORKFLOW_COPY.dbAssignment.cancelButton}
           </Button>
-          <Button onClick={onConfirm} disabled={loading || selectedCount === 0}>
+          <Button onClick={onConfirm} disabled={disabled || loading || selectedCount === 0}>
             {loading ? "처리 중..." : confirmButtonLabel}
           </Button>
         </DialogFooter>
