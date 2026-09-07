@@ -1131,7 +1131,7 @@ export default function Calendar() {
             )}
 
             {/* 이번 주 일정 */}
-            <Card className="border-slate-200/80 bg-white/95 shadow-sm">
+            <Card className="border-slate-200/80 bg-card shadow-sm">
               <CardContent className="grid grid-cols-2 gap-2 p-3 sm:flex sm:flex-wrap">
                 {["today", "week", "month", "all", "custom"].map(r => (
                   <Button
@@ -1496,7 +1496,7 @@ export default function Calendar() {
                         return (
                           <div
                             key={day.toISOString()}
-                            className={`group bg-background min-h-[92px] p-1.5 cursor-pointer hover:bg-muted/50 ${!isCurrentMonth ? "opacity-40" : ""} ${isToday ? "ring-2 ring-primary ring-inset" : ""} ${isSelectedDay ? "bg-primary/5" : ""}`}
+                            className={`group min-h-[92px] p-1.5 cursor-pointer hover:bg-muted ${isCurrentMonth ? "bg-background" : "bg-muted"} ${isToday ? "ring-2 ring-primary ring-inset" : ""} ${isSelectedDay ? "bg-primary/5" : ""}`}
                           >
                             <div className="mb-1 flex items-center justify-between gap-1">
                               <button
