@@ -1,6 +1,41 @@
 import path from "node:path";
+import {
+  formatKstLocalDate,
+  getKstLocalDateTimeAfter,
+  parseKstLocalDateTime,
+} from "@shared/timePolicy";
 
 export const CRITICAL_E2E_DATABASE = "boa_e2e";
+export const CRITICAL_E2E_REFERENCE_INSTANT = "2026-06-15T00:30:00.000Z";
+
+export function buildCriticalE2EScheduleFixture(
+  referenceInstant: Date | string = CRITICAL_E2E_REFERENCE_INSTANT,
+  dayOffset = 0
+) {
+  const reference =
+    referenceInstant instanceof Date
+      ? new Date(referenceInstant.getTime())
+      : new Date(referenceInstant);
+  if (Number.isNaN(reference.getTime())) {
+    throw new Error("Critical E2E reference instant must be a valid date");
+  }
+
+  const dateKey = getKstLocalDateTimeAfter(reference, { days: dayOffset }).slice(
+    0,
+    10
+  );
+  const startAt = parseKstLocalDateTime(`${dateKey}T10:00`);
+  const endAt = parseKstLocalDateTime(`${dateKey}T11:00`);
+
+  if (
+    formatKstLocalDate(startAt) !== dateKey ||
+    formatKstLocalDate(endAt) !== dateKey
+  ) {
+    throw new Error("Critical E2E schedule must remain on one KST date");
+  }
+
+  return { reference, dateKey, startAt, endAt };
+}
 
 export const CRITICAL_E2E_IDS = {
   users: {
@@ -12,10 +47,14 @@ export const CRITICAL_E2E_IDS = {
     otherMember: 9006,
     inactive: 9007,
     resigned: 9008,
+    subBranchAdminB: 9009,
+    teamLeaderB: 9010,
+    memberB: 9011,
   },
   teams: {
     primary: 9101,
     other: 9102,
+    branchB: 9103,
   },
   customers: {
     primary: 9201,
@@ -23,6 +62,12 @@ export const CRITICAL_E2E_IDS = {
     merged: 9203,
     outsideTeam: 9204,
     inactive: 9205,
+    unassignedTeamA1Database: 9206,
+    unassignedTeamA1Contracted: 9207,
+    unassignedTeamA2: 9208,
+    unassignedTeamB1: 9209,
+    unassignedNoOrganization: 9210,
+    unassignedTeamA1BulkStart: 9211,
   },
   schedules: {
     branchAdmin: 9301,
@@ -37,6 +82,7 @@ export const CRITICAL_E2E_IDS = {
   contracts: {
     active: 9401,
     deleted: 9402,
+    unassignedActive: 9403,
   },
   followUps: {
     active: 9501,
@@ -100,16 +146,46 @@ export const CRITICAL_E2E_USERS = {
     name: "[TEST] 부지점장",
     role: "sub_branch_admin",
   },
+  subBranchAdminB: {
+    id: CRITICAL_E2E_IDS.users.subBranchAdminB,
+    openId: "e2e_sub_branch_admin_b",
+    name: "[TEST] Sub Branch B",
+    role: "sub_branch_admin",
+  },
   teamLeader: {
     id: CRITICAL_E2E_IDS.users.teamLeader,
     openId: "e2e_team_leader",
     name: "[TEST] 팀장",
     role: "team_leader",
   },
+  otherTeamLeader: {
+    id: CRITICAL_E2E_IDS.users.otherTeamLeader,
+    openId: "e2e_other_team_leader",
+    name: "[TEST] Team Leader A2",
+    role: "team_leader",
+  },
+  teamLeaderB: {
+    id: CRITICAL_E2E_IDS.users.teamLeaderB,
+    openId: "e2e_team_leader_b",
+    name: "[TEST] Team Leader B1",
+    role: "team_leader",
+  },
   member: {
     id: CRITICAL_E2E_IDS.users.member,
     openId: "e2e_member",
     name: "[TEST] 팀원",
+    role: "member",
+  },
+  inactive: {
+    id: CRITICAL_E2E_IDS.users.inactive,
+    openId: "e2e_inactive",
+    name: "[TEST] Inactive",
+    role: "member",
+  },
+  resigned: {
+    id: CRITICAL_E2E_IDS.users.resigned,
+    openId: "e2e_resigned",
+    name: "[TEST] Resigned",
     role: "member",
   },
 } as const;

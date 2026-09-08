@@ -1850,3 +1850,18 @@ export type GoogleCalendarMisclassifiedResyncRun =
   typeof googleCalendarMisclassifiedResyncRuns.$inferSelect;
 export type InsertGoogleCalendarMisclassifiedResyncRun =
   typeof googleCalendarMisclassifiedResyncRuns.$inferInsert;
+
+export const oauthStateNonces = mysqlTable(
+  "oauth_state_nonces",
+  {
+    nonceDigest: varchar("nonceDigest", { length: 64 }).primaryKey(),
+    purpose: mysqlEnum("purpose", ["login", "google_calendar"]).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => ({
+    expiresAtIdx: index("idx_oauth_state_nonces_expires_at").on(
+      table.expiresAt
+    ),
+  })
+);

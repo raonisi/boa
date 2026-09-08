@@ -6,6 +6,7 @@ import {
   type Page,
 } from "@playwright/test";
 import {
+  CRITICAL_E2E_REFERENCE_INSTANT,
   CRITICAL_E2E_IDS,
   criticalE2EStorageState,
   type CriticalE2ERole,
@@ -29,6 +30,7 @@ async function openRolePage(
   openContexts.add(context);
   context.on("close", () => openContexts.delete(context));
   const page = await context.newPage();
+  await page.clock.setFixedTime(new Date(CRITICAL_E2E_REFERENCE_INSTANT));
   await page.goto(path);
   return { context, page };
 }
@@ -138,6 +140,13 @@ test.describe("critical schedule RBAC and approval flow", () => {
       await expect(
         detailDialog.getByText("[TEST] 합성 상담내용", { exact: true })
       ).toBeVisible();
+      if (role === "member") {
+        await page.reload();
+        await page.getByRole("button", { name: "전체 일정" }).click();
+        await expect(
+          page.getByText("[TEST] 팀원 고객 일정", { exact: true }).first()
+        ).toBeVisible();
+      }
       await context.close();
     }
   });

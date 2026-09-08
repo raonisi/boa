@@ -281,6 +281,13 @@
       "when": 1784019600000,
       "tag": "0039_contract_lifecycle_events",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1784343600000,
+      "tag": "0040_oauth_state_nonces",
+      "breakpoints": true
     }
   ]
 }

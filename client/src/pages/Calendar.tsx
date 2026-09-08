@@ -1112,7 +1112,7 @@ export default function Calendar() {
                             : ""}
                           {getScheduleCustomerLabel(s) ?? "연결 고객 없음"}
                         </p>
-                        <p className="text-xs text-orange-600">
+                        <p className="text-xs text-orange-700">
                           종료:{" "}
                           {s.endTime
                             ? format(scheduleDate(s.endTime), "M/d HH:mm", {
@@ -1121,7 +1121,7 @@ export default function Calendar() {
                             : "-"}
                         </p>
                       </div>
-                      <span className="shrink-0 text-xs font-medium text-orange-600">
+                      <span className="shrink-0 text-xs font-medium text-orange-700">
                         {getStatusLabel(s.status)}
                       </span>
                     </div>
