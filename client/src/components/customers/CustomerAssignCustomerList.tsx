@@ -2,7 +2,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { EmptyState } from "@/components/ui/empty-state";
+import { EmptyState, LoadingState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,6 +33,7 @@ import {
   getPageSelectAllLabel,
 } from "@/lib/checkboxA11yLabels";
 import { WORKFLOW_COPY } from "@/lib/assignmentWorkflowCopy";
+import type { AssignmentQueryState } from "@/lib/customerAssignQueries";
 import { cn } from "@/lib/utils";
 import { Filter, Search, X } from "lucide-react";
 import React, { useState } from "react";
@@ -67,6 +68,8 @@ type CustomerAssignCustomerListProps = {
   emptyDescription: string;
   workflowKind?: "dbAssignment" | "dbDistribution";
   listBottomPadding?: boolean;
+  queryState?: AssignmentQueryState;
+  onRetry?: () => void;
 };
 
 export function CustomerAssignCustomerList({
@@ -88,12 +91,25 @@ export function CustomerAssignCustomerList({
   emptyDescription,
   workflowKind = "dbAssignment",
   listBottomPadding = false,
+  queryState,
+  onRetry,
 }: CustomerAssignCustomerListProps) {
   const isMobile = useIsMobile();
   const [showFilters, setShowFilters] = useState(false);
 
   const hasActiveFilters =
     Boolean(search.trim()) || statusFilter !== "all" || sourceFilter !== "all";
+  const isPending = queryState?.isPending ?? false;
+  const isError = queryState?.isError ?? false;
+  const metric = (value: number) => isError ? "확인 불가" : isPending ? "불러오는 중" : `${value}건`;
+  const filteredEmpty = totalCount > 0 && hasActiveFilters;
+  const resolvedEmptyTitle = filteredEmpty ? "검색·필터 조건에 맞는 고객이 없습니다" : emptyTitle;
+  const resolvedEmptyDescription = filteredEmpty ? "검색어나 필터를 변경하거나 초기화해 주세요." : emptyDescription;
+  const resetFilters = () => {
+    onSearchChange("");
+    onStatusFilterChange("all");
+    onSourceFilterChange("all");
+  };
 
   const allVisibleSelected =
     customers.length > 0 &&
@@ -141,10 +157,10 @@ export function CustomerAssignCustomerList({
 
   const summaryBar = (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-slate-50 px-3 py-2 text-xs text-slate-700">
-      <span>전체 {totalCount}건</span>
-      <span>필터 결과 {customers.length}건</span>
-      <span>선택 {selected.length}건</span>
-      {selected.length > 0 && (
+      <span>전체 {metric(totalCount)}</span>
+      <span>필터 결과 {metric(customers.length)}</span>
+      <span>선택 {metric(selected.length)}</span>
+      {!isPending && !isError && selected.length > 0 && (
         <span className="font-medium text-emerald-700">
           총 {selected.length}건이 {workflowBadge}입니다.
         </span>
@@ -155,7 +171,9 @@ export function CustomerAssignCustomerList({
   return (
     <Card className={cn(listBottomPadding && "mb-24 md:mb-0")}>
       <CardHeader className="pb-2">
-        <CardTitle className="text-sm">{title}</CardTitle>
+        <CardTitle className="text-sm">
+          {title}{queryState ? ` (${isError ? "확인 불가" : isPending ? "불러오는 중" : `${totalCount}명`})` : ""}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 p-4">
         <div
@@ -255,12 +273,31 @@ export function CustomerAssignCustomerList({
 
         {summaryBar}
 
-        {isMobile ? (
+        {!isPending && !isError && queryState?.isFetching && queryState.hasData ? (
+          <p role="status" className="text-sm text-muted-foreground">마지막 조회 자료 · 최신 상태 확인 중</p>
+        ) : null}
+        {isPending ? (
+          <LoadingState title="고객 목록을 불러오는 중입니다" compact />
+        ) : isError ? (
+          <section aria-label="고객 목록 조회 상태">
+            <EmptyState
+              variant="error"
+              compact
+              title={queryState?.hasData ? "최신 상태 확인 실패" : "고객 목록을 불러오지 못했습니다"}
+              description={queryState?.hasData
+                ? "마지막 조회 자료는 최신 상태를 확인한 후 표시합니다. 다시 불러온 후 배정해 주세요."
+                : "연결 상태를 확인한 뒤 다시 불러와 주세요."}
+              action={<Button type="button" onClick={onRetry} disabled={queryState?.isFetching} className="min-h-11">다시 불러오기</Button>}
+            />
+          </section>
+        ) : isMobile ? (
           <div className="space-y-3">
             {customers.length === 0 ? (
               <EmptyState
-                title={emptyTitle}
-                description={emptyDescription}
+                title={resolvedEmptyTitle}
+                description={resolvedEmptyDescription}
+                actionLabel={filteredEmpty ? "필터 초기화" : undefined}
+                onAction={filteredEmpty ? resetFilters : undefined}
                 className="border-dashed bg-muted/20 py-8"
               />
             ) : (
@@ -379,9 +416,10 @@ export function CustomerAssignCustomerList({
                     >
                       <div className="space-y-1">
                         <p className="font-medium text-foreground">
-                          {emptyTitle}
+                          {resolvedEmptyTitle}
                         </p>
-                        <p className="text-xs">{emptyDescription}</p>
+                        <p className="text-xs">{resolvedEmptyDescription}</p>
+                        {filteredEmpty ? <Button type="button" variant="outline" onClick={resetFilters}>필터 초기화</Button> : null}
                       </div>
                     </TableCell>
                   </TableRow>

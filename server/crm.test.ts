@@ -8728,7 +8728,7 @@ describe("PR12 recommendations", () => {
     );
   });
 
-  it("does not mark a newly assigned old customer as long unmanaged before the assignment grace period", async () => {
+  it("uses the assignment date for the long unmanaged grace period", async () => {
     const newlyAssignedCustomer = {
       ...recommendedCustomer,
       consultStatus: "미상담",
@@ -8754,16 +8754,38 @@ describe("PR12 recommendations", () => {
       newlyAssignedCustomer as any
     );
 
-    const result = await appRouter
-      .createCaller(createCtx("member", { userId: 4 }))
-      .recommendations.customerContactReasons({ customerId: 100 });
+    // This endpoint reads the clock rather than accepting the fixture's baseDate.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const caller = appRouter.createCaller(createCtx("member", { userId: 4 }));
+      for (const now of [baseDate, "2026-08-10T09:00:00.000Z"]) {
+        // On the assignment day and day 89, the old creation date must not win.
+        vi.setSystemTime(new Date(now));
+        const result = await caller.recommendations.customerContactReasons({
+          customerId: 100,
+        });
 
-    expect(result.warnings.map(warning => warning.warningType)).not.toContain(
-      "long_unmanaged"
-    );
-    expect(result.reasons.map(reason => reason.reasonType)).not.toContain(
-      "long_unmanaged"
-    );
+        expect(result.warnings.map(warning => warning.warningType)).not.toContain(
+          "long_unmanaged"
+        );
+        expect(result.reasons.map(reason => reason.reasonType)).not.toContain(
+          "long_unmanaged"
+        );
+      }
+
+      vi.setSystemTime(new Date("2026-08-11T09:00:00.000Z"));
+      const expired = await caller.recommendations.customerContactReasons({
+        customerId: 100,
+      });
+      expect(expired.warnings.map(warning => warning.warningType)).toContain(
+        "long_unmanaged"
+      );
+      expect(expired.reasons.map(reason => reason.reasonType)).toContain(
+        "long_unmanaged"
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not recommend soft deleted customers", async () => {
