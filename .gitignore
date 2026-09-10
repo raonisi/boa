@@ -73,6 +73,7 @@ pids
 *.seed
 *.pid.lock
 *.bak
+.railway/
 
 # Coverage directory used by tools like istanbul
 coverage/

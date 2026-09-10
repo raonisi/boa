@@ -27,6 +27,8 @@ jobs:
           cache: pnpm
       - run: corepack enable
       - run: pnpm install --frozen-lockfile
+      - name: Install pinned Railway CLI contract
+        run: npm install --global @railway/cli@5.28.0
       - name: Verify production deployment gate logic
         run: node --test scripts/production-deploy-gate.test.mjs
       - run: pnpm check
