@@ -8602,8 +8602,7 @@ describe("PR12 recommendations", () => {
   };
 
   function mockRecommendationData(customers = [recommendedCustomer]) {
-    vi.spyOn(db, "getCustomers").mockResolvedValue(customers as any);
-    vi.spyOn(db, "getAllContracts").mockResolvedValue([
+    const contractList = [
       {
         id: 10,
         customerId: 100,
@@ -8622,26 +8621,21 @@ describe("PR12 recommendations", () => {
         isActive: false,
         deletedAt: new Date(),
       },
-    ] as any);
-    vi.spyOn(db, "getSchedules").mockResolvedValue([]);
-    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
-      items: [
-        {
-          id: 20,
-          userId: 4,
-          type: "general",
-          title: "[TEST] Notice",
-          isRead: false,
-          processStatus: "미확인",
-          relatedType: "customer",
-          relatedId: 100,
-          createdAt: new Date("2026-05-13T08:00:00.000Z"),
-        },
-      ],
-      totalCount: 1,
-      hasMore: false,
-    } as any);
-    vi.spyOn(db, "getFollowUps").mockResolvedValue([
+    ];
+    const notifications = [
+      {
+        id: 20,
+        userId: 4,
+        type: "general",
+        title: "[TEST] Notice",
+        isRead: false,
+        processStatus: "미확인",
+        relatedType: "customer",
+        relatedId: 100,
+        createdAt: new Date("2026-05-13T08:00:00.000Z"),
+      },
+    ];
+    const followUpList = [
       {
         id: 30,
         customerId: 100,
@@ -8666,17 +8660,27 @@ describe("PR12 recommendations", () => {
         status: "scheduled",
         deletedAt: null,
       },
-    ] as any);
-    vi.spyOn(db, "getConsultationsByCustomer").mockResolvedValue([]);
+    ];
+    vi.spyOn(db, "getRecommendationData").mockResolvedValue({
+      customerList: customers,
+      contractList,
+      notifications,
+      followUpList,
+      consultationStats: [],
+    } as any);
   }
 
   it("returns scored priority contacts without phone or memo", async () => {
     mockRecommendationData();
+    const rawCustomers = vi.spyOn(db, "getCustomers");
+    const perCustomerConsultations = vi.spyOn(db, "getConsultationsByCustomer");
     const result = await appRouter
       .createCaller(createCtx("member", { userId: 4 }))
       .recommendations.priorityContacts({ date: baseDate, limit: 10 });
 
-    expect(db.getCustomers).toHaveBeenCalledWith({ agentId: 4 });
+    expect(db.getRecommendationData).toHaveBeenCalledWith({ agentId: 4 });
+    expect(rawCustomers).not.toHaveBeenCalled();
+    expect(perCustomerConsultations).not.toHaveBeenCalled();
     expect(result[0].customerId).toBe(100);
     expect(result[0].urgency).toBe("high");
     expect(result[0].warnings.map(warning => warning.warningType)).toContain(
@@ -8693,7 +8697,7 @@ describe("PR12 recommendations", () => {
     await appRouter
       .createCaller(createCtx("team_leader", { userId: 3, teamId: 10 }))
       .recommendations.dashboardSummary({ date: baseDate });
-    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [3, 4] });
+    expect(db.getRecommendationData).toHaveBeenCalledWith({ agentIds: [3, 4] });
 
     vi.restoreAllMocks();
     mockRecommendationData();
@@ -8703,7 +8707,7 @@ describe("PR12 recommendations", () => {
     await appRouter
       .createCaller(createCtx("sub_branch_admin", { userId: 2 }))
       .recommendations.dashboardSummary({ date: baseDate });
-    expect(db.getCustomers).toHaveBeenCalledWith({ agentIds: [2, 4] });
+    expect(db.getRecommendationData).toHaveBeenCalledWith({ agentIds: [2, 4] });
 
     await expect(
       appRouter
@@ -8738,18 +8742,13 @@ describe("PR12 recommendations", () => {
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
       assignedAt: new Date("2026-05-13T08:00:00.000Z"),
     };
-    vi.spyOn(db, "getCustomers").mockResolvedValue([
-      newlyAssignedCustomer,
-    ] as any);
-    vi.spyOn(db, "getAllContracts").mockResolvedValue([]);
-    vi.spyOn(db, "getSchedules").mockResolvedValue([]);
-    vi.spyOn(db, "getNotificationsFiltered").mockResolvedValue({
-      items: [],
-      totalCount: 0,
-      hasMore: false,
+    vi.spyOn(db, "getRecommendationData").mockResolvedValue({
+      customerList: [newlyAssignedCustomer],
+      contractList: [],
+      notifications: [],
+      followUpList: [],
+      consultationStats: [],
     } as any);
-    vi.spyOn(db, "getFollowUps").mockResolvedValue([]);
-    vi.spyOn(db, "getConsultationsByCustomer").mockResolvedValue([]);
     vi.spyOn(db, "getCustomerById").mockResolvedValue(
       newlyAssignedCustomer as any
     );
@@ -8765,9 +8764,9 @@ describe("PR12 recommendations", () => {
           customerId: 100,
         });
 
-        expect(result.warnings.map(warning => warning.warningType)).not.toContain(
-          "long_unmanaged"
-        );
+        expect(
+          result.warnings.map(warning => warning.warningType)
+        ).not.toContain("long_unmanaged");
         expect(result.reasons.map(reason => reason.reasonType)).not.toContain(
           "long_unmanaged"
         );
@@ -8796,6 +8795,64 @@ describe("PR12 recommendations", () => {
       .createCaller(createCtx("branch_admin", { userId: 1 }))
       .recommendations.priorityContacts({ date: baseDate });
     expect(result).toEqual([]);
+  });
+
+  it("preserves empty responses and the accessible customer's safe fallback", async () => {
+    vi.spyOn(db, "getRecommendationData").mockResolvedValue({
+      customerList: [],
+      consultationStats: [],
+      contractList: [],
+      followUpList: [],
+      notifications: [],
+    });
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(
+      recommendedCustomer as any
+    );
+    const api = appRouter.createCaller(
+      createCtx("member", { userId: 4 })
+    ).recommendations;
+    expect(await api.priorityContacts()).toEqual([]);
+    expect(await api.customerWarnings()).toEqual([]);
+    expect(await api.dashboardSummary()).toEqual({
+      priorityContactCount: 0,
+      highUrgencyCount: 0,
+      warningCount: 0,
+      topContacts: [],
+    });
+    const fallback = await api.customerContactReasons({ customerId: 100 });
+    expect(fallback.reasons).toHaveLength(1);
+    expect(fallback.reasons[0].reasonType).toBe("general_check");
+    expect(fallback.warnings).toEqual([]);
+    expect(fallback.recommendedAction).toBe("고객 상태 점검");
+    expect(fallback.urgency).toBe("low");
+  });
+
+  it("propagates query failures through every recommendation API without a raw-data fallback", async () => {
+    const facts = vi
+      .spyOn(db, "getRecommendationData")
+      .mockRejectedValue(new Error("synthetic query failure"));
+    const rawCustomers = vi.spyOn(db, "getCustomers");
+    const perCustomerConsultations = vi.spyOn(db, "getConsultationsByCustomer");
+    vi.spyOn(db, "getCustomerById").mockResolvedValue(
+      recommendedCustomer as any
+    );
+    const api = appRouter.createCaller(
+      createCtx("member", { userId: 4 })
+    ).recommendations;
+    for (const run of [
+      () => api.priorityContacts(),
+      () => api.customerWarnings(),
+      () => api.customerContactReasons({ customerId: 100 }),
+      () => api.dashboardSummary(),
+    ]) {
+      await expect(run()).rejects.toMatchObject({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "synthetic query failure",
+      });
+    }
+    expect(facts).toHaveBeenCalledTimes(4);
+    expect(rawCustomers).not.toHaveBeenCalled();
+    expect(perCustomerConsultations).not.toHaveBeenCalled();
   });
 });
 
@@ -8873,6 +8930,10 @@ describe("PR14 work rhythm report", () => {
   ] as any[];
 
   function mockWorkRhythmData() {
+    vi.spyOn(db, "getRecommendationData").mockResolvedValue({
+      customerList: customers, contractList: contracts, followUpList: followUps, notifications: [],
+      consultationStats: [{ customerId: 100, count: 1, lastConsultationDate: new Date("2026-05-13") }],
+    } as any);
     vi.spyOn(db, "getCustomers").mockResolvedValue(customers as any);
     vi.spyOn(db, "getAllContracts").mockResolvedValue(contracts as any);
     vi.spyOn(db, "getSchedules").mockResolvedValue([]);
