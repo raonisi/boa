@@ -19,6 +19,7 @@ import {
   type CustomerSegmentCounts,
 } from "@shared/customerSegment";
 import { drizzle } from "drizzle-orm/mysql2";
+import type { AnyMySqlColumn } from "drizzle-orm/mysql-core";
 import {
   activityLogs,
   assignmentHistory,
@@ -1091,7 +1092,7 @@ export async function permanentlyDeleteTeam(id: number, client?: DbExecutor) {
 
 // ─── Customers ───────────────────────────────────────────────────────────────
 /** 역할별 고객 목록 조회 */
-export async function getCustomers(filter: {
+export type CustomerListFilter = {
   agentId?: number;
   agentIds?: number[];
   teamId?: number;
@@ -1115,10 +1116,23 @@ export async function getCustomers(filter: {
   sort?: "recent" | "name" | "next_contact" | "contract_value";
   segment?: CustomerSegment;
   withSegmentMeta?: boolean;
-}) {
-  const db = await getDb();
-  if (!db) return [];
+  workflowFilter?: "uncontacted" | "sla_overdue" | "no_next_action";
+  customerIds?: number[];
+  followUpFilter?: { dueTo: Date; agentId?: number; agentIds?: number[] };
+  exactAssignmentFilter?: { agentId?: number; unassigned?: boolean };
+};
 
+const customerActiveContractExists = sql<boolean>`exists (
+    select 1
+    from ${contracts}
+    where ${contracts.customerId} = ${customers.id}
+      and ${contracts.isActive} = true
+      and ${contracts.deletedAt} is null
+      and (${contracts.contractStatus} is null or ${contracts.contractStatus} not in ('철회', '해지'))
+      and (${contracts.paymentStatus} is null or ${contracts.paymentStatus} not in ('실효', '해지'))
+  )`;
+
+async function buildCustomerListConditions(filter: CustomerListFilter, db: NonNullable<Awaited<ReturnType<typeof getDb>>>) {
   const conditions: any[] = [];
 
   if (!filter.includeInactive) {
@@ -1126,14 +1140,12 @@ export async function getCustomers(filter: {
   }
 
   if (filter.agentIds !== undefined) {
-    if (filter.agentIds.length === 0) return [];
-    conditions.push(
+    if (filter.agentIds.length === 0) conditions.push(sql`false`);
+    if (filter.agentIds.length > 0) conditions.push(
       or(...filter.agentIds.map(id => eq(customers.agentId, id))) as any
     );
   } else if (filter.agentId !== undefined) {
     conditions.push(eq(customers.agentId, filter.agentId));
-  } else if (filter.unassigned) {
-    conditions.push(isNull(customers.agentId));
   } else if (filter.teamId !== undefined) {
     const teamAgents = await db
       .select({ id: users.id })
@@ -1162,6 +1174,10 @@ export async function getCustomers(filter: {
       );
     conditions.push(or(...branchConditions) as any);
   }
+
+  // Unassigned is a business filter, intersected with the server-approved scope.
+  // Keep the team's/sub-branch's existing OR terms above intact.
+  if (filter.unassigned) conditions.push(isNull(customers.agentId));
 
   if (filter.assignmentStatus)
     conditions.push(
@@ -1215,20 +1231,177 @@ export async function getCustomers(filter: {
   if (filter.assignedDateTo)
     conditions.push(lte(customers.assignedAt, filter.assignedDateTo) as any);
 
-  const activeContractExists = sql<boolean>`exists (
-    select 1
-    from ${contracts}
-    where ${contracts.customerId} = ${customers.id}
-      and ${contracts.isActive} = true
-      and ${contracts.deletedAt} is null
-      and (${contracts.contractStatus} is null or ${contracts.contractStatus} not in ('철회', '해지'))
-      and (${contracts.paymentStatus} is null or ${contracts.paymentStatus} not in ('실효', '해지'))
-  )`;
+
   if (filter.segment === "contracted") {
-    conditions.push(activeContractExists);
+    conditions.push(customerActiveContractExists);
   } else if (filter.segment === "database") {
-    conditions.push(sql<boolean>`not (${activeContractExists})`);
+    conditions.push(sql<boolean>`not (${customerActiveContractExists})`);
   }
+
+  if (filter.customerIds !== undefined) {
+    conditions.push(filter.customerIds.length ? inArray(customers.id, filter.customerIds) : sql`false`);
+  }
+  // Preserve the list's former client-side assignee AND filter after resolving RBAC.
+  if (filter.exactAssignmentFilter?.agentId !== undefined) {
+    conditions.push(eq(customers.agentId, filter.exactAssignmentFilter.agentId));
+  }
+  if (filter.exactAssignmentFilter?.unassigned) conditions.push(isNull(customers.agentId));
+  if (filter.workflowFilter) conditions.push(customerWorkflowCondition(filter.workflowFilter));
+  if (filter.followUpFilter) {
+    const followUp = filter.followUpFilter;
+    const followUpConditions = [
+      eq(followUps.customerId, customers.id), isNull(followUps.deletedAt),
+      inArray(followUps.status, ["scheduled", "postponed"]),
+      lte(followUps.nextContactDate, followUp.dueTo),
+    ];
+    if (followUp.agentIds !== undefined) followUpConditions.push(
+      followUp.agentIds.length ? inArray(followUps.assignedAgentId, followUp.agentIds) : sql`false`
+    );
+    else if (followUp.agentId !== undefined) followUpConditions.push(eq(followUps.assignedAgentId, followUp.agentId));
+    conditions.push(sql`exists (select 1 from ${followUps} where ${and(...followUpConditions)})`);
+  }
+  return conditions;
+}
+
+function customerWorkflowCondition(filter: NonNullable<CustomerListFilter["workflowFilter"]>) {
+  if (filter === "uncontacted") return eq(customers.consultStatus, "미상담");
+  if (filter === "no_next_action") return or(isNull(customers.nextAction), eq(customers.nextAction, ""))!;
+  return and(eq(customers.consultStatus, "미상담"), isNotNull(customers.agentId),
+    sql`${customers.assignedAt} < ${new Date(Date.now() - 24 * 60 * 60 * 1000)}`)!;
+}
+
+// Recommendation inputs only. Scope is resolved by the authenticated router,
+// and limit is applied there after scoring every eligible customer.
+export async function getRecommendationData(
+  scope: Pick<CustomerListFilter, "agentId" | "agentIds">
+) {
+  const db = await getDb();
+  if (!db)
+    return {
+      customerList: [],
+      consultationStats: [],
+      contractList: [],
+      followUpList: [],
+      notifications: [],
+    };
+  const customerConditions = and(
+    ...(await buildCustomerListConditions(scope, db)),
+    isNull(customers.deletedAt)
+  );
+  const agentCondition = (column: AnyMySqlColumn) =>
+    scope.agentIds !== undefined
+      ? scope.agentIds.length
+        ? inArray(column, scope.agentIds)
+        : sql`false`
+      : scope.agentId !== undefined
+        ? eq(column, scope.agentId)
+        : undefined;
+
+  const [
+    customerList,
+    consultationStats,
+    contractList,
+    followUpList,
+    notificationList,
+  ] = await Promise.all([
+    db
+      .select({
+        id: customers.id,
+        name: customers.name,
+        priority: customers.priority,
+        customerTags: customers.customerTags,
+        consultStatus: customers.consultStatus,
+        nextAction: customers.nextAction,
+        assignedAt: customers.assignedAt,
+        createdAt: customers.createdAt,
+        isActive: customers.isActive,
+        deletedAt: customers.deletedAt,
+      })
+      .from(customers)
+      .where(customerConditions)
+      .orderBy(desc(customers.createdAt)),
+    db
+      .select({
+        customerId: consultations.customerId,
+        count: sql<number>`count(*)`.mapWith(Number),
+        lastConsultationDate:
+          sql<Date>`max(${consultations.createdAt})`.mapWith(
+            consultations.createdAt
+          ),
+      })
+      .from(consultations)
+      .innerJoin(customers, eq(customers.id, consultations.customerId))
+      // Match getConsultationsByCustomer: active rows count even when deletedAt is set.
+      .where(and(customerConditions, eq(consultations.isActive, true)))
+      .groupBy(consultations.customerId),
+    db
+      .select({
+        customerId: contracts.customerId,
+        contractDate: contracts.contractDate,
+        createdAt: contracts.createdAt,
+        isActive: contracts.isActive,
+        deletedAt: contracts.deletedAt,
+      })
+      .from(contracts)
+      .innerJoin(customers, eq(customers.id, contracts.customerId))
+      .where(
+        and(
+          customerConditions,
+          agentCondition(contracts.agentId),
+          eq(contracts.isActive, true),
+          isNull(contracts.deletedAt)
+        )
+      )
+      .orderBy(desc(contracts.createdAt)),
+    db
+      .select({
+        customerId: followUps.customerId,
+        status: followUps.status,
+        nextContactDate: followUps.nextContactDate,
+      })
+      .from(followUps)
+      .innerJoin(customers, eq(customers.id, followUps.customerId))
+      .where(
+        and(
+          customerConditions,
+          agentCondition(followUps.assignedAgentId),
+          isNull(followUps.deletedAt),
+          inArray(followUps.status, ["scheduled", "postponed"])
+        )
+      )
+      .orderBy(asc(followUps.nextContactDate)),
+    // Preserve the original 200 most recent due notifications BEFORE unread /
+    // customer filtering. Moving those filters into WHERE changes recommendations.
+    db
+      .select({
+        relatedType: notifications.relatedType,
+        relatedId: notifications.relatedId,
+        isRead: notifications.isRead,
+        processStatus: notifications.processStatus,
+      })
+      .from(notifications)
+      .where(
+        and(
+          agentCondition(notifications.userId),
+          or(isNull(notifications.dueAt), lte(notifications.dueAt, new Date()))
+        )
+      )
+      .orderBy(desc(notifications.createdAt))
+      .limit(200),
+  ]);
+  return {
+    customerList,
+    consultationStats,
+    contractList,
+    followUpList,
+    notifications: notificationList,
+  };
+}
+
+export async function getCustomers(filter: CustomerListFilter) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = await buildCustomerListConditions(filter, db);
 
   const activeContractPremiumTotal = sql<number>`(
     select coalesce(sum(${contracts.monthlyPremium}), 0)
@@ -1437,20 +1610,48 @@ async function attachCustomerSegmentMeta<
   });
 }
 
+
+// Aggregate the same scoped predicates as the list without loading customer rows.
 export async function getCustomerSegmentCounts(
-  filter: Omit<
-    Parameters<typeof getCustomers>[0],
-    "segment" | "withSegmentMeta"
-  >
+  filter: Omit<CustomerListFilter, "segment" | "withSegmentMeta">
 ): Promise<CustomerSegmentCounts> {
-  const rows = await getCustomers({ ...filter, withSegmentMeta: true });
-  const counts = emptyCustomerSegmentCounts();
-  for (const row of rows as Array<{ customerSegment?: CustomerSegment }>) {
-    const segment = row.customerSegment;
-    counts.all += 1;
-    if (segment && segment !== "all") counts[segment] += 1;
-  }
-  return counts;
+  const db = await getDb();
+  if (!db) throw new Error("Customer counts are unavailable");
+  const conditions = await buildCustomerListConditions({ ...filter, segment: undefined }, db);
+  const [row] = await db.select({
+    all: sql<number>`count(distinct ${customers.id})`,
+    contracted: sql<number>`count(distinct case when ${customerActiveContractExists} then ${customers.id} end)`,
+  }).from(customers).where(and(...conditions));
+  const all = Number(row?.all ?? 0), contracted = Number(row?.contracted ?? 0);
+  return { all, contracted, database: all - contracted };
+}
+
+export async function getCustomerQuickCounts(
+  filter: CustomerListFilter,
+  options: { mineAgentId?: number; recommendationIds?: number[]; urgentIds?: number[]; newDbFrom: Date; newDbTo: Date }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Customer counts are unavailable");
+  const conditions = await buildCustomerListConditions(filter, db);
+  const countWhere = (condition: ReturnType<typeof sql>) => sql<number>`count(distinct case when ${condition} then ${customers.id} end)`;
+  const candidateCondition = (ids: number[] | undefined) => ids?.length ? inArray(customers.id, ids) : sql`false`;
+  const [row] = await db.select({
+    all: sql<number>`count(distinct ${customers.id})`,
+    mine: countWhere(options.mineAgentId === undefined ? sql`false` : eq(customers.agentId, options.mineAgentId)),
+    uncontacted: countWhere(customerWorkflowCondition("uncontacted")),
+    sla_overdue: countWhere(customerWorkflowCondition("sla_overdue")),
+    no_next_action: countWhere(customerWorkflowCondition("no_next_action")),
+    new_db: countWhere(and(gte(customers.assignedAt, options.newDbFrom), lte(customers.assignedAt, options.newDbTo))!),
+    today_contact: countWhere(candidateCondition(options.recommendationIds)),
+    urgent: countWhere(candidateCondition(options.urgentIds)),
+  }).from(customers).where(and(...conditions));
+  return {
+    all: Number(row?.all ?? 0), mine: Number(row?.mine ?? 0),
+    uncontacted: Number(row?.uncontacted ?? 0), sla_overdue: Number(row?.sla_overdue ?? 0),
+    no_next_action: Number(row?.no_next_action ?? 0), new_db: Number(row?.new_db ?? 0),
+    today_contact: options.recommendationIds === undefined ? null : Number(row?.today_contact ?? 0),
+    urgent: options.urgentIds === undefined ? null : Number(row?.urgent ?? 0),
+  };
 }
 
 const CONSULT_TA_OR_BEYOND = [

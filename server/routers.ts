@@ -1,3 +1,4 @@
+import { compareRecommendationPriority } from "./recommendationOrder";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { buildFirstContactSlaInsights } from "./sla";
@@ -123,7 +124,9 @@ import {
   getCustomerHandoffNotes,
   getCustomerTimeline,
   getCustomers,
+  getRecommendationData,
   getCustomerSegmentCounts,
+  getCustomerQuickCounts,
   getSalesFunnelAggregates,
   getDeletedContracts,
   getDeletedCustomers,
@@ -4415,7 +4418,7 @@ async function buildSalesReport(
   };
 }
 
-async function buildRecommendationItems(
+export async function buildRecommendationItems(
   user: {
     id: number;
     role: string;
@@ -4424,19 +4427,24 @@ async function buildRecommendationItems(
   },
   baseDate: Date
 ) {
-  const { customerList, contractList, notifications, followUpList } =
-    await getScopedDashboardData(user);
+  const scope =
+    user.role === "branch_admin"
+      ? {}
+      : user.role === "sub_branch_admin" || user.role === "team_leader"
+        ? { agentIds: (await getHierarchyScopeUserIds(user)) ?? [user.id] }
+        : { agentId: user.id };
+  const {
+    customerList,
+    contractList,
+    notifications,
+    followUpList,
+    consultationStats,
+  } = await getRecommendationData(scope);
   const activeCustomers = customerList.filter(
     customer => customer.isActive && !customer.deletedAt
   );
-  const consultationEntries = await Promise.all(
-    activeCustomers.map(async customer => ({
-      customerId: customer.id,
-      consultations: await getConsultationsByCustomer(customer.id),
-    }))
-  );
   const consultationsByCustomer = new Map(
-    consultationEntries.map(entry => [entry.customerId, entry.consultations])
+    consultationStats.map(entry => [entry.customerId, entry])
   );
   const contractsByCustomer = new Map<number, typeof contractList>();
   for (const contract of contractList.filter(
@@ -4469,20 +4477,13 @@ async function buildRecommendationItems(
   const todayStart = toDayStart(baseDate);
   const todayEnd = toDayEnd(baseDate);
 
-  return activeCustomers.map(customer => {
+  const items = activeCustomers.map(customer => {
     const tags = parseRecommendationTags(customer.customerTags);
     const customerFollowUps = followUpsByCustomer.get(customer.id) ?? [];
-    const customerConsultations =
-      consultationsByCustomer.get(customer.id) ?? [];
+    const customerConsultation = consultationsByCustomer.get(customer.id);
     const customerContracts = contractsByCustomer.get(customer.id) ?? [];
     const unreadNotifications =
       unreadNotificationsByCustomer.get(customer.id) ?? [];
-    const latestConsultation = customerConsultations
-      .slice()
-      .sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
     const latestContract = customerContracts
       .slice()
       .sort(
@@ -4574,7 +4575,7 @@ async function buildRecommendationItems(
 
     const managementStartDate = customerManagementStartDate(customer);
     const managementDays = daysBetween(managementStartDate, baseDate);
-    if (managementDays >= 7 && customerConsultations.length === 0) {
+    if (managementDays >= 7 && (customerConsultation?.count ?? 0) === 0) {
       totalScore += 15;
       warnings.push({
         warningType: "no_consultation",
@@ -4585,8 +4586,8 @@ async function buildRecommendationItems(
       contactReasonTypes.add("no_consultation");
     }
 
-    const lastConsultationDate = latestConsultation
-      ? new Date(latestConsultation.createdAt)
+    const lastConsultationDate = customerConsultation
+      ? new Date(customerConsultation.lastConsultationDate)
       : null;
     const daysSinceConsult = lastConsultationDate
       ? daysBetween(lastConsultationDate, baseDate)
@@ -4667,7 +4668,7 @@ async function buildRecommendationItems(
       reasons: reasons.slice(0, 5),
       recommendedAction: contactReason.title,
       contactReason,
-      lastConsultationDate: latestConsultation?.createdAt ?? null,
+      lastConsultationDate: customerConsultation?.lastConsultationDate ?? null,
       nextContactDate:
         [...overdueFollowUps, ...todayFollowUps].sort(
           (a, b) =>
@@ -4683,6 +4684,12 @@ async function buildRecommendationItems(
       })),
     };
   });
+  return {
+    items,
+    customerCreatedAt: new Map(
+      activeCustomers.map(customer => [customer.id, customer.createdAt])
+    ),
+  };
 }
 
 async function buildWorkRhythmReport(
@@ -4908,7 +4915,7 @@ async function buildWorkRhythmReport(
   const remainingDays = daysRemainingFromToday();
   const priorityContacts = (
     await buildRecommendationItems(user, new Date())
-  ).filter(item =>
+  ).items.filter(item =>
     customerList.some(customer => customer.id === item.customerId)
   );
   const followUpCompletionRate =
@@ -5375,6 +5382,10 @@ const customerListInputSchema = z.object({
   page: z.number().int().min(1).optional(),
   pageSize: z.number().int().min(10).max(100).optional(),
   sort: z.enum(["recent", "name", "next_contact", "contract_value"]).optional(),
+  workflowFilter: z.enum(["uncontacted", "sla_overdue", "no_next_action"]).optional(),
+  // Candidate IDs only narrow the server-authorized scope. They never grant access.
+  customerIds: z.array(z.number().int().positive()).max(50).optional(),
+  followUpPreset: z.enum(["today", "overdue"]).optional(),
 });
 
 type CustomerListInput = z.infer<typeof customerListInputSchema>;
@@ -5391,6 +5402,11 @@ function buildCustomerListBaseFilter(input: CustomerListInput) {
     priority: input.priority,
     tag: input.tag,
     nextAction: input.nextAction,
+    workflowFilter: input.workflowFilter,
+    customerIds: input.customerIds,
+    exactAssignmentFilter: input.agentIdFilter !== undefined || input.unassigned
+      ? { agentId: input.agentIdFilter, unassigned: input.unassigned }
+      : undefined,
     assignedDateFrom: input.assignedDateFrom
       ? new Date(input.assignedDateFrom)
       : undefined,
@@ -5405,6 +5421,11 @@ async function resolveCustomerListScopeFilter(
   input: CustomerListInput
 ) {
   const baseFilter = buildCustomerListBaseFilter(input);
+  const followUpFilter = input.followUpPreset ? {
+    ...await getFollowUpScope(user),
+    dueTo: input.followUpPreset === "today" ? toDayEnd(new Date()) : new Date(toDayStart(new Date()).getTime() - 1),
+  } : undefined;
+  const scopedBaseFilter = { ...baseFilter, followUpFilter };
 
   if (input.scope === "all" && user.role === "member") {
     throw new TRPCError({
@@ -5421,7 +5442,7 @@ async function resolveCustomerListScopeFilter(
       });
     }
     const target = await verifyTargetUserAccess(user, input.selectedUserId);
-    return { ...baseFilter, agentId: target.id };
+    return { ...scopedBaseFilter, agentId: target.id };
   }
 
   if (input.scope === "mine") {
@@ -5433,17 +5454,17 @@ async function resolveCustomerListScopeFilter(
         message: "담당자만 해당 필터로 조회할 수 있습니다.",
       });
     }
-    return { ...baseFilter, agentId: user.id };
+    return { ...scopedBaseFilter, agentId: user.id };
   }
 
   if (user.role === "branch_admin") {
-    return { ...baseFilter, agentId: input.agentIdFilter };
+    return { ...scopedBaseFilter, agentId: input.agentIdFilter };
   }
 
   if (user.role === "sub_branch_admin" || user.role === "team_leader") {
     if (input.agentIdFilter !== undefined) {
       if (input.agentIdFilter === user.id) {
-        return { ...baseFilter, agentId: user.id };
+        return { ...scopedBaseFilter, agentId: user.id };
       }
       const target = await getUserById(input.agentIdFilter);
       if (!target || target.accountStatus !== "active") {
@@ -5475,17 +5496,17 @@ async function resolveCustomerListScopeFilter(
           message: "조회할 수 없는 담당자입니다.",
         });
       }
-      return { ...baseFilter, agentId: target.id };
+      return { ...scopedBaseFilter, agentId: target.id };
     }
     if (user.role === "team_leader" && user.teamId)
-      return { ...baseFilter, teamId: user.teamId };
+      return { ...scopedBaseFilter, teamId: user.teamId };
     if (user.role === "sub_branch_admin")
-      return { ...baseFilter, subBranchAdminId: user.id };
+      return { ...scopedBaseFilter, subBranchAdminId: user.id };
     const agentIds = (await getHierarchyScopeUserIds(user)) ?? [];
-    return { ...baseFilter, agentIds };
+    return { ...scopedBaseFilter, agentIds };
   }
 
-  return { ...baseFilter, agentId: user.id };
+  return { ...scopedBaseFilter, agentId: user.id };
 }
 
 const conversionDashboardInputSchema = z
@@ -5894,11 +5915,16 @@ export const appRouter = router({
         const baseDate = input?.date
           ? parseKstLocalDateTime(input.date)
           : new Date();
-        const items = await buildRecommendationItems(ctx.user, baseDate);
+        const { items, customerCreatedAt } = await buildRecommendationItems(
+          ctx.user,
+          baseDate
+        );
         return items
           .filter(item => item.totalScore > 0)
           .filter(item => !input?.urgency || item.urgency === input.urgency)
-          .sort((a, b) => b.totalScore - a.totalScore)
+          .sort((a, b) =>
+            compareRecommendationPriority(a, b, customerCreatedAt)
+          )
           .slice(0, input?.limit ?? 10)
           .map(item => ({
             ...item,
@@ -5919,7 +5945,7 @@ export const appRouter = router({
       .query(async ({ ctx, input }) => {
         if (input?.customerId)
           await verifyCustomerAccess(ctx.user, input.customerId);
-        const items = await buildRecommendationItems(ctx.user, new Date());
+        const { items } = await buildRecommendationItems(ctx.user, new Date());
         return items
           .filter(
             item => !input?.customerId || item.customerId === input.customerId
@@ -5944,7 +5970,7 @@ export const appRouter = router({
       .input(z.object({ customerId: z.number() }))
       .query(async ({ ctx, input }) => {
         await verifyCustomerAccess(ctx.user, input.customerId);
-        const items = await buildRecommendationItems(ctx.user, new Date());
+        const { items } = await buildRecommendationItems(ctx.user, new Date());
         const item = items.find(entry => entry.customerId === input.customerId);
         return {
           customerId: input.customerId,
@@ -5966,7 +5992,10 @@ export const appRouter = router({
         const baseDate = input?.date
           ? parseKstLocalDateTime(input.date)
           : new Date();
-        const items = await buildRecommendationItems(ctx.user, baseDate);
+        const { items, customerCreatedAt } = await buildRecommendationItems(
+          ctx.user,
+          baseDate
+        );
         const scored = items.filter(item => item.totalScore > 0);
         return {
           priorityContactCount: scored.length,
@@ -5977,7 +6006,9 @@ export const appRouter = router({
             0
           ),
           topContacts: scored
-            .sort((a, b) => b.totalScore - a.totalScore)
+            .sort((a, b) =>
+              compareRecommendationPriority(a, b, customerCreatedAt)
+            )
             .slice(0, 5),
         };
       }),
@@ -7566,6 +7597,25 @@ export const appRouter = router({
           input
         );
         return getCustomerSegmentCounts(scopedFilter);
+      }),
+
+    quickCounts: activeUserProcedure
+      .input(z.object({
+        segment: z.enum(CUSTOMER_SEGMENTS),
+        recommendationIds: z.array(z.number().int().positive()).max(50).optional(),
+        urgentIds: z.array(z.number().int().positive()).max(50).optional(),
+        newDbFrom: z.string().date(),
+        newDbTo: z.string().date(),
+      }))
+      .query(async ({ ctx, input }) => {
+        // Quick clicks clear ordinary filters, but preserve classification and RBAC.
+        const scopedFilter = await resolveCustomerListScopeFilter(ctx.user, {});
+        return getCustomerQuickCounts({ ...scopedFilter, segment: input.segment }, {
+          mineAgentId: ctx.user.role === "branch_admin" ? ctx.user.id : undefined,
+          recommendationIds: input.recommendationIds,
+          urgentIds: input.urgentIds,
+          newDbFrom: new Date(input.newDbFrom), newDbTo: new Date(input.newDbTo),
+        });
       }),
 
     searchForSchedulePicker: activeUserProcedure

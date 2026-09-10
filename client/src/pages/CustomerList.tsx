@@ -8,7 +8,6 @@ import {
 } from "@/components/customers/customerListQuickPresets";
 import {
   buildCustomerListPresetPath,
-  customerMatchesUrlPreset,
   getCustomerListUrlPresetMeta,
   parseCustomerListUrlPreset,
   quickPresetToUrlPreset,
@@ -83,6 +82,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
+import { getAssignmentScopeKey } from "@/lib/customerAssignQueries";
+import { CUSTOMER_SORT_LABELS, useCustomerListQueries } from "@/lib/customerListQueries";
 import {
   formatReassignmentSuccessMessage,
   summarizeCurrentAssignees,
@@ -144,6 +145,12 @@ type WorkspaceFilter =
   | "uncontacted"
   | "sla_overdue";
 
+function renderCustomerCount(value: number | null | undefined, state: { isLoading: boolean; isError: boolean }) {
+  if (state.isError) return "확인 불가";
+  if (state.isLoading) return "조회 중";
+  return value == null ? "확인 불가" : value;
+}
+
 const CUSTOMER_SEGMENT_OPTIONS = CUSTOMER_SEGMENTS;
 
 type CustomerListServerFilterState = Pick<
@@ -167,7 +174,12 @@ type CustomerListServerFilterState = Pick<
 function customerListServerFilterFingerprint(
   state: CustomerListServerFilterState
 ) {
-  return JSON.stringify(state);
+  // Runtime URL state also contains page/view; those must not reset the page.
+  return JSON.stringify([
+    state.segment, state.search, state.status, state.priority, state.agent,
+    state.tag, state.nextAction, state.region, state.source,
+    state.assignedDateFrom, state.assignedDateTo, state.scope, state.sort, state.pageSize,
+  ]);
 }
 
 function formatCurrencyNumber(value: unknown) {
@@ -205,6 +217,11 @@ export function getCustomerListQueryString(location: string): string {
 }
 
 export default function CustomerList() {
+  const { user } = useAuth();
+  return <CustomerListContent key={getAssignmentScopeKey(user)} />;
+}
+
+function CustomerListContent() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const isMobile = useIsMobile();
@@ -401,28 +418,6 @@ export default function CustomerList() {
   const effectiveUrlPreset =
     activeUrlPreset ??
     (presetInUrl && presetInUrl !== "invalid" ? presetInUrl : null);
-  const needsTodayFollowUps = effectiveUrlPreset === "today-follow-up";
-  const needsOverdueFollowUps = effectiveUrlPreset === "overdue-follow-up";
-
-  const { data: todayFollowUps } = trpc.followUps.listToday.useQuery(
-    {},
-    { enabled: needsTodayFollowUps }
-  );
-  const { data: overdueFollowUps } = trpc.followUps.listOverdue.useQuery(
-    {},
-    { enabled: needsOverdueFollowUps }
-  );
-
-  const followUpTodayCustomerIds = useMemo(
-    () => new Set((todayFollowUps ?? []).map(followUp => followUp.customerId)),
-    [todayFollowUps]
-  );
-  const followUpOverdueCustomerIds = useMemo(
-    () =>
-      new Set((overdueFollowUps ?? []).map(followUp => followUp.customerId)),
-    [overdueFollowUps]
-  );
-
   const applyUrlPreset = (presetId: CustomerListUrlPresetId) => {
     const meta = getCustomerListUrlPresetMeta(presetId);
     setSearchInput("");
@@ -537,10 +532,6 @@ export default function CustomerList() {
     void utils.customers.list.invalidate();
     void utils.customers.segmentCounts.invalidate();
   };
-  const usesClientWorkflowFilter =
-    Boolean(effectiveUrlPreset) ||
-    workspaceFilter !== "all" ||
-    recommendationFilter !== "all";
   const customerListQueryInput = {
     search: search.trim() || undefined,
     status: statusFilter === "all" ? undefined : statusFilter,
@@ -560,29 +551,18 @@ export default function CustomerList() {
     assignedDateTo: assignedDateTo || undefined,
     scope: user?.role === "branch_admin" ? scopeFilter : undefined,
   };
-  const {
-    data: customers,
-    refetch,
-    isLoading: isCustomersLoading,
-    isError: isCustomersError,
-  } = trpc.customers.list.useQuery({
-    ...customerListQueryInput,
-    segment: customerSegment,
-    page: usesClientWorkflowFilter ? undefined : page,
-    pageSize: usesClientWorkflowFilter ? undefined : pageSize,
-    sort: sortMode,
-  });
-  const {
-    data: customerSegmentCounts,
-    isLoading: isSegmentCountsLoading,
-    isError: isSegmentCountsError,
-  } = trpc.customers.segmentCounts.useQuery(customerListQueryInput);
+  const queries = useCustomerListQueries({
+    ...customerListQueryInput, segment: customerSegment, page, pageSize, sort: sortMode,
+  }, { preset: effectiveUrlPreset, workspace: workspaceFilter, recommendation: recommendationFilter });
+  const customers = queries.ready && !queries.customers.isError ? queries.customers.data : undefined;
+  const customerSegmentCounts = queries.ready && !queries.counts.isError ? queries.counts.data : undefined;
+  const isCustomersError = queries.customers.isError || queries.dependencyError || Boolean(queries.accessError);
+  const isCustomersLoading = !isCustomersError && (queries.customers.isPending || !queries.ready);
+  const isSegmentCountsError = queries.counts.isError || queries.dependencyError || Boolean(queries.accessError);
+  const isSegmentCountsLoading = !isSegmentCountsError && (queries.counts.isPending || !queries.ready);
+  const refetch = queries.retry;
   const { data: allUsers } = trpc.users.list.useQuery({ activeOnly: true });
-  const { data: priorityContacts } =
-    trpc.recommendations.priorityContacts.useQuery({
-      limit: 50,
-      includeWarnings: true,
-    });
+  const priorityContacts = queries.recommendations.isSuccess && !queries.accessError ? queries.recommendations.data : undefined;
   const listCustomerIds = useMemo(
     () => (customers ?? []).map(customer => customer.id).slice(0, 200),
     [customers]
@@ -762,110 +742,19 @@ export default function CustomerList() {
     c => c.id === reclaimCustomerId
   );
 
-  const filtered = (customers ?? []).filter(c => {
-    const matchRegion =
-      !regionFilter || (c.region ?? "").includes(regionFilter);
-    const matchSource =
-      !sourceFilter || (c.source ?? "").includes(sourceFilter);
-    const matchAgent =
-      agentFilter === "all" ||
-      (agentFilter === "unassigned"
-        ? c.agentId == null && c.assignmentStatus === "unassigned"
-        : String(c.agentId) === agentFilter);
-    const recommendation = recommendationByCustomerId.get(c.id);
-    const matchRecommendation =
-      recommendationFilter === "all" ||
-      (recommendationFilter === "recommended" && Boolean(recommendation)) ||
-      (recommendationFilter === "warning" &&
-        Boolean(recommendation?.warnings?.length)) ||
-      (recommendationFilter === "high" && recommendation?.urgency === "high");
-    return matchRegion && matchSource && matchAgent && matchRecommendation;
-  });
-
-  const workspaceStats = {
-    priority: filtered.filter(c => recommendationByCustomerId.has(c.id)).length,
-    warning: filtered.filter(c =>
-      Boolean(recommendationByCustomerId.get(c.id)?.warnings?.length)
-    ).length,
-    urgent: filtered.filter(
-      c => recommendationByCustomerId.get(c.id)?.urgency === "high"
-    ).length,
-    noNextAction: filtered.filter(c => !(c as any).nextAction).length,
-    uncontacted: filtered.filter(c => c.consultStatus === "미상담").length,
-    slaOverdue: filtered.filter(
-      c =>
-        c.consultStatus === "미상담" &&
-        c.agentId &&
-        c.assignedAt &&
-        Date.now() - new Date(c.assignedAt).getTime() > 24 * 60 * 60 * 1000
-    ).length,
-    newDb: filtered.filter(c => {
-      if (!c.assignedAt) return false;
-      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
-      return new Date(c.assignedAt).getTime() >= weekAgo;
-    }).length,
-    mine:
-      user?.role === "branch_admin"
-        ? filtered.filter(c => c.agentId === user.id).length
-        : 0,
-  };
-  const workspaceCustomers = filtered
-    .filter(c => {
-      const recommendation = recommendationByCustomerId.get(c.id);
-      if (effectiveUrlPreset) {
-        return customerMatchesUrlPreset({
-          preset: effectiveUrlPreset,
-          customerId: c.id,
-          consultStatus: c.consultStatus,
-          nextAction: (c as any).nextAction,
-          agentId: c.agentId,
-          assignedAt: c.assignedAt,
-          followUpTodayCustomerIds,
-          followUpOverdueCustomerIds,
-          recommendation,
-        });
-      }
-      if (workspaceFilter === "priority") return Boolean(recommendation);
-      if (workspaceFilter === "warning")
-        return Boolean(recommendation?.warnings?.length);
-      if (workspaceFilter === "no_next_action") return !(c as any).nextAction;
-      if (workspaceFilter === "uncontacted")
-        return c.consultStatus === "미상담";
-      if (workspaceFilter === "sla_overdue")
-        return (
-          c.consultStatus === "미상담" &&
-          c.agentId &&
-          c.assignedAt &&
-          Date.now() - new Date(c.assignedAt).getTime() > 24 * 60 * 60 * 1000
-        );
-      return true;
-    })
-    .slice();
-  if (usesClientWorkflowFilter) {
-    workspaceCustomers.sort((a, b) => {
-      const aExecution = buildListExecution(
-        a,
-        recommendationByCustomerId.get(a.id)
-      );
-      const bExecution = buildListExecution(
-        b,
-        recommendationByCustomerId.get(b.id)
-      );
-      return bExecution.score - aExecution.score;
-    });
-  }
-  const selectedSegmentCount =
-    customerSegmentCounts?.[customerSegment] ?? workspaceCustomers.length;
-  const resultCount = usesClientWorkflowFilter
-    ? workspaceCustomers.length
-    : selectedSegmentCount;
-  const totalPages = usesClientWorkflowFilter
-    ? 1
-    : Math.max(1, Math.ceil(resultCount / pageSize));
-
+  const workspaceCustomers = customers ?? [];
+  const resultCount = customerSegmentCounts?.[customerSegment];
+  const totalPages = Math.max(1, Math.ceil((resultCount ?? 0) / pageSize));
+  const correctingPage = resultCount !== undefined && page > totalPages;
   useEffect(() => {
-    if (!usesClientWorkflowFilter && page > totalPages) setPage(totalPages);
-  }, [page, totalPages, usesClientWorkflowFilter]);
+    if (resultCount !== undefined && page > totalPages) setPage(totalPages);
+  }, [page, totalPages, resultCount]);
+  const workflowKey = JSON.stringify([effectiveUrlPreset, workspaceFilter, recommendationFilter]);
+  const previousWorkflowKey = useRef(workflowKey);
+  useEffect(() => {
+    if (previousWorkflowKey.current !== workflowKey) setPage(1);
+    previousWorkflowKey.current = workflowKey;
+  }, [workflowKey]);
 
   const navigateFromCustomerList = (path: string) => {
     const match = path.match(/^\/customers\/(\d+)/);
@@ -1090,15 +979,14 @@ export default function CustomerList() {
   });
 
   const quickPresets = buildQuickPresets(user?.role);
-  const quickPresetCounts: Record<QuickPresetId, number> = {
-    all: filtered.length,
-    today_contact: workspaceStats.priority,
-    urgent: workspaceStats.urgent,
-    uncontacted: workspaceStats.uncontacted,
-    sla_overdue: workspaceStats.slaOverdue,
-    no_next_action: workspaceStats.noNextAction,
-    mine: workspaceStats.mine,
-    new_db: workspaceStats.newDb,
+  const quickPresetCounts = queries.quickCounts.data;
+  const quickMetricState = (id: QuickPresetId) => {
+    if (id === activeQuickPreset) return { isLoading: isSegmentCountsLoading, isError: isSegmentCountsError };
+    const dependsOnRecommendation = id === "today_contact" || id === "urgent";
+    return {
+      isLoading: queries.quickCounts.isPending || (dependsOnRecommendation && queries.recommendations.isPending),
+      isError: queries.quickCounts.isError || Boolean(queries.accessError) || (dependsOnRecommendation && queries.recommendations.isError),
+    };
   };
 
   const applyQuickPreset = (presetId: QuickPresetId) => {
@@ -1238,12 +1126,12 @@ export default function CustomerList() {
   const hasBulkSelection = selectedCustomerIds.length > 0;
   const roleListDescription =
     user?.role === "sub_branch_admin"
-      ? "부지점장 산하 고객을 오늘 바로 조치할 순서대로 확인합니다."
+      ? "부지점장 산하 고객을 선택한 정렬 기준으로 확인합니다."
       : user?.role === "team_leader"
-        ? "팀 고객 중 지금 연락·상담·후속이 필요한 고객부터 실행합니다."
+        ? "팀 고객을 선택한 정렬 기준으로 확인합니다."
         : user?.role === "member"
           ? "내 담당 고객과 오늘 연락할 고객을 빠르게 찾습니다."
-          : "지점 고객을 실행 점수순으로 보고 오늘 조치할 고객부터 관리합니다.";
+          : "지점 고객을 선택한 정렬 기준으로 확인하고 관리합니다.";
 
   const advancedFilterFields = (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 md:grid-cols-4">
@@ -1386,12 +1274,12 @@ export default function CustomerList() {
                   {roleListDescription}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  표시 고객{" "}
-                  {renderMetricValue(workspaceCustomers.length, {
+                  현재 페이지{" "}
+                  {renderCustomerCount(workspaceCustomers.length, {
                     isLoading: isCustomersLoading,
                     isError: isCustomersError,
                   })}
-                  명 · 실행 점수순
+                  {!isCustomersLoading && !isCustomersError ? "명" : ""} · {CUSTOMER_SORT_LABELS[sortMode]}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -1479,7 +1367,7 @@ export default function CustomerList() {
               >
                 {CUSTOMER_SEGMENT_OPTIONS.map((segment, segmentIndex) => {
                   const active = customerSegment === segment;
-                  const count = customerSegmentCounts?.[segment] ?? 0;
+                  const count = customerSegmentCounts?.[segment];
                   return (
                     <button
                       key={segment}
@@ -1532,7 +1420,7 @@ export default function CustomerList() {
                             : "bg-muted text-muted-foreground"
                         )}
                       >
-                        {renderMetricValue(count, {
+                        {renderCustomerCount(count, {
                           isLoading: isSegmentCountsLoading,
                           isError: isSegmentCountsError,
                         })}
@@ -1543,6 +1431,15 @@ export default function CustomerList() {
               </div>
             </div>
 
+            {(queries.customers.isFetching || queries.counts.isFetching || queries.quickCounts.isFetching || queries.recommendations.isFetching) && queries.customers.data !== undefined && !isCustomersError && (
+              <p role="status" className="text-sm text-muted-foreground">마지막 조회 자료 · 최신 상태 확인 중</p>
+            )}
+            {(isCustomersError || isSegmentCountsError || queries.quickCounts.isError || queries.recommendations.isError) && (
+              <div role="alert" aria-label="고객 조회 상태" className="flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 p-3 text-sm">
+                <p>{queries.accessError === "unauthorized" ? "로그인이 필요합니다. 다시 로그인해 주세요." : queries.accessError === "forbidden" ? "고객 조회 권한을 확인해 주세요." : "고객 목록 또는 집계를 확인할 수 없습니다. 최신 상태 확인 실패"}</p>
+                {!queries.accessError && <Button variant="outline" onClick={() => void refetch()}>다시 불러오기</Button>}
+              </div>
+            )}
             <div>
               <p className="mb-2 text-xs font-semibold text-muted-foreground">
                 오늘 처리할 고객
@@ -1565,10 +1462,7 @@ export default function CustomerList() {
                       {preset.label}
                     </span>
                     <span className="mt-0.5 block text-lg font-bold tabular-nums leading-none text-foreground">
-                      {renderMetricValue(quickPresetCounts[preset.id], {
-                        isLoading: isCustomersLoading,
-                        isError: isCustomersError,
-                      })}
+                      {renderCustomerCount(preset.id === activeQuickPreset ? resultCount : quickPresetCounts?.[preset.id], quickMetricState(preset.id))}
                     </span>
                   </button>
                 ))}
@@ -1639,9 +1533,9 @@ export default function CustomerList() {
               )}
             </div>
 
-            <div className="hidden items-center justify-between gap-3 border-t border-border/70 pt-3 md:flex">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
               <p className="text-sm text-muted-foreground" aria-live="polite">
-                조건에 맞는 고객 <strong className="text-foreground">{resultCount}</strong>명
+                조건에 맞는 고객 <strong className="text-foreground">{renderCustomerCount(resultCount, { isLoading: isSegmentCountsLoading, isError: isSegmentCountsError })}</strong>{resultCount !== undefined && !isSegmentCountsLoading && !isSegmentCountsError ? "명" : ""}
               </p>
               <div className="flex items-center gap-2">
                 <Select
@@ -1662,7 +1556,7 @@ export default function CustomerList() {
                   </SelectContent>
                 </Select>
                 <div
-                  className="flex rounded-md border border-border bg-background p-1"
+                  className="hidden rounded-md border border-border bg-background p-1 md:flex"
                   role="group"
                   aria-label="고객 목록 보기 방식"
                 >
@@ -1778,7 +1672,7 @@ export default function CustomerList() {
         {/* 모바일과 기본 데스크톱 카드 뷰 */}
         {isMobile || viewMode === "card" ? (
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {isCustomersLoading ? (
+            {isCustomersLoading || correctingPage ? (
               <Card className="border-dashed border-border bg-muted/20 shadow-sm">
                 <CardContent className="py-4">
                   <EmptyState
@@ -2129,7 +2023,7 @@ export default function CustomerList() {
             customers={workspaceCustomers}
             recommendationByCustomerId={recommendationByCustomerId}
             agentById={agentById}
-            isLoading={isCustomersLoading}
+            isLoading={isCustomersLoading || correctingPage}
             isError={isCustomersError}
             hasActiveFilters={hasActiveFilters}
             canCreateCustomer={canCreateCustomer}
@@ -2154,7 +2048,7 @@ export default function CustomerList() {
           />
         )}
 
-        {!usesClientWorkflowFilter && resultCount > 0 ? (
+        {resultCount !== undefined && resultCount > 0 && !correctingPage ? (
           <nav
             className="flex flex-col gap-3 border-t border-border/70 pt-4 sm:flex-row sm:items-center sm:justify-between"
             aria-label="고객 목록 페이지"

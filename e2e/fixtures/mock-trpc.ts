@@ -7,7 +7,7 @@ type MockOptions = {
   accountStatus?: "active" | "inactive" | "resigned";
   customerDetailDenied?: boolean;
   /** Query-state tests may replace a serialized synthetic response or defer it. */
-  transformResponse?: (procedure: string, response: unknown) => unknown | Promise<unknown>;
+  transformResponse?: (procedure: string, response: unknown, input?: any) => unknown | Promise<unknown>;
 };
 
 const fixtureToday = new Date();
@@ -914,9 +914,14 @@ async function fulfillTrpc(route: Route, role: Role, options?: MockOptions) {
     return serialize(responseFor(procedure, role, options));
   });
 
+  const rawInput = JSON.parse(url.searchParams.get("input") ?? route.request().postData() ?? "{}");
+  const inputFor = (index: number) => {
+    const value = url.searchParams.get("batch") === "1" ? rawInput[String(index)] : rawInput;
+    return value?.json !== undefined ? SuperJSON.deserialize(value) : value;
+  };
   const transformedBody = options?.transformResponse
     ? await Promise.all(body.map((response, index) =>
-        options.transformResponse!(procedures[index], response)))
+        options.transformResponse!(procedures[index], response, inputFor(index))))
     : body;
 
   await route.fulfill({
