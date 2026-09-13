@@ -3,6 +3,10 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { prepareReleaseIdentity } from "./prepare-release-identity.mjs";
+import "./prepare-release-identity.test.mjs";
 import {
   REQUIRED_QUALITY_JOBS,
   evaluateProductionDeployEligibility,
@@ -50,6 +54,169 @@ const RAILWAY_CONTEXT = Object.freeze({
   environmentId: ENVIRONMENT_ID,
 });
 const PINNED_ACTION = `owner/action@${SHA_A}`;
+
+async function releaseFixture(
+  t,
+  content = 'export const RELEASE_SHA: string = "development";\n'
+) {
+  const dir = await mkdtemp(join(tmpdir(), "boa-release-preparation-"));
+  const outputPath = join(dir, "releaseIdentity.ts");
+  t.after(async () => {
+    assert.equal(
+      dir.startsWith(join(tmpdir(), "boa-release-preparation-")),
+      true
+    );
+    await rm(dir, { recursive: true, force: true });
+  });
+  await writeFile(outputPath, content);
+  return outputPath;
+}
+
+test("I01/I12 local preparation preserves the development file byte for byte", async t => {
+  const original =
+    '// repository fixture\r\nexport const RELEASE_SHA: string = "development";\r\n';
+  const outputPath = await releaseFixture(t, original);
+  assert.deepEqual(await prepareReleaseIdentity({ env: {}, outputPath }), {
+    source: "development-noop",
+  });
+  assert.equal(await readFile(outputPath, "utf8"), original);
+});
+
+test("I02 native preparation replaces a stale stamp with the exact full Git SHA", async t => {
+  for (const original of [
+    'export const RELEASE_SHA: string = "development";\n',
+    renderReleaseIdentity(SHA_B),
+  ]) {
+    const outputPath = await releaseFixture(t, original);
+    assert.deepEqual(
+      await prepareReleaseIdentity({
+        env: { RAILWAY_GIT_COMMIT_SHA: SHA_A },
+        outputPath,
+      }),
+      {
+        source: "railway-git",
+      }
+    );
+    await verifyReleaseIdentity({ releaseSha: SHA_A, outputPath });
+  }
+});
+
+test("I03 invalid native SHA fails without overwriting even a valid pre-stamp", async t => {
+  const outputPath = await releaseFixture(t, renderReleaseIdentity(SHA_A));
+  for (const value of [
+    "",
+    "a".repeat(39),
+    "A".repeat(40),
+    `${SHA_A}\n`,
+    "synthetic-sensitive-value",
+  ]) {
+    await assert.rejects(
+      prepareReleaseIdentity({
+        env: { RAILWAY_GIT_COMMIT_SHA: value },
+        outputPath,
+      }),
+      { code: "INVALID_RELEASE_SHA" }
+    );
+    assert.equal(
+      await readFile(outputPath, "utf8"),
+      renderReleaseIdentity(SHA_A)
+    );
+  }
+  const cli = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./prepare-release-identity.mjs", import.meta.url)),
+      "--output",
+      outputPath,
+    ],
+    {
+      env: { RAILWAY_GIT_COMMIT_SHA: "synthetic-sensitive-value" },
+      encoding: "utf8",
+    }
+  );
+  assert.equal(cli.status, 1);
+  assert.equal(cli.stdout, "");
+  assert.deepEqual(JSON.parse(cli.stderr), {
+    ok: false,
+    code: "INVALID_RELEASE_SHA",
+  });
+  assert.doesNotMatch(cli.stdout + cli.stderr, /synthetic-sensitive-value/);
+});
+
+test("I04/I11 direct workflow pre-stamp survives preparation with no native SHA", async t => {
+  const outputPath = await releaseFixture(t);
+  await stampReleaseIdentity({ releaseSha: SHA_A, outputPath });
+  const before = await readFile(outputPath);
+  for (const env of [
+    {},
+    { RAILWAY_SERVICE_ID: SERVICE_ID, RAILWAY_ENVIRONMENT_ID: ENVIRONMENT_ID },
+  ]) {
+    assert.deepEqual(await prepareReleaseIdentity({ env, outputPath }), {
+      source: "pre-stamped",
+    });
+    assert.deepEqual(await readFile(outputPath), before);
+    await verifyReleaseIdentity({ releaseSha: SHA_A, outputPath });
+  }
+});
+
+test("I04 preserves a valid pre-stamp with repository comments and CRLF", async t => {
+  const original = `// existing stamp\r\nexport const RELEASE_SHA: string = "${SHA_A}";\r\n`;
+  const outputPath = await releaseFixture(t, original);
+  assert.deepEqual(
+    await prepareReleaseIdentity({
+      env: { RAILWAY_SERVICE_ID: SERVICE_ID },
+      outputPath,
+    }),
+    { source: "pre-stamped" }
+  );
+  assert.equal(await readFile(outputPath, "utf8"), original);
+});
+
+test("I05 Railway system markers fail closed without an env SHA or valid stamp", async t => {
+  const outputPath = await releaseFixture(t);
+  const original = await readFile(outputPath);
+  for (const key of [
+    "RAILWAY_PROJECT_ID",
+    "RAILWAY_SERVICE_ID",
+    "RAILWAY_ENVIRONMENT_ID",
+  ]) {
+    await assert.rejects(
+      prepareReleaseIdentity({ env: { [key]: RAILWAY_ID }, outputPath }),
+      {
+        code: "RAILWAY_RELEASE_IDENTITY_MISSING",
+      }
+    );
+  }
+  const cli = spawnSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./prepare-release-identity.mjs", import.meta.url)),
+      "--output",
+      outputPath,
+    ],
+    {
+      env: { RAILWAY_SERVICE_ID: SERVICE_ID },
+      encoding: "utf8",
+    }
+  );
+  assert.equal(cli.status, 1);
+  assert.deepEqual(JSON.parse(cli.stderr), {
+    ok: false,
+    code: "RAILWAY_RELEASE_IDENTITY_MISSING",
+  });
+  assert.deepEqual(await readFile(outputPath), original);
+});
+
+test("release preparation runs explicitly before the unchanged bundlers", async () => {
+  const pkg = JSON.parse(
+    await readFile(new URL("../package.json", import.meta.url), "utf8")
+  );
+  assert.equal(
+    pkg.scripts.build,
+    "node scripts/prepare-release-identity.mjs && vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist"
+  );
+  assert.equal(pkg.scripts.prebuild, undefined);
+});
 
 function workflowWithTrigger(trigger) {
   return `name: Fixture\n${trigger}\npermissions: {}\njobs: {}`;

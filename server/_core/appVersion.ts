@@ -87,11 +87,15 @@ function getEnvironmentLabel(): SafeAppVersionMetadata["environmentLabel"] {
 export function getSafeAppVersionMetadata(): SafeAppVersionMetadata {
   const environmentLabel = getEnvironmentLabel();
   const stampedCommitSha = toCommitSha(RELEASE_SHA);
-  const commitSha =
-    stampedCommitSha ??
-    (environmentLabel === "production"
+  const railwayCommitSha = toCommitSha(process.env.RAILWAY_GIT_COMMIT_SHA);
+  const productionCommitSha =
+    railwayCommitSha && railwayCommitSha !== stampedCommitSha
       ? null
-      : toCommitSha(firstEnvValue(COMMIT_ENV_KEYS)));
+      : stampedCommitSha;
+  const commitSha =
+    environmentLabel === "production"
+      ? productionCommitSha
+      : (stampedCommitSha ?? toCommitSha(firstEnvValue(COMMIT_ENV_KEYS)));
   return {
     ok: true,
     serviceName: "boa-crm",
