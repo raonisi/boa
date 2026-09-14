@@ -160,7 +160,7 @@ test.describe("BOA CRM e2e smoke", () => {
       page.getByTestId("mobile-followup-pending-chip")
     ).toContainText(/후속 1건/);
     await expect(page.getByTestId("mobile-followup-today-chip")).toContainText(
-      /오늘 일정 1건/
+      /오늘 예정 1건/
     );
     await expect(page.getByTestId("mobile-followup-recent-chip")).toBeVisible();
     await expect(

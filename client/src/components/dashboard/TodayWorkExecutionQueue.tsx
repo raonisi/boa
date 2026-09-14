@@ -23,7 +23,8 @@ import type { ElementType } from "react";
 
 const FILTER_LABELS: Record<TodayWorkQueueFilter, string> = {
   all: "전체",
-  schedule: "오늘 일정",
+  schedule: "오늘 예정",
+  overdueSchedule: "기한 경과",
   followup: "후속관리",
   notification: "알림",
 };
@@ -39,7 +40,11 @@ function priorityTone(label: string) {
   if (label.includes("지연") || label.includes("긴급")) {
     return "border-red-200 bg-red-50 text-red-700 dark:border-red-900/40 dark:bg-red-950/30 dark:text-red-200";
   }
-  if (label.includes("미완료") || label.includes("곧")) {
+  if (
+    label.includes("미완료") ||
+    label.includes("곧") ||
+    label === "기한 경과"
+  ) {
     return "border-orange-200 bg-orange-50 text-orange-800 dark:border-orange-900/40 dark:bg-orange-950/30 dark:text-orange-200";
   }
   if (label.includes("오늘")) {
@@ -51,6 +56,14 @@ function priorityTone(label: string) {
 function formatDueLabel(item: TodayWorkItem) {
   if (item.type === "notification" || item.type === "customer") {
     return "확인 필요";
+  }
+  if (item.type === "schedule" && item.originalScheduledAt) {
+    const original = formatKstLocalDateTime(item.originalScheduledAt, {
+      seconds: false,
+    }).replace("T", " ");
+    return item.scheduleBucket === "overdue"
+      ? `원래 예정 ${original} · ${item.overdueDays}일 지연`
+      : original;
   }
   const formatted = formatKstLocalDateTime(item.dueAt, { seconds: false });
   return formatted.replace("T", " ").slice(0, 16);
@@ -142,7 +155,7 @@ export function TodayWorkExecutionQueue({
               data-testid="mobile-followup-today-chip"
               onClick={() => onFilterChange("schedule")}
             >
-              오늘 일정 {counts.schedule}건
+              오늘 예정 {counts.schedule}건
             </button>
             <span
               className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
@@ -182,7 +195,9 @@ export function TodayWorkExecutionQueue({
                 ? "오늘은 확인할 알림이 없습니다."
                 : filter === "followup"
                   ? "확인할 후속이 없습니다."
-                  : "오늘 예정된 일정이 없습니다."}
+                  : filter === "overdueSchedule"
+                    ? "기한이 지난 미완료 일정이 없습니다."
+                    : "오늘 예정된 일정이 없습니다."}
           </div>
         ) : (
           visibleItems.map(item => {
