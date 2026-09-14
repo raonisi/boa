@@ -2,6 +2,7 @@ import {
   classifyNotificationPriority,
   type NotificationPriority,
 } from "@/lib/notificationPriority";
+import { getKstDayRange, parseKstLocalDateTime } from "@shared/timePolicy";
 
 export type TodayWorkTaskType =
   | "followUp"
@@ -18,6 +19,7 @@ export type TodayWorkItemType =
 export type TodayWorkQueueFilter =
   | "all"
   | "schedule"
+  | "overdueSchedule"
   | "followup"
   | "notification";
 
@@ -87,6 +89,9 @@ export type TodayWorkItem = {
   title: string;
   description: string;
   dueAt: string | Date;
+  scheduleBucket?: "today" | "overdue";
+  originalScheduledAt?: Date;
+  overdueDays?: number;
   priorityRank: number;
   priorityLabel: string;
   status?: string | null;
@@ -101,7 +106,7 @@ const PRIORITY_LABELS = {
   todayFollowUp: "오늘 연락",
   incompleteSchedule: "미완료 일정",
   soonSchedule: "곧 시작",
-  todaySchedule: "오늘 일정",
+  todaySchedule: "오늘 예정",
   urgentNotification: "긴급 알림",
   todayNotification: "오늘 알림",
   generalNotification: "알림",
@@ -141,7 +146,6 @@ export function buildTodayWorkItems(
   now = new Date()
 ): TodayWorkItem[] {
   const items: TodayWorkItem[] = [];
-  const seenScheduleIds = new Set<number>();
   const seenFollowUpIds = new Set<number>();
 
   for (const followUp of data?.overdueFollowUps ?? []) {
@@ -191,45 +195,64 @@ export function buildTodayWorkItems(
     });
   }
 
-  for (const schedule of data?.incompleteSchedules ?? []) {
-    seenScheduleIds.add(schedule.id);
-    const { rank, label } = schedulePriority(schedule.startTime, now, true);
-    items.push({
-      key: `schedule-${schedule.id}`,
-      type: "schedule",
-      id: schedule.id,
-      customerId: schedule.customerId,
-      title: schedule.title,
-      description: `${schedule.type ?? "일정"} · 미완료`,
-      dueAt: schedule.endTime ?? schedule.startTime,
-      priorityRank: rank,
-      priorityLabel: label,
-      status: schedule.status,
-      route: "/calendar",
-      primaryActionLabel: "완료",
-      taskType: "schedule",
-      source: { ...schedule, priorityLabel: label },
-    });
-  }
-
+  const incompleteIds = new Set(
+    data?.incompleteSchedules?.map(item => item.id)
+  );
+  const schedules = new Map(
+    data?.incompleteSchedules?.map(schedule => [schedule.id, schedule])
+  );
+  // A same-day incomplete schedule can occur in both server arrays.
+  // Prefer today's copy, while retaining its existing incomplete priority/actions.
   for (const schedule of data?.todaySchedules ?? []) {
-    if (seenScheduleIds.has(schedule.id)) continue;
-    seenScheduleIds.add(schedule.id);
-    const { rank, label } = schedulePriority(schedule.startTime, now, false);
+    schedules.set(schedule.id, schedule);
+  }
+  const todayStart = getKstDayRange(now).start.getTime();
+  for (const schedule of Array.from(schedules.values())) {
+    const start =
+      typeof schedule.startTime === "string"
+        ? parseKstLocalDateTime(schedule.startTime)
+        : schedule.startTime;
+    const scheduleDayStart = getKstDayRange(start).start.getTime();
+    const scheduleBucket =
+      scheduleDayStart === todayStart
+        ? "today"
+        : scheduleDayStart < todayStart
+          ? "overdue"
+          : undefined;
+    // Subtract KST calendar midnights, not elapsed time since the appointment.
+    const overdueDays =
+      scheduleBucket === "overdue"
+        ? Math.max(1, Math.round((todayStart - scheduleDayStart) / 86_400_000))
+        : undefined;
+    const incomplete = incompleteIds.has(schedule.id);
+    const priority = schedulePriority(start, now, incomplete);
+    const rank = scheduleBucket === "overdue" ? 30 : priority.rank;
+    const label =
+      scheduleBucket === "overdue"
+        ? "기한 경과"
+        : scheduleBucket === "today"
+          ? priority.label
+          : "일정";
     items.push({
       key: `schedule-${schedule.id}`,
       type: "schedule",
       id: schedule.id,
       customerId: schedule.customerId,
       title: schedule.title,
-      description: `${schedule.type ?? "일정"}`,
-      dueAt: schedule.startTime,
+      description: `${schedule.type ?? "일정"}${incomplete ? " · 미완료" : ""}`,
+      dueAt: incomplete
+        ? (schedule.endTime ?? schedule.startTime)
+        : schedule.startTime,
+      scheduleBucket,
+      originalScheduledAt: start,
+      overdueDays,
       priorityRank: rank,
       priorityLabel: label,
       status: schedule.status,
-      route: schedule.customerId
-        ? `/calendar?customerId=${schedule.customerId}&action=quick-create`
-        : "/calendar",
+      route:
+        !incomplete && schedule.customerId
+          ? `/calendar?customerId=${schedule.customerId}&action=quick-create`
+          : "/calendar",
       primaryActionLabel: "완료",
       taskType: "schedule",
       source: { ...schedule, priorityLabel: label },
@@ -306,7 +329,14 @@ export function filterTodayWorkItems(
 ): TodayWorkItem[] {
   if (filter === "all") return items;
   if (filter === "schedule") {
-    return items.filter(item => item.type === "schedule");
+    return items.filter(
+      item => item.type === "schedule" && item.scheduleBucket === "today"
+    );
+  }
+  if (filter === "overdueSchedule") {
+    return items.filter(
+      item => item.type === "schedule" && item.scheduleBucket === "overdue"
+    );
   }
   if (filter === "followup") {
     return items.filter(item => item.type === "followup");
@@ -321,7 +351,8 @@ export function countTodayWorkItemsByFilter(
 ): Record<TodayWorkQueueFilter, number> {
   return {
     all: items.length,
-    schedule: items.filter(item => item.type === "schedule").length,
+    schedule: filterTodayWorkItems(items, "schedule").length,
+    overdueSchedule: filterTodayWorkItems(items, "overdueSchedule").length,
     followup: items.filter(item => item.type === "followup").length,
     notification: items.filter(
       item => item.type === "notification" || item.type === "customer"
