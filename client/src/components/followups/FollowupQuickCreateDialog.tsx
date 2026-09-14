@@ -82,11 +82,22 @@ export default function FollowupQuickCreateDialog({
   const [customerId, setCustomerId] = useState<number | null>(
     defaultCustomerId ?? null
   );
+  const [verifiedCustomerId, setVerifiedCustomerId] = useState<number | null>(
+    null
+  );
+  // Use the current route target immediately, before the form reset effect runs.
+  const targetCustomerId = defaultCustomerId ?? customerId;
+  const targetReady =
+    defaultCustomerId == null || verifiedCustomerId === defaultCustomerId;
   const [reason, setReason] = useState("");
   const [memo, setMemo] = useState("");
   const [showMemo, setShowMemo] = useState(false);
 
   const preset = useMemo(() => getFollowupPresetById(presetId), [presetId]);
+
+  useEffect(() => {
+    if (!open) setVerifiedCustomerId(null);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -112,14 +123,14 @@ export default function FollowupQuickCreateDialog({
   });
 
   const handleSubmit = () => {
-    if (!customerId || !reason.trim()) return;
+    if (loading || !targetReady || !targetCustomerId || !reason.trim()) return;
     const { presetLabel: _presetLabel, ...payload } = buildQuickFollowUpPayload(
       {
         presetId,
         dateChip,
         reason,
         memo,
-        customerId,
+        customerId: targetCustomerId,
         customDateKey,
       }
     );
@@ -127,7 +138,7 @@ export default function FollowupQuickCreateDialog({
   };
 
   const handleOpenDetailed = () => {
-    if (!customerId) return;
+    if (loading || !targetReady || !targetCustomerId) return;
     onOpenDetailed(
       buildDetailedFollowUpSeedFromQuick({
         presetId,
@@ -136,7 +147,7 @@ export default function FollowupQuickCreateDialog({
         memo,
         customDateKey,
       }),
-      customerId
+      targetCustomerId
     );
   };
 
@@ -174,11 +185,17 @@ export default function FollowupQuickCreateDialog({
           </section>
 
           <section className="space-y-2">
-            <Label className="text-xs font-semibold">고객 연결</Label>
             <ScheduleCustomerLinkPicker
-              value={customerId}
+              value={targetCustomerId}
               onChange={setCustomerId}
-              disabled={loading || defaultCustomerId != null}
+              disabled={loading}
+              selectionLocked={defaultCustomerId != null}
+              helperText={
+                defaultCustomerId != null
+                  ? "이 고객에게 후속관리를 등록합니다."
+                  : undefined
+              }
+              onSelectedCustomerVerified={setVerifiedCustomerId}
             />
           </section>
 
@@ -264,7 +281,9 @@ export default function FollowupQuickCreateDialog({
           <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-background pt-3">
             <Button
               className="min-h-12 md:min-h-10"
-              disabled={loading || !customerId || !reason.trim()}
+              disabled={
+                loading || !targetReady || !targetCustomerId || !reason.trim()
+              }
               onClick={handleSubmit}
             >
               {loading ? "저장 중..." : "후속 등록"}
@@ -273,7 +292,7 @@ export default function FollowupQuickCreateDialog({
               type="button"
               variant="outline"
               className="min-h-11 md:min-h-10"
-              disabled={!customerId}
+              disabled={loading || !targetReady || !targetCustomerId}
               onClick={handleOpenDetailed}
             >
               상세 입력
