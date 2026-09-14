@@ -146,6 +146,60 @@ describe("schedule customer picker RBAC", () => {
 });
 
 describe("schedule customer picker behavior", () => {
+  it.each([
+    "branch_admin",
+    "sub_branch_admin",
+    "team_leader",
+    "member",
+  ] as const)(
+    "returns only the permitted selected target for %s",
+    async role => {
+      vi.spyOn(db, "getCustomerById").mockResolvedValue(sampleCustomer);
+      const result = await appRouter
+        .createCaller(createCtx(role))
+        .customers.searchForSchedulePicker({ selectedCustomerId: 101 });
+      expect(result.selectedCustomer?.id).toBe(101);
+      expect(result.selectedCustomer?.maskedPhone).toBe("010-****-5678");
+      expect(JSON.stringify(result)).not.toContain("01012345678");
+    }
+  );
+
+  it.each([
+    { isActive: false },
+    { deletedAt: new Date("2026-09-01T00:00:00Z") },
+  ])("does not return a deleted selected target %j", async deleted => {
+    vi.spyOn(db, "getCustomerById").mockResolvedValue({
+      ...sampleCustomer,
+      ...deleted,
+    });
+    const result = await appRouter
+      .createCaller(createCtx("branch_admin"))
+      .customers.searchForSchedulePicker({ selectedCustomerId: 101 });
+    expect(result.selectedCustomer).toBeNull();
+    expect(result.items).toEqual([]);
+  });
+
+  it.each(["inactive", "resigned"])(
+    "blocks %s direct picker access",
+    async accountStatus => {
+      const lookup = vi.spyOn(db, "getCustomerById");
+      await expect(
+        appRouter
+          .createCaller(createCtx("member", { accountStatus } as any))
+          .customers.searchForSchedulePicker({ selectedCustomerId: 101 })
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      expect(lookup).not.toHaveBeenCalled();
+    }
+  );
+
+  it("blocks unauthenticated direct picker access", async () => {
+    await expect(
+      appRouter
+        .createCaller({ ...createCtx("member"), user: null } as any)
+        .customers.searchForSchedulePicker({ selectedCustomerId: 101 })
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
   it("requires at least 2 characters before search", async () => {
     const getCustomersSpy = vi.spyOn(db, "getCustomers").mockResolvedValue([]);
     const result = await searchCustomersForSchedulePicker(
