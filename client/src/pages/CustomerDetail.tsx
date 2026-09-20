@@ -108,7 +108,7 @@ import {
   Zap,
   Bell,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import {
   applyCustomerDetailAction,
@@ -4424,6 +4424,7 @@ function ConsultModal({
   loading: boolean;
   currentStatus: string;
 }) {
+  const fieldId = useId();
   const { data: consultStatusOptions } = trpc.settings.formOptions.useQuery({
     category: "consultStatus",
   });
@@ -4449,14 +4450,19 @@ function ConsultModal({
         <DialogHeader>
           <DialogTitle>상담기록 추가</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <div>
-            <Label className="text-xs">상담상태</Label>
+            <Label id={`${fieldId}-status-label`} className="text-xs">
+              상담상태
+            </Label>
             <Select
               value={form.status}
               onValueChange={v => setForm({ ...form, status: v })}
             >
-              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+              <SelectTrigger
+                aria-labelledby={`${fieldId}-status-label`}
+                className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -4470,12 +4476,20 @@ function ConsultModal({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs">상담유형</Label>
+              <Label
+                id={`${fieldId}-consultationType-label`}
+                className="text-xs"
+              >
+                상담유형
+              </Label>
               <Select
                 value={form.consultationType}
                 onValueChange={v => setForm({ ...form, consultationType: v })}
               >
-                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-consultationType-label`}
+                  className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4488,12 +4502,17 @@ function ConsultModal({
               </Select>
             </div>
             <div>
-              <Label className="text-xs">고객 니즈</Label>
+              <Label id={`${fieldId}-customerNeed-label`} className="text-xs">
+                고객 니즈
+              </Label>
               <Select
                 value={form.customerNeed}
                 onValueChange={v => setForm({ ...form, customerNeed: v })}
               >
-                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-customerNeed-label`}
+                  className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4507,12 +4526,17 @@ function ConsultModal({
             </div>
           </div>
           <div>
-            <Label className="text-xs">다음 액션</Label>
+            <Label id={`${fieldId}-nextAction-label`} className="text-xs">
+              다음 액션
+            </Label>
             <Select
               value={form.nextAction}
               onValueChange={v => setForm({ ...form, nextAction: v })}
             >
-              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+              <SelectTrigger
+                aria-labelledby={`${fieldId}-nextAction-label`}
+                className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -4525,8 +4549,11 @@ function ConsultModal({
             </Select>
           </div>
           <div>
-            <Label className="text-xs">상담 요약</Label>
+            <Label htmlFor={`${fieldId}-summary`} className="text-xs">
+              상담 요약
+            </Label>
             <Input
+              id={`${fieldId}-summary`}
               value={form.summary}
               maxLength={200}
               onChange={e => setForm({ ...form, summary: e.target.value })}
@@ -4535,8 +4562,11 @@ function ConsultModal({
             />
           </div>
           <div>
-            <Label className="text-xs">상세 메모</Label>
+            <Label htmlFor={`${fieldId}-content`} className="text-xs">
+              상세 메모
+            </Label>
             <textarea
+              id={`${fieldId}-content`}
               value={form.content}
               onChange={e => setForm({ ...form, content: e.target.value })}
               className="mt-1 min-h-28 w-full resize-none rounded-md border border-input bg-background px-3 py-3 text-sm leading-6"
@@ -4548,9 +4578,19 @@ function ConsultModal({
             </p>
           </div>
           <div>
-            <Label className="text-xs">재상담 예정일</Label>
+            <Label htmlFor={`${fieldId}-nextContactAt`} className="text-xs">
+              재상담 예정일
+            </Label>
             <Input
+              id={`${fieldId}-nextContactAt`}
               type="datetime-local"
+              aria-required={createCalendarSchedule}
+              aria-invalid={missingScheduleTime}
+              aria-describedby={
+                missingScheduleTime
+                  ? `${fieldId}-nextContactAt-error`
+                  : undefined
+              }
               value={form.nextContactAt}
               onChange={e =>
                 setForm({ ...form, nextContactAt: e.target.value })
@@ -4576,8 +4616,14 @@ function ConsultModal({
             {createCalendarSchedule && (
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
-                  <Label className="text-xs">일정 제목</Label>
+                  <Label
+                    htmlFor={`${fieldId}-scheduleTitle`}
+                    className="text-xs"
+                  >
+                    일정 제목
+                  </Label>
                   <Input
+                    id={`${fieldId}-scheduleTitle`}
                     value={scheduleTitle}
                     maxLength={100}
                     onChange={e => setScheduleTitle(e.target.value)}
@@ -4586,12 +4632,17 @@ function ConsultModal({
                   />
                 </div>
                 <div>
-                  <Label className="text-xs">알림</Label>
+                  <Label id={`${fieldId}-reminder-label`} className="text-xs">
+                    알림
+                  </Label>
                   <Select
                     value={scheduleReminderOffset}
                     onValueChange={setScheduleReminderOffset}
                   >
-                    <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                    <SelectTrigger
+                      aria-labelledby={`${fieldId}-reminder-label`}
+                      className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -4604,7 +4655,10 @@ function ConsultModal({
                   </Select>
                 </div>
                 {missingScheduleTime && (
-                  <p className="text-xs text-destructive sm:col-span-2">
+                  <p
+                    id={`${fieldId}-nextContactAt-error`}
+                    className="text-xs text-destructive sm:col-span-2"
+                  >
                     캘린더 일정 등록을 위해 재상담 예정일을 입력해주세요.
                   </p>
                 )}
@@ -4662,6 +4716,7 @@ function EditConsultModal({
   onSubmit: (data: any) => void;
   loading: boolean;
 }) {
+  const fieldId = useId();
   const [form, setForm] = useState({
     status: consult.status,
     consultationType: consult.consultationType ?? "전화",
@@ -4679,14 +4734,19 @@ function EditConsultModal({
         <DialogHeader>
           <DialogTitle>상담기록 수정</DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           <div>
-            <Label className="text-xs">상담상태</Label>
+            <Label id={`${fieldId}-status-label`} className="text-xs">
+              상담상태
+            </Label>
             <Select
               value={form.status}
               onValueChange={v => setForm({ ...form, status: v })}
             >
-              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+              <SelectTrigger
+                aria-labelledby={`${fieldId}-status-label`}
+                className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -4700,12 +4760,20 @@ function EditConsultModal({
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <Label className="text-xs">상담유형</Label>
+              <Label
+                id={`${fieldId}-consultationType-label`}
+                className="text-xs"
+              >
+                상담유형
+              </Label>
               <Select
                 value={form.consultationType}
                 onValueChange={v => setForm({ ...form, consultationType: v })}
               >
-                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-consultationType-label`}
+                  className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4718,12 +4786,17 @@ function EditConsultModal({
               </Select>
             </div>
             <div>
-              <Label className="text-xs">고객 니즈</Label>
+              <Label id={`${fieldId}-customerNeed-label`} className="text-xs">
+                고객 니즈
+              </Label>
               <Select
                 value={form.customerNeed}
                 onValueChange={v => setForm({ ...form, customerNeed: v })}
               >
-                <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-customerNeed-label`}
+                  className="mt-1 min-h-12 md:h-9 md:min-h-9"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4737,12 +4810,17 @@ function EditConsultModal({
             </div>
           </div>
           <div>
-            <Label className="text-xs">다음 액션</Label>
+            <Label id={`${fieldId}-nextAction-label`} className="text-xs">
+              다음 액션
+            </Label>
             <Select
               value={form.nextAction}
               onValueChange={v => setForm({ ...form, nextAction: v })}
             >
-              <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+              <SelectTrigger
+                aria-labelledby={`${fieldId}-nextAction-label`}
+                className="mt-1 min-h-12 md:h-9 md:min-h-9"
+              >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -4755,8 +4833,11 @@ function EditConsultModal({
             </Select>
           </div>
           <div>
-            <Label className="text-xs">상담 요약</Label>
+            <Label htmlFor={`${fieldId}-summary`} className="text-xs">
+              상담 요약
+            </Label>
             <Input
+              id={`${fieldId}-summary`}
               value={form.summary}
               maxLength={200}
               onChange={e => setForm({ ...form, summary: e.target.value })}
@@ -4764,8 +4845,11 @@ function EditConsultModal({
             />
           </div>
           <div>
-            <Label className="text-xs">상세 메모</Label>
+            <Label htmlFor={`${fieldId}-content`} className="text-xs">
+              상세 메모
+            </Label>
             <textarea
+              id={`${fieldId}-content`}
               value={form.content}
               onChange={e => setForm({ ...form, content: e.target.value })}
               className="mt-1 min-h-28 w-full resize-none rounded-md border border-input bg-background px-3 py-3 text-sm leading-6"
@@ -4776,8 +4860,11 @@ function EditConsultModal({
             </p>
           </div>
           <div>
-            <Label className="text-xs">재상담 예정일</Label>
+            <Label htmlFor={`${fieldId}-nextContactAt`} className="text-xs">
+              재상담 예정일
+            </Label>
             <Input
+              id={`${fieldId}-nextContactAt`}
               type="datetime-local"
               value={form.nextContactAt}
               onChange={e =>
@@ -4832,6 +4919,7 @@ function ContractModal({
   customerAgentId?: number | null;
   currentUserRole?: string;
 }) {
+  const fieldId = useId();
   const [form, setForm] = useState({
     company: contract?.company ?? "",
     productName: contract?.productName ?? "",
@@ -4883,6 +4971,7 @@ function ContractModal({
   );
   const requiresAgentSelection =
     !contract && !customerAgentId && currentUserRole !== "member";
+  const missingAgent = requiresAgentSelection && form.agentId === "default";
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto">
@@ -4890,19 +4979,25 @@ function ContractModal({
           <DialogTitle>{contract ? "계약 수정" : "계약 등록"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <Label className="text-xs">보험사</Label>
+              <Label htmlFor={`${fieldId}-company`} className="text-xs">
+                보험사
+              </Label>
               <Input
-                list="contract-insurer-options"
+                id={`${fieldId}-company`}
+                list={`${fieldId}-insurer-options`}
                 value={form.company}
                 onChange={e => setForm({ ...form, company: e.target.value })}
                 className="h-8 mt-1"
               />
             </div>
             <div>
-              <Label className="text-xs">상품명</Label>
+              <Label htmlFor={`${fieldId}-productName`} className="text-xs">
+                상품명
+              </Label>
               <Input
+                id={`${fieldId}-productName`}
                 value={form.productName}
                 onChange={e =>
                   setForm({ ...form, productName: e.target.value })
@@ -4911,9 +5006,12 @@ function ContractModal({
               />
             </div>
             <div>
-              <Label className="text-xs">상품군</Label>
+              <Label htmlFor={`${fieldId}-productGroup`} className="text-xs">
+                상품군
+              </Label>
               <Input
-                list="contract-product-group-options"
+                id={`${fieldId}-productGroup`}
+                list={`${fieldId}-product-group-options`}
                 value={form.productGroup}
                 onChange={e =>
                   setForm({ ...form, productGroup: e.target.value })
@@ -4923,8 +5021,11 @@ function ContractModal({
               />
             </div>
             <div>
-              <Label className="text-xs">계약일</Label>
+              <Label htmlFor={`${fieldId}-contractDate`} className="text-xs">
+                계약일
+              </Label>
               <Input
+                id={`${fieldId}-contractDate`}
                 type="date"
                 value={form.contractDate}
                 onChange={e =>
@@ -4934,8 +5035,11 @@ function ContractModal({
               />
             </div>
             <div>
-              <Label className="text-xs">월보험료 (원)</Label>
+              <Label htmlFor={`${fieldId}-monthlyPremium`} className="text-xs">
+                월보험료 (원)
+              </Label>
               <Input
+                id={`${fieldId}-monthlyPremium`}
                 type="number"
                 value={form.monthlyPremium}
                 onChange={e =>
@@ -4945,12 +5049,17 @@ function ContractModal({
               />
             </div>
             <div>
-              <Label className="text-xs">납입상태</Label>
+              <Label id={`${fieldId}-paymentStatus-label`} className="text-xs">
+                납입상태
+              </Label>
               <Select
                 value={form.paymentStatus}
                 onValueChange={v => setForm({ ...form, paymentStatus: v })}
               >
-                <SelectTrigger className="h-8 mt-1">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-paymentStatus-label`}
+                  className="mt-1 h-8 w-full min-w-0"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4963,12 +5072,17 @@ function ContractModal({
               </Select>
             </div>
             <div>
-              <Label className="text-xs">계약상태</Label>
+              <Label id={`${fieldId}-contractStatus-label`} className="text-xs">
+                계약상태
+              </Label>
               <Select
                 value={form.contractStatus}
                 onValueChange={v => setForm({ ...form, contractStatus: v })}
               >
-                <SelectTrigger className="h-8 mt-1">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-contractStatus-label`}
+                  className="mt-1 h-8 w-full min-w-0"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -4981,12 +5095,22 @@ function ContractModal({
               </Select>
             </div>
             <div>
-              <Label className="text-xs">담당 설계사</Label>
+              <Label id={`${fieldId}-agentId-label`} className="text-xs">
+                담당 설계사
+              </Label>
               <Select
                 value={form.agentId}
                 onValueChange={v => setForm({ ...form, agentId: v })}
               >
-                <SelectTrigger className="h-8 mt-1">
+                <SelectTrigger
+                  aria-labelledby={`${fieldId}-agentId-label`}
+                  aria-required={requiresAgentSelection}
+                  aria-invalid={missingAgent}
+                  aria-describedby={
+                    missingAgent ? `${fieldId}-agentId-error` : undefined
+                  }
+                  className="mt-1 h-8 w-full min-w-0"
+                >
                   <SelectValue placeholder="기본 담당자" />
                 </SelectTrigger>
                 <SelectContent>
@@ -4998,26 +5122,32 @@ function ContractModal({
                   ))}
                 </SelectContent>
               </Select>
-              {requiresAgentSelection && (
-                <p className="text-xs text-destructive mt-1">
+              {missingAgent && (
+                <p
+                  id={`${fieldId}-agentId-error`}
+                  className="text-xs text-destructive mt-1"
+                >
                   계약 담당 설계사를 선택해야 합니다.
                 </p>
               )}
             </div>
           </div>
-          <datalist id="contract-insurer-options">
+          <datalist id={`${fieldId}-insurer-options`}>
             {insurers.map(v => (
               <option key={v} value={v} />
             ))}
           </datalist>
-          <datalist id="contract-product-group-options">
+          <datalist id={`${fieldId}-product-group-options`}>
             {productGroups.map(v => (
               <option key={v} value={v} />
             ))}
           </datalist>
           <div>
-            <Label className="text-xs">메모</Label>
+            <Label htmlFor={`${fieldId}-memo`} className="text-xs">
+              메모
+            </Label>
             <textarea
+              id={`${fieldId}-memo`}
               value={form.memo}
               onChange={e => setForm({ ...form, memo: e.target.value })}
               className="w-full mt-1 rounded-md border border-input bg-background px-3 py-2 text-sm resize-none h-16"
