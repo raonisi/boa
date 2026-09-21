@@ -6,6 +6,7 @@ import * as db from "./db";
 import * as contractLifecycle from "./contractLifecycle";
 import * as notifications from "./notifications";
 import * as pushNotifications from "./pushNotifications";
+import * as operationRiskData from "./operationRiskData";
 import {
   formatKstLocalDateTime,
   parseKstLocalDateTime,
@@ -5290,30 +5291,137 @@ describe("PR6 operation risk center", () => {
         inactiveUserIds.has(notification.userId)
       ).length,
     });
-    vi.spyOn(db, "getDeleteRequests").mockResolvedValue(
-      overrides.deleteRequests ?? ([] as any)
-    );
     vi.spyOn(db, "getHandoffHistories").mockResolvedValue(
       overrides.handoffHistories ?? ([] as any)
     );
-    vi.spyOn(db, "getActivityLogs").mockResolvedValue(
-      overrides.activityLogs ?? ([] as any)
+    const sourceActivityLogs = overrides.activityLogs ?? [];
+    const downloadLogs = sourceActivityLogs.filter(log =>
+      operationRiskData.OPERATION_RISK_DOWNLOAD_ACTIONS.includes(log.action)
     );
-    vi.spyOn(db, "getPushNotificationOperationSummary").mockResolvedValue(
-      overrides.pushSummary ??
+    const downloadsByUser = downloadLogs.reduce<Record<string, number>>(
+      (counts, log) => {
+        counts[String(log.userId)] = (counts[String(log.userId)] ?? 0) + 1;
+        return counts;
+      },
+      {}
+    );
+    const shortDownloadReasonCount = downloadLogs.filter(log => {
+      try {
+        const parsed = JSON.parse(log.details ?? "{}") as Record<string, any>;
+        const reason = parsed.metadata?.reason ?? parsed.reason ?? "";
+        return String(reason).trim().length < 5;
+      } catch {
+        return String(log.details ?? "").trim().length < 5;
+      }
+    }).length;
+    const deleteLogs = sourceActivityLogs.filter(log =>
+      operationRiskData.OPERATION_RISK_DELETE_ACTIONS.includes(log.action)
+    );
+    const accountLogs = sourceActivityLogs.filter(
+      log =>
+        operationRiskData.OPERATION_RISK_SECURITY_ACTIONS.includes(
+          log.action
+        ) ||
+        operationRiskData.OPERATION_RISK_FAILED_ADMIN_ACTIONS.includes(
+          log.action
+        )
+    );
+    const pushSummary = overrides.pushSummary ?? {
+      total: 0,
+      sent: 0,
+      failed: 0,
+      skipped: 0,
+      inactiveTokens: 0,
+    };
+    const scheduleRequestRisk = overrides.scheduleRequestRisk ?? {
+      pending: 0,
+      conflict: 0,
+      failed: 0,
+    };
+    vi.spyOn(operationRiskData, "getOperationRiskAggregates").mockResolvedValue(
+      {
+        activity: {
+          downloadTotal: downloadLogs.length,
+          failedDownloadCount: downloadLogs.filter(
+            log => log.action === "DATA_DOWNLOAD_FAILED"
+          ).length,
+          repeatedDownloadUserCount: Object.values(downloadsByUser).filter(
+            count => count >= 3
+          ).length,
+          shortDownloadReasonCount,
+          downloadsByUser,
+          deletionTotal: deleteLogs.length,
+          permanentDeleteCount: deleteLogs.filter(log =>
+            [
+              "TEAM_PERMANENTLY_DELETED",
+              "CUSTOMER_PERMANENTLY_DELETED",
+              "CONTRACT_PERMANENTLY_DELETED",
+            ].includes(log.action)
+          ).length,
+          failedDeletionActionCount: deleteLogs.filter(log =>
+            [
+              "IMPORT_BATCH_CANCEL_BLOCKED",
+              "PERMANENT_DELETE_BLOCKED",
+            ].includes(log.action)
+          ).length,
+          accountTotal: accountLogs.length,
+          criticalAccountCount: accountLogs.filter(log =>
+            [
+              "USER_OAUTH_RESET",
+              "USER_FORCE_LOGOUT",
+              "ALL_USERS_FORCE_LOGOUT",
+              "LOGIN_BLOCKED",
+            ].includes(log.action)
+          ).length,
+          loginBlockedCount: accountLogs.filter(
+            log => log.action === "LOGIN_BLOCKED"
+          ).length,
+          failedAdminActionCount: accountLogs.filter(log =>
+            operationRiskData.OPERATION_RISK_FAILED_ADMIN_ACTIONS.includes(
+              log.action
+            )
+          ).length,
+        },
+        push: {
+          total: pushSummary.total,
+          sent: pushSummary.sent,
+          failed: pushSummary.failed,
+          policySkipped: pushSummary.skipped,
+          duplicateSkipped: 0,
+          invalidTokenDeactivated: 0,
+          inactiveTokens: pushSummary.inactiveTokens,
+        },
+        current: {
+          pendingDeleteRequestCount: (overrides.deleteRequests ?? []).filter(
+            request => request.status === "pending"
+          ).length,
+          schedulePendingCount: scheduleRequestRisk.pending,
+        },
+        scheduleHistory: {
+          conflictCount: scheduleRequestRisk.conflict,
+          failedCount: scheduleRequestRisk.failed,
+        },
+      } as any
+    );
+    const userById = new Map(
+      (overrides.users ?? []).map(user => [user.id, user] as const)
+    );
+    vi.spyOn(
+      operationRiskData,
+      "getOperationRiskRecentItems"
+    ).mockImplementation(
+      async input =>
         ({
-          total: 0,
-          sent: 0,
-          failed: 0,
-          skipped: 0,
-          inactiveTokens: 0,
-        } as any)
-    );
-    vi.spyOn(db, "listPushNotificationLogs").mockResolvedValue(
-      overrides.pushLogs ?? ([] as any)
-    );
-    vi.spyOn(db, "getScheduleChangeRequestRiskSummary").mockResolvedValue(
-      overrides.scheduleRequestRisk ?? { pending: 0, conflict: 0, failed: 0 }
+          activity: sourceActivityLogs
+            .slice(input.offset, input.offset + input.limit)
+            .map(log => ({
+              ...log,
+              actorName: userById.get(log.userId)?.name ?? null,
+              actorRole: userById.get(log.userId)?.role ?? null,
+              actorEmail: userById.get(log.userId)?.email ?? null,
+            })),
+          pushFailures: overrides.pushLogs ?? [],
+        }) as any
     );
   }
 
@@ -5466,6 +5574,87 @@ describe("PR6 operation risk center", () => {
     expect(createLogSpy).not.toHaveBeenCalled();
   });
 
+  it("keeps source aggregates stable when recent event pagination changes", async () => {
+    const now = new Date();
+    mockOperationRiskSources({
+      users: [
+        {
+          id: 1,
+          name: "[TEST] Admin",
+          email: "admin@test.local",
+          role: "branch_admin",
+          accountStatus: "active",
+        },
+      ],
+      activityLogs: [
+        {
+          id: 3,
+          userId: 1,
+          action: "USER_LOGIN",
+          details: "{}",
+          createdAt: now,
+        },
+        {
+          id: 2,
+          userId: 1,
+          action: "USER_LOGIN",
+          details: "{}",
+          createdAt: now,
+        },
+        {
+          id: 1,
+          userId: 1,
+          action: "LOGIN_BLOCKED",
+          details: "{}",
+          createdAt: now,
+        },
+      ],
+    });
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+
+    const first = await caller.operationRisk.summary({
+      period: "7d",
+      limit: 1,
+      offset: 0,
+    });
+    const second = await caller.operationRisk.summary({
+      period: "7d",
+      limit: 1,
+      offset: 1,
+    });
+
+    expect(first.accountRisk.total).toBe(3);
+    expect(first.accountRisk.loginBlockedCount).toBe(1);
+    expect(second.accountRisk).toEqual(first.accountRisk);
+    expect(first.recentRiskEvents).toHaveLength(1);
+    expect(second.recentRiskEvents).toHaveLength(1);
+    expect(second.recentRiskEvents[0]?.id).not.toBe(
+      first.recentRiskEvents[0]?.id
+    );
+  });
+
+  it("rejects malformed or reversed custom operation risk periods", async () => {
+    const caller = appRouter.createCaller(createCtx("branch_admin"));
+
+    await expect(
+      caller.operationRisk.summary({
+        period: "custom",
+        dateFrom: "2026-02-30",
+        dateTo: "2026-03-01",
+      })
+    ).rejects.toThrow();
+    await expect(
+      caller.operationRisk.summary({
+        period: "custom",
+        dateFrom: "2026-03-02",
+        dateTo: "2026-03-01",
+      })
+    ).rejects.toThrow();
+    await expect(
+      caller.operationRisk.summary({ period: "custom" })
+    ).rejects.toThrow();
+  });
+
   it("blocks non-branch_admin and inactive or resigned users from operation risk APIs", async () => {
     for (const role of [
       "sub_branch_admin",
@@ -5594,10 +5783,17 @@ describe("PR6 operation risk center", () => {
     expect(pendingResult.overall.actionLevel).toBe("action_required");
     expect(pendingResult.riskCards[0]?.actionLevel).toBe("action_required");
 
-    vi.mocked(db.getScheduleChangeRequestRiskSummary).mockResolvedValue({
-      pending: 0,
-      conflict: 1,
-      failed: 1,
+    const aggregateMock = vi.mocked(
+      operationRiskData.getOperationRiskAggregates
+    );
+    const pendingAggregates = await aggregateMock.mock.results.at(-1)?.value;
+    aggregateMock.mockResolvedValue({
+      ...pendingAggregates,
+      current: {
+        ...pendingAggregates.current,
+        schedulePendingCount: 0,
+      },
+      scheduleHistory: { conflictCount: 1, failedCount: 1 },
     });
     const immediateResult = await appRouter
       .createCaller(createCtx("branch_admin"))
