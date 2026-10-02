@@ -114,6 +114,33 @@ function SummaryCard({ label, value }: { label: string; value: number }) {
   );
 }
 
+function OrgMetric({
+  label,
+  value,
+  branchCard,
+}: {
+  label: string;
+  value: number;
+  branchCard: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-xl p-2 ${branchCard ? "border border-primary-foreground/20 bg-primary-foreground/10" : adminPage.surface}`}
+    >
+      <p
+        className={`text-xs ${branchCard ? "text-primary-foreground" : "text-muted-foreground"}`}
+      >
+        {label}
+      </p>
+      <p
+        className={`text-base font-bold ${branchCard ? "text-primary-foreground" : "text-foreground"}`}
+      >
+        {value}
+      </p>
+    </div>
+  );
+}
+
 function OrgSection({
   title,
   description,
@@ -261,6 +288,16 @@ export default function OrganizationManagement() {
     const parent = node.parentUserId ? nodeById.get(node.parentUserId) : null;
     const relation = getOrgRelationBadge(node, parent);
     const muted = node.accountStatus !== "active";
+    const branchCard = node.role === "branch_admin";
+    // Shared badge tones assume a normal page surface. Only this branch card
+    // needs opaque status fills and a dark-theme role tone on its colored fill.
+    const branchStatusClasses = !branchCard
+      ? ""
+      : node.accountStatus === "active"
+        ? "bg-boa-green text-white"
+        : node.accountStatus === "inactive" || node.accountStatus === "resigned"
+          ? "bg-muted"
+          : "bg-destructive text-destructive-foreground";
 
     return (
       <div
@@ -274,11 +311,13 @@ export default function OrganizationManagement() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge className={getOrgRoleBadgeClasses(node.role)}>
+                  <Badge
+                    className={`${getOrgRoleBadgeClasses(node.role)} ${branchCard ? "transition-[box-shadow] dark:border-primary-foreground/20 dark:bg-primary-foreground/10 dark:text-primary-foreground" : ""}`}
+                  >
                     {getRoleLabel(node.role)}
                   </Badge>
                   <Badge
-                    className={getAccountStatusBadgeClasses(node.accountStatus)}
+                    className={`${getAccountStatusBadgeClasses(node.accountStatus)} ${branchStatusClasses} ${branchCard ? "transition-[box-shadow]" : ""}`}
                   >
                     {getUserStatusLabel(node.accountStatus)}
                   </Badge>
@@ -307,24 +346,21 @@ export default function OrganizationManagement() {
                 </p>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center sm:min-w-64">
-                <div className={`rounded-xl p-2 ${adminPage.surface}`}>
-                  <p className="text-xs text-muted-foreground">직속</p>
-                  <p className="text-base font-bold text-foreground">
-                    {node.directReportCount}
-                  </p>
-                </div>
-                <div className={`rounded-xl p-2 ${adminPage.surface}`}>
-                  <p className="text-xs text-muted-foreground">산하</p>
-                  <p className="text-base font-bold text-foreground">
-                    {node.descendantCount}
-                  </p>
-                </div>
-                <div className={`rounded-xl p-2 ${adminPage.surface}`}>
-                  <p className="text-xs text-muted-foreground">고객</p>
-                  <p className="text-base font-bold text-foreground">
-                    {node.customerCount}
-                  </p>
-                </div>
+                <OrgMetric
+                  label="직속"
+                  value={node.directReportCount}
+                  branchCard={branchCard}
+                />
+                <OrgMetric
+                  label="산하"
+                  value={node.descendantCount}
+                  branchCard={branchCard}
+                />
+                <OrgMetric
+                  label="고객"
+                  value={node.customerCount}
+                  branchCard={branchCard}
+                />
               </div>
             </div>
             {isBranchAdmin && node.role !== "branch_admin" ? (
