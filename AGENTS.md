@@ -25,6 +25,8 @@ See [RBAC and Customer Data Safety Standard](docs/ops/rbac-safety.md) and [RBAC 
 
 ## 3. Task Planning Rules
 
+Classify the target and execution mode separately using the existing [BOA skill](.agents/skills/boa-crm-full-build/SKILL.md). PLAN and READ_ONLY_REVIEW do not authorize edits or external actions. Skill/sourcepack-only work does not authorize product audits or fixes. For source selection, historical packs and policy conflict, consult the [single source register](.agents/skills/boa-crm-full-build/references/source-register.json); IMPORT_ROLE and DEPLOY_PATH currently require approved current-policy evidence before affected decisions. Other safety controls and independent work remain applicable.
+
 Classify the task before editing and use the relevant `docs/ops` checklist.
 
 - Use a single-agent workflow by default.

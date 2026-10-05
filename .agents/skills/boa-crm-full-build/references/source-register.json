@@ -1,0 +1,4261 @@
+{
+  "schema_version": 1,
+  "packaging": "repository_bound",
+  "path_base": "repository_root",
+  "policy": "active means available for conditional reference, not approved policy; source_id is stable identity, revision identifies bytes/version; historical inputs are optional external prerequisites for their own clauses",
+  "sources": [
+    {
+      "source_id": "BOA_AGENTS",
+      "title": "AGENTS.md",
+      "source_type": "applicable_instruction",
+      "canonical": {
+        "kind": "repository",
+        "path": "AGENTS.md"
+      },
+      "topics": [
+        "agents"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "BOA task with this repository instruction scope",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Applicable repository instruction also directly supplied by current user",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_SKILL",
+      "title": "SKILL.md",
+      "source_type": "non_executable_redirect",
+      "canonical": {
+        "kind": "repository",
+        "path": "SKILL.md"
+      },
+      "topics": [
+        "skill"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Compatibility pointer, never a second skill entrypoint",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Converted to thin pointer; internal reference is the maintained canonical"
+      },
+      "checked_on": "2026-10-03",
+      "status": "superseded",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      },
+      "canonical_target": "BOA_SKILL_SKILL"
+    },
+    {
+      "source_id": "BOA_REQUIREMENTS",
+      "title": "requirements.md",
+      "source_type": "non_executable_redirect",
+      "canonical": {
+        "kind": "repository",
+        "path": "requirements.md"
+      },
+      "topics": [
+        "requirements"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Compatibility pointer, never a second skill entrypoint",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Converted to thin pointer; internal reference is the maintained canonical"
+      },
+      "checked_on": "2026-10-03",
+      "status": "superseded",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      },
+      "canonical_target": "BOA_SKILL_REFERENCES_REQUIREMENTS"
+    },
+    {
+      "source_id": "BOA_VERIFICATION_CHECKLIST",
+      "title": "verification-checklist.md",
+      "source_type": "non_executable_redirect",
+      "canonical": {
+        "kind": "repository",
+        "path": "verification-checklist.md"
+      },
+      "topics": [
+        "verification-checklist"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Compatibility pointer, never a second skill entrypoint",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Converted to thin pointer; internal reference is the maintained canonical"
+      },
+      "checked_on": "2026-10-03",
+      "status": "superseded",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      },
+      "canonical_target": "BOA_SKILL_REFERENCES_VERIFICATION_CHECKLIST"
+    },
+    {
+      "source_id": "BOA_SKILL_SKILL",
+      "title": ".agents/skills/boa-crm-full-build/SKILL.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/SKILL.md"
+      },
+      "topics": [
+        "skill"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "As routed from SKILL.md for the current target/mode",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [
+        {
+          "target": "BOA_SKILL",
+          "scope": "document",
+          "reason": "Same content consolidated; root unique checklist controls retained conditionally"
+        }
+      ],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_SKILL_REFERENCES_REQUIREMENTS",
+      "title": ".agents/skills/boa-crm-full-build/references/requirements.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/references/requirements.md"
+      },
+      "topics": [
+        "requirements"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "As routed from SKILL.md for the current target/mode",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [
+        {
+          "target": "BOA_REQUIREMENTS",
+          "scope": "document",
+          "reason": "Same content consolidated; root unique checklist controls retained conditionally"
+        }
+      ],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_SKILL_REFERENCES_VERIFICATION_CHECKLIST",
+      "title": ".agents/skills/boa-crm-full-build/references/verification-checklist.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/references/verification-checklist.md"
+      },
+      "topics": [
+        "verification-checklist"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "As routed from SKILL.md for the current target/mode",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [
+        {
+          "target": "BOA_VERIFICATION_CHECKLIST",
+          "scope": "document",
+          "reason": "Same content consolidated; root unique checklist controls retained conditionally"
+        }
+      ],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA__CURSOR_RULES_BOA_FINANCIAL_SAAS_STANDARD",
+      "title": ".cursor/rules/boa-financial-saas-standard.mdc",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": ".cursor/rules/boa-financial-saas-standard.mdc"
+      },
+      "topics": [
+        "boa-financial-saas-standard.mdc"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_REFERENCES_PERIODIC_UPDATES",
+      "title": "references/periodic-updates.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "references/periodic-updates.md"
+      },
+      "topics": [
+        "periodic-updates"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_ANDROID_INTERNAL_APK_SETUP",
+      "title": "docs/ANDROID_INTERNAL_APK_SETUP.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ANDROID_INTERNAL_APK_SETUP.md"
+      },
+      "topics": [
+        "android_internal_apk_setup"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_ACTION_PLAN_MANAGEMENT_POLICY",
+      "title": "docs/ACTION_PLAN_MANAGEMENT_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ACTION_PLAN_MANAGEMENT_POLICY.md"
+      },
+      "topics": [
+        "action_plan_management_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_DEVELOPMENT_RULES",
+      "title": "docs/DEVELOPMENT_RULES.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/DEVELOPMENT_RULES.md"
+      },
+      "topics": [
+        "development_rules"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST",
+      "title": "docs/FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/FLUTTER_APK_PILOT_DEPLOYMENT_CHECKLIST.md"
+      },
+      "topics": [
+        "flutter_apk_pilot_deployment_checklist"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_CUSTOMER_RELATIONSHIP_POLICY",
+      "title": "docs/CUSTOMER_RELATIONSHIP_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/CUSTOMER_RELATIONSHIP_POLICY.md"
+      },
+      "topics": [
+        "customer_relationship_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_MOBILE_APP_ARCHITECTURE",
+      "title": "docs/MOBILE_APP_ARCHITECTURE.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/MOBILE_APP_ARCHITECTURE.md"
+      },
+      "topics": [
+        "mobile_app_architecture"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_CUSTOMER_CREATE_ASSIGNMENT_POLICY",
+      "title": "docs/CUSTOMER_CREATE_ASSIGNMENT_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/CUSTOMER_CREATE_ASSIGNMENT_POLICY.md"
+      },
+      "topics": [
+        "customer_create_assignment_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "unresolved",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_FLUTTER_ANDROID_APP",
+      "title": "docs/FLUTTER_ANDROID_APP.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/FLUTTER_ANDROID_APP.md"
+      },
+      "topics": [
+        "flutter_android_app"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_CUSTOMER_BULK_IMPORT_TEMPLATE_POLICY",
+      "title": "docs/CUSTOMER_BULK_IMPORT_TEMPLATE_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/CUSTOMER_BULK_IMPORT_TEMPLATE_POLICY.md"
+      },
+      "topics": [
+        "customer_bulk_import_template_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_FCM_DEVICE_TOKEN_POLICY",
+      "title": "docs/FCM_DEVICE_TOKEN_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/FCM_DEVICE_TOKEN_POLICY.md"
+      },
+      "topics": [
+        "fcm_device_token_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_GOOGLE_CALENDAR_INTEGRATION_POLICY",
+      "title": "docs/GOOGLE_CALENDAR_INTEGRATION_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/GOOGLE_CALENDAR_INTEGRATION_POLICY.md"
+      },
+      "topics": [
+        "google_calendar_integration_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_CLAIM_GUIDANCE_POLICY",
+      "title": "docs/CLAIM_GUIDANCE_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/CLAIM_GUIDANCE_POLICY.md"
+      },
+      "topics": [
+        "claim_guidance_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_CI_QUALITY_GATE_POLICY",
+      "title": "docs/CI_QUALITY_GATE_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/CI_QUALITY_GATE_POLICY.md"
+      },
+      "topics": [
+        "ci_quality_gate_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_FLUTTER_NATIVE_FIELD_COVERAGE",
+      "title": "docs/FLUTTER_NATIVE_FIELD_COVERAGE.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/FLUTTER_NATIVE_FIELD_COVERAGE.md"
+      },
+      "topics": [
+        "flutter_native_field_coverage"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_BOA_CRM_FULL_SYSTEM_UI_UX_AUDIT",
+      "title": "docs/BOA_CRM_FULL_SYSTEM_UI_UX_AUDIT.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/BOA_CRM_FULL_SYSTEM_UI_UX_AUDIT.md"
+      },
+      "topics": [
+        "boa_crm_full_system_ui_ux_audit"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_MOBILE_THREE_TOUCH_TASK_UX",
+      "title": "docs/MOBILE_THREE_TOUCH_TASK_UX.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/MOBILE_THREE_TOUCH_TASK_UX.md"
+      },
+      "topics": [
+        "mobile_three_touch_task_ux"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_BOA_CRM_FINANCIAL_SAAS_DEVELOPMENT_STANDARD",
+      "title": "docs/BOA_CRM_FINANCIAL_SAAS_DEVELOPMENT_STANDARD.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/BOA_CRM_FINANCIAL_SAAS_DEVELOPMENT_STANDARD.md"
+      },
+      "topics": [
+        "boa_crm_financial_saas_development_standard"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPERATION_RISK_CENTER",
+      "title": "docs/OPERATION_RISK_CENTER.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/OPERATION_RISK_CENTER.md"
+      },
+      "topics": [
+        "operation_risk_center"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_UX_FIELD_UAT_CHECKLIST",
+      "title": "docs/UX_FIELD_UAT_CHECKLIST.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/UX_FIELD_UAT_CHECKLIST.md"
+      },
+      "topics": [
+        "ux_field_uat_checklist"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_UX_COPY_GUIDE",
+      "title": "docs/UX_COPY_GUIDE.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/UX_COPY_GUIDE.md"
+      },
+      "topics": [
+        "ux_copy_guide"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_TIME_POLICY",
+      "title": "docs/TIME_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/TIME_POLICY.md"
+      },
+      "topics": [
+        "time_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_SMART_CONSULTATION_PREP_CARD_POLICY",
+      "title": "docs/SMART_CONSULTATION_PREP_CARD_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/SMART_CONSULTATION_PREP_CARD_POLICY.md"
+      },
+      "topics": [
+        "smart_consultation_prep_card_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_SCHEDULE_CHANGE_REQUEST_POLICY",
+      "title": "docs/SCHEDULE_CHANGE_REQUEST_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/SCHEDULE_CHANGE_REQUEST_POLICY.md"
+      },
+      "topics": [
+        "schedule_change_request_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_SALES_FUNNEL_PERFORMANCE_REPORT",
+      "title": "docs/SALES_FUNNEL_PERFORMANCE_REPORT.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/SALES_FUNNEL_PERFORMANCE_REPORT.md"
+      },
+      "topics": [
+        "sales_funnel_performance_report"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_ROLE_POLICY",
+      "title": "docs/ROLE_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ROLE_POLICY.md"
+      },
+      "topics": [
+        "role_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_RETENTION_RISK_POLICY",
+      "title": "docs/RETENTION_RISK_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/RETENTION_RISK_POLICY.md"
+      },
+      "topics": [
+        "retention_risk_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_REFERRAL_FLOW_POLICY",
+      "title": "docs/REFERRAL_FLOW_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/REFERRAL_FLOW_POLICY.md"
+      },
+      "topics": [
+        "referral_flow_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_QUALITY_BUDGET_POLICY",
+      "title": "docs/QUALITY_BUDGET_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/QUALITY_BUDGET_POLICY.md"
+      },
+      "topics": [
+        "quality_budget_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_PUSH_NOTIFICATION_POLICY",
+      "title": "docs/PUSH_NOTIFICATION_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/PUSH_NOTIFICATION_POLICY.md"
+      },
+      "topics": [
+        "push_notification_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_PUSH_NOTIFICATION_OPERATION_POLICY",
+      "title": "docs/PUSH_NOTIFICATION_OPERATION_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/PUSH_NOTIFICATION_OPERATION_POLICY.md"
+      },
+      "topics": [
+        "push_notification_operation_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_PR_TEMPLATE_FIELD_UX_PRIORITY",
+      "title": "docs/PR_TEMPLATE_FIELD_UX_PRIORITY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/PR_TEMPLATE_FIELD_UX_PRIORITY.md"
+      },
+      "topics": [
+        "pr_template_field_ux_priority"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_PRODUCTION_DEPLOYMENT_GATE",
+      "title": "docs/PRODUCTION_DEPLOYMENT_GATE.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/PRODUCTION_DEPLOYMENT_GATE.md"
+      },
+      "topics": [
+        "production_deployment_gate"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "unresolved",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_POST_MERGE_DEPLOY_CHECKLIST",
+      "title": "docs/POST_MERGE_DEPLOY_CHECKLIST.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/POST_MERGE_DEPLOY_CHECKLIST.md"
+      },
+      "topics": [
+        "post_merge_deploy_checklist"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_PILOT_READINESS_RECHECKLIST",
+      "title": "docs/PILOT_READINESS_RECHECKLIST.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/PILOT_READINESS_RECHECKLIST.md"
+      },
+      "topics": [
+        "pilot_readiness_rechecklist"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_PERFORMANCE_METRICS_POLICY",
+      "title": "docs/PERFORMANCE_METRICS_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/PERFORMANCE_METRICS_POLICY.md"
+      },
+      "topics": [
+        "performance_metrics_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_ORGANIZATION_HIERARCHY_POLICY",
+      "title": "docs/ORGANIZATION_HIERARCHY_POLICY.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ORGANIZATION_HIERARCHY_POLICY.md"
+      },
+      "topics": [
+        "organization_hierarchy_policy"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_UI_UX_REVIEW_STANDARD",
+      "title": "docs/ops/ui-ux-review-standard.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/ui-ux-review-standard.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_UI_UX_PREMIUM_SAAS_CHECKLIST",
+      "title": "docs/ops/ui-ux-premium-saas-checklist.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/ui-ux-premium-saas-checklist.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_RBAC_SAFETY",
+      "title": "docs/ops/rbac-safety.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/rbac-safety.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "AGENTS.md explicitly references this safety standard and current user preserves its permanent-delete exception",
+        "approved_policy": true
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_RBAC_SAFETY_CHECKLIST",
+      "title": "docs/ops/rbac-safety-checklist.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/rbac-safety-checklist.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority",
+        "Import role sentence is disputed under IMPORT_ROLE; other safety controls remain"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "unresolved",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_PR_REPORT_TEMPLATE",
+      "title": "docs/ops/pr-report-template.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/pr-report-template.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_PR_FINAL_REPORT_TEMPLATE",
+      "title": "docs/ops/pr-final-report-template.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/pr-final-report-template.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_PARALLEL_AGENT_POLICY",
+      "title": "docs/ops/parallel-agent-policy.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/parallel-agent-policy.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_EVIDENCE_BASED_QA_STANDARD",
+      "title": "docs/ops/evidence-based-qa-standard.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/evidence-based-qa-standard.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_E2E_PLAYWRIGHT_STANDARD",
+      "title": "docs/ops/e2e-playwright-standard.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/e2e-playwright-standard.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_DATABASE_MIGRATION_SAFETY",
+      "title": "docs/ops/database-migration-safety.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/database-migration-safety.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_CODEX_WORKFLOW",
+      "title": "docs/ops/codex-workflow.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/codex-workflow.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_CODEX_AGENT_ROLES",
+      "title": "docs/ops/codex-agent-roles.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/codex-agent-roles.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "inventory/path only; no semantic approval",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_DOCS_OPS_BOA_CRM_REVIEW_STANDARD",
+      "title": "docs/ops/boa-crm-review-standard.md",
+      "source_type": "repository_reference",
+      "canonical": {
+        "kind": "repository",
+        "path": "docs/ops/boa-crm-review-standard.md"
+      },
+      "topics": [
+        "workflow_safety_review"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the current request or selected domain reference needs this named topic; consult relevant sections, not all documents",
+      "exclusions": [
+        "unrelated topics",
+        "automatic product audit",
+        "external execution authority"
+      ],
+      "authority": {
+        "basis": "Repository topic/reference candidate; approval is not established by filename or existence",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af",
+        "note": "Exact executed bytes are frozen in the external candidate manifest, not equated with this Git base"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A04",
+        "A05",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; business/security owner approves policy",
+        "last_review": "2026-10-03",
+        "depth": "relevant text examined",
+        "recheck_trigger": "Relevant task, changed bytes, policy approval or changed dependency"
+      },
+      "reproduction": {
+        "license": "Repository rights not independently established; refer in repository, no external republication granted",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_SKILL_REFERENCES_SOURCEPACK_GOVERNANCE",
+      "title": ".agents/skills/boa-crm-full-build/references/sourcepack-governance.md",
+      "source_type": "skill_support",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/references/sourcepack-governance.md"
+      },
+      "topics": [
+        "skill_sourcepack"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Substantial skill/sourcepack maintenance or independent self-validation, as routed from SKILL.md/checklist",
+      "exclusions": [
+        "product certification"
+      ],
+      "authority": {
+        "basis": "Dedicated sourcepack workflow/tool, not business-policy approval",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A10",
+        "A11",
+        "A12"
+      ],
+      "eval_cases": [
+        "E01",
+        "E08",
+        "E12"
+      ],
+      "review": {
+        "owner_role": "BOA skill maintainer",
+        "last_review": "2026-10-03",
+        "depth": "implementation self-review",
+        "recheck_trigger": "Changed skill, register, tool or evaluation"
+      },
+      "reproduction": {
+        "license": "Repository-bound original support material",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_SKILL_SCRIPTS_VALIDATE_PY",
+      "title": ".agents/skills/boa-crm-full-build/scripts/validate.py",
+      "source_type": "skill_support",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/scripts/validate.py"
+      },
+      "topics": [
+        "skill_sourcepack"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Substantial skill/sourcepack maintenance or independent self-validation, as routed from SKILL.md/checklist",
+      "exclusions": [
+        "product certification"
+      ],
+      "authority": {
+        "basis": "Dedicated sourcepack workflow/tool, not business-policy approval",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A10",
+        "A11",
+        "A12"
+      ],
+      "eval_cases": [
+        "E01",
+        "E08",
+        "E12"
+      ],
+      "review": {
+        "owner_role": "BOA skill maintainer",
+        "last_review": "2026-10-03",
+        "depth": "implementation self-review",
+        "recheck_trigger": "Changed skill, register, tool or evaluation"
+      },
+      "reproduction": {
+        "license": "Repository-bound original support material",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "BOA_SKILL_EVALS_CASES",
+      "title": ".agents/skills/boa-crm-full-build/evals/cases.json",
+      "source_type": "skill_support",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/evals/cases.json"
+      },
+      "topics": [
+        "skill_sourcepack"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Substantial skill/sourcepack maintenance or independent self-validation, as routed from SKILL.md/checklist",
+      "exclusions": [
+        "product certification"
+      ],
+      "authority": {
+        "basis": "Dedicated sourcepack workflow/tool, not business-policy approval",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A10",
+        "A11",
+        "A12"
+      ],
+      "eval_cases": [
+        "E01",
+        "E08",
+        "E12"
+      ],
+      "review": {
+        "owner_role": "BOA skill maintainer",
+        "last_review": "2026-10-03",
+        "depth": "implementation self-review",
+        "recheck_trigger": "Changed skill, register, tool or evaluation"
+      },
+      "reproduction": {
+        "license": "Repository-bound original support material",
+        "copied": false
+      }
+    },
+    {
+      "source_id": "HIST_BOA_P2_02_RF02_01_DETERMINISTIC_TIEBREAK_IMPLEMENTATION_MASTER_20260909_MD",
+      "title": "BOA_P2-02_RF02-01_Deterministic_Tiebreak_Implementation_Master_20260909.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/BOA_P2-02_RF02-01_Deterministic_Tiebreak_Implementation_Master_20260909.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_Deterministic_Tiebreak_Implementation_Master_20260909.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "520448f0c8d0cc4f7637b8e6d06f00a349002ae0509ed5e41d0c7f60be70dc4f",
+        "bytes": 12201
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20260909"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "inventory/digest only",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_RF02_CORRECTED",
+      "title": "BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "16714b8f19bfe220ff59f2aaecdfc6988e3c2c6c9dff5f896c6b9d8f8657b7e2",
+        "bytes": 6975
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20260909"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [
+        {
+          "target": "HIST_RF02_MASTER",
+          "scope": "clauses",
+          "clauses": [
+            "D04",
+            "R06"
+          ],
+          "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+          "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+        }
+      ],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "specific conflict/correction text compared",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_RF02_MASTER",
+      "title": "BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "ba53fe1f3f4cf7434c21ab7d29a396a0dac3f6636ab61a43edea7946a6128915",
+        "bytes": 17982
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20260909"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "specific conflict/correction text compared",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_BOA_P2_07_TARGETED_OVERLAP_KEYBOARD_FIX_20261003_MD",
+      "title": "BOA_P2-07_Targeted_Overlap_Keyboard_Fix_20261003.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/BOA_P2-07_Targeted_Overlap_Keyboard_Fix_20261003.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_P2-07_Targeted_Overlap_Keyboard_Fix_20261003.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "3dab771472c55efb4df262ba4f3f95e3d71e8f065a23cee1c494bf23dea49ff5",
+        "bytes": 11657
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20261003"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "inventory/digest only",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_BOA_RELEASE_IDENTITY_EOL_CANONICAL_BLOB_MERGE_RESUME_20260913_MD",
+      "title": "BOA_Release_Identity_EOL_Canonical_Blob_Merge_Resume_20260913.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/BOA_Release_Identity_EOL_Canonical_Blob_Merge_Resume_20260913.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_Release_Identity_EOL_Canonical_Blob_Merge_Resume_20260913.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "644d349c86b189db5f7736c21cee5a98c0945e7f50a8b3f0603addf28c8f1c19",
+        "bytes": 12221
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20260913"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "inventory/digest only",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_RAILWAY_01",
+      "title": "01_Railway_Native_Release_Identity_Fix_Implementation.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/01_Railway_Native_Release_Identity_Fix_Implementation.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_Railway_Identity_Autodeploy_Recovery_20260910.zip::01_Railway_Native_Release_Identity_Fix_Implementation.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "48d6e4601f82ccc40b53481956849db8108e37e5e9b7ee1229a918aa24db55b8",
+        "bytes": 9504
+      },
+      "topics": [
+        "historical_deployment"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "not_declared"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "specific conflict/correction text compared",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_RAILWAY_02",
+      "title": "02_After_Identity_Fix_Enable_WaitForCI_and_Deploy.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/02_After_Identity_Fix_Enable_WaitForCI_and_Deploy.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/Users/이도현/Downloads/BOA_Railway_Identity_Autodeploy_Recovery_20260910.zip::02_After_Identity_Fix_Enable_WaitForCI_and_Deploy.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "7fc9aba9aac716c5a8bdf31f40d09424c1f9b4a95487ff0726a89dfa3a863b53",
+        "bytes": 3401
+      },
+      "topics": [
+        "historical_deployment"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "not_declared"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "specific conflict/correction text compared",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_1_BOA_P2_06_PR172_UPDATE_CI_RESOLVE_MERGE_20261002_MD",
+      "title": "1-BOA_P2-06_PR172_Update_CI_Resolve_Merge_20261002.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/1-BOA_P2-06_PR172_Update_CI_Resolve_Merge_20261002.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/work/boa-main/.codex-remote-attachments/01a0f5b6-19cd-7443-b7af-eb77af450451/7220dcd8-d418-405c-b613-4b9b84281c9f/1-BOA_P2-06_PR172_Update_CI_Resolve_Merge_20261002.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "c29bee105de0d20e90c4ca259850b74e273bb3920ac5aabb5f77fdf23ab6f8e6",
+        "bytes": 8903
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20261002"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "inventory/digest only",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "HIST_1_BOA_OBS_P206_PROD_K01_BASE_TARGET_FOCUS_CLASSIFICATION_20261002_MD",
+      "title": "1-BOA_OBS-P206-PROD-K01_BASE_TARGET_Focus_Classification_20261002.md",
+      "source_type": "historical_taskpack",
+      "canonical": {
+        "kind": "external_input",
+        "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+        "member": "originals/external/1-BOA_OBS-P206-PROD-K01_BASE_TARGET_Focus_Classification_20261002.md"
+      },
+      "origin_metadata": {
+        "source_path": "C:/work/boa-main/.codex-remote-attachments/01a0f562-335b-7b60-92e5-1741f98a4722/b6f8bfef-24a3-4be0-8b59-e3dd00ef3ecc/1-BOA_OBS-P206-PROD-K01_BASE_TARGET_Focus_Classification_20261002.md",
+        "classification": "provenance_only_not_execution_dependency"
+      },
+      "digest": {
+        "kind": "raw_sha256",
+        "value": "2ee1ba0d26124b8f06f88b2e8f6a59847a81a336c5d37dba7530ab3021d89a2f",
+        "bytes": 9420
+      },
+      "topics": [
+        "historical_candidate_validation"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW"
+      ],
+      "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+      "exclusions": [
+        "current approval",
+        "current product/API policy",
+        "past SHA/test counts/pixel/query thresholds as general rules"
+      ],
+      "authority": {
+        "basis": "Historical task input, not authority for the current task",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "snapshot_raw_bytes",
+        "document_version": "20261002"
+      },
+      "checked_on": "2026-10-03",
+      "status": "historical",
+      "supersedes": [],
+      "acceptance": [
+        "A08",
+        "A09"
+      ],
+      "eval_cases": [
+        "E05",
+        "E07",
+        "E08"
+      ],
+      "review": {
+        "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+        "last_review": "2026-10-03",
+        "depth": "inventory/digest only",
+        "recheck_trigger": "Historical pack is proposed for current reuse"
+      },
+      "reproduction": {
+        "license": "User-provided internal historical material; no public reproduction rights established",
+        "copied": false
+      },
+      "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+    },
+    {
+      "source_id": "OPENAI_SKILLS",
+      "title": "Skill metadata, progressive disclosure, discovery and conditional resources",
+      "source_type": "official_technical_reference",
+      "canonical": {
+        "kind": "url",
+        "url": "https://learn.chatgpt.com/docs/build-skills"
+      },
+      "topics": [
+        "Skill metadata, progressive disclosure, discovery and conditional resources"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Skill or instruction structure/discovery decisions requiring official guidance",
+      "exclusions": [
+        "BOA business-policy replacement",
+        "automatic certification",
+        "all-clause adoption"
+      ],
+      "authority": {
+        "basis": "Official technical guidance; not BOA business policy",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "upstream_document",
+        "version": "HTML checked 2026-10-03, no declared document version"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "Skill maintainer or security/accessibility owner for selected topic",
+        "last_review": "2026-10-03",
+        "depth": "Relevant discovery/structure portions read",
+        "recheck_trigger": "Adoption of a clause, upstream version change or unavailable URL"
+      },
+      "reproduction": {
+        "license": "Verify upstream conditions before reproducing; links and minimal paraphrase only",
+        "copied": false
+      },
+      "missing_input_action": "Report URL failure and alternate actual source; limit the unsupported judgment"
+    },
+    {
+      "source_id": "OPENAI_AGENTS",
+      "title": "Applicable instruction discovery and directory scope",
+      "source_type": "official_technical_reference",
+      "canonical": {
+        "kind": "url",
+        "url": "https://learn.chatgpt.com/docs/agent-configuration/agents-md"
+      },
+      "topics": [
+        "Applicable instruction discovery and directory scope"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Skill or instruction structure/discovery decisions requiring official guidance",
+      "exclusions": [
+        "BOA business-policy replacement",
+        "automatic certification",
+        "all-clause adoption"
+      ],
+      "authority": {
+        "basis": "Official technical guidance; not BOA business policy",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "upstream_document",
+        "version": "HTML checked 2026-10-03, no declared document version"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "Skill maintainer or security/accessibility owner for selected topic",
+        "last_review": "2026-10-03",
+        "depth": "Relevant discovery/structure portions read",
+        "recheck_trigger": "Adoption of a clause, upstream version change or unavailable URL"
+      },
+      "reproduction": {
+        "license": "Verify upstream conditions before reproducing; links and minimal paraphrase only",
+        "copied": false
+      },
+      "missing_input_action": "Report URL failure and alternate actual source; limit the unsupported judgment"
+    },
+    {
+      "source_id": "OWASP_ASVS",
+      "title": "Conditional security requirement mapping; fetch versioned requirements before adopting IDs",
+      "source_type": "official_technical_reference",
+      "canonical": {
+        "kind": "url",
+        "url": "https://github.com/OWASP/ASVS"
+      },
+      "topics": [
+        "Conditional security requirement mapping; fetch versioned requirements before adopting IDs"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the authorized task adopts this specific standard topic; read precise version and clause first",
+      "exclusions": [
+        "BOA business-policy replacement",
+        "automatic certification",
+        "all-clause adoption"
+      ],
+      "authority": {
+        "basis": "Official technical guidance; not BOA business policy",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "upstream_document",
+        "version": "5.0.0 stable release named by upstream page"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "Skill maintainer or security/accessibility owner for selected topic",
+        "last_review": "2026-10-03",
+        "depth": "Landing page/version identity only; detailed clauses not reviewed/adopted",
+        "recheck_trigger": "Adoption of a clause, upstream version change or unavailable URL"
+      },
+      "reproduction": {
+        "license": "Upstream states CC-BY-SA-4.0; check attribution/share-alike before copying requirements",
+        "copied": false
+      },
+      "missing_input_action": "Report URL failure and alternate actual source; limit the unsupported judgment"
+    },
+    {
+      "source_id": "WCAG_22",
+      "title": "Conditional accessibility criteria; select and read actual success criteria before adoption",
+      "source_type": "official_technical_reference",
+      "canonical": {
+        "kind": "url",
+        "url": "https://www.w3.org/TR/2024/REC-WCAG22-20241212/"
+      },
+      "topics": [
+        "Conditional accessibility criteria; select and read actual success criteria before adoption"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the authorized task adopts this specific standard topic; read precise version and clause first",
+      "exclusions": [
+        "BOA business-policy replacement",
+        "automatic certification",
+        "all-clause adoption"
+      ],
+      "authority": {
+        "basis": "Official technical guidance; not BOA business policy",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "upstream_document",
+        "version": "W3C Recommendation 2024-12-12, WCAG 2.2"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "Skill maintainer or security/accessibility owner for selected topic",
+        "last_review": "2026-10-03",
+        "depth": "Landing page/version identity only; detailed clauses not reviewed/adopted",
+        "recheck_trigger": "Adoption of a clause, upstream version change or unavailable URL"
+      },
+      "reproduction": {
+        "license": "Verify upstream conditions before reproducing; links and minimal paraphrase only",
+        "copied": false
+      },
+      "missing_input_action": "Report URL failure and alternate actual source; limit the unsupported judgment"
+    },
+    {
+      "source_id": "NIST_SSDF",
+      "title": "Conditional secure-development practice evidence; not asserted latest forever",
+      "source_type": "official_technical_reference",
+      "canonical": {
+        "kind": "url",
+        "url": "https://csrc.nist.gov/pubs/sp/800/218/final"
+      },
+      "topics": [
+        "Conditional secure-development practice evidence; not asserted latest forever"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Only when the authorized task adopts this specific standard topic; read precise version and clause first",
+      "exclusions": [
+        "BOA business-policy replacement",
+        "automatic certification",
+        "all-clause adoption"
+      ],
+      "authority": {
+        "basis": "Official technical guidance; not BOA business policy",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "upstream_document",
+        "version": "SP 800-218 v1.1 final, February 2022"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A02",
+        "A04",
+        "A08"
+      ],
+      "eval_cases": [
+        "E09"
+      ],
+      "review": {
+        "owner_role": "Skill maintainer or security/accessibility owner for selected topic",
+        "last_review": "2026-10-03",
+        "depth": "Landing page/version identity only; detailed clauses not reviewed/adopted",
+        "recheck_trigger": "Adoption of a clause, upstream version change or unavailable URL"
+      },
+      "reproduction": {
+        "license": "Verify upstream conditions before reproducing; links and minimal paraphrase only",
+        "copied": false
+      },
+      "missing_input_action": "Report URL failure and alternate actual source; limit the unsupported judgment"
+    },
+    {
+      "source_id": "BOA_SKILL_REFERENCES_SOURCE_REGISTER",
+      "title": "BOA single source register",
+      "source_type": "skill_support",
+      "canonical": {
+        "kind": "repository",
+        "path": ".agents/skills/boa-crm-full-build/references/source-register.json"
+      },
+      "topics": [
+        "skill_sourcepack"
+      ],
+      "task_modes": [
+        "PLAN",
+        "READ_ONLY_REVIEW",
+        "IMPLEMENT_WITHIN_AUTHORIZED_SCOPE"
+      ],
+      "read_when": "Substantial skill/sourcepack maintenance or independent self-validation, as routed from SKILL.md/checklist",
+      "exclusions": [
+        "product certification"
+      ],
+      "authority": {
+        "basis": "Dedicated sourcepack workflow/tool, not business-policy approval",
+        "approved_policy": false
+      },
+      "revision": {
+        "kind": "working_tree",
+        "base_git_commit": "0d87e5cd81278dcf3f15cce7a3d6aace0fd6e6af"
+      },
+      "checked_on": "2026-10-03",
+      "status": "active",
+      "supersedes": [],
+      "acceptance": [
+        "A10",
+        "A11",
+        "A12"
+      ],
+      "eval_cases": [
+        "E01",
+        "E08",
+        "E12"
+      ],
+      "review": {
+        "owner_role": "BOA skill maintainer",
+        "last_review": "2026-10-03",
+        "depth": "implementation self-review",
+        "recheck_trigger": "Changed skill, register, tool or evaluation"
+      },
+      "reproduction": {
+        "license": "Repository-bound original support material",
+        "copied": false
+      }
+    }
+  ],
+  "conflicts": [
+    {
+      "conflict_id": "IMPORT_ROLE",
+      "status": "unresolved",
+      "sources": [
+        {
+          "source_id": "BOA_DOCS_OPS_RBAC_SAFETY_CHECKLIST",
+          "section": "Admin-only Actions",
+          "excerpt": "Require branch_admin server enforcement for: ... imports and exports"
+        },
+        {
+          "source_id": "BOA_DOCS_CUSTOMER_CREATE_ASSIGNMENT_POLICY",
+          "section": "Bulk Customer Import",
+          "excerpt": "sub_branch_admin / team_leader / member: Yes; all imported customers assigned to self"
+        },
+        {
+          "source_id": "BOA_SKILL_REFERENCES_REQUIREMENTS",
+          "section": "9 / legacy origin",
+          "excerpt": "Original skill/checklists required branch_admin only; this assertion is now replaced with unresolved routing"
+        }
+      ],
+      "confirmed": [
+        "Inactive/resigned denied",
+        "Server authorization, data scope isolation, forbidden-column validation and safe audit metadata preserved",
+        "Personal import and DB distribution differ in one document, but their approved policy relationship is not established"
+      ],
+      "needed_evidence": "Current authorized business/RBAC policy approval identifying procedures, role matrix and whether separate import kinds exist; not merely file dates or current runtime behavior",
+      "restricted_actions": [
+        "Choose, change or approve affected import role permissions",
+        "Mark import-role acceptance PASS from one competing source alone"
+      ],
+      "independent_work": [
+        "Skill/YAML/links/candidate evidence",
+        "Unrelated topic plans and sourcepack fixes",
+        "Import validation/privacy analysis that does not decide roles"
+      ],
+      "owner_role": "BOA business policy owner with security/RBAC reviewer",
+      "release_condition": "Explicit approved current policy and precise supersession/scope evidence recorded; revise affected references, then rerun affected evaluation"
+    },
+    {
+      "conflict_id": "DEPLOY_PATH",
+      "status": "unresolved",
+      "sources": [
+        {
+          "source_id": "BOA_DOCS_PRODUCTION_DEPLOYMENT_GATE",
+          "section": "Introduction / Deployment path map",
+          "excerpt": "Railway GitHub auto-deploy must remain disabled; protected GitHub workflow after manual setup"
+        },
+        {
+          "source_id": "HIST_RAILWAY_02",
+          "section": "Native Deploy / Wait for CI",
+          "excerpt": "Railway Native Autodeploy ON + Wait for CI ON; GitHub direct deploy OFF"
+        }
+      ],
+      "confirmed": [
+        "Both describe restricted exact-candidate validation",
+        "Historical packs grant no current permission",
+        "No live Railway/GitHub settings inspected for this task"
+      ],
+      "needed_evidence": "Release owner approval and current deployment-policy supersession evidence; authorized read-only setting evidence only in a separately scoped task",
+      "restricted_actions": [
+        "Select/enable a deployment path",
+        "Change live settings, arm workflows or deploy",
+        "Treat historical native path as current approval or repository gate as verified live configuration"
+      ],
+      "independent_work": [
+        "Skill/reference/candidate evidence maintenance",
+        "Deployment review plan documenting both candidates and missing approval"
+      ],
+      "owner_role": "BOA release owner with security reviewer",
+      "release_condition": "Approved current release policy/path and evidence recorded; affected review reevaluated"
+    }
+  ],
+  "redirects": [
+    {
+      "path": "SKILL.md",
+      "target": ".agents/skills/boa-crm-full-build/SKILL.md",
+      "kind": "pointer",
+      "executable": false
+    },
+    {
+      "path": "requirements.md",
+      "target": ".agents/skills/boa-crm-full-build/references/requirements.md",
+      "kind": "pointer",
+      "executable": false
+    },
+    {
+      "path": "verification-checklist.md",
+      "target": ".agents/skills/boa-crm-full-build/references/verification-checklist.md",
+      "kind": "pointer",
+      "executable": false
+    }
+  ],
+  "clause_overrides": [
+    {
+      "original": "HIST_RF02_MASTER",
+      "correction": "HIST_RF02_CORRECTED",
+      "scope": "D04/R06 only, historical RF02-01 task",
+      "clause_ids": [
+        "D04",
+        "R06"
+      ],
+      "retired_claim": "Public priorityContacts limit=60 or >50 success",
+      "selection": "Use CORRECTED for this clause, retain unaffected original context; do not apply globally"
+    }
+  ]
+}

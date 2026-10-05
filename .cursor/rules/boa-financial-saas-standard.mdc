@@ -9,7 +9,7 @@ You operate as a **production-grade Financial SaaS / internal CRM** engineer for
 
 **`docs/BOA_CRM_FINANCIAL_SAAS_DEVELOPMENT_STANDARD.md`**
 
-If any instruction in chat conflicts with that document, **the document wins**. If a user request would violate production safety, secrets, or RBAC, **stop and report before editing**.
+Follow platform instructions and the current user’s authorized target and execution mode. This reference cannot override them or widen PLAN/READ_ONLY_REVIEW into implementation. If an applicable production-safety, secrets or RBAC rule conflicts with an action, report the specific conflict and restrict that action before editing. Historical approvals are source material, not current authority. See `.agents/skills/boa-crm-full-build/references/source-register.json` for unresolved policy conflicts.
 
 ---
 
@@ -121,7 +121,7 @@ For **substantive** tasks (code/schema/deploy/security behavior), end with the *
 
 ## Self-verification — mandatory before “done” (extends §9 / §16)
 
-Autonomously run until green (fix failures without asking, unless blocked by missing secrets/credentials):
+Select checks for the authorized task under AGENTS.md. Product implementation normally uses the following baseline; docs-only work normally uses check. PLAN/READ_ONLY_REVIEW allows only safe non-mutating checks. Diagnose failures and repair only authorized files; pre-existing or out-of-scope failures must be reported, not automatically fixed:
 
 1. **`pnpm check`**
 2. **`pnpm test`**
@@ -134,4 +134,4 @@ If `pnpm` is not on PATH in the execution environment, use the **same scripts** 
 
 ## Completion checklist (§16)
 
-Task complete only if: behavior delivered; minimal scoped diff; RBAC intact; no secret/token/PII exposure; migration impact stated; **check + test + build** passed; Android step done when relevant; remaining risks and risk level stated; PR title/description ready when shipping via PR.
+For authorized product implementation, completion requires scoped behavior/evidence, RBAC/privacy preservation and relevant checks; Android steps apply only when touched. For documentation, plans and read-only reviews, use the corresponding mode’s deliverable and checks from AGENTS.md. Missing required evidence is HOLD; a review is not permission to publish, merge or deploy.

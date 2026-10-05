@@ -1,5 +1,7 @@
 # BOA CRM Financial SaaS Development Standard
 
+> Application scope: follow platform instructions, applicable AGENTS.md and the current authorized target/mode. This reference does not supersede the user conversation, grant external actions, or turn a plan/read-only review into implementation. Select checks and reporting for the task type; repairs remain within authorized files. Historical approvals do not transfer. Source conflicts are tracked in the [BOA register](../.agents/skills/boa-crm-full-build/references/source-register.json).
+
 # Cursor / Agent Development Rules
 
 ## 0. Purpose
@@ -591,7 +593,7 @@ Low:
 ──────────────────────── 15. Reporting Standard
 ────────────────────────
 
-After every task, report in this format:
+For substantive authorized product implementation/release work, use this format when relevant. Plans, read-only reviews and documentation use their scoped deliverable under AGENTS.md:
 
 1. Summary
 2. Changed files
@@ -619,7 +621,7 @@ After every task, report in this format:
 ──────────────────────── 16. Completion Criteria
 ────────────────────────
 
-A task can be considered complete only when:
+For authorized product implementation, the applicable completion conditions are below. For documentation/plans/read-only reviews, use the mode-specific gates in AGENTS.md; missing required evidence is HOLD, and failures do not grant out-of-scope repair authority:
 
 - The requested behavior is implemented.
 - The change is minimal and scoped.
