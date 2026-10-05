@@ -593,7 +593,7 @@ export default function Notifications() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-2 pb-[max(5rem,env(safe-area-inset-bottom))] sm:space-y-5">
+      <div className="flex flex-col gap-2 pb-[max(5rem,env(safe-area-inset-bottom))] sm:block sm:space-y-5">
         <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
           <CardContent className="flex items-start justify-between gap-3 p-3 sm:items-center sm:p-5">
             <div className="min-w-0">
@@ -639,7 +639,7 @@ export default function Notifications() {
           </CardContent>
         </Card>
 
-        <div className="grid grid-cols-3 gap-2">
+        <div className="order-3 grid grid-cols-3 gap-2">
           <Card className="border-slate-200 bg-white shadow-sm">
             <CardContent className="p-2 sm:p-3">
               <p className="text-[11px] font-semibold text-muted-foreground sm:text-xs">
@@ -684,7 +684,7 @@ export default function Notifications() {
 
         <section
           aria-labelledby="notification-category-heading"
-          className="space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm sm:p-3"
+          className="order-3 space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm sm:p-3"
         >
           <div>
             <h2
@@ -742,7 +742,7 @@ export default function Notifications() {
             <Button
               type="button"
               variant="outline"
-              className="min-h-12 w-full justify-between sm:hidden"
+              className="order-1 min-h-12 w-full justify-between sm:hidden"
             >
               <span className="inline-flex items-center gap-2">
                 <Filter className="h-4 w-4" /> 알림 필터
@@ -756,7 +756,7 @@ export default function Notifications() {
           </SheetTrigger>
           <SheetContent
             side="bottom"
-            className="max-h-[88dvh] rounded-t-2xl"
+            className="max-h-[88dvh] overflow-y-auto rounded-t-2xl"
             data-testid="notifications-mobile-filter-sheet"
           >
             <SheetHeader>
@@ -766,6 +766,20 @@ export default function Notifications() {
               </SheetDescription>
             </SheetHeader>
             <div className="grid grid-cols-1 gap-3 px-4 pb-2">
+              <Select value={categoryFilter} onValueChange={value => {
+                setCategoryFilter(value as NotificationCategory);
+                setOffset(0);
+                setSelectedNotificationIds([]);
+              }}>
+                <SelectTrigger aria-label="알림 업무 분류" className="min-h-12"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">전체 업무 분류</SelectItem>
+                  <SelectItem value="customer_follow_up">고객·후속관리</SelectItem>
+                  <SelectItem value="schedule">일정</SelectItem>
+                  <SelectItem value="approval_admin">승인·관리</SelectItem>
+                  <SelectItem value="system">시스템</SelectItem>
+                </SelectContent>
+              </Select>
               <Select
                 value={priorityFilter}
                 onValueChange={value => {
@@ -894,7 +908,7 @@ export default function Notifications() {
         </Sheet>
         {hasActiveFilters && (
           <div
-            className="flex gap-2 overflow-x-auto pb-1 sm:hidden"
+            className="order-1 flex gap-2 overflow-x-auto pb-1 sm:hidden"
             aria-label="적용된 알림 필터"
           >
             {activeFilterChips.map(chip => (
@@ -1078,10 +1092,10 @@ export default function Notifications() {
         </Card>
 
         <section
-          className="space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm sm:p-3"
+          className="order-1 space-y-2 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm sm:p-3"
           data-testid="notifications-priority-section"
         >
-          <div>
+          <div className="hidden sm:block">
             <p className="text-sm font-semibold text-foreground">
               알림 우선순위
             </p>
@@ -1094,7 +1108,7 @@ export default function Notifications() {
               type="button"
               data-testid="notifications-priority-chip-urgent"
               aria-pressed={priorityFilter === "urgent"}
-              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
+              className={`flex min-h-11 min-w-24 items-center gap-2 rounded-xl border p-2 text-left transition sm:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("urgent", priorityFilter === "urgent")}`}
               onClick={() => {
                 setPriorityFilter(
                   priorityFilter === "urgent" ? "all" : "urgent"
@@ -1115,7 +1129,7 @@ export default function Notifications() {
               type="button"
               data-testid="notifications-priority-chip-today"
               aria-pressed={priorityFilter === "today"}
-              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("today", priorityFilter === "today")}`}
+              className={`flex min-h-11 min-w-24 items-center gap-2 rounded-xl border p-2 text-left transition sm:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("today", priorityFilter === "today")}`}
               onClick={() => {
                 setPriorityFilter(priorityFilter === "today" ? "all" : "today");
                 setOffset(0);
@@ -1134,7 +1148,7 @@ export default function Notifications() {
               type="button"
               data-testid="notifications-priority-chip-normal"
               aria-pressed={priorityFilter === "general"}
-              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("general", priorityFilter === "general")}`}
+              className={`flex min-h-11 min-w-24 items-center gap-2 rounded-xl border p-2 text-left transition sm:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("general", priorityFilter === "general")}`}
               onClick={() => {
                 setPriorityFilter(
                   priorityFilter === "general" ? "all" : "general"
@@ -1155,7 +1169,7 @@ export default function Notifications() {
               type="button"
               data-testid="notifications-priority-chip-done"
               aria-pressed={priorityFilter === "done"}
-              className={`min-h-11 min-w-28 rounded-xl border p-2 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("done", priorityFilter === "done")}`}
+              className={`flex min-h-11 min-w-24 items-center gap-2 rounded-xl border p-2 text-left transition sm:block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 sm:min-h-12 sm:min-w-0 sm:p-3 ${priorityCardClass("done", priorityFilter === "done")}`}
               onClick={() => {
                 setPriorityFilter(priorityFilter === "done" ? "all" : "done");
                 setOffset(0);
@@ -1241,7 +1255,7 @@ export default function Notifications() {
             />
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="order-2 flex flex-col gap-3">
             <Card
               className="order-2 border-slate-200 bg-white shadow-sm sm:order-1"
               data-testid="notifications-bulk-actions"
@@ -1336,6 +1350,44 @@ export default function Notifications() {
               const priority = classifyNotificationPriority(n);
               const primaryAction = resolveNotificationTarget(n, user?.role);
               const isSelected = selectedNotificationIds.includes(n.id);
+              const notificationMessage = (
+                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
+                          {n.message}
+                        </p>
+              );
+              const notificationTiming = (
+                <>{n.dueAt && (
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
+                              예정일:{" "}
+                              {new Date(n.dueAt).toLocaleDateString("ko-KR")}
+                            </span>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                              알림 시각:{" "}
+                              {new Date(n.dueAt).toLocaleString("ko-KR")}
+                            </span>
+                          </div>
+                        )}</>
+              );
+              const primaryActionButton = (
+primaryAction && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="min-h-12 text-xs sm:h-7 sm:min-h-7"
+                            onClick={() => {
+                              if (!n.isRead) {
+                                markReadMutation.mutate({ id: n.id });
+                              }
+                              setLocation(primaryAction.path);
+                            }}
+                          >
+                            {n.actionRequired
+                              ? primaryAction.label
+                              : "관련 내용 확인"}
+                          </Button>
+                        )
+              );
               return (
                 <Card
                   key={n.id}
@@ -1405,27 +1457,14 @@ export default function Notifications() {
                         <p className="line-clamp-2 text-sm font-medium leading-5">
                           {n.title}
                         </p>
-                        <p className="mt-1 line-clamp-3 text-xs leading-5 text-muted-foreground">
-                          {n.message}
-                        </p>
+                        <div className="hidden sm:contents">{notificationMessage}</div>
                         <p
                           className="mt-2 text-xs font-medium text-muted-foreground"
                           data-testid="notification-source-state"
                         >
                           {getNotificationActionCopy(n)}
                         </p>
-                        {n.dueAt && (
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                            <span className="rounded-full bg-blue-50 px-2 py-0.5 font-medium text-blue-700">
-                              예정일:{" "}
-                              {new Date(n.dueAt).toLocaleDateString("ko-KR")}
-                            </span>
-                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
-                              알림 시각:{" "}
-                              {new Date(n.dueAt).toLocaleString("ko-KR")}
-                            </span>
-                          </div>
-                        )}
+                        <div className="hidden sm:contents">{notificationTiming}</div>
                         {priority === "urgent" && (
                           <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-red-700">
                             <ShieldAlert className="h-3.5 w-3.5" /> 우선 처리
@@ -1434,6 +1473,7 @@ export default function Notifications() {
                         )}
                       </div>
                       <div className="grid w-full shrink-0 grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-col sm:gap-1">
+                        <div className="contents sm:hidden">{primaryActionButton}</div>
                         <Select
                           value={processStatus}
                           onValueChange={v =>
@@ -1483,25 +1523,10 @@ export default function Notifications() {
                             알림 정리
                           </Button>
                         )}
-                        {primaryAction && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="min-h-12 text-xs sm:h-7 sm:min-h-7"
-                            onClick={() => {
-                              if (!n.isRead) {
-                                markReadMutation.mutate({ id: n.id });
-                              }
-                              setLocation(primaryAction.path);
-                            }}
-                          >
-                            {n.actionRequired
-                              ? primaryAction.label
-                              : "관련 내용 확인"}
-                          </Button>
-                        )}
+                        <div className="hidden sm:contents">{primaryActionButton}</div>
                       </div>
                     </div>
+                    <div className="mt-3 sm:hidden">{notificationMessage}{notificationTiming}</div>
                   </CardContent>
                 </Card>
               );

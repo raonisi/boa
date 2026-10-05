@@ -108,7 +108,7 @@ import {
   Zap,
   Bell,
 } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { QuickConsultationModal } from "@/components/consultations/QuickConsultationModal";
 import {
   applyCustomerDetailAction,
@@ -439,6 +439,31 @@ function isSameLocalDate(value?: string | Date | null) {
   );
 }
 
+function CustomerExecutionDetails({
+  isMobile, open, onOpenChange, children, actions,
+}: {
+  isMobile: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  children: ReactNode;
+  actions: ReactNode;
+}) {
+  if (!isMobile) return <>{children}</>;
+  return (
+    <Collapsible className="space-y-3" open={open} onOpenChange={onOpenChange}>
+      <div className="flex flex-wrap gap-2">
+        <CollapsibleTrigger asChild>
+          <Button variant="outline" className="min-h-11 flex-1 justify-between">
+            상담 실행 정보 <ChevronDown className="h-4 w-4" />
+          </Button>
+        </CollapsibleTrigger>
+        {actions}
+      </div>
+      <CollapsibleContent className="space-y-5">{children}</CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export default function CustomerDetail({ id }: { id: number }) {
   const [location, setLocation] = useLocation();
   const search = useSearch();
@@ -474,6 +499,7 @@ export default function CustomerDetail({ id }: { id: number }) {
     getCustomerDetailTabFromLocation(customerDetailLocation)
   );
   const isMobile = useIsMobile();
+  const [showMobileExecutionDetails, setShowMobileExecutionDetails] = useState(false);
   const [timelineFilter, setTimelineFilter] =
     useState<(typeof TIMELINE_FILTERS)[number]["value"]>("all");
   const [timelineRange, setTimelineRange] = useState<"all" | "30" | "90">(
@@ -1166,65 +1192,78 @@ export default function CustomerDetail({ id }: { id: number }) {
     next: execution.actionNext,
   };
 
-  return (
-    <DashboardLayout>
-      <div className="space-y-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] md:pb-0">
-        {/* Customer execution summary */}
-        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
-          <CardContent className="space-y-5 p-4 sm:p-5">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-0.5 shrink-0"
-                  onClick={() => setLocation("/customers")}
-                >
-                  <ArrowLeft className="h-4 w-4 mr-1" /> 목록
-                </Button>
+  const recommendedActionDetails = (
+            <div className="rounded-lg border border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white p-4">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-primary/80">
-                    고객 상세
-                  </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-2">
-                    <h1 className="text-2xl font-bold text-slate-950">
-                      {customer.name}
-                    </h1>
-                    <StatusBadge status={customer.consultStatus} />
-                    <PriorityBadge priority={(customer as any).priority} />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-xs font-semibold text-amber-800">
+                      지금 할 일
+                    </p>
+                    <span className="text-xs text-muted-foreground">
+                      판단
+                    </span>
                     <span
                       className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}
                     >
-                      관리점수 {execution.score}
+                      {execution.grade}
                     </span>
-                    {isLongUnmanaged && <ExecutionBadge label="장기 미관리" />}
-                    {(customer.assignmentStatus === "unassigned" ||
-                      (!customer.agentId && !customer.subBranchAdminId)) && (
-                      <ExecutionBadge label="미배정" />
-                    )}
-                    {!customer.isActive && <ExecutionBadge label="비활성" />}
                   </div>
-                  <p className="mt-2 text-sm text-slate-700">
-                    <span className="font-medium">지금 할 일 · </span>
+                  <h2 className="mt-1 text-base font-bold text-slate-950">
                     {recommendedAction.title}
+                  </h2>
+                  <p className="mt-1 text-sm text-slate-700">
+                    {recommendedAction.description}
                   </p>
-                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
-                    <span>담당 · {agentName}</span>
-                    <span>
-                      최근 상담 ·{" "}
-                      {latestConsultDate
-                        ? formatDate(latestConsultDate)
-                        : "없음"}
-                    </span>
-                    <span>
-                      다음 연락 ·{" "}
-                      {nextFollowUp
-                        ? formatDate(nextFollowUp.nextContactDate)
-                        : "설정 없음"}
-                    </span>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {(execution.reasons.length > 0
+                      ? execution.reasons
+                      : [{ label: "정기 관리 흐름 유지", points: 0 }]
+                    )
+                      .slice(0, 5)
+                      .map(reason => (
+                        <span
+                          key={reason.label}
+                          className="rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-700"
+                        >
+                          {reason.points > 0
+                            ? `${reason.label} +${reason.points}`
+                            : reason.label}
+                        </span>
+                      ))}
                   </div>
-                  {isMobile && (
-                    <Collapsible className="mt-3">
+                </div>
+              </div>
+            </div>
+  );
+
+  const quickScheduleAction = (
+    <Button
+      size="sm"
+      variant="outline"
+      className={isMobile ? "min-h-11" : undefined}
+      onClick={() =>
+        setLocation(
+          `/calendar?customerId=${customer.id}&action=quick-create`
+        )
+      }
+    >
+      <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 일정 등록
+    </Button>
+  );
+
+  const taskAreaHelp = (
+<div className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
+            <p className="text-xs font-semibold text-muted-foreground">
+              고객 업무 영역
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              요약에서 현재 상태를 확인하고 필요한 업무 탭으로 이동하세요.
+            </p>
+          </div>
+  );
+  const mobileContactDetails = (
+<Collapsible className="mt-0">
                       <CollapsibleTrigger asChild>
                         <Button
                           type="button"
@@ -1264,53 +1303,9 @@ export default function CustomerDetail({ id }: { id: number }) {
                         ))}
                       </CollapsibleContent>
                     </Collapsible>
-                  )}
-                </div>
-              </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-fit">
-                    <MoreHorizontal className="h-4 w-4 mr-1" /> 더보기
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={() => setShowEditModal(true)}>
-                    <Edit2 className="h-4 w-4" /> 정보 수정
-                  </DropdownMenuItem>
-                  {canChangeAgent && (
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setSelectedNewAgentId("");
-                        setShowChangeAgentModal(true);
-                      }}
-                    >
-                      <UserCog className="h-4 w-4" /> 담당자 재지정
-                    </DropdownMenuItem>
-                  )}
-                  {canReclaimCustomer && (
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setReclaimReason("");
-                        setShowReclaimDialog(true);
-                      }}
-                    >
-                      <Undo2 className="h-4 w-4" /> DB 회수
-                    </DropdownMenuItem>
-                  )}
-                  {canDeactivateCustomer && customer.isActive && (
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setShowCustomerDeleteDialog(true)}
-                    >
-                      <Trash2 className="h-4 w-4" /> 고객 삭제
-                    </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-
-            {isMobile ? (
-              <Collapsible>
+  );
+  const mobileManagementDetails = (
+<Collapsible>
                 <CollapsibleTrigger asChild>
                   <Button
                     type="button"
@@ -1369,130 +1364,12 @@ export default function CustomerDetail({ id }: { id: number }) {
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            ) : (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
-                {[
-                  { label: "담당자", value: agentName },
-                  {
-                    label: "예상보험료",
-                    value:
-                      customer.expectedPremium != null
-                        ? formatExpectedPremiumManwon(customer.expectedPremium)
-                        : "-",
-                  },
-                  {
-                    label: "마지막 상담일",
-                    value: latestConsultDate
-                      ? formatDate(latestConsultDate)
-                      : "상담 없음",
-                  },
-                  {
-                    label: "다음 연락일",
-                    value: nextFollowUp
-                      ? formatDate(nextFollowUp.nextContactDate)
-                      : "설정 없음",
-                  },
-                  { label: "유입경로", value: customer.source ?? "-" },
-                  {
-                    label: "DB 업체명",
-                    value: (customer as any).dbCompany ?? "-",
-                  },
-                  { label: "지역", value: customer.region ?? "-" },
-                ].map(item => (
-                  <div
-                    key={item.label}
-                    className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
-                  >
-                    <p className="text-xs font-medium text-slate-500">
-                      {item.label}
-                    </p>
-                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
-                      {item.value}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div className="rounded-lg border border-amber-200/80 bg-gradient-to-br from-amber-50/90 to-white p-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-xs font-semibold text-amber-800">
-                      지금 할 일
-                    </p>
-                    <span className="text-xs text-muted-foreground">
-                      판단
-                    </span>
-                    <span
-                      className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}
-                    >
-                      {execution.grade}
-                    </span>
-                  </div>
-                  <h2 className="mt-1 text-base font-bold text-slate-950">
-                    {recommendedAction.title}
-                  </h2>
-                  <p className="mt-1 text-sm text-slate-700">
-                    {recommendedAction.description}
-                  </p>
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(execution.reasons.length > 0
-                      ? execution.reasons
-                      : [{ label: "정기 관리 흐름 유지", points: 0 }]
-                    )
-                      .slice(0, 5)
-                      .map(reason => (
-                        <span
-                          key={reason.label}
-                          className="rounded-full border border-white/70 bg-white/80 px-2 py-0.5 text-xs font-medium text-slate-700"
-                        >
-                          {reason.points > 0
-                            ? `${reason.label} +${reason.points}`
-                            : reason.label}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {isMobile ? (
-          <Customer360SummaryCard
-            openFollowUpCount={openFollowUps.length}
-            todayScheduleCount={todayScheduleCount}
-            daysFromLatestConsult={daysFromLatestConsult}
-            isLoading={isCustomer360Loading}
-            isError={isCustomer360Error}
-            onShowConsultations={() =>
-              selectCustomerDetailTab("consultation")
-            }
-            onShowFollowUps={() => selectCustomerDetailTab("consultation")}
-            onShowCalendar={() =>
-              setLocation(
-                `/calendar?customerId=${customer.id}&action=quick-create`
-              )
-            }
-          />
-        ) : null}
-
-        {isMobile ? (
-          <CustomerQuickActionHub
-            onShowConsultations={() =>
-              selectCustomerDetailTab("consultation")
-            }
-            onShowFollowUps={() => selectCustomerDetailTab("consultation")}
-            onShowCalendar={() =>
-              setLocation(
-                `/calendar?customerId=${customer.id}&action=quick-create`
-              )
-            }
-            onShowNotifications={() => setLocation("/notifications")}
-          />
-        ) : null}
-
+  );
+  // Keep desktop context first; mobile renders these secondary panels after the task tabs.
+  const secondaryPanels = (
+    <>
+        <CustomerExecutionDetails isMobile={isMobile} open={showMobileExecutionDetails} onOpenChange={setShowMobileExecutionDetails} actions={quickScheduleAction}>
+            {isMobile && recommendedActionDetails}
         <Card className="border-blue-100 bg-gradient-to-br from-blue-50/70 to-white shadow-sm">
           <CardContent className="space-y-3 p-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1549,17 +1426,7 @@ export default function CustomerDetail({ id }: { id: number }) {
               >
                 <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 후속 등록
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() =>
-                  setLocation(
-                    `/calendar?customerId=${customer.id}&action=quick-create`
-                  )
-                }
-              >
-                <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 일정 등록
-              </Button>
+              {!isMobile && quickScheduleAction}
               <Button
                 size="sm"
                 variant="ghost"
@@ -1707,7 +1574,9 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Collapsible defaultOpen={!isMobile}>
+        </CustomerExecutionDetails>
+
+        <Collapsible className="space-y-3" defaultOpen={!isMobile}>
           <Card className="border-slate-200/80 bg-white/95 shadow-sm">
             <CardContent className="space-y-4 p-4">
               <div className="flex items-center justify-between gap-2 flex-wrap">
@@ -1846,7 +1715,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           </Card>
         </Collapsible>
 
-        <Collapsible defaultOpen={!isMobile}>
+        <Collapsible className="space-y-3" defaultOpen={!isMobile}>
           <Card className="border-emerald-100 bg-white/95 shadow-sm">
             <CardContent className="p-4 space-y-3">
               <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -1926,6 +1795,200 @@ export default function CustomerDetail({ id }: { id: number }) {
           </Card>
         </Collapsible>
 
+        {isMobile ? (
+          <div className="space-y-3">
+          <Customer360SummaryCard
+            openFollowUpCount={openFollowUps.length}
+            todayScheduleCount={todayScheduleCount}
+            daysFromLatestConsult={daysFromLatestConsult}
+            isLoading={isCustomer360Loading}
+            isError={isCustomer360Error}
+            onShowConsultations={() =>
+              selectCustomerDetailTab("consultation")
+            }
+            onShowFollowUps={() => selectCustomerDetailTab("consultation")}
+            onShowCalendar={() =>
+              setLocation(
+                `/calendar?customerId=${customer.id}&action=quick-create`
+              )
+            }
+          />
+          </div>
+        ) : null}
+
+        {isMobile ? (
+          <div className="space-y-3">
+          <CustomerQuickActionHub
+            onShowConsultations={() =>
+              selectCustomerDetailTab("consultation")
+            }
+            onShowFollowUps={() => selectCustomerDetailTab("consultation")}
+            onShowCalendar={() =>
+              setLocation(
+                `/calendar?customerId=${customer.id}&action=quick-create`
+              )
+            }
+            onShowNotifications={() => setLocation("/notifications")}
+          />
+          </div>
+        ) : null}
+
+    </>
+  );
+
+  return (
+    <DashboardLayout>
+      <div className="flex flex-col gap-3 md:block md:space-y-5 pb-[max(8.5rem,env(safe-area-inset-bottom))] md:pb-0">
+        {/* Customer execution summary */}
+        <Card className="overflow-hidden border-slate-200/80 bg-white/95 shadow-sm">
+          <CardContent className="space-y-3 p-3 md:space-y-5 sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div className="flex min-w-0 items-start gap-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-0.5 min-h-11 shrink-0 md:min-h-0"
+                  onClick={() => setLocation("/customers")}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-1" /> 목록
+                </Button>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-primary/80">
+                    고객 상세
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <h1 className="text-xl font-bold text-slate-950 md:text-2xl">
+                      {customer.name}
+                    </h1>
+                    <StatusBadge status={customer.consultStatus} />
+                    <PriorityBadge priority={(customer as any).priority} />
+                    <span
+                      className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${execution.gradeClassName}`}
+                    >
+                      관리점수 {execution.score}
+                    </span>
+                    {isLongUnmanaged && <ExecutionBadge label="장기 미관리" />}
+                    {(customer.assignmentStatus === "unassigned" ||
+                      (!customer.agentId && !customer.subBranchAdminId)) && (
+                      <ExecutionBadge label="미배정" />
+                    )}
+                    {!customer.isActive && <ExecutionBadge label="비활성" />}
+                  </div>
+                  <p className="mt-2 text-sm text-slate-700">
+                    <span className="font-medium">지금 할 일 · </span>
+                    {recommendedAction.title}
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
+                    <span>담당 · {agentName}</span>
+                    <span>
+                      최근 상담 ·{" "}
+                      {latestConsultDate
+                        ? formatDate(latestConsultDate)
+                        : "없음"}
+                    </span>
+                    <span>
+                      다음 연락 ·{" "}
+                      {nextFollowUp
+                        ? formatDate(nextFollowUp.nextContactDate)
+                        : "설정 없음"}
+                    </span>
+                  </div>
+
+                </div>
+              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="min-h-11 w-fit md:min-h-0">
+                    <MoreHorizontal className="h-4 w-4 mr-1" /> 더보기
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setShowEditModal(true)}>
+                    <Edit2 className="h-4 w-4" /> 정보 수정
+                  </DropdownMenuItem>
+                  {canChangeAgent && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setSelectedNewAgentId("");
+                        setShowChangeAgentModal(true);
+                      }}
+                    >
+                      <UserCog className="h-4 w-4" /> 담당자 재지정
+                    </DropdownMenuItem>
+                  )}
+                  {canReclaimCustomer && (
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setReclaimReason("");
+                        setShowReclaimDialog(true);
+                      }}
+                    >
+                      <Undo2 className="h-4 w-4" /> DB 회수
+                    </DropdownMenuItem>
+                  )}
+                  {canDeactivateCustomer && customer.isActive && (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onClick={() => setShowCustomerDeleteDialog(true)}
+                    >
+                      <Trash2 className="h-4 w-4" /> 고객 삭제
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+
+            {!isMobile && (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-7">
+                {[
+                  { label: "담당자", value: agentName },
+                  {
+                    label: "예상보험료",
+                    value:
+                      customer.expectedPremium != null
+                        ? formatExpectedPremiumManwon(customer.expectedPremium)
+                        : "-",
+                  },
+                  {
+                    label: "마지막 상담일",
+                    value: latestConsultDate
+                      ? formatDate(latestConsultDate)
+                      : "상담 없음",
+                  },
+                  {
+                    label: "다음 연락일",
+                    value: nextFollowUp
+                      ? formatDate(nextFollowUp.nextContactDate)
+                      : "설정 없음",
+                  },
+                  { label: "유입경로", value: customer.source ?? "-" },
+                  {
+                    label: "DB 업체명",
+                    value: (customer as any).dbCompany ?? "-",
+                  },
+                  { label: "지역", value: customer.region ?? "-" },
+                ].map(item => (
+                  <div
+                    key={item.label}
+                    className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-2"
+                  >
+                    <p className="text-xs font-medium text-slate-500">
+                      {item.label}
+                    </p>
+                    <p className="mt-0.5 truncate text-sm font-semibold text-slate-950">
+                      {item.value}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isMobile && recommendedActionDetails}
+          </CardContent>
+        </Card>
+
+        {!isMobile && secondaryPanels}
+
         <Tabs
           value={activeTab}
           onValueChange={value =>
@@ -1933,14 +1996,7 @@ export default function CustomerDetail({ id }: { id: number }) {
           }
           className="space-y-4"
         >
-          <div className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2">
-            <p className="text-xs font-semibold text-muted-foreground">
-              고객 업무 영역
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              요약에서 현재 상태를 확인하고 필요한 업무 탭으로 이동하세요.
-            </p>
-          </div>
+          {!isMobile && taskAreaHelp}
           <CustomerDetailTabNavigation
             consultationCount={consultations?.length ?? 0}
             contractCount={currentContracts.length}
@@ -3065,7 +3121,15 @@ export default function CustomerDetail({ id }: { id: number }) {
             </section>
           </TabsContent>
 
+          {isMobile && taskAreaHelp}
         </Tabs>
+        {isMobile && (
+          <>
+            {mobileContactDetails}
+            {mobileManagementDetails}
+            {secondaryPanels}
+          </>
+        )}
       </div>
 
       {isMobile && (
