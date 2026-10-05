@@ -80,6 +80,7 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
+  SheetTrigger,
 } from "@/components/ui/sheet";
 import { trpc } from "@/lib/trpc";
 import { getAssignmentScopeKey } from "@/lib/customerAssignQueries";
@@ -225,6 +226,7 @@ function CustomerListContent() {
   const { user } = useAuth();
   const [location, setLocation] = useLocation();
   const isMobile = useIsMobile();
+  const [showManagementActions, setShowManagementActions] = useState(false);
   const initialUrlState = useRef(
     parseCustomerListUrlState(getCustomerListQueryString(location), {
       isMobile,
@@ -1260,29 +1262,8 @@ function CustomerListContent() {
     </div>
   );
 
-  return (
-    <DashboardLayout>
-      <div className={`space-y-4 ${hasBulkSelection ? "pb-28" : ""}`}>
-        <Card className="overflow-hidden border-border shadow-sm">
-          <CardContent className="space-y-4 p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h1 className="text-2xl font-bold tracking-tight text-foreground">
-                  고객 관리
-                </h1>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {roleListDescription}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  현재 페이지{" "}
-                  {renderCustomerCount(workspaceCustomers.length, {
-                    isLoading: isCustomersLoading,
-                    isError: isCustomersError,
-                  })}
-                  {!isCustomersLoading && !isCustomersError ? "명" : ""} · {CUSTOMER_SORT_LABELS[sortMode]}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
+  const secondaryCustomerActions = (
+    <>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1319,6 +1300,50 @@ function CustomerListContent() {
                 >
                   <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 후속 등록
                 </Button>
+    </>
+  );
+
+  return (
+    <DashboardLayout>
+      <div className={`space-y-4 ${hasBulkSelection ? "pb-28" : ""}`}>
+        <Card className="overflow-hidden border-border shadow-sm">
+          <CardContent className="flex flex-col gap-2 p-3 md:block md:space-y-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 md:flex-row md:items-start">
+              <div className="min-w-0">
+                <h1 className="text-lg font-bold tracking-tight text-foreground md:text-2xl">
+                  고객 관리
+                </h1>
+                <p className="mt-1 hidden text-sm text-muted-foreground md:block">
+                  {roleListDescription}
+                </p>
+                <p className="mt-1 hidden text-xs text-muted-foreground md:block">
+                  현재 페이지{" "}
+                  {renderCustomerCount(workspaceCustomers.length, {
+                    isLoading: isCustomersLoading,
+                    isError: isCustomersError,
+                  })}
+                  {!isCustomersLoading && !isCustomersError ? "명" : ""} · {CUSTOMER_SORT_LABELS[sortMode]}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {isMobile ? (
+                  <Sheet open={showManagementActions} onOpenChange={setShowManagementActions}>
+                    <SheetTrigger asChild>
+                      <Button variant="outline" size="icon" className="min-h-11 min-w-11" aria-label="고객 관리 작업">
+                        <MoreHorizontal className="h-5 w-5" />
+                      </Button>
+                    </SheetTrigger>
+                    <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto" onClick={event => {
+                      if ((event.target as HTMLElement).closest("button")) setShowManagementActions(false);
+                    }}>
+                      <SheetHeader>
+                        <SheetTitle>고객 관리 작업</SheetTitle>
+                        <SheetDescription>등록·배정과 후속 업무를 선택하세요.</SheetDescription>
+                      </SheetHeader>
+                      <div className="grid gap-2 p-4">{secondaryCustomerActions}</div>
+                    </SheetContent>
+                  </Sheet>
+                ) : secondaryCustomerActions}
                 {canCreateCustomer && (
                   <Button
                     size="sm"
@@ -1332,7 +1357,7 @@ function CustomerListContent() {
             </div>
 
             {effectiveUrlPreset ? (
-              <div className="rounded-xl border border-primary/20 bg-primary/[0.05] p-4">
+              <div className="order-5 rounded-xl border border-primary/20 bg-primary/[0.05] p-3 md:p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-foreground">
@@ -1355,8 +1380,8 @@ function CustomerListContent() {
               </div>
             ) : null}
 
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-muted-foreground">
+            <div className="order-3 space-y-2">
+              <p className="hidden text-xs font-semibold text-muted-foreground md:block">
                 고객 분류
               </p>
               <div
@@ -1440,8 +1465,8 @@ function CustomerListContent() {
                 {!queries.accessError && <Button variant="outline" onClick={() => void refetch()}>다시 불러오기</Button>}
               </div>
             )}
-            <div>
-              <p className="mb-2 text-xs font-semibold text-muted-foreground">
+            <div className="order-2">
+              <p className="mb-2 hidden text-xs font-semibold text-muted-foreground md:block">
                 오늘 처리할 고객
               </p>
               <div
@@ -1456,12 +1481,12 @@ function CustomerListContent() {
                     onClick={() => applyQuickPreset(preset.id)}
                     data-testid="customer-list-mobile-filter-chip"
                     aria-pressed={activeQuickPreset === preset.id}
-                    className={`min-h-12 min-w-[5.25rem] shrink-0 snap-start rounded-2xl border px-3.5 py-2.5 text-left transition hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 active:scale-[0.98] ${activeQuickPreset === preset.id ? "ring-2 ring-primary/35" : ""} ${preset.tone}`}
+                    className={`flex min-h-11 shrink-0 snap-start items-center gap-2 rounded-xl border px-3 py-2 md:block md:min-h-12 md:min-w-[5.25rem] md:rounded-2xl md:px-3.5 md:py-2.5 text-left transition hover:shadow-sm focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/45 active:scale-[0.98] ${activeQuickPreset === preset.id ? "ring-2 ring-primary/35" : ""} ${preset.tone}`}
                   >
                     <span className="block text-xs font-medium text-muted-foreground">
                       {preset.label}
                     </span>
-                    <span className="mt-0.5 block text-lg font-bold tabular-nums leading-none text-foreground">
+                    <span className="text-sm font-bold tabular-nums leading-none text-foreground md:mt-0.5 md:block md:text-lg">
                       {renderCustomerCount(preset.id === activeQuickPreset ? resultCount : quickPresetCounts?.[preset.id], quickMetricState(preset.id))}
                     </span>
                   </button>
@@ -1469,7 +1494,7 @@ function CustomerListContent() {
               </div>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="order-1 flex gap-2">
               <form
                 className="flex min-w-0 flex-1 gap-2"
                 onSubmit={event => {
@@ -1514,18 +1539,20 @@ function CustomerListContent() {
                 variant={hasActiveFilters ? "default" : "outline"}
                 size="sm"
                 data-testid="customer-list-mobile-filter-toggle"
-                className="min-h-12 shrink-0 rounded-xl md:h-11 md:min-h-11"
+                className="min-h-12 shrink-0 rounded-xl px-3 md:h-11 md:min-h-11"
+                aria-label="고급 필터"
+                aria-expanded={showFilters}
                 onClick={() => setShowFilters(!showFilters)}
               >
-                <Filter className="mr-1 h-4 w-4" />
-                고급 필터{hasActiveFilters ? " ●" : ""}
+                <Filter className="h-4 w-4 md:mr-1" />
+                <span className="sr-only md:not-sr-only">고급 필터</span>{hasActiveFilters ? " ●" : ""}
               </Button>
               {hasActiveFilters && (
                 <Button
                   variant="ghost"
                   size="sm"
                   data-testid="customer-list-mobile-filter-reset"
-                  className="min-h-12 rounded-xl md:h-11 md:min-h-11"
+                  className="hidden min-h-12 rounded-xl md:inline-flex md:h-11 md:min-h-11"
                   onClick={clearFilters}
                 >
                   필터 초기화
@@ -1533,8 +1560,8 @@ function CustomerListContent() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
-              <p className="text-sm text-muted-foreground" aria-live="polite">
+            <div className="order-4 flex flex-wrap items-center justify-between gap-2 border-t border-border/70 pt-2 md:gap-3 md:pt-3">
+              <p className="text-xs text-muted-foreground md:text-sm" aria-live="polite">
                 조건에 맞는 고객 <strong className="text-foreground">{renderCustomerCount(resultCount, { isLoading: isSegmentCountsLoading, isError: isSegmentCountsError })}</strong>{resultCount !== undefined && !isSegmentCountsLoading && !isSegmentCountsError ? "명" : ""}
               </p>
               <div className="flex items-center gap-2">
@@ -1545,7 +1572,7 @@ function CustomerListContent() {
                     setPage(1);
                   }}
                 >
-                  <SelectTrigger className="w-40" aria-label="고객 정렬">
+                  <SelectTrigger className="w-32 md:w-40" aria-label="고객 정렬">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1596,7 +1623,7 @@ function CustomerListContent() {
               <div
                 className={cn(
                   statusSemantic.filterChipPanel,
-                  "overflow-hidden"
+                  "order-6 overflow-hidden"
                 )}
                 data-testid="customer-list-active-filter-summary"
               >
@@ -1764,64 +1791,8 @@ function CustomerListContent() {
                     ? todayScheduleCount
                     : 0;
                   const visibleBadges = badges.slice(0, 2);
-                  return (
-                    <Card
-                      key={c.id}
-                      data-customer-id={c.id}
-                      data-testid="customer-list-result-card"
-                      className="overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/20 focus-within:ring-2 focus-within:ring-primary/20"
-                    >
-                      <CardContent className="p-3.5">
-                        <div className="flex items-start justify-between gap-3">
-                          {(canReclaimCustomer || canBulkChangeAssignee) && (
-                            <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
-                              <Checkbox
-                                touchTarget
-                                checked={selectedCustomerIds.includes(c.id)}
-                                disabled={!selectableFilteredIds.includes(c.id)}
-                                onCheckedChange={checked =>
-                                  toggleCustomerSelection(c.id, checked === true)
-                                }
-                                aria-label="고객 선택"
-                                className="mt-0.5 sm:mt-0"
-                              />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex min-w-0 flex-wrap items-center gap-2">
-                              <span
-                                data-testid="customer-list-result-card-title"
-                                className="min-w-0 truncate text-base font-semibold text-foreground"
-                              >
-                                {c.name}
-                              </span>
-                              <span data-testid="customer-list-result-card-status">
-                                <StatusBadge status={c.consultStatus} />
-                              </span>
-                              <span
-                                data-testid="customer-segment-badge"
-                                className={cn(
-                                  "inline-flex min-h-6 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                                  customerSegmentTone(
-                                    (c as any).customerSegment
-                                  )
-                                )}
-                              >
-                                {customerSegmentLabel(c)}
-                              </span>
-                              {(c as any).priority && (
-                                <PriorityBadge priority={(c as any).priority} />
-                              )}
-                              {relationFlags?.[c.id] ? (
-                                <ExecutionBadge label="연결" />
-                              ) : null}
-                            </div>
-                            <p className="mt-1 text-sm font-medium text-foreground">
-                              다음:{" "}
-                              {(c as any).nextAction ||
-                                execution.actionTitle ||
-                                "확인 필요"}
-                            </p>
+                  const secondaryDetails = (
+                    <>
                             <p
                               data-testid="customer-list-result-card-activity"
                               className="mt-1 text-xs text-muted-foreground"
@@ -1895,6 +1866,67 @@ function CustomerListContent() {
                                 </span>
                               )}
                             </div>
+                    </>
+                  );
+                  return (
+                    <Card
+                      key={c.id}
+                      data-customer-id={c.id}
+                      data-testid="customer-list-result-card"
+                      className="overflow-hidden border-border bg-card shadow-sm transition hover:bg-muted/20 focus-within:ring-2 focus-within:ring-primary/20"
+                    >
+                      <CardContent className="p-3.5">
+                        <div className="flex items-start justify-between gap-3">
+                          {(canReclaimCustomer || canBulkChangeAssignee) && (
+                            <div className="-ml-2 -mt-2 flex shrink-0 items-center justify-center sm:m-0" onClick={e => e.stopPropagation()}>
+                              <Checkbox
+                                touchTarget
+                                checked={selectedCustomerIds.includes(c.id)}
+                                disabled={!selectableFilteredIds.includes(c.id)}
+                                onCheckedChange={checked =>
+                                  toggleCustomerSelection(c.id, checked === true)
+                                }
+                                aria-label="고객 선택"
+                                className="mt-0.5 sm:mt-0"
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <span
+                                data-testid="customer-list-result-card-title"
+                                className="min-w-0 truncate text-base font-semibold text-foreground"
+                              >
+                                {c.name}
+                              </span>
+                              <span data-testid="customer-list-result-card-status">
+                                <StatusBadge status={c.consultStatus} />
+                              </span>
+                              <span
+                                data-testid="customer-segment-badge"
+                                className={cn(
+                                  "inline-flex min-h-6 items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold",
+                                  customerSegmentTone(
+                                    (c as any).customerSegment
+                                  )
+                                )}
+                              >
+                                {customerSegmentLabel(c)}
+                              </span>
+                              {(c as any).priority && (
+                                <PriorityBadge priority={(c as any).priority} />
+                              )}
+                              {relationFlags?.[c.id] ? (
+                                <ExecutionBadge label="연결" />
+                              ) : null}
+                            </div>
+                            <p className="mt-1 text-sm font-medium text-foreground">
+                              다음:{" "}
+                              {(c as any).nextAction ||
+                                execution.actionTitle ||
+                                "확인 필요"}
+                            </p>
+                            {!isMobile && secondaryDetails}
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -2011,6 +2043,7 @@ function CustomerListContent() {
                             상담 기록
                           </Button>
                         </div>
+                        {isMobile && <div className="mt-3">{secondaryDetails}</div>}
                       </CardContent>
                     </Card>
                   );
