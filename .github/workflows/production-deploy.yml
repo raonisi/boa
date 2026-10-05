@@ -143,7 +143,7 @@ jobs:
           node scripts/stamp-release-identity.mjs "${EXPECTED_COMMIT_SHA}"
           node scripts/stamp-release-identity.mjs "${EXPECTED_COMMIT_SHA}" --verify
       - name: Install pinned Railway CLI
-        run: npm install --global @railway/cli@5.28.0
+        run: npm install --global --allow-scripts=@railway/cli @railway/cli@5.28.0
       - name: Deploy and verify the exact Railway deployment
         env:
           GH_TOKEN: ${{ github.token }}
