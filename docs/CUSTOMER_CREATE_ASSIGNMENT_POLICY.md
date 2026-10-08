@@ -1,5 +1,7 @@
 # Customer Create Assignment Policy
 
+> Source status: **IMPORT_ROLE unresolved** in the [single register](../.agents/skills/boa-crm-full-build/references/source-register.json). The import role assertion below conflicts with the other source identified by IMPORT_ROLE. No approved current supersession evidence is established. Do not select/change/approve import permissions or invent a personal-vs-distribution policy split from these documents alone. The existing role table is preserved as disputed evidence; server authorization, privacy and scope controls remain. Independent work may proceed.
+
 ## Purpose
 
 BOA CRM separates direct customer creation from DB assignment.
