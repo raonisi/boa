@@ -37,6 +37,57 @@ const mockTemplates = [
 ];
 
 test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
+  for (const width of [1440, 390]) {
+    test(`fallback team leader selects a scoped member from the dedicated API and submits the real payload at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 900 });
+      const leader = { id: 3, name: "[TEST] fallback leader", role: "team_leader", accountStatus: "active", teamId: 30, subBranchAdminId: 2 };
+      const member = { id: 4, name: "[TEST] fallback member", role: "member", accountStatus: "active", teamId: 30, subBranchAdminId: 2 };
+      let candidatesReads = 0;
+      let generalUsersReads = 0;
+      let payload: any = null;
+      await mockBoaTrpc(page, "team_leader", {
+        transformResponse: (procedure, defaultResponse, input) => {
+          if (procedure === "auth.me") return serializeTrpc(leader);
+          if (procedure === "users.list") {
+            generalUsersReads += 1;
+            return serializeTrpc([leader]);
+          }
+          if (procedure === "onboardingAssignments.assignmentCandidates") {
+            candidatesReads += 1;
+            return serializeTrpc([member]);
+          }
+          if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
+          if (procedure === "onboardingAssignments.list" || procedure === "onboardingAssignments.getMine") return serializeTrpc([]);
+          if (procedure === "onboardingAssignments.assign") {
+            payload = input;
+            return serializeTrpc({ assignmentId: 901 });
+          }
+          return defaultResponse;
+        },
+      });
+      await page.goto("/onboarding-checklists", { waitUntil: "networkidle" });
+      await page.getByTestId("target-user-trigger").click();
+      await page.getByTestId("target-user-search-input").fill("fallback member");
+      await expect(page.getByTestId("target-user-option-3")).toHaveCount(0);
+      await expect(page.getByTestId("target-user-option-4")).toContainText("#4");
+      await page.getByTestId("target-user-option-4").click();
+      await page.getByTestId("template-select-trigger").click();
+      await page.getByTestId("template-option-1").click();
+      await page.getByTestId("onboarding-started-at").fill("2026-10-29");
+      await page.getByTestId("onboarding-due-at").fill("2026-11-05");
+      await expect(page.getByTestId("assign-onboarding-btn")).toBeEnabled();
+      await page.getByTestId("assign-onboarding-btn").click();
+      await expect.poll(() => payload).toMatchObject({ targetUserId: 4, templateId: 1 });
+      expect(payload.trainerUserId).toBeUndefined();
+      expect(payload.startedAt).toBe(new Date("2026-10-29").toISOString());
+      expect(payload.dueAt).toBe(new Date("2026-11-05").toISOString());
+      expect(candidatesReads).toBeGreaterThan(0);
+      expect(generalUsersReads).toBe(0);
+      await expect(page.getByTestId("target-user-trigger")).toContainText("대상 직원 선택");
+      await page.screenshot({ path: path.join(screenshotsDir, `ag03-fallback-${width}.png`), fullPage: false });
+    });
+  }
+
   test("Desktop (1440px): branch_admin searches by name, differentiates duplicate names, selects target & trainer, and assigns", async ({
     page,
   }) => {
@@ -46,7 +97,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse, input) => {
-        if (procedure === "users.list") {
+        if (procedure === "onboardingAssignments.assignmentCandidates") {
           return serializeTrpc(mockUsers);
         }
         if (procedure === "onboardingTemplates.list") {
@@ -216,7 +267,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse, input) => {
-        if (procedure === "users.list") return serializeTrpc(mockUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(mockUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         if (procedure === "onboardingAssignments.summary") {
           return serializeTrpc({
@@ -287,7 +338,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse) => {
-        if (procedure === "users.list") return serializeTrpc(mockUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(mockUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         return defaultResponse;
       },
@@ -318,7 +369,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "team_leader", {
       transformResponse: (procedure, defaultResponse) => {
-        if (procedure === "users.list") return serializeTrpc(mockUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(mockUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         return defaultResponse;
       },
@@ -378,7 +429,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse) => {
-        if (procedure === "users.list") return serializeTrpc(mockUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(mockUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         return defaultResponse;
       },
@@ -457,7 +508,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse, input) => {
-        if (procedure === "users.list") return serializeTrpc(mockUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(mockUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         if (procedure === "onboardingAssignments.summary") {
           return serializeTrpc({
@@ -573,7 +624,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse) => {
-        if (procedure === "users.list") return serializeTrpc(mockUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(mockUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         return defaultResponse;
       },
@@ -620,7 +671,7 @@ test.describe("BOA-CRM-AG03 Onboarding User Name Search & Select", () => {
 
     await mockBoaTrpc(page, "branch_admin", {
       transformResponse: (procedure, defaultResponse) => {
-        if (procedure === "users.list") return serializeTrpc(currentUsers);
+        if (procedure === "onboardingAssignments.assignmentCandidates") return serializeTrpc(currentUsers);
         if (procedure === "onboardingTemplates.list") return serializeTrpc(mockTemplates);
         return defaultResponse;
       },

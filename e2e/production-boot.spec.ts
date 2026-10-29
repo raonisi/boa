@@ -4,7 +4,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { mockBoaTrpc } from "./fixtures/mock-trpc";
 
-const PROD_PORT = 34200;
 const distDir = path.resolve(process.cwd(), "dist/public");
 
 const VIEWPORTS = [
@@ -18,10 +17,11 @@ const VIEWPORTS = [
 const ROLES = ["branch_admin", "sub_branch_admin", "team_leader", "member"] as const;
 
 let server: http.Server;
+let productionBaseURL: string;
 
 test.beforeAll(async () => {
   server = http.createServer((req, res) => {
-    let reqPath = new URL(req.url!, `http://127.0.0.1:${PROD_PORT}`).pathname;
+    let reqPath = new URL(req.url!, productionBaseURL).pathname;
     let filePath = path.resolve(distDir, "." + reqPath);
     if (!filePath.startsWith(distDir + path.sep) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
       filePath = path.join(distDir, "index.html");
@@ -32,11 +32,33 @@ test.beforeAll(async () => {
     fs.createReadStream(filePath).pipe(res);
   });
 
-  await new Promise<void>(resolve => server.listen(PROD_PORT, "127.0.0.1", () => resolve()));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("Production test server did not receive a TCP address");
+  }
+  productionBaseURL = `http://127.0.0.1:${address.port}`;
+  console.info("[production-boot-server]", JSON.stringify({
+    event: "listening", project: test.info().project.name,
+    workerIndex: test.info().workerIndex, port: address.port,
+  }));
 });
 
 test.afterAll(async () => {
-  await new Promise<void>(resolve => server.close(() => resolve()));
+  if (!server?.listening) return;
+  await new Promise<void>((resolve, reject) => {
+    server.close(error => error ? reject(error) : resolve());
+  });
+  console.info("[production-boot-server]", JSON.stringify({
+    event: "closed", project: test.info().project.name,
+    workerIndex: test.info().workerIndex, baseURL: productionBaseURL,
+  }));
 });
 
 test.describe("Production Bundle Startup & Runtime Boot Verification (Finding P1)", () => {
@@ -50,7 +72,7 @@ test.describe("Production Bundle Startup & Runtime Boot Verification (Finding P1
     });
 
     await mockBoaTrpc(page, "branch_admin");
-    await page.goto(`http://127.0.0.1:${PROD_PORT}/google-calendar-integration`, { waitUntil: "networkidle" });
+    await page.goto(`${productionBaseURL}/google-calendar-integration`, { waitUntil: "networkidle" });
 
     // Assert zero createContext errors
     const hasCreateContextError = pageErrors.some(e => e.includes("createContext"));
@@ -87,7 +109,7 @@ test.describe("Production Bundle Startup & Runtime Boot Verification (Finding P1
         const pageErrors: string[] = [];
         page.on("pageerror", e => pageErrors.push(e.message));
 
-        await page.goto(`http://127.0.0.1:${PROD_PORT}${route}`, { waitUntil: "networkidle" });
+        await page.goto(`${productionBaseURL}${route}`, { waitUntil: "networkidle" });
 
         const rootHTML = await page.locator("#root").innerHTML();
         const bootSuccess = rootHTML.length > 0 && pageErrors.length === 0;
@@ -122,7 +144,7 @@ test.describe("Production Bundle Startup & Runtime Boot Verification (Finding P1
       page.on("pageerror", e => pageErrors.push(e.message));
 
       await mockBoaTrpc(page, role);
-      await page.goto(`http://127.0.0.1:${PROD_PORT}/google-calendar-integration`, { waitUntil: "networkidle" });
+      await page.goto(`${productionBaseURL}/google-calendar-integration`, { waitUntil: "networkidle" });
 
       await expect(page.getByRole("heading", { name: "Google Calendar 연동 관리" })).toBeVisible();
 

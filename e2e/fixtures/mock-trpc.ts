@@ -603,6 +603,7 @@ const defaults: Record<string, unknown> = {
     },
   ],
   "users.list": users,
+  "onboardingAssignments.assignmentCandidates": users,
   "settings.formOptions": [],
   "consultations.list": [
     {

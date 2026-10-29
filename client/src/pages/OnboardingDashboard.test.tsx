@@ -2,6 +2,7 @@ import React from "react";
 (globalThis as any).React = React;
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { toast } from "sonner";
 import OnboardingDashboard from "./OnboardingDashboard";
 import { UserSearchSelect, type UserOption } from "@/components/onboarding/UserSearchSelect";
 
@@ -16,11 +17,18 @@ const mockTemplatesList = vi.fn();
 const mockAssignmentsSummary = vi.fn();
 const mockAssignmentsList = vi.fn();
 const mockAssignmentsGetMine = vi.fn();
-const mockUsersList = vi.fn();
+const mockAssignmentCandidates = vi.fn();
 const mockAssignMutate = vi.fn();
 const mockSeedDefaultsMutate = vi.fn();
 const mockUpdateItemMutate = vi.fn();
 const mockApproveItemMutate = vi.fn();
+const mutationCallbacks = vi.hoisted(() => ({
+  seed: undefined as any,
+  assign: undefined as any,
+  update: undefined as any,
+  approve: undefined as any,
+}));
+vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 vi.mock("@/lib/trpc", () => ({
   trpc: {
@@ -29,13 +37,14 @@ vi.mock("@/lib/trpc", () => ({
         useQuery: (...args: any[]) => mockTemplatesList(...args),
       },
       seedDefaults: {
-        useMutation: (opts?: any) => ({
-          mutate: mockSeedDefaultsMutate,
-          isPending: false,
-        }),
+        useMutation: (opts?: any) => {
+          mutationCallbacks.seed = opts;
+          return { mutate: mockSeedDefaultsMutate, isPending: false };
+        },
       },
     },
     onboardingAssignments: {
+      assignmentCandidates: { useQuery: (...args: any[]) => mockAssignmentCandidates(...args) },
       summary: {
         useQuery: (...args: any[]) => mockAssignmentsSummary(...args),
       },
@@ -46,27 +55,22 @@ vi.mock("@/lib/trpc", () => ({
         useQuery: (...args: any[]) => mockAssignmentsGetMine(...args),
       },
       assign: {
-        useMutation: (opts?: any) => ({
-          mutate: mockAssignMutate,
-          isPending: false,
-        }),
+        useMutation: (opts?: any) => {
+          mutationCallbacks.assign = opts;
+          return { mutate: mockAssignMutate, isPending: false };
+        },
       },
       updateItemProgress: {
-        useMutation: (opts?: any) => ({
-          mutate: mockUpdateItemMutate,
-          isPending: false,
-        }),
+        useMutation: (opts?: any) => {
+          mutationCallbacks.update = opts;
+          return { mutate: mockUpdateItemMutate, isPending: false };
+        },
       },
       approveItem: {
-        useMutation: (opts?: any) => ({
-          mutate: mockApproveItemMutate,
-          isPending: false,
-        }),
-      },
-    },
-    users: {
-      list: {
-        useQuery: (...args: any[]) => mockUsersList(...args),
+        useMutation: (opts?: any) => {
+          mutationCallbacks.approve = opts;
+          return { mutate: mockApproveItemMutate, isPending: false };
+        },
       },
     },
   },
@@ -127,7 +131,7 @@ describe("BOA-CRM-AG03 Onboarding User Search & Select", () => {
       refetch: vi.fn(),
     });
 
-    mockUsersList.mockReturnValue({
+    mockAssignmentCandidates.mockReturnValue({
       data: mockUsers,
       isLoading: false,
       isError: false,
@@ -145,8 +149,8 @@ describe("BOA-CRM-AG03 Onboarding User Search & Select", () => {
       expect(html).toContain("체크리스트 배정");
       expect(html).toContain("대상 직원");
       expect(html).toContain("교육자 (선택)");
-      expect(mockUsersList).toHaveBeenCalledWith(
-        { activeOnly: true },
+      expect(mockAssignmentCandidates).toHaveBeenCalledWith(
+        undefined,
         { enabled: true }
       );
     });
@@ -160,8 +164,8 @@ describe("BOA-CRM-AG03 Onboarding User Search & Select", () => {
       expect(html).toContain("체크리스트 배정");
       expect(html).toContain("대상 직원");
       expect(html).toContain("교육자 (선택)");
-      expect(mockUsersList).toHaveBeenCalledWith(
-        { activeOnly: true },
+      expect(mockAssignmentCandidates).toHaveBeenCalledWith(
+        undefined,
         { enabled: true }
       );
     });
@@ -174,8 +178,8 @@ describe("BOA-CRM-AG03 Onboarding User Search & Select", () => {
       const html = renderToStaticMarkup(<OnboardingDashboard />);
       expect(html).not.toContain("체크리스트 배정");
       expect(html).toContain("내 교육 체크리스트");
-      expect(mockUsersList).toHaveBeenCalledWith(
-        { activeOnly: true },
+      expect(mockAssignmentCandidates).toHaveBeenCalledWith(
+        undefined,
         { enabled: false }
       );
     });
@@ -287,6 +291,40 @@ describe("BOA-CRM-AG03 Onboarding User Search & Select", () => {
   });
 
   describe("Assignment Gating & Submission Logic", () => {
+    it.each([
+      ["seed", "기본 온보딩 템플릿을 준비했습니다.", ["templates"]],
+      ["assign", "온보딩 체크리스트 배정을 완료했습니다.", ["assignments", "mine", "summary"]],
+      ["update", "항목 완료 상태를 반영했습니다.", ["mine"]],
+      ["approve", "온보딩 항목을 승인했습니다.", ["assignments", "summary", "mine"]],
+    ] as const)("refreshes the real %s mutation's affected queries after success", async (key, message, refreshed) => {
+      mockUseAuth.mockReturnValue({ user: { id: 1, name: "[TEST] 관리자", role: "branch_admin" } });
+      renderToStaticMarkup(<OnboardingDashboard />);
+      const queries = {
+        templates: mockTemplatesList.mock.results.at(-1)!.value,
+        assignments: mockAssignmentsList.mock.results.at(-1)!.value,
+        mine: mockAssignmentsGetMine.mock.results.at(-1)!.value,
+        summary: mockAssignmentsSummary.mock.results.at(-1)!.value,
+      };
+      // These are the callbacks registered by the actual product component.
+      await mutationCallbacks[key].onSuccess();
+      expect(toast.success).toHaveBeenCalledWith(message);
+      for (const [name, query] of Object.entries(queries)) {
+        expect(query.refetch).toHaveBeenCalledTimes((refreshed as readonly string[]).includes(name) ? 1 : 0);
+      }
+      expect(mockAssignMutate).not.toHaveBeenCalled();
+    });
+
+    it.each(["seed", "assign", "update", "approve"] as const)("handles the actual %s mutation failure without success or cache refresh", key => {
+      mockUseAuth.mockReturnValue({ user: { id: 1, name: "[TEST] 관리자", role: "branch_admin" } });
+      renderToStaticMarkup(<OnboardingDashboard />);
+      mutationCallbacks[key].onError(new Error("network transport failure"));
+      expect(toast.error).toHaveBeenCalledTimes(1);
+      expect(toast.success).not.toHaveBeenCalled();
+      for (const query of [mockTemplatesList, mockAssignmentsList, mockAssignmentsGetMine, mockAssignmentsSummary]) {
+        expect(query.mock.results.at(-1)!.value.refetch).not.toHaveBeenCalled();
+      }
+    });
+
     it("disables assignment when target user is empty", () => {
       mockUseAuth.mockReturnValue({
         user: { id: 1, name: "지점장", role: "branch_admin" },

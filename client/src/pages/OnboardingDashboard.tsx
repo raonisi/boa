@@ -69,8 +69,8 @@ export default function OnboardingDashboard() {
   const mineQuery = trpc.onboardingAssignments.getMine.useQuery(undefined, {
     enabled: !!user,
   });
-  const usersQuery = trpc.users.list.useQuery(
-    { activeOnly: true },
+  const usersQuery = trpc.onboardingAssignments.assignmentCandidates.useQuery(
+    undefined,
     { enabled: !!isManager }
   );
 
