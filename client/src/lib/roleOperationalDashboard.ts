@@ -269,7 +269,7 @@ export function getDashboardQuickActionsForRole(
         id: "contract-approvals",
         label: "계약 요청",
         hint: "삭제 요청 검토",
-        path: "/contracts",
+        path: "/deleted-data",
         icon: "contracts",
       },
       {

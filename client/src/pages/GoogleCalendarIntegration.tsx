@@ -184,6 +184,20 @@ export default function GoogleCalendarIntegration() {
 
   const canManage = settingsQuery.data?.canManage ?? false;
 
+  const resyncHistoryEnabledQuery =
+    trpc.googleCalendar.getResyncHistory.useQuery(undefined, {
+      enabled: canManage,
+    });
+
+  const integrationMap = useMemo(() => {
+    const integrations = settingsQuery.data?.integrations ?? [];
+    const map = new Map<string, (typeof integrations)[number]>();
+    for (const row of integrations) {
+      map.set(row.calendarType, row);
+    }
+    return map;
+  }, [settingsQuery.data?.integrations]);
+
   if (settingsQuery.isLoading && !settingsQuery.data) {
     return (
       <DashboardLayout>
@@ -208,20 +222,6 @@ export default function GoogleCalendarIntegration() {
       </DashboardLayout>
     );
   }
-
-  const resyncHistoryEnabledQuery =
-    trpc.googleCalendar.getResyncHistory.useQuery(undefined, {
-      enabled: canManage,
-    });
-
-  const integrationMap = useMemo(() => {
-    const integrations = settingsQuery.data?.integrations ?? [];
-    const map = new Map<string, (typeof integrations)[number]>();
-    for (const row of integrations) {
-      map.set(row.calendarType, row);
-    }
-    return map;
-  }, [settingsQuery.data?.integrations]);
 
   const handleConnectOAuth = async () => {
     const result = await oauthUrlQuery.refetch();
@@ -409,8 +409,7 @@ export default function GoogleCalendarIntegration() {
                     id="personal-calendar-id"
                     placeholder="primary 또는 example@gmail.com"
                     defaultValue={
-                      settingsQuery.data?.personalSettings
-                        .personalCalendarIdMasked ?? ""
+                      settingsQuery.data?.personalSettings?.personalCalendarIdMasked ?? ""
                     }
                     onChange={e => setPersonalCalendarId(e.target.value)}
                   />
@@ -419,7 +418,7 @@ export default function GoogleCalendarIntegration() {
                   <Switch
                     checked={
                       contactDisplayConsent ||
-                      settingsQuery.data?.personalSettings.contactDisplayConsent
+                      Boolean(settingsQuery.data?.personalSettings?.contactDisplayConsent)
                     }
                     onCheckedChange={setContactDisplayConsent}
                   />

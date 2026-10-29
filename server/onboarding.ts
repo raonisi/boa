@@ -13,6 +13,7 @@ import {
   createOnboardingItemProgressRows,
   createOnboardingTemplate,
   ensureDefaultOnboardingTemplates,
+  getAllUsers,
   getOnboardingAssignmentById,
   getOnboardingAssignments,
   getOnboardingItemProgressByAssignment,
@@ -26,7 +27,7 @@ import {
   updateOnboardingTemplate,
   upsertOnboardingTemplateItem,
 } from "./db";
-import { getHierarchyScopeUserIds } from "./routers";
+import { getHierarchyScopeUserIds } from "./organizationScope";
 
 const ROLE_VALUES = [
   "branch_admin",
@@ -355,6 +356,29 @@ export const onboardingTemplatesRouter = router({
 });
 
 export const onboardingAssignmentsRouter = router({
+  assignmentCandidates: teamLeaderOrAboveProcedure.query(async ({ ctx }) => {
+    const allowedIds =
+      ctx.user.role === "branch_admin"
+        ? undefined
+        : new Set((await getHierarchyScopeUserIds(ctx.user)) ?? []);
+    const users = await getAllUsers();
+    return users
+      .filter(
+        user =>
+          user.accountStatus === "active" &&
+          (allowedIds === undefined || allowedIds.has(user.id)) &&
+          (ctx.user.role !== "team_leader" || user.role === "member")
+      )
+      .map(user => ({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        accountStatus: user.accountStatus,
+        teamId: user.teamId,
+        subBranchAdminId: user.subBranchAdminId,
+      }));
+  }),
+
   assign: teamLeaderOrAboveProcedure
     .input(
       z.object({

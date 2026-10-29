@@ -503,6 +503,33 @@ const downloadPreview = {
 };
 
 const defaults: Record<string, unknown> = {
+  "googleCalendar.getSettings": {
+    canManage: true,
+    oauthConnected: true,
+    syncRawTitleToGoogleCalendar: false,
+    includeCustomerContactForActorCalendar: false,
+    integrations: [
+      {
+        id: 1,
+        calendarType: "branch_common",
+        googleCalendarId: "c_branch_common@group.calendar.google.com",
+        syncActive: true,
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      },
+    ],
+    personalSettings: {
+      personalCalendarIdMasked: "e2e***@gmail.com",
+      contactDisplayConsent: true,
+    },
+  },
+  "googleCalendar.listSyncStatus": [],
+  "googleCalendar.listFailedSyncs": [],
+  "googleCalendar.getOAuthConnectUrl": {
+    url: "https://accounts.google.com/o/oauth2/v2/auth?mock=1",
+  },
+  "googleCalendar.getResyncHistory": [],
+  "googleCalendar.previewSafeEventPayload": null,
   "auth.me": userFor("branch_admin"),
   "notifications.unreadCount": 1,
   "notifications.myUnreadCount": 1,
@@ -576,6 +603,7 @@ const defaults: Record<string, unknown> = {
     },
   ],
   "users.list": users,
+  "onboardingAssignments.assignmentCandidates": users,
   "settings.formOptions": [],
   "consultations.list": [
     {
@@ -863,6 +891,13 @@ const outOfScopeCustomer = {
 function responseFor(procedure: string, role: Role, options?: MockOptions) {
   if (procedure === "auth.me") return userFor(role, options);
   if (procedure === "customers.list") return [customer, contractedCustomer];
+  if (procedure === "googleCalendar.getSettings") {
+    const base = defaults["googleCalendar.getSettings"] as Record<string, unknown>;
+    return {
+      ...base,
+      canManage: role === "branch_admin",
+    };
+  }
   return defaults[procedure] ?? null;
 }
 

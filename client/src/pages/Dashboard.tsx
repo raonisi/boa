@@ -33,7 +33,7 @@ type AdminAttentionItem = {
   onRetry: () => void;
 };
 
-function AdminAttentionSection({ role }: { role?: string | null }) {
+export function AdminAttentionSection({ role }: { role?: string | null }) {
   const [, setLocation] = useLocation();
   const enabled = role === "branch_admin";
   const scheduleRequests = trpc.scheduleChangeRequests.summary.useQuery(
@@ -69,7 +69,7 @@ function AdminAttentionSection({ role }: { role?: string | null }) {
       title: "계약 삭제 승인",
       description: "처리 대기 중인 계약 요청",
       value: contractDeleteRequests.data?.length ?? 0,
-      path: "/contracts",
+      path: "/deleted-data",
       icon: FileClock,
       isLoading: contractDeleteRequests.isLoading,
       isError: contractDeleteRequests.isError,
