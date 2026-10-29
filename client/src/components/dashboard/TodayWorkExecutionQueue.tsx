@@ -105,19 +105,19 @@ export function TodayWorkExecutionQueue({
 
   return (
     <Card
-      className={cn("crm-dashboard-card", className)}
+      className={cn("crm-dashboard-card py-0 gap-0 sm:py-4 sm:gap-4", className)}
       data-testid="dashboard-mobile-followup-queue"
     >
-      <CardHeader className="flex-col items-stretch gap-3 border-b border-border/70 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <CardHeader className="flex-col items-stretch gap-1.5 border-b border-border/70 p-2 pb-1.5 sm:gap-3 sm:p-6 sm:pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div>
-          <CardTitle className="text-base font-semibold tracking-tight">
+          <CardTitle className="text-sm font-semibold tracking-tight sm:text-base">
             {compact ? "먼저 처리할 일" : "오늘 업무 실행"}
           </CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className="hidden text-xs text-muted-foreground sm:mt-1 sm:block">
             일정·후속관리·알림을 우선순위대로 정리했습니다.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-1.5">
+        <div className="flex overflow-x-auto gap-1.5 py-0.5 no-scrollbar sm:flex-wrap sm:py-0">
           {(Object.keys(FILTER_LABELS) as TodayWorkQueueFilter[]).map(key => (
             <button
               key={key}
@@ -126,7 +126,7 @@ export function TodayWorkExecutionQueue({
               aria-pressed={filter === key}
               onClick={() => onFilterChange(key)}
               className={cn(
-                "min-h-11 rounded-full border px-3 py-2 text-xs font-semibold transition-colors sm:min-h-9 sm:py-1.5",
+                "min-h-11 shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:min-h-9 sm:py-1.5",
                 filter === key
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-muted/30 text-muted-foreground"
@@ -138,35 +138,47 @@ export function TodayWorkExecutionQueue({
         </div>
         {!isLoading && !isError ? (
           <div
-            className="grid grid-cols-1 gap-2 rounded-xl border border-border/70 bg-muted/20 p-2 min-[380px]:grid-cols-3 sm:hidden"
+            className="grid grid-cols-3 gap-1 rounded-lg border border-border/70 bg-muted/20 p-1 sm:hidden"
             data-testid="mobile-followup-summary"
           >
             <button
               type="button"
-              className="min-h-11 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-left text-xs font-semibold text-amber-900"
+              className="flex min-h-11 flex-col items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-1 py-0.5 text-center font-medium transition-colors hover:bg-amber-100/70"
               data-testid="mobile-followup-pending-chip"
               onClick={() => onFilterChange("followup")}
+              title={`미처리 후속 ${counts.followup}건`}
             >
-              미처리 후속 {counts.followup}건
+              <span className="text-[10px] leading-tight text-amber-800">미처리 후속{' '}</span>
+              <span className="text-xs font-bold leading-tight tabular-nums text-amber-950">
+                {counts.followup}건
+              </span>
             </button>
             <button
               type="button"
-              className="min-h-11 rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-xs font-semibold text-blue-900"
+              className="flex min-h-11 flex-col items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-1 py-0.5 text-center font-medium transition-colors hover:bg-blue-100/70"
               data-testid="mobile-followup-today-chip"
               onClick={() => onFilterChange("schedule")}
+              title={`오늘 예정 ${counts.schedule}건`}
             >
-              오늘 예정 {counts.schedule}건
+              <span className="text-[10px] leading-tight text-blue-800">오늘 예정{' '}</span>
+              <span className="text-xs font-bold leading-tight tabular-nums text-blue-950">
+                {counts.schedule}건
+              </span>
             </button>
             <span
-              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+              className="flex min-h-11 flex-col items-center justify-center rounded-lg border border-slate-200 bg-white px-1 py-0.5 text-center font-medium"
               data-testid="mobile-followup-recent-chip"
+              title={`최근 후속 ${counts.followup > 0 ? "확인 필요" : "없음"}`}
             >
-              최근 후속 {counts.followup > 0 ? "확인 필요" : "없음"}
+              <span className="text-[10px] leading-tight text-slate-600">최근 후속{' '}</span>
+              <span className="text-xs font-bold leading-tight text-slate-800">
+                {counts.followup > 0 ? "확인 필요" : "없음"}
+              </span>
             </span>
           </div>
         ) : null}
       </CardHeader>
-      <CardContent className="space-y-2 px-4 pb-5 sm:px-5">
+      <CardContent className="space-y-2 p-2 pb-3 sm:p-6 sm:px-5 sm:pb-5">
         {isLoading ? (
           <div className="space-y-2">
             {[0, 1, 2].map(index => (
@@ -211,7 +223,7 @@ export function TodayWorkExecutionQueue({
                     ? "mobile-followup-workflow-card"
                     : undefined
                 }
-                className="crm-dashboard-card rounded-xl border border-border/80 p-3 shadow-sm sm:p-4"
+                className="crm-dashboard-card rounded-xl border border-border/80 p-2 shadow-sm sm:p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -222,14 +234,14 @@ export function TodayWorkExecutionQueue({
                       <button
                         type="button"
                         onClick={() => onSelectItem(item)}
-                        className="line-clamp-2 text-left text-sm font-semibold leading-5 text-foreground hover:underline"
+                        className="line-clamp-2 text-left text-sm font-semibold leading-tight text-foreground hover:underline"
                       >
                         {item.title}
                       </button>
-                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted-foreground">
+                      <p className="mt-0.5 line-clamp-1 text-xs leading-tight text-muted-foreground sm:mt-1 sm:line-clamp-2">
                         {item.description}
                       </p>
-                      <p className="mt-1 text-xs text-muted-foreground">
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
                         {formatDueLabel(item)}
                       </p>
                     </div>
@@ -243,7 +255,7 @@ export function TodayWorkExecutionQueue({
                     {item.priorityLabel}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+                <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:mt-3 sm:flex sm:flex-wrap sm:gap-2">
                   <Button
                     type="button"
                     size="sm"

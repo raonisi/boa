@@ -129,6 +129,29 @@ describe("roleOperationalDashboard", () => {
     expect(getDashboardQuickActionsForRole("resigned")).toEqual([]);
   });
 
+  it("routes branch_admin contract-approvals quick action to /deleted-data", () => {
+    const branchActions = getDashboardQuickActionsForRole("branch_admin");
+    const contractAction = branchActions.find(
+      action => action.id === "contract-approvals"
+    );
+    expect(contractAction).toBeDefined();
+    expect(contractAction?.path).toBe("/deleted-data");
+    expect(contractAction?.label).toBe("계약 요청");
+    expect(contractAction?.hint).toBe("삭제 요청 검토");
+
+    for (const role of [
+      "sub_branch_admin",
+      "team_leader",
+      "member",
+      "inactive",
+      "resigned",
+    ] as const) {
+      const actions = getDashboardQuickActionsForRole(role);
+      expect(actions.some(a => a.id === "contract-approvals")).toBe(false);
+      expect(actions.some(a => a.path === "/deleted-data")).toBe(false);
+    }
+  });
+
   it("ranks team support assignees by open work without exposing zero-work users", () => {
     const assignees = pickTeamSupportAssignees([
       {

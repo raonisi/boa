@@ -397,40 +397,42 @@ export function TodayWorkSection({
     : "";
 
   return (
-    <section className="space-y-5" aria-labelledby="dashboard-cockpit-title">
+    <section className="space-y-2 sm:space-y-5" aria-labelledby="dashboard-cockpit-title">
       <Card
-        className="crm-dashboard-card overflow-hidden border-primary/15"
+        className="crm-dashboard-card overflow-hidden border-primary/15 py-0 gap-0 sm:py-4 sm:gap-4"
         data-testid="dashboard-action-cockpit"
       >
         <div className="crm-masthead-rule" />
-        <CardContent className="space-y-4 p-4 sm:p-5">
-          <div className="grid gap-4 lg:grid-cols-[0.9fr_1.35fr] lg:items-end">
+        <CardContent className="space-y-2 p-2 sm:space-y-4 sm:p-5">
+          <div className="grid gap-2 sm:gap-4 lg:grid-cols-[0.9fr_1.35fr] lg:items-end">
             <div>
-              <Badge
-                variant="outline"
-                className="border-sidebar-primary/45 bg-sidebar-primary/10 font-semibold text-foreground"
-              >
-                오늘 업무 · {roleTitle}
-              </Badge>
-              <h1
-                id="dashboard-cockpit-title"
-                className="mt-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl"
-              >
-                {userName ?? "담당자"}님, 다음 행동부터 시작하세요.
-              </h1>
-              <p className="mt-1 text-sm leading-5 text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-1.5 sm:block">
+                <Badge
+                  variant="outline"
+                  className="border-sidebar-primary/45 bg-sidebar-primary/10 px-2 py-0.5 text-[11px] font-semibold text-foreground sm:text-xs"
+                >
+                  오늘 업무 · {roleTitle}
+                </Badge>
+                <h1
+                  id="dashboard-cockpit-title"
+                  className="mt-0.5 text-base font-bold tracking-tight leading-tight text-foreground sm:mt-2 sm:text-2xl"
+                >
+                  {userName ?? "담당자"}님, 다음 행동부터 시작하세요.
+                </h1>
+              </div>
+              <p className="hidden text-xs leading-5 text-muted-foreground sm:mt-1 sm:block sm:text-sm">
                 {rolePriorityText}
               </p>
             </div>
 
             <div data-testid="dashboard-priority-actions">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="hidden mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:block sm:mb-2 sm:text-xs">
                 오늘의 우선 행동
               </p>
               {isLoading ? (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-live="polite">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2" aria-live="polite">
                   {[0, 1, 2].map(item => (
-                    <div key={item} className="h-16 animate-pulse rounded-lg bg-muted" />
+                    <div key={item} className="h-11 sm:h-16 animate-pulse rounded-lg bg-muted" />
                   ))}
                 </div>
               ) : isError ? (
@@ -443,36 +445,36 @@ export function TodayWorkSection({
                   className="py-3"
                 />
               ) : priorityWorkItems.length === 0 ? (
-                <div className="flex min-h-16 items-center justify-between gap-3 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-2">
-                  <p className="text-sm text-muted-foreground">
+                <div className="flex min-h-11 sm:min-h-16 items-center justify-between gap-3 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-1.5 sm:py-2">
+                  <p className="text-xs sm:text-sm text-muted-foreground">
                     지금 바로 처리할 지연 업무가 없습니다.
                   </p>
                   <Button
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="min-h-10 shrink-0"
+                    className="min-h-9 sm:min-h-10 shrink-0"
                     onClick={() => setLocation("/calendar?action=quick-create")}
                   >
                     일정 등록
                   </Button>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 sm:gap-2">
                   {priorityWorkItems.map((item, index) => (
                     <button
                       key={item.label}
                       type="button"
                       onClick={() => setLocation(item.path)}
-                      className={`crm-dashboard-action min-h-16 rounded-lg border p-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 2 ? "hidden sm:block" : ""} ${item.tone}`}
+                      className={`crm-dashboard-action min-h-11 sm:min-h-16 rounded-lg border px-2 py-1 sm:p-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 2 ? "hidden sm:block" : ""} ${item.tone}`}
                       aria-label={`${item.label} ${item.value}건, ${item.helper}`}
                     >
-                      <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center justify-between gap-1 sm:items-start sm:gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold">{item.label}</p>
-                          <p className="mt-1 truncate text-xs opacity-80">{item.helper}</p>
+                          <p className="hidden mt-1 truncate text-xs opacity-80 sm:block">{item.helper}</p>
                         </div>
-                        <span className="shrink-0 text-xl font-bold tabular-nums tracking-tight">
+                        <span className="shrink-0 text-base font-bold tabular-nums tracking-tight sm:text-xl">
                           {item.value}
                         </span>
                       </div>
@@ -483,16 +485,16 @@ export function TodayWorkSection({
             </div>
           </div>
 
-          <div className="border-t border-border/70 pt-3" data-testid="dashboard-quick-actions">
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <div className="border-t border-border/70 pt-1.5 sm:pt-3" data-testid="dashboard-quick-actions">
+            <div className="mb-1 flex items-center justify-between gap-3 sm:mb-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
                 빠른 실행
               </p>
               <p className="hidden text-xs text-muted-foreground sm:block">
                 {scopeLabel} 권한에 맞는 기능만 표시됩니다.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 sm:gap-2">
               {quickActions.map((action, index) => {
                 const Icon = quickActionIcons[action.icon];
                 return (
@@ -500,18 +502,18 @@ export function TodayWorkSection({
                     key={action.id}
                     type="button"
                     onClick={() => setLocation(action.path)}
-                    className={`crm-dashboard-action min-h-14 items-center gap-2 rounded-lg border border-border/80 bg-card px-3 py-2 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 4 ? "hidden sm:flex" : "flex"}`}
+                    className={`crm-dashboard-action min-h-11 sm:min-h-14 flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1 sm:gap-2 rounded-lg border border-border/80 bg-card p-1 sm:px-3 sm:py-2 text-center sm:text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 4 ? "hidden sm:flex" : "flex"}`}
                     aria-label={`${action.label}: ${action.hint}`}
                     data-testid={`dashboard-quick-action-${action.id}`}
                   >
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/40">
-                      <Icon className="h-4 w-4" aria-hidden="true" />
+                    <span className="flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-md sm:rounded-lg border border-border bg-muted/40">
+                      <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
                     </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-foreground">
+                    <span className="min-w-0 w-full sm:w-auto">
+                      <span className="block truncate text-[11px] font-semibold text-foreground sm:text-sm">
                         {action.label}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="hidden truncate text-xs text-muted-foreground sm:block">
                         {action.hint}
                       </span>
                     </span>
@@ -521,24 +523,24 @@ export function TodayWorkSection({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 md:hidden" data-testid="dashboard-mobile-kpis">
+          <div className="grid grid-cols-2 gap-1.5 md:hidden" data-testid="dashboard-mobile-kpis">
             {kpiItems.slice(0, 2).map(item => (
               <button
                 key={item.id}
                 type="button"
-                className="min-h-16 rounded-lg border border-border/80 bg-muted/20 px-3 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="flex min-h-11 items-center justify-between rounded-lg border border-border/80 bg-muted/20 px-2 py-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 onClick={() => setLocation(item.path)}
                 aria-label={`${item.title} ${item.value ?? 0}건 보기`}
               >
-                <p className="truncate text-xs text-muted-foreground">{item.title}</p>
-                <p className="mt-1 text-lg font-bold tabular-nums tracking-tight text-foreground">
+                <span className="truncate text-xs text-muted-foreground">{item.title}</span>
+                <span className="shrink-0 text-base font-bold tabular-nums tracking-tight text-foreground">
                   {item.isLoading || item.isError
                     ? renderMetricValue(0, {
                         isLoading: item.isLoading,
                         isError: item.isError,
                       })
                     : (item.value ?? 0)}
-                </p>
+                </span>
               </button>
             ))}
           </div>

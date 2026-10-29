@@ -212,7 +212,11 @@ export default defineConfig(({ mode }) => {
         output: {
           manualChunks(id) {
             if (!id.includes("node_modules")) return undefined;
-            if (id.includes("react") || id.includes("react-dom"))
+            if (
+              id.includes("react") ||
+              id.includes("react-dom") ||
+              id.includes("wouter")
+            )
               return "vendor-react";
             if (
               id.includes("@radix-ui") ||

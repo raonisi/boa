@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import DashboardLayout from "@/components/DashboardLayout";
+import UserSearchSelect from "@/components/onboarding/UserSearchSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -68,6 +69,44 @@ export default function OnboardingDashboard() {
   const mineQuery = trpc.onboardingAssignments.getMine.useQuery(undefined, {
     enabled: !!user,
   });
+  const usersQuery = trpc.users.list.useQuery(
+    { activeOnly: true },
+    { enabled: !!isManager }
+  );
+
+  const activeUsers = useMemo(
+    () =>
+      (usersQuery.data ?? []).filter(
+        (u: any) => u && u.accountStatus === "active"
+      ),
+    [usersQuery.data]
+  );
+
+  const targetUserCandidates = useMemo(() => {
+    if (user?.role === "team_leader") {
+      return activeUsers.filter((u: any) => u.role === "member");
+    }
+    return activeUsers;
+  }, [user?.role, activeUsers]);
+
+  const trainerUserCandidates = useMemo(() => {
+    if (user?.role === "team_leader") {
+      return activeUsers.filter((u: any) => u.role === "member");
+    }
+    return activeUsers;
+  }, [user?.role, activeUsers]);
+
+  const isValidTarget = useMemo(
+    () => targetUserCandidates.some((u: any) => String(u.id) === targetUserId),
+    [targetUserCandidates, targetUserId]
+  );
+
+  const isValidTrainer = useMemo(
+    () =>
+      !trainerUserId ||
+      trainerUserCandidates.some((u: any) => String(u.id) === trainerUserId),
+    [trainerUserCandidates, trainerUserId]
+  );
 
   const seedDefaultsMutation =
     trpc.onboardingTemplates.seedDefaults.useMutation({
@@ -84,6 +123,8 @@ export default function OnboardingDashboard() {
   const assignMutation = trpc.onboardingAssignments.assign.useMutation({
     onSuccess: async () => {
       toast.success("온보딩 체크리스트 배정을 완료했습니다.");
+      setTargetUserId("");
+      setTrainerUserId("");
       await Promise.all([
         assignmentsQuery.refetch(),
         mineQuery.refetch(),
@@ -95,6 +136,13 @@ export default function OnboardingDashboard() {
         getUserFacingErrorMessage(error, USER_FACING_ERRORS.saveFailed)
       ),
   });
+
+  const canAssign = Boolean(
+    isValidTarget &&
+      templateId &&
+      isValidTrainer &&
+      !assignMutation.isPending
+  );
 
   const updateItemMutation =
     trpc.onboardingAssignments.updateItemProgress.useMutation({
@@ -196,8 +244,8 @@ export default function OnboardingDashboard() {
               </Card>
               <Card>
                 <CardContent className="pt-5">
-                  <p className="text-xs text-muted-foreground">지연</p>
-                  <p className="text-xl font-bold text-amber-600">
+                  <p className="text-xs text-muted-foreground">기한 초과</p>
+                  <p className="text-xl font-bold text-destructive">
                     {summaryQuery.data?.overdue ?? 0}
                   </p>
                 </CardContent>
@@ -205,7 +253,7 @@ export default function OnboardingDashboard() {
               <Card>
                 <CardContent className="pt-5">
                   <p className="text-xs text-muted-foreground">승인 대기</p>
-                  <p className="text-xl font-bold">
+                  <p className="text-xl font-bold text-amber-600">
                     {summaryQuery.data?.approvalPending ?? 0}
                   </p>
                 </CardContent>
@@ -224,23 +272,32 @@ export default function OnboardingDashboard() {
               <CardHeader>
                 <CardTitle>체크리스트 배정</CardTitle>
                 <CardDescription>
-                  대상 사용자 ID를 입력해 템플릿을 배정합니다.
+                  대상 직원을 선택해 템플릿을 배정합니다.
                   inactive/resigned는 배정할 수 없습니다.
                 </CardDescription>
               </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-5">
-                <div>
-                  <Label>대상 직원 ID</Label>
-                  <Input
+              <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 min-w-0">
+                <div className="min-w-0 space-y-1.5">
+                  <Label>대상 직원</Label>
+                  <UserSearchSelect
+                    label="대상 직원"
                     value={targetUserId}
-                    onChange={e => setTargetUserId(e.target.value)}
-                    placeholder="예: 101"
+                    onChange={setTargetUserId}
+                    users={targetUserCandidates}
+                    isLoading={usersQuery.isLoading}
+                    isError={usersQuery.isError}
+                    onRetry={() => usersQuery.refetch()}
+                    placeholder="대상 직원 선택"
+                    searchPlaceholder="이름으로 직원 검색..."
+                    emptyMessage="배정 가능한 직원이 없습니다."
+                    testIdPrefix="target-user"
+                    disabled={assignMutation.isPending}
                   />
                 </div>
-                <div>
+                <div className="min-w-0 space-y-1.5">
                   <Label>템플릿</Label>
                   <Select value={templateId} onValueChange={setTemplateId}>
-                    <SelectTrigger>
+                    <SelectTrigger data-testid="template-select-trigger" className="w-full max-w-full min-w-0">
                       <SelectValue placeholder="템플릿 선택" />
                     </SelectTrigger>
                     <SelectContent>
@@ -248,6 +305,7 @@ export default function OnboardingDashboard() {
                         <SelectItem
                           key={template.id}
                           value={String(template.id)}
+                          data-testid={`template-option-${template.id}`}
                         >
                           {template.name}
                         </SelectItem>
@@ -255,38 +313,52 @@ export default function OnboardingDashboard() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div>
-                  <Label>교육자 ID</Label>
-                  <Input
+                <div className="min-w-0 space-y-1.5">
+                  <Label>교육자 (선택)</Label>
+                  <UserSearchSelect
+                    label="교육자"
                     value={trainerUserId}
-                    onChange={e => setTrainerUserId(e.target.value)}
-                    placeholder="선택"
+                    onChange={setTrainerUserId}
+                    users={trainerUserCandidates}
+                    isLoading={usersQuery.isLoading}
+                    isError={usersQuery.isError}
+                    onRetry={() => usersQuery.refetch()}
+                    placeholder="선택 (선택사항)"
+                    searchPlaceholder="이름으로 교육자 검색..."
+                    emptyMessage="선택 가능한 교육자가 없습니다."
+                    optional
+                    testIdPrefix="trainer-user"
+                    disabled={assignMutation.isPending}
                   />
                 </div>
-                <div>
+                <div className="min-w-0 space-y-1.5">
                   <Label>시작일</Label>
                   <Input
                     type="date"
                     value={startedAt}
                     onChange={e => setStartedAt(e.target.value)}
+                    data-testid="onboarding-started-at"
+                    className="w-full max-w-full min-w-0"
                   />
                 </div>
-                <div>
+                <div className="min-w-0 space-y-1.5">
                   <Label>목표 완료일</Label>
                   <Input
                     type="date"
                     value={dueAt}
                     onChange={e => setDueAt(e.target.value)}
+                    data-testid="onboarding-due-at"
+                    className="w-full max-w-full min-w-0"
                   />
                 </div>
               </CardContent>
               <CardContent>
                 <Button
                   className="min-h-10"
-                  disabled={
-                    !targetUserId || !templateId || assignMutation.isPending
-                  }
-                  onClick={() =>
+                  disabled={!canAssign}
+                  data-testid="assign-onboarding-btn"
+                  onClick={() => {
+                    if (!canAssign) return;
                     assignMutation.mutate({
                       targetUserId: Number(targetUserId),
                       templateId: Number(templateId),
@@ -295,10 +367,17 @@ export default function OnboardingDashboard() {
                         : undefined,
                       startedAt: new Date(startedAt).toISOString(),
                       dueAt: new Date(dueAt).toISOString(),
-                    })
-                  }
+                    });
+                  }}
                 >
-                  체크리스트 배정
+                  {assignMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      배정 중...
+                    </>
+                  ) : (
+                    "체크리스트 배정"
+                  )}
                 </Button>
               </CardContent>
             </Card>
