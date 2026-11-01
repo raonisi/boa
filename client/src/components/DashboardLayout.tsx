@@ -409,7 +409,7 @@ function DashboardLayoutContent({
           id="main-content"
           ref={mainContentRef}
           tabIndex={-1}
-          className="boa-page min-h-[calc(100vh-4rem)] flex-1 scroll-mt-16 p-3 pb-24 outline-none sm:p-4 sm:pb-20 md:p-7 md:pb-7"
+          className="boa-page min-h-[calc(100vh-4rem)] flex-1 scroll-mt-16 p-3 pb-24 outline-none sm:p-4 sm:pb-20 md:p-5 md:pb-6 lg:p-7 lg:pb-7"
         >
           {children}
         </main>

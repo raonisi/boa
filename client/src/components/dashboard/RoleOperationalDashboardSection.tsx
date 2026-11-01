@@ -86,7 +86,7 @@ export function RoleOperationalDashboardSection({
               className="border-0 bg-transparent"
             />
           ) : isLoading ? (
-            <div className="grid gap-2 sm:grid-cols-3" aria-live="polite">
+            <div className="grid gap-2 grid-cols-1 min-[500px]:grid-cols-2 lg:grid-cols-3" aria-live="polite">
               {[0, 1, 2].map(item => (
                 <div key={item} className="h-24 animate-pulse rounded-lg bg-muted" />
               ))}
@@ -96,13 +96,13 @@ export function RoleOperationalDashboardSection({
               {scopeLabel} 범위에서 즉시 지원이 필요한 담당자가 없습니다.
             </p>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-3">
-              {supportAssignees.map(assignee => (
+            <div className="grid gap-2 grid-cols-1 min-[500px]:grid-cols-2 lg:grid-cols-3">
+              {supportAssignees.map((assignee, index) => (
                 <button
                   key={assignee.userId}
                   type="button"
                   onClick={() => setLocation("/team-insights")}
-                  className="crm-dashboard-action min-h-24 rounded-lg border border-border/80 bg-card p-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  className={`crm-dashboard-action min-h-24 rounded-lg border border-border/80 bg-card p-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 2 ? "min-[500px]:col-span-2 lg:col-span-1" : "col-span-1"}`}
                   aria-label={`${assignee.name} 담당자 지원 업무 ${assignee.openWorkCount}건 보기`}
                 >
                   <div className="flex items-start justify-between gap-2">

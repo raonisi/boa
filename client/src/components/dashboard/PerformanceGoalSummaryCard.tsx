@@ -47,7 +47,7 @@ export function PerformanceGoalSummaryCard() {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2 text-sm min-[600px]:grid-cols-4 sm:gap-3">
             <div className="boa-soft-card crm-dashboard-action p-3">
               <p className="text-xs text-muted-foreground">신규 계약 달성률</p>
               <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">
