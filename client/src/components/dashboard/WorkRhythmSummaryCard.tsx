@@ -31,7 +31,7 @@ export function WorkRhythmSummaryCard() {
         </button>
       </CardHeader>
       <CardContent className="space-y-3 px-5 pb-5">
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 min-[600px]:grid-cols-4">
           <div className="boa-soft-card crm-dashboard-action p-3">
             <p className="text-xs text-muted-foreground">이번 주 상담기록</p>
             <p className="mt-1 text-xl font-bold tabular-nums tracking-tight">
@@ -60,7 +60,7 @@ export function WorkRhythmSummaryCard() {
             </p>
           </div>
         </div>
-        <div className="grid gap-2 text-xs md:grid-cols-3">
+        <div className="grid gap-2 text-xs grid-cols-1 min-[500px]:grid-cols-3">
           <div className="crm-dashboard-action rounded-lg border border-border bg-card p-3 shadow-sm">
             <p className="text-muted-foreground">목표까지 부족 신규 계약</p>
             <p className="mt-1 font-bold tabular-nums tracking-tight text-foreground">

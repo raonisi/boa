@@ -108,11 +108,14 @@ export function AdminAttentionSection({ role }: { role?: string | null }) {
           지점장 승인이 필요한 업무와 운영 위험만 모았습니다.
         </p>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        {items.map(item => {
+      <div className="grid gap-3 grid-cols-1 min-[540px]:grid-cols-2 lg:grid-cols-3">
+        {items.map((item, index) => {
           const Icon = item.icon;
           return (
-            <Card key={item.id} className="crm-dashboard-card">
+            <Card
+              key={item.id}
+              className={`crm-dashboard-card ${index === 2 ? "min-[540px]:col-span-2 lg:col-span-1" : "col-span-1"}`}
+            >
               <CardContent className="flex min-h-32 flex-col justify-between gap-3 p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">

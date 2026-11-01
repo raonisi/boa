@@ -485,7 +485,7 @@ export function TodayWorkSection({
             </div>
           </div>
 
-          <div className="border-t border-border/70 pt-1.5 sm:pt-3" data-testid="dashboard-quick-actions">
+          <div className="border-t border-border/70 pt-1.5 sm:pt-3" data-testid="dashboard-quick-actions" style={{ containerType: "inline-size", containerName: "dashboard-quick" }}>
             <div className="mb-1 flex items-center justify-between gap-3 sm:mb-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
                 빠른 실행
@@ -494,7 +494,7 @@ export function TodayWorkSection({
                 {scopeLabel} 권한에 맞는 기능만 표시됩니다.
               </p>
             </div>
-            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 sm:gap-2">
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-5 md:grid-cols-3 lg:grid-cols-5 sm:gap-2">
               {quickActions.map((action, index) => {
                 const Icon = quickActionIcons[action.icon];
                 return (
@@ -502,18 +502,18 @@ export function TodayWorkSection({
                     key={action.id}
                     type="button"
                     onClick={() => setLocation(action.path)}
-                    className={`crm-dashboard-action min-h-11 sm:min-h-14 flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1 sm:gap-2 rounded-lg border border-border/80 bg-card p-1 sm:px-3 sm:py-2 text-center sm:text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 4 ? "hidden sm:flex" : "flex"}`}
+                    className={`crm-dashboard-action min-h-11 sm:min-h-14 flex flex-col sm:flex-col md:flex-row lg:flex-col xl:flex-row items-center justify-center sm:justify-center md:justify-start lg:justify-center xl:justify-start gap-1 sm:gap-0.5 md:gap-2 lg:gap-1 xl:gap-2 rounded-lg border border-border/80 bg-card p-1 sm:px-2 sm:py-1.5 md:px-3 md:py-2 lg:p-2 xl:px-3 xl:py-2 text-center sm:text-center md:text-left lg:text-center xl:text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 4 ? "hidden sm:flex" : "flex"}`}
                     aria-label={`${action.label}: ${action.hint}`}
                     data-testid={`dashboard-quick-action-${action.id}`}
                   >
-                    <span className="flex h-6 w-6 sm:h-8 sm:w-8 shrink-0 items-center justify-center rounded-md sm:rounded-lg border border-border bg-muted/40">
+                    <span className="flex h-6 w-6 sm:h-6 sm:w-6 md:h-8 md:w-8 lg:h-7 lg:w-7 xl:h-8 xl:w-8 shrink-0 items-center justify-center rounded-md sm:rounded-lg border border-border bg-muted/40">
                       <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
                     </span>
-                    <span className="min-w-0 w-full sm:w-auto">
-                      <span className="block truncate text-[11px] font-semibold text-foreground sm:text-sm">
+                    <span className="min-w-0 w-full sm:w-full md:w-auto lg:w-full xl:w-auto">
+                      <span className="block truncate text-[11px] font-semibold text-foreground sm:text-xs md:text-sm lg:text-xs xl:text-sm">
                         {action.label}
                       </span>
-                      <span className="hidden truncate text-xs text-muted-foreground sm:block">
+                      <span className="hidden truncate text-xs text-muted-foreground xl:block">
                         {action.hint}
                       </span>
                     </span>
@@ -547,13 +547,49 @@ export function TodayWorkSection({
         </CardContent>
       </Card>
 
+      <style>{`
+        @media (min-width: 768px) {
+          [data-testid="dashboard-core-kpis"] {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          [data-testid="dashboard-core-kpis"] > *:nth-child(5) {
+            grid-column: span 2 / span 2 !important;
+          }
+        }
+        @media (min-width: 900px) {
+          [data-testid="dashboard-core-kpis"] {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+          [data-testid="dashboard-core-kpis"] > *:nth-child(5) {
+            grid-column: span 1 / span 1 !important;
+          }
+        }
+        @media (min-width: 1280px) {
+          [data-testid="dashboard-core-kpis"] {
+            grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+          }
+          [data-testid="dashboard-core-kpis"] > *:nth-child(5) {
+            grid-column: span 1 / span 1 !important;
+          }
+        }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          @container dashboard-quick (max-width: 420px) {
+            [data-testid="dashboard-quick-actions"] > .grid {
+              grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+          }
+        }
+      `}</style>
+
       <div
-        className="hidden gap-3 md:grid md:grid-cols-3 xl:grid-cols-5"
+        className="hidden gap-3 md:grid"
         data-testid="dashboard-core-kpis"
       >
         {kpiItems.map(item => (
           <PremiumStatCard
             key={item.id}
+            className="col-span-1"
             title={item.title}
             value={item.value}
             icon={item.icon}
