@@ -105,19 +105,19 @@ export function TodayWorkExecutionQueue({
 
   return (
     <Card
-      className={cn("crm-dashboard-card py-0 gap-0 sm:py-4 sm:gap-4", className)}
+      className={cn("crm-dashboard-card py-0 gap-0 md:py-4 md:gap-4", className)}
       data-testid="dashboard-mobile-followup-queue"
     >
-      <CardHeader className="flex-col items-stretch gap-1.5 border-b border-border/70 p-2 pb-1.5 sm:gap-3 sm:p-6 sm:pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+      <CardHeader className="flex-col items-stretch gap-1.5 border-b border-border/70 p-2 pb-1.5 md:gap-3 md:p-6 md:pb-3 md:flex-row md:flex-wrap md:items-center md:justify-between">
         <div>
           <CardTitle className="text-sm font-semibold tracking-tight sm:text-base">
             {compact ? "먼저 처리할 일" : "오늘 업무 실행"}
           </CardTitle>
-          <p className="hidden text-xs text-muted-foreground sm:mt-1 sm:block">
+          <p className="hidden text-xs text-muted-foreground md:mt-1 md:block">
             일정·후속관리·알림을 우선순위대로 정리했습니다.
           </p>
         </div>
-        <div className="flex overflow-x-auto gap-1.5 py-0.5 no-scrollbar sm:flex-wrap sm:py-0">
+        <div className="flex overflow-x-auto gap-1.5 py-0.5 no-scrollbar md:flex-wrap md:py-0">
           {(Object.keys(FILTER_LABELS) as TodayWorkQueueFilter[]).map(key => (
             <button
               key={key}
@@ -126,7 +126,7 @@ export function TodayWorkExecutionQueue({
               aria-pressed={filter === key}
               onClick={() => onFilterChange(key)}
               className={cn(
-                "min-h-11 shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors sm:min-h-9 sm:py-1.5",
+                "min-h-11 shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors md:min-h-9 md:py-1.5",
                 filter === key
                   ? "border-primary bg-primary/10 text-primary"
                   : "border-border bg-muted/30 text-muted-foreground"
@@ -178,7 +178,7 @@ export function TodayWorkExecutionQueue({
           </div>
         ) : null}
       </CardHeader>
-      <CardContent className="space-y-2 p-2 pb-3 sm:p-6 sm:px-5 sm:pb-5">
+      <CardContent className="space-y-2 p-2 pb-3 md:p-6 md:px-5 md:pb-5">
         {isLoading ? (
           <div className="space-y-2">
             {[0, 1, 2].map(index => (
@@ -223,7 +223,7 @@ export function TodayWorkExecutionQueue({
                     ? "mobile-followup-workflow-card"
                     : undefined
                 }
-                className="crm-dashboard-card rounded-xl border border-border/80 p-2 shadow-sm sm:p-4"
+                className="crm-dashboard-card rounded-xl border border-border/80 p-2 shadow-sm md:p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="flex min-w-0 flex-1 items-start gap-2">
@@ -238,7 +238,7 @@ export function TodayWorkExecutionQueue({
                       >
                         {item.title}
                       </button>
-                      <p className="mt-0.5 line-clamp-1 text-xs leading-tight text-muted-foreground sm:mt-1 sm:line-clamp-2">
+                      <p className="mt-0.5 line-clamp-1 text-xs leading-tight text-muted-foreground md:mt-1 md:line-clamp-2">
                         {item.description}
                       </p>
                       <p className="mt-0.5 text-[11px] text-muted-foreground">
@@ -255,11 +255,11 @@ export function TodayWorkExecutionQueue({
                     {item.priorityLabel}
                   </span>
                 </div>
-                <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:mt-3 sm:flex sm:flex-wrap sm:gap-2">
+                <div className="mt-1.5 grid grid-cols-2 gap-1.5 md:mt-3 md:flex md:flex-wrap md:gap-2">
                   <Button
                     type="button"
                     size="sm"
-                    className="col-span-2 min-h-11 justify-center sm:col-span-1 sm:min-h-10"
+                    className="col-span-2 min-h-11 justify-center sm:min-h-11 sm:h-11 md:col-span-1 md:h-10 md:min-h-10"
                     disabled={isBusy}
                     onClick={() => onPrimaryAction(item)}
                   >

@@ -397,13 +397,13 @@ export function TodayWorkSection({
     : "";
 
   return (
-    <section className="space-y-2 sm:space-y-5" aria-labelledby="dashboard-cockpit-title">
+    <section className="space-y-2 md:space-y-5" aria-labelledby="dashboard-cockpit-title">
       <Card
-        className="crm-dashboard-card overflow-hidden border-primary/15 py-0 gap-0 sm:py-4 sm:gap-4"
+        className="crm-dashboard-card overflow-hidden border-primary/15 py-0 gap-0 md:py-4 md:gap-4"
         data-testid="dashboard-action-cockpit"
       >
         <div className="crm-masthead-rule" />
-        <CardContent className="space-y-2 p-2 sm:space-y-4 sm:p-5">
+        <CardContent className="space-y-2 p-2 md:space-y-4 md:p-5">
           <div className="grid gap-2 sm:gap-4 lg:grid-cols-[0.9fr_1.35fr] lg:items-end">
             <div>
               <div className="flex flex-wrap items-center gap-1.5 sm:block">
@@ -415,18 +415,18 @@ export function TodayWorkSection({
                 </Badge>
                 <h1
                   id="dashboard-cockpit-title"
-                  className="mt-0.5 text-base font-bold tracking-tight leading-tight text-foreground sm:mt-2 sm:text-2xl"
+                  className="mt-0.5 text-base font-bold tracking-tight leading-tight text-foreground md:mt-2 md:text-2xl"
                 >
                   {userName ?? "담당자"}님, 다음 행동부터 시작하세요.
                 </h1>
               </div>
-              <p className="hidden text-xs leading-5 text-muted-foreground sm:mt-1 sm:block sm:text-sm">
+              <p className="hidden text-xs leading-5 text-muted-foreground md:mt-1 md:block md:text-sm">
                 {rolePriorityText}
               </p>
             </div>
 
             <div data-testid="dashboard-priority-actions">
-              <p className="hidden mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:block sm:mb-2 sm:text-xs">
+              <p className="hidden mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground md:block md:mb-2 md:text-xs">
                 오늘의 우선 행동
               </p>
               {isLoading ? (
@@ -445,7 +445,7 @@ export function TodayWorkSection({
                   className="py-3"
                 />
               ) : priorityWorkItems.length === 0 ? (
-                <div className="flex min-h-11 sm:min-h-16 items-center justify-between gap-3 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-1.5 sm:py-2">
+                <div className="flex min-h-11 md:min-h-16 items-center justify-between gap-3 rounded-lg border border-dashed border-border/80 bg-muted/20 px-3 py-1.5 md:py-2">
                   <p className="text-xs sm:text-sm text-muted-foreground">
                     지금 바로 처리할 지연 업무가 없습니다.
                   </p>
@@ -466,15 +466,15 @@ export function TodayWorkSection({
                       key={item.label}
                       type="button"
                       onClick={() => setLocation(item.path)}
-                      className={`crm-dashboard-action min-h-11 sm:min-h-16 rounded-lg border px-2 py-1 sm:p-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 2 ? "hidden sm:block" : ""} ${item.tone}`}
+                      className={`crm-dashboard-action min-h-11 md:min-h-16 rounded-lg border px-2 py-1 md:p-3 text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 2 ? "hidden sm:block" : ""} ${item.tone}`}
                       aria-label={`${item.label} ${item.value}건, ${item.helper}`}
                     >
                       <div className="flex items-center justify-between gap-1 sm:items-start sm:gap-2">
                         <div className="min-w-0">
                           <p className="truncate text-xs font-semibold">{item.label}</p>
-                          <p className="hidden mt-1 truncate text-xs opacity-80 sm:block">{item.helper}</p>
+                          <p className="hidden mt-1 truncate text-xs opacity-80 md:block">{item.helper}</p>
                         </div>
-                        <span className="shrink-0 text-base font-bold tabular-nums tracking-tight sm:text-xl">
+                        <span className="shrink-0 text-base font-bold tabular-nums tracking-tight md:text-xl">
                           {item.value}
                         </span>
                       </div>
@@ -485,12 +485,12 @@ export function TodayWorkSection({
             </div>
           </div>
 
-          <div className="border-t border-border/70 pt-1.5 sm:pt-3" data-testid="dashboard-quick-actions" style={{ containerType: "inline-size", containerName: "dashboard-quick" }}>
+          <div className="border-t border-border/70 pt-1.5 md:pt-3" data-testid="dashboard-quick-actions" style={{ containerType: "inline-size", containerName: "dashboard-quick" }}>
             <div className="mb-1 flex items-center justify-between gap-3 sm:mb-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-xs">
                 빠른 실행
               </p>
-              <p className="hidden text-xs text-muted-foreground sm:block">
+              <p className="hidden text-xs text-muted-foreground md:block">
                 {scopeLabel} 권한에 맞는 기능만 표시됩니다.
               </p>
             </div>
@@ -502,7 +502,7 @@ export function TodayWorkSection({
                     key={action.id}
                     type="button"
                     onClick={() => setLocation(action.path)}
-                    className={`crm-dashboard-action min-h-11 sm:min-h-14 flex flex-col sm:flex-col md:flex-row lg:flex-col xl:flex-row items-center justify-center sm:justify-center md:justify-start lg:justify-center xl:justify-start gap-1 sm:gap-0.5 md:gap-2 lg:gap-1 xl:gap-2 rounded-lg border border-border/80 bg-card p-1 sm:px-2 sm:py-1.5 md:px-3 md:py-2 lg:p-2 xl:px-3 xl:py-2 text-center sm:text-center md:text-left lg:text-center xl:text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 4 ? "hidden sm:flex" : "flex"}`}
+                    className={`crm-dashboard-action min-h-11 md:min-h-14 flex flex-col sm:flex-col md:flex-row lg:flex-col xl:flex-row items-center justify-center sm:justify-center md:justify-start lg:justify-center xl:justify-start gap-1 sm:gap-0.5 md:gap-2 lg:gap-1 xl:gap-2 rounded-lg border border-border/80 bg-card p-1 sm:px-2 sm:py-1 md:px-3 md:py-2 lg:p-2 xl:px-3 xl:py-2 text-center sm:text-center md:text-left lg:text-center xl:text-left shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 ${index === 4 ? "hidden sm:flex" : "flex"}`}
                     aria-label={`${action.label}: ${action.hint}`}
                     data-testid={`dashboard-quick-action-${action.id}`}
                   >
