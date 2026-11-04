@@ -1627,7 +1627,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                         })
                       }
                     >
-                      <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                      <SelectTrigger aria-label="우선순위" className="mt-1 min-h-12 md:h-9 md:min-h-9">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1653,7 +1653,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                         })
                       }
                     >
-                      <SelectTrigger className="mt-1 min-h-12 md:h-9 md:min-h-9">
+                      <SelectTrigger aria-label="다음 액션" className="mt-1 min-h-12 md:h-9 md:min-h-9">
                         <SelectValue placeholder="선택" />
                       </SelectTrigger>
                       <SelectContent>
