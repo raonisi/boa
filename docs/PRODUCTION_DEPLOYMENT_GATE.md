@@ -1,5 +1,7 @@
 # BOA CRM Production Deployment Gate
 
+> Source status: **DEPLOY_PATH unresolved** in the [single register](../.agents/skills/boa-crm-full-build/references/source-register.json). This document’s deployment path conflicts with historical Railway Native/Wait-for-CI material. Current approval/supersession and live settings have not been verified. Do not select/enable a path, arm settings or deploy based on document dates or past approvals. Independent sourcepack work and a review plan may proceed.
+
 Production promotion is fail-closed. Railway GitHub auto-deploy must remain disabled, and this workflow must remain unarmed until every external setting below is verified.
 
 ## Deployment path map
