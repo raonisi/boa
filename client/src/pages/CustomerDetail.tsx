@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/empty-state";
 import { useIsMobile } from "@/hooks/useMobile";
 import { trpc } from "@/lib/trpc";
+import { createCustomerRequestOwnership, ownsPrompt } from "@/lib/customerRequestOwnership";
 import {
   formatReassignmentSuccessMessage,
   WORKFLOW_COPY,
@@ -78,6 +79,9 @@ import {
   formatExpectedPremiumManwon,
 } from "@shared/expectedPremium";
 import FollowupQuickCreateDialog from "@/components/followups/FollowupQuickCreateDialog";
+import PostConsultFollowupPrompt, {
+  type PostConsultPromptData,
+} from "@/components/consultations/PostConsultFollowupPrompt";
 import FollowUpModal from "@/components/followups/FollowUpModal";
 import { CustomerRelationshipsPanel } from "@/components/customers/CustomerRelationshipsPanel";
 import { CustomerDetailTabNavigation } from "@/components/customers/CustomerDetailTabNavigation";
@@ -495,6 +499,32 @@ export default function CustomerDetail({ id }: { id: number }) {
   const [postponeFollowUpId, setPostponeFollowUpId] = useState<number | null>(
     null
   );
+  const [postConsultPrompt, setPostConsultPrompt] =
+    useState<PostConsultPromptData | null>(null);
+  const screenGenerationRef = useRef(0);
+  const promptCounterRef = useRef(0);
+  const activePromptTokenRef = useRef<string | null>(null);
+  const promptInitiatedFollowUpTokenRef = useRef<string | null>(null);
+  const followUpTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const followUpFocusFallbackRef = useRef<HTMLButtonElement | null>(null);
+  const requestOwnershipRef = useRef(createCustomerRequestOwnership());
+  const consultationDialogSessionRef = useRef(0);
+  const followUpDialogSessionRef = useRef(0);
+
+  const openConsultation = () => {
+    consultationDialogSessionRef.current += 1;
+    setShowConsultModal(true);
+  };
+  const openQuickFollowUp = (promptToken: string | null = null) => {
+    followUpDialogSessionRef.current += 1;
+    promptInitiatedFollowUpTokenRef.current = promptToken;
+    setShowFollowUpQuickModal(true);
+  };
+  const closeQuickFollowUp = () => {
+    followUpDialogSessionRef.current += 1;
+    promptInitiatedFollowUpTokenRef.current = null;
+    setShowFollowUpQuickModal(false);
+  };
   const [activeTab, setActiveTab] = useState<CustomerDetailTab>(() =>
     getCustomerDetailTabFromLocation(customerDetailLocation)
   );
@@ -557,12 +587,29 @@ export default function CustomerDetail({ id }: { id: number }) {
     handledActionKeyRef.current = actionKey;
 
     applyCustomerDetailAction(action, {
-      onConsult: () => setShowConsultModal(true),
-      onQuickFollowup: () => setShowFollowUpQuickModal(true),
+      onConsult: () => openConsultation(),
+      onQuickFollowup: () => openQuickFollowUp(),
       onContract: () => setShowContractModal(true),
       onMessage: () => selectCustomerDetailTab("consultation"),
     });
   }, [customerDetailLocation, id]);
+
+  useEffect(() => {
+    screenGenerationRef.current += 1;
+    consultationDialogSessionRef.current += 1;
+    followUpDialogSessionRef.current += 1;
+    activePromptTokenRef.current = null;
+    promptInitiatedFollowUpTokenRef.current = null;
+    setPostConsultPrompt(null);
+  }, [id]);
+
+  useEffect(() => () => {
+    // Hook-level mutation callbacks can outlive this mounted screen. Keep their
+    // legitimate cache updates, but revoke their old screen's UI ownership.
+    screenGenerationRef.current += 1;
+    activePromptTokenRef.current = null;
+    promptInitiatedFollowUpTokenRef.current = null;
+  }, []);
 
   const utils = trpc.useUtils();
   const {
@@ -727,21 +774,54 @@ export default function CustomerDetail({ id }: { id: number }) {
   });
 
   const createConsultMutation = trpc.consultations.create.useMutation({
-    onSuccess: (_result, variables) => {
-      toast.success(
-        variables.calendarSchedule
-          ? "상담기록과 캘린더 일정이 저장되었습니다."
-          : "상담기록이 저장되었습니다."
-      );
-      setShowConsultModal(false);
-      refetchConsult();
-      refetchCustomer();
+    onMutate: variables => requestOwnershipRef.current.contextFor(variables),
+    onSuccess: (_result, variables, context) => {
+      // A stored result remains valid even when its old screen no longer owns UI.
+      utils.consultations.list.invalidate({ customerId: variables.customerId });
+      utils.customers.get.invalidate({ id: variables.customerId });
       if (variables.calendarSchedule) {
         utils.schedules.list.invalidate();
         utils.dashboard.todayWork.invalidate();
       }
+      if (!requestOwnershipRef.current.isCurrent(context, id, screenGenerationRef.current)) return;
+      toast.success(variables.calendarSchedule
+        ? "상담기록과 캘린더 일정이 저장되었습니다."
+        : "상담기록이 저장되었습니다.");
+      if (context?.dialogSession === consultationDialogSessionRef.current) {
+        setShowConsultModal(false);
+      }
+      promptCounterRef.current += 1;
+      const token = `prompt-${id}-${screenGenerationRef.current}-${promptCounterRef.current}`;
+      activePromptTokenRef.current = token;
+      setPostConsultPrompt({
+        customerId: id,
+        hasCalendarSchedule: Boolean(variables.calendarSchedule),
+        nextContactAt: variables.nextContactAt,
+        nextAction: variables.nextAction,
+        token,
+        generation: screenGenerationRef.current,
+      });
+    },
+    onError: (err, _variables, context) => {
+      if (!requestOwnershipRef.current.isCurrent(context, id, screenGenerationRef.current) ||
+          context?.dialogSession !== consultationDialogSessionRef.current) return;
+      // A failed save did not create or acquire any existing success prompt.
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed);
+    },
+    onSettled: (_result, _error, variables, context) => {
+      requestOwnershipRef.current.settle(variables, context);
     },
   });
+
+  const submitConsultation = (variables: Parameters<typeof createConsultMutation.mutate>[0]) => {
+    const context = requestOwnershipRef.current.begin(variables, {
+      kind: "consultation",
+      generation: screenGenerationRef.current,
+      initiatingPromptToken: null,
+      dialogSession: consultationDialogSessionRef.current,
+    });
+    if (context) createConsultMutation.mutate(variables);
+  };
 
   const updateConsultMutation = trpc.consultations.update.useMutation({
     onSuccess: () => {
@@ -855,28 +935,54 @@ export default function CustomerDetail({ id }: { id: number }) {
   });
 
   const createFollowUpMutation = trpc.followUps.create.useMutation({
-    onSuccess: (_result, variables) => {
-      toast.success(
-        variables.calendarSchedule
-          ? "후속관리를 등록했습니다. 캘린더 일정도 함께 등록되었습니다."
-          : "후속관리를 등록했습니다."
-      );
-      setShowFollowUpQuickModal(false);
-      setShowFollowUpModal(false);
-      setFollowUpDetailedSeed(null);
-      refetchFollowUps();
+    onMutate: variables => requestOwnershipRef.current.contextFor(variables),
+    onSuccess: (_result, variables, context) => {
+      utils.followUps.listByCustomer.invalidate({ customerId: variables.customerId });
       utils.dashboard.todayWork.invalidate();
       utils.followUps.listToday.invalidate();
       utils.followUps.listOverdue.invalidate();
       if (variables.calendarSchedule) utils.schedules.list.invalidate();
+      if (!requestOwnershipRef.current.isCurrent(context, id, screenGenerationRef.current)) return;
+      toast.success(variables.calendarSchedule
+        ? "후속관리를 등록했습니다. 캘린더 일정도 함께 등록되었습니다."
+        : "후속관리를 등록했습니다.");
+      if (context?.dialogSession === followUpDialogSessionRef.current) {
+        setShowFollowUpQuickModal(false);
+        setShowFollowUpModal(false);
+        setFollowUpDetailedSeed(null);
+      }
+      if (ownsPrompt(context, activePromptTokenRef.current)) {
+        activePromptTokenRef.current = null;
+        setPostConsultPrompt(null);
+      }
     },
-    onError: err => toastUserFacingError(err, USER_FACING_ERRORS.saveFailed),
+    onError: (err, _variables, context) => {
+      if (!requestOwnershipRef.current.isCurrent(context, id, screenGenerationRef.current) ||
+          context?.dialogSession !== followUpDialogSessionRef.current) return;
+      toastUserFacingError(err, USER_FACING_ERRORS.saveFailed);
+    },
+    onSettled: (_result, _error, variables, context) => {
+      requestOwnershipRef.current.settle(variables, context);
+    },
   });
+
+  const submitFollowUp = (variables: Parameters<typeof createFollowUpMutation.mutate>[0]) => {
+    if (variables.customerId !== id) return;
+    const context = requestOwnershipRef.current.begin(variables, {
+      kind: "followup",
+      generation: screenGenerationRef.current,
+      initiatingPromptToken: promptInitiatedFollowUpTokenRef.current,
+      dialogSession: followUpDialogSessionRef.current,
+    });
+    if (context) createFollowUpMutation.mutate(variables);
+  };
 
   const openDetailedFollowUp = (
     seed: DetailedFollowUpSeed,
     _customerId: number
   ) => {
+    if (_customerId !== id) return;
+    followUpDialogSessionRef.current += 1;
     setFollowUpDetailedSeed(seed);
     setShowFollowUpQuickModal(false);
     setShowFollowUpModal(true);
@@ -1416,13 +1522,13 @@ export default function CustomerDetail({ id }: { id: number }) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setShowConsultModal(true)}>
+              <Button size="sm" onClick={() => openConsultation()}>
                 <MessageSquare className="mr-1 h-4 w-4" /> 상담기록 추가
               </Button>
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => setShowFollowUpQuickModal(true)}
+                onClick={() => openQuickFollowUp()}
               >
                 <CalendarPlus className="mr-1 h-4 w-4" /> 빠른 후속 등록
               </Button>
@@ -1468,8 +1574,8 @@ export default function CustomerDetail({ id }: { id: number }) {
           )}
           hasReferralFlows={(customerReferrals ?? []).length > 0}
           hasRelationships={(customerRelationships ?? []).length > 0}
-          onConsultRecord={() => setShowConsultModal(true)}
-          onFollowUpCreate={() => setShowFollowUpQuickModal(true)}
+          onConsultRecord={() => openConsultation()}
+          onFollowUpCreate={() => openQuickFollowUp()}
           onOpenTemplates={() => selectCustomerDetailTab("consultation")}
           onOpenChecklist={() => selectCustomerDetailTab("consultation")}
           onOpenTimeline={() => selectCustomerDetailTab("history")}
@@ -1522,14 +1628,14 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <Button
                   variant="default"
                   className="min-h-12 flex-col justify-center gap-1 px-2 text-xs md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                  onClick={() => setShowConsultModal(true)}
+                  onClick={() => openConsultation()}
                 >
                   <MessageSquare className="h-4 w-4" /> 상담 기록
                 </Button>
                 <Button
                   variant="secondary"
                   className="min-h-12 flex-col justify-center gap-1 bg-amber-100 px-2 text-xs text-amber-900 hover:bg-amber-200 md:h-11 md:min-h-11 md:flex-row md:justify-start md:text-sm"
-                  onClick={() => setShowFollowUpQuickModal(true)}
+                  onClick={() => openQuickFollowUp()}
                 >
                   <CalendarPlus className="h-4 w-4" /> 후속 등록
                 </Button>
@@ -1779,13 +1885,13 @@ export default function CustomerDetail({ id }: { id: number }) {
                   >
                     <Copy className="h-4 w-4 mr-1" /> 문자 문구 만들기
                   </Button>
-                  <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                  <Button size="sm" onClick={() => openConsultation()}>
                     <MessageSquare className="h-4 w-4 mr-1" /> 상담 기록 추가
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowFollowUpQuickModal(true)}
+                    onClick={() => openQuickFollowUp()}
                   >
                     <CalendarPlus className="h-4 w-4 mr-1" /> 후속 등록
                   </Button>
@@ -1848,6 +1954,8 @@ export default function CustomerDetail({ id }: { id: number }) {
                   variant="ghost"
                   size="sm"
                   className="mt-0.5 min-h-11 shrink-0 md:min-h-0"
+                  ref={followUpFocusFallbackRef}
+                  data-testid="customer-detail-focus-fallback"
                   onClick={() => setLocation("/customers")}
                 >
                   <ArrowLeft className="h-4 w-4 mr-1" /> 목록
@@ -1987,6 +2095,22 @@ export default function CustomerDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
+        {postConsultPrompt && postConsultPrompt.customerId === id && (
+          <PostConsultFollowupPrompt
+            prompt={postConsultPrompt}
+            openFollowUpsCount={openFollowUps.length}
+            triggerRef={followUpTriggerRef}
+            onOpenFollowUp={() => {
+              openQuickFollowUp(postConsultPrompt.token);
+            }}
+            onDismiss={() => {
+              activePromptTokenRef.current = null;
+              setPostConsultPrompt(null);
+            }}
+          />
+        )}
+
+
         {!isMobile && secondaryPanels}
 
         <Tabs
@@ -2104,7 +2228,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                 <p className="text-sm text-muted-foreground">
                   총 {consultations?.length ?? 0}건
                 </p>
-                <Button size="sm" onClick={() => setShowConsultModal(true)}>
+                <Button size="sm" onClick={() => openConsultation()}>
                   <Plus className="h-4 w-4 mr-1" /> 상담기록 추가
                 </Button>
               </div>
@@ -2121,7 +2245,7 @@ export default function CustomerDetail({ id }: { id: number }) {
                     <Button
                       type="button"
                       size="sm"
-                      onClick={() => setShowConsultModal(true)}
+                      onClick={() => openConsultation()}
                     >
                       상담기록 추가
                     </Button>
@@ -2188,7 +2312,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             </section>
             <FollowUpPanel
               followUps={followUps ?? []}
-              onCreate={() => setShowFollowUpQuickModal(true)}
+              onCreate={() => openQuickFollowUp()}
               onComplete={followUpId =>
                 completeFollowUpMutation.mutate({ id: followUpId })
               }
@@ -3162,7 +3286,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <Button
               variant="default"
               className="min-h-12 flex-col gap-0.5 px-1 text-xs"
-              onClick={() => setShowConsultModal(true)}
+              onClick={() => openConsultation()}
             >
               <MessageSquare className="h-4 w-4" />
               상담
@@ -3170,7 +3294,7 @@ export default function CustomerDetail({ id }: { id: number }) {
             <Button
               variant="secondary"
               className="min-h-12 flex-col gap-0.5 bg-amber-100 px-1 text-xs text-amber-900 hover:bg-amber-200"
-              onClick={() => setShowFollowUpQuickModal(true)}
+              onClick={() => openQuickFollowUp()}
             >
               <CalendarPlus className="h-4 w-4" />
               후속
@@ -3214,9 +3338,12 @@ export default function CustomerDetail({ id }: { id: number }) {
       {/* 상담기록 추가 모달 */}
       <ConsultModal
         open={showConsultModal}
-        onClose={() => setShowConsultModal(false)}
+        onClose={() => {
+          consultationDialogSessionRef.current += 1;
+          setShowConsultModal(false);
+        }}
         onSubmit={data =>
-          createConsultMutation.mutate({ ...data, customerId: id })
+          submitConsultation({ ...data, customerId: id })
         }
         loading={createConsultMutation.isPending}
         currentStatus={customer.consultStatus}
@@ -3263,9 +3390,11 @@ export default function CustomerDetail({ id }: { id: number }) {
       {/* 담당자 변경 모달 */}
       <FollowupQuickCreateDialog
         open={showFollowUpQuickModal}
-        onClose={() => setShowFollowUpQuickModal(false)}
+        onClose={closeQuickFollowUp}
         defaultCustomerId={id}
-        onSubmit={data => createFollowUpMutation.mutate(data)}
+        triggerRef={followUpTriggerRef}
+        focusFallbackRef={followUpFocusFallbackRef}
+        onSubmit={submitFollowUp}
         onOpenDetailed={openDetailedFollowUp}
         loading={createFollowUpMutation.isPending}
       />
@@ -3273,12 +3402,14 @@ export default function CustomerDetail({ id }: { id: number }) {
       <FollowUpModal
         open={showFollowUpModal}
         onClose={() => {
+          followUpDialogSessionRef.current += 1;
+          promptInitiatedFollowUpTokenRef.current = null;
           setShowFollowUpModal(false);
           setFollowUpDetailedSeed(null);
         }}
         seed={followUpDetailedSeed ?? undefined}
         onSubmit={data =>
-          createFollowUpMutation.mutate({ customerId: id, ...data })
+          submitFollowUp({ ...data, customerId: id })
         }
         loading={createFollowUpMutation.isPending}
       />

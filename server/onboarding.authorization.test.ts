@@ -49,6 +49,9 @@ const assignment = {
 let progress: any[];
 
 beforeEach(() => {
+  // Keep due-date rules deterministic without faking asynchronous work.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-04T00:00:00.000Z"));
   vi.spyOn(db, "getAllUsers").mockResolvedValue(users as any);
   vi.spyOn(db, "getAllTeams").mockResolvedValue([
     { id: 30, managerId: null, subBranchAdminId: 2 },
@@ -79,7 +82,10 @@ beforeEach(() => {
     Object.assign(progress.find(row => row.id === id)!, changes);
   });
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 describe("onboarding assignment candidates use the assignment API's real hierarchy scope", () => {
   it("restores a team member when teamId exists but teams.managerId is unset", async () => {
@@ -180,6 +186,16 @@ describe("onboarding scope, progress and read regressions", () => {
     expect(result).toEqual({ success: true, status: "needs_approval" });
     expect(db.updateOnboardingAssignment).toHaveBeenLastCalledWith(900, expect.objectContaining({
       progressPercent: 50, requiredPendingCount: 1, approvalPendingCount: 1, status: "in_progress", completedAt: null,
+    }));
+    expect(db.createActivityLog).toHaveBeenCalledWith(expect.objectContaining({ action: "ONBOARDING_ITEM_COMPLETED", userId: 4 }));
+  });
+
+  it("marks incomplete approval progress overdue after the fixed due date", async () => {
+    vi.setSystemTime(new Date("2026-11-06T00:00:00.000Z"));
+    const result = await appRouter.createCaller(context(4)).onboardingAssignments.updateItemProgress({ assignmentId: 900, itemId: 100, note: "[TEST] practiced" });
+    expect(result).toEqual({ success: true, status: "needs_approval" });
+    expect(db.updateOnboardingAssignment).toHaveBeenLastCalledWith(900, expect.objectContaining({
+      progressPercent: 50, requiredPendingCount: 1, approvalPendingCount: 1, status: "overdue", completedAt: null,
     }));
     expect(db.createActivityLog).toHaveBeenCalledWith(expect.objectContaining({ action: "ONBOARDING_ITEM_COMPLETED", userId: 4 }));
   });

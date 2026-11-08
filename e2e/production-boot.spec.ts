@@ -84,59 +84,53 @@ test.describe("Production Bundle Startup & Runtime Boot Verification (Finding P1
     await expect(heading).toBeVisible();
   });
 
-  test("Production Multi-Route & Responsive Boot Matrix", async ({ page }) => {
-    const evidenceDir = path.resolve(process.cwd(), "evidence");
-    const screenshotsDir = path.resolve(evidenceDir, "screenshots");
-    if (!fs.existsSync(screenshotsDir)) {
-      fs.mkdirSync(screenshotsDir, { recursive: true });
-    }
-
-    const matrix: Array<{
-      viewport: string;
-      width: number;
-      height: number;
-      route: string;
-      pageErrors: number;
-      bootSuccess: boolean;
-      screenshot: string;
-    }> = [];
-
-    for (const vp of VIEWPORTS) {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await mockBoaTrpc(page, "branch_admin");
-
-      for (const route of ["/google-calendar-integration", "/customers", "/"]) {
+  for (const vp of VIEWPORTS) {
+    for (const route of ["/google-calendar-integration", "/customers", "/"]) {
+      test(`Production Multi-Route & Responsive Boot Matrix ${vp.name} ${route}`, async ({ page }, info) => {
         const pageErrors: string[] = [];
         page.on("pageerror", e => pageErrors.push(e.message));
 
+        await page.setViewportSize({ width: vp.width, height: vp.height });
+        await mockBoaTrpc(page, "branch_admin");
         await page.goto(`${productionBaseURL}${route}`, { waitUntil: "networkidle" });
 
         const rootHTML = await page.locator("#root").innerHTML();
         const bootSuccess = rootHTML.length > 0 && pageErrors.length === 0;
         expect(bootSuccess).toBe(true);
 
+        // Each pair has the unchanged test budget and its own project-safe artifacts.
         const shotName = `prod-${route.replace(/\//g, "_") || "root"}-${vp.width}x${vp.height}.png`;
-        const shotPath = path.join(screenshotsDir, shotName);
+        const shotPath = info.outputPath(shotName);
         await page.screenshot({ path: shotPath, fullPage: true });
 
-        matrix.push({
-          viewport: vp.name,
-          width: vp.width,
-          height: vp.height,
-          route,
-          pageErrors: pageErrors.length,
-          bootSuccess,
-          screenshot: `evidence/screenshots/${shotName}`,
+        const matrixPath = info.outputPath("09-production-boot-matrix.json");
+        fs.writeFileSync(
+          matrixPath,
+          JSON.stringify({
+            timestamp: new Date().toISOString(),
+            project: info.project.name,
+            results: [{
+              viewport: vp.name,
+              width: vp.width,
+              height: vp.height,
+              route,
+              pageErrors: pageErrors.length,
+              bootSuccess,
+              screenshot: shotPath,
+            }],
+            verdict: "PROD_ROUTE_BOOTED_SUCCESSFULLY",
+          }, null, 2),
+          "utf8"
+        );
+        await info.attach("production-boot-matrix", {
+          path: matrixPath, contentType: "application/json",
         });
-      }
+        await info.attach("production-boot-screenshot", {
+          path: shotPath, contentType: "image/png",
+        });
+      });
     }
-
-    fs.writeFileSync(
-      path.join(evidenceDir, "09-production-boot-matrix.json"),
-      JSON.stringify({ timestamp: new Date().toISOString(), results: matrix, verdict: "ALL_PROD_ROUTES_BOOTED_SUCCESSFULLY" }, null, 2),
-      "utf8"
-    );
-  });
+  }
 
   test("Production 4-Role UI Isolation & Safety", async ({ page }) => {
     for (const role of ROLES) {
