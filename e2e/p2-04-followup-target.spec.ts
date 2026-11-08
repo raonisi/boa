@@ -352,7 +352,10 @@ for (const route of ["/calendar", "/customers?action=quick-followup"]) {
     if (route === "/calendar")
       await page
         .getByRole("button", {
-          name: "상담·계약·후속관리 일정 등록",
+          name:
+            (page.viewportSize()?.width ?? 1440) < 768
+              ? "일정 추가"
+              : "상담·계약·후속관리 일정 등록",
           exact: true,
         })
         .click();

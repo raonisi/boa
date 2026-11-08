@@ -1,10 +1,12 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Route, Switch, Redirect } from "wouter";
+import { Route, Switch, Redirect, useLocation } from "wouter";
 import { AndroidBackButtonHandler } from "./components/app/AndroidBackButtonHandler";
 import { AppSessionResumeHandler } from "./components/app/AppSessionResumeHandler";
 import { AppShellLoading, AppShellRoot } from "./components/AppShell";
 import ErrorBoundary from "./components/ErrorBoundary";
+import DashboardLayout from "./components/DashboardLayout";
+import { AlertTriangle, RotateCcw, Home } from "lucide-react";
 import { BrandedLogin } from "./components/BrandedLogin";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
@@ -12,12 +14,13 @@ import { getLoginUrlResult } from "./const";
 import { getLoginConfigurationNotice } from "./lib/loginConfigurationCopy";
 import { ForbiddenState } from "./components/ForbiddenState";
 import { RouteAccessGuard } from "./components/RouteAccessGuard";
-import { lazy, Suspense } from "react";
+import React, { Component, lazy, Suspense, useState } from "react";
+import { cn } from "@/lib/utils";
+import { CustomerDetailChunkError, getCustomerDetailComponent } from "@/lib/customerDetailLoader";
 
 // Pages
 import Dashboard from "./pages/Dashboard";
 import CustomerList from "./pages/CustomerList";
-import CustomerDetail from "./pages/CustomerDetail";
 import ContractList from "./pages/ContractList";
 import Performance from "./pages/Performance";
 import Notifications from "./pages/Notifications";
@@ -176,6 +179,157 @@ function AdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+
+function RouteChunkErrorFallback({
+  error,
+  onRetry,
+}: {
+  error: Error | null;
+  onRetry: () => void;
+}) {
+  const [, setLocation] = useLocation();
+  const chunkFailure = error instanceof CustomerDetailChunkError ? error : null;
+  const isChunkOrNetwork = Boolean(
+    error?.message?.includes("Failed to fetch dynamically imported module") ||
+    error?.message?.includes("Loading chunk") ||
+    error?.name === "ChunkLoadError" ||
+    error?.message?.includes("NetworkError") ||
+    error?.message?.includes("fetch") ||
+    error?.message?.includes("error loading dynamically imported module")
+  );
+
+  return (
+    <DashboardLayout>
+      <div className="flex min-h-[60vh] items-center justify-center px-4 py-8">
+        <div className="flex w-full max-w-lg flex-col items-center rounded-xl border bg-card p-6 text-center shadow-sm sm:p-8">
+          <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+            <AlertTriangle size={28} aria-hidden="true" />
+          </div>
+
+          <h2 className="text-xl font-bold tracking-tight text-foreground">
+            문제가 발생했습니다.
+          </h2>
+          <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">
+            {chunkFailure?.message ?? (isChunkOrNetwork
+              ? "고객 상세 화면 리소스를 불러오지 못했습니다. 네트워크 연결을 확인하고 다시 시도해 주세요."
+              : "잠시 후 다시 시도해 주세요. 문제가 반복되면 관리자에게 문의해 주세요.")}
+          </p>
+
+          <div className="mt-6 flex w-full flex-col gap-2 sm:flex-row sm:justify-center">
+            {(!chunkFailure || chunkFailure.canRetry) && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className={cn(
+                  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 text-sm font-semibold",
+                  "bg-primary text-primary-foreground shadow-sm transition-colors hover:opacity-90"
+                )}
+              >
+                <RotateCcw size={16} aria-hidden="true" />
+                다시 시도
+              </button>
+            )}
+            {chunkFailure?.refreshRequired && (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border px-4 text-sm font-semibold"
+              >
+                페이지 새로고침
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setLocation("/");
+              }}
+              className={cn(
+                "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-semibold",
+                "border-border bg-background text-foreground transition-colors hover:bg-muted/70"
+              )}
+            >
+              <Home size={16} aria-hidden="true" />
+              홈으로 이동
+            </button>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+interface RouteErrorBoundaryProps {
+  children: React.ReactNode;
+  resetKey?: string | number;
+  onRetry?: () => void;
+}
+
+interface RouteErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class RouteErrorBoundary extends Component<
+  RouteErrorBoundaryProps,
+  RouteErrorBoundaryState
+> {
+  constructor(props: RouteErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): RouteErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error("RouteErrorBoundary caught error:", error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: RouteErrorBoundaryProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null });
+    }
+  }
+
+  handleRetry = () => {
+    this.props.onRetry?.();
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <RouteChunkErrorFallback
+          error={this.state.error}
+          onRetry={this.handleRetry}
+        />
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function CustomerDetailRoute({ id }: { id: number }) {
+  const [attempt, setAttempt] = useState(0);
+  const LazyCustomerDetail = getCustomerDetailComponent();
+
+  return (
+    <RouteErrorBoundary
+      resetKey={`${id}-${attempt}`}
+      onRetry={() => setAttempt((a: number) => a + 1)}
+    >
+      <Suspense fallback={
+        <DashboardLayout>
+          <RouteFallback />
+        </DashboardLayout>
+      }>
+        <LazyCustomerDetail id={id} />
+      </Suspense>
+    </RouteErrorBoundary>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -248,7 +402,7 @@ function Router() {
       <Route path="/customers/:id">
         {params => (
           <AuthGuard>
-            <CustomerDetail id={Number(params.id)} />
+            <CustomerDetailRoute id={Number(params.id)} />
           </AuthGuard>
         )}
       </Route>

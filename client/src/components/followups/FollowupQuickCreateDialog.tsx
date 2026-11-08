@@ -27,7 +27,7 @@ import {
 } from "@shared/followupQuickCreate";
 import { formatKstLocalDate } from "@shared/timePolicy";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type FollowupQuickCreateDialogProps = {
   open: boolean;
@@ -38,6 +38,8 @@ type FollowupQuickCreateDialogProps = {
   ) => void;
   onOpenDetailed: (seed: DetailedFollowUpSeed, customerId: number) => void;
   loading: boolean;
+  triggerRef?: React.RefObject<HTMLElement | null>;
+  focusFallbackRef?: React.RefObject<HTMLElement | null>;
 };
 
 function QuickChip({
@@ -71,7 +73,56 @@ export default function FollowupQuickCreateDialog({
   onSubmit,
   onOpenDetailed,
   loading,
+  triggerRef,
+  focusFallbackRef,
 }: FollowupQuickCreateDialogProps) {
+  const openedForCustomerRef = useRef(defaultCustomerId);
+  const wasOpenRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  const submitRef = useRef<HTMLButtonElement | null>(null);
+  const wasSavingRef = useRef(false);
+  useEffect(() => {
+    const finished = wasSavingRef.current && !loading;
+    wasSavingRef.current = loading;
+    if (!finished || !open || (!triggerRef && !focusFallbackRef)) return;
+    // A disabled focused submit can blur to BODY. On a failed save the
+    // still-open form must offer a real, enabled retry target after commit.
+    const frame = requestAnimationFrame(() => {
+      const content = contentRef.current;
+      const active = document.activeElement;
+      if (!content?.isConnected || content.contains(active)) return;
+      if (active?.closest('[role="dialog"][data-state="open"]')) return;
+      const submit = submitRef.current;
+      if (submit?.isConnected && !submit.disabled && submit.getClientRects().length &&
+          !submit.closest('[aria-hidden="true"], [inert]')) submit.focus();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [loading, open, triggerRef, focusFallbackRef]);
+  useEffect(() => {
+    if (open && !wasOpenRef.current) openedForCustomerRef.current = defaultCustomerId;
+    wasOpenRef.current = open;
+  }, [defaultCustomerId, open]);
+
+  const restoreCloseFocus = () => {
+    // Wait for Radix to remove its aria-hidden layer. A newer dialog keeps its trap.
+    let frames = 0;
+    const restore = () => {
+      if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+      const usable = (element: HTMLElement | null | undefined): element is HTMLElement =>
+        Boolean(element?.isConnected && !element.closest('[aria-hidden="true"], [inert]') &&
+          !element.hasAttribute('disabled') && element.getAttribute('aria-disabled') !== 'true' &&
+          element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden');
+      const original = openedForCustomerRef.current === defaultCustomerId ? triggerRef?.current : null;
+      const currentNavigation = focusFallbackRef ? Array.from(document.querySelectorAll<HTMLElement>(
+        '[data-testid="mobile-nav-active-item"], [data-sidebar="menu-button"][data-active="true"], #main-content[tabindex]'
+      )).find(usable) : undefined;
+      const target = [original, focusFallbackRef?.current, currentNavigation].find(usable);
+      if (target) target.focus();
+      else if (++frames < 2) requestAnimationFrame(restore);
+    };
+    requestAnimationFrame(restore);
+  };
+
   const [presetId, setPresetId] = useState<FollowupQuickPresetId>("callback");
   const [dateChip, setDateChip] = useState<FollowupQuickDateChip>("tomorrow");
   const [priorityChip, setPriorityChip] =
@@ -158,7 +209,14 @@ export default function FollowupQuickCreateDialog({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-h-[min(92vh,44rem)] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <DialogContent
+        ref={contentRef}
+        onCloseAutoFocus={e => {
+          if (!triggerRef && !focusFallbackRef) return;
+          e.preventDefault();
+          restoreCloseFocus();
+        }}
+        className="max-h-[min(92vh,44rem)] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto overscroll-contain rounded-2xl pb-[max(1rem,env(safe-area-inset-bottom))]">
         <DialogHeader>
           <DialogTitle>빠른 후속 등록</DialogTitle>
           <p className="text-xs text-muted-foreground">
@@ -280,6 +338,7 @@ export default function FollowupQuickCreateDialog({
 
           <div className="sticky bottom-0 flex flex-col gap-2 border-t bg-background pt-3">
             <Button
+              ref={submitRef}
               className="min-h-12 md:min-h-10"
               disabled={
                 loading || !targetReady || !targetCustomerId || !reason.trim()
