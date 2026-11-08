@@ -166,6 +166,9 @@ export async function seedCriticalE2E() {
       "DELETE FROM activity_logs WHERE userId BETWEEN 9001 AND 9008"
     );
     await connection.execute(
+      "DELETE FROM push_notification_logs WHERE userId BETWEEN 9001 AND 9008"
+    );
+    await connection.execute(
       "DELETE FROM delete_requests WHERE id = ? OR requestedBy BETWEEN 9001 AND 9008",
       [ids.deleteRequests.pending]
     );
