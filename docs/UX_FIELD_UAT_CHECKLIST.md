@@ -139,6 +139,8 @@ Authenticated shell polish check:
 2. Confirm table headers, row hover states, borders, and empty rows feel consistent in desktop management screens.
 3. Confirm risk badges in OperationRisk and role/status badges in UserManagement keep their meaning without introducing new permissions or data visibility.
 4. At 360px mobile width, confirm table overflow stays horizontal inside the table shell and does not break page layout.
+5. In dark mode, confirm cards, dialogs, tables, inputs, and side-by-side modules have visible but muted borders/shadows without changing the light-mode tone.
+6. In dark mode at 360px width, confirm dialog/card boundaries remain visible and table/card areas do not create page-level horizontal overflow.
 
 ## Customer Sales Workspace UAT Steps
 
