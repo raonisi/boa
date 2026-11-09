@@ -1,0 +1,1373 @@
+{
+  "schema_version": 1,
+  "finding": "AUD-R1-F01",
+  "scope": "Structural cross-link integrity, not RF02 policy approval",
+  "mutation_format": "RFC6901 pointer under the named source or override; set/delete only; fixture inputs never autofixed",
+  "fixtures": [
+    {
+      "fixture_id": "F14_CLAUSE_SCOPE_MISMATCH",
+      "mutations": [
+        {
+          "source_id": "HIST_RF02_CORRECTED",
+          "pointer": "/supersedes/0/clauses",
+          "value": [
+            "D99",
+            "R99"
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_SCOPE_MISMATCH"
+      }
+    },
+    {
+      "fixture_id": "F15_CLAUSE_SCOPE_PARTIAL",
+      "mutations": [
+        {
+          "override_index": 0,
+          "pointer": "/clause_ids",
+          "value": [
+            "D04"
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_SCOPE_MISMATCH"
+      }
+    },
+    {
+      "fixture_id": "F16_CLAUSE_SCOPE_EXTRA",
+      "mutations": [
+        {
+          "source_id": "HIST_RF02_CORRECTED",
+          "pointer": "/supersedes/0/clauses",
+          "value": [
+            "D04"
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_SCOPE_MISMATCH"
+      }
+    },
+    {
+      "fixture_id": "F17_CLAUSE_SCOPE_VALID",
+      "mutations": [],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null
+      }
+    },
+    {
+      "fixture_id": "F18_UNVERIFIABLE_FREE_TEXT",
+      "mutations": [
+        {
+          "source_id": "HIST_RF02_CORRECTED",
+          "pointer": "/supersedes/0/clauses",
+          "value": [
+            "D04/R06: public limit=60 or >50 success requirement"
+          ]
+        },
+        {
+          "override_index": 0,
+          "pointer": "/clause_ids",
+          "operation": "delete"
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_UNVERIFIABLE"
+      }
+    },
+    {
+      "fixture_id": "F19_CLAUSE_TARGET_MISMATCH",
+      "mutations": [
+        {
+          "override_index": 0,
+          "pointer": "/original",
+          "value": "HIST_BOA_P2_02_RF02_01_DETERMINISTIC_TIEBREAK_IMPLEMENTATION_MASTER_20260909_MD"
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION"
+      }
+    },
+    {
+      "fixture_id": "F20_DUPLICATE_CLAUSE_IDS",
+      "mutations": [
+        {
+          "source_id": "HIST_RF02_CORRECTED",
+          "pointer": "/supersedes/0/clauses",
+          "value": [
+            "D04",
+            "R06",
+            "D04"
+          ]
+        },
+        {
+          "override_index": 0,
+          "pointer": "/clause_ids",
+          "value": [
+            "D04",
+            "R06",
+            "R06"
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_ID_DUPLICATE"
+      }
+    },
+    {
+      "fixture_id": "F21_OVERRIDE_FREE_TEXT",
+      "mutations": [
+        {
+          "override_index": 0,
+          "pointer": "/clause_ids",
+          "operation": "delete"
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_UNVERIFIABLE"
+      }
+    },
+    {
+      "fixture_id": "F22_CLAUSE_ORDER_VALID",
+      "mutations": [
+        {
+          "override_index": 0,
+          "pointer": "/clause_ids",
+          "value": [
+            "R06",
+            "D04"
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null
+      }
+    }
+  ],
+  "r3_findings": [
+    "AUD-R2-F01",
+    "AUD-R2-F02"
+  ],
+  "r3_substatus_definition": "Clause/source-pair integrity only, not aggregate file/policy validity. VERIFIED requires at least one actual exact linkage check and no relevant prerequisite failure; S08 unrelated YAML failure remains VERIFIED.",
+  "r3_mutation_format": "RFC6901 register-root set/delete/append; optional exact one-occurrence file mutation and reversal of source/relation/override arrays; legacy fixtures unchanged",
+  "r3_fixtures": [
+    {
+      "fixture_id": "M01_VALID_SINGLE_CLAUSE_RELATION",
+      "register_mutations": [],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null,
+        "clause_linkage": "VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M02_MIXED_DOCUMENT_FIRST",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "document"
+            },
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M03_MIXED_DOCUMENT_LAST",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            },
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "document"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M04_DUPLICATE_CLAUSE_RELATION",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            },
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M05_DUPLICATE_DOCUMENT_RELATION",
+      "register_mutations": [
+        {
+          "pointer": "/sources/4/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "BOA_SKILL",
+              "scope": "document",
+              "reason": "Same content consolidated; root unique checklist controls retained conditionally"
+            },
+            {
+              "target": "BOA_SKILL",
+              "scope": "document",
+              "reason": "Same content consolidated; root unique checklist controls retained conditionally"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M06_VALID_DIFFERENT_PAIRS",
+      "register_mutations": [
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_ORIGINAL_2",
+            "title": "Synthetic separate target",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "ba53fe1f3f4cf7434c21ab7d29a396a0dac3f6636ab61a43edea7946a6128915",
+              "bytes": 17982
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            },
+            {
+              "target": "SYNTH_ORIGINAL_2",
+              "scope": "clauses",
+              "clauses": [
+                "A10",
+                "B20"
+              ]
+            }
+          ]
+        },
+        {
+          "pointer": "/clause_overrides",
+          "operation": "set",
+          "value": [
+            {
+              "original": "HIST_RF02_MASTER",
+              "correction": "HIST_RF02_CORRECTED",
+              "scope": "D04/R06 only, historical RF02-01 task",
+              "clause_ids": [
+                "D04",
+                "R06"
+              ],
+              "retired_claim": "Public priorityContacts limit=60 or >50 success",
+              "selection": "Use CORRECTED for this clause, retain unaffected original context; do not apply globally"
+            },
+            {
+              "original": "SYNTH_ORIGINAL_2",
+              "correction": "HIST_RF02_CORRECTED",
+              "clause_ids": [
+                "B20",
+                "A10"
+              ],
+              "scope": "synthetic only"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null,
+        "clause_linkage": "VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M07_VALID_MULTIPLE_UNRELATED_RELATIONS",
+      "register_mutations": [
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_ORIGINAL_2",
+            "title": "Synthetic separate target",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "ba53fe1f3f4cf7434c21ab7d29a396a0dac3f6636ab61a43edea7946a6128915",
+              "bytes": 17982
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_CORRECTION_2",
+            "title": "Synthetic second correction",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "16714b8f19bfe220ff59f2aaecdfc6988e3c2c6c9dff5f896c6b9d8f8657b7e2",
+              "bytes": 6975
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [
+              {
+                "target": "SYNTH_ORIGINAL_2",
+                "scope": "clauses",
+                "clauses": [
+                  "A10",
+                  "B20"
+                ]
+              }
+            ],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_ORIGINAL_DOC",
+            "title": "Synthetic separate target",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "ba53fe1f3f4cf7434c21ab7d29a396a0dac3f6636ab61a43edea7946a6128915",
+              "bytes": 17982
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_CORRECTION_DOC",
+            "title": "Synthetic second correction",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "16714b8f19bfe220ff59f2aaecdfc6988e3c2c6c9dff5f896c6b9d8f8657b7e2",
+              "bytes": 6975
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [
+              {
+                "target": "SYNTH_ORIGINAL_DOC",
+                "scope": "document"
+              }
+            ],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/clause_overrides",
+          "operation": "set",
+          "value": [
+            {
+              "original": "HIST_RF02_MASTER",
+              "correction": "HIST_RF02_CORRECTED",
+              "scope": "D04/R06 only, historical RF02-01 task",
+              "clause_ids": [
+                "D04",
+                "R06"
+              ],
+              "retired_claim": "Public priorityContacts limit=60 or >50 success",
+              "selection": "Use CORRECTED for this clause, retain unaffected original context; do not apply globally"
+            },
+            {
+              "original": "SYNTH_ORIGINAL_2",
+              "correction": "SYNTH_CORRECTION_2",
+              "clause_ids": [
+                "B20",
+                "A10"
+              ],
+              "scope": "synthetic only"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null,
+        "clause_linkage": "VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M08_DUPLICATE_OVERRIDE",
+      "register_mutations": [
+        {
+          "pointer": "/clause_overrides",
+          "operation": "set",
+          "value": [
+            {
+              "original": "HIST_RF02_MASTER",
+              "correction": "HIST_RF02_CORRECTED",
+              "scope": "D04/R06 only, historical RF02-01 task",
+              "clause_ids": [
+                "D04",
+                "R06"
+              ],
+              "retired_claim": "Public priorityContacts limit=60 or >50 success",
+              "selection": "Use CORRECTED for this clause, retain unaffected original context; do not apply globally"
+            },
+            {
+              "original": "HIST_RF02_MASTER",
+              "correction": "HIST_RF02_CORRECTED",
+              "scope": "D04/R06 only, historical RF02-01 task",
+              "clause_ids": [
+                "D04",
+                "R06"
+              ],
+              "retired_claim": "Public priorityContacts limit=60 or >50 success",
+              "selection": "Use CORRECTED for this clause, retain unaffected original context; do not apply globally"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "M09_PAIR_ORDER_INDEPENDENCE",
+      "register_mutations": [
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_ORIGINAL_2",
+            "title": "Synthetic separate target",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "ba53fe1f3f4cf7434c21ab7d29a396a0dac3f6636ab61a43edea7946a6128915",
+              "bytes": 17982
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_CORRECTION_2",
+            "title": "Synthetic second correction",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "16714b8f19bfe220ff59f2aaecdfc6988e3c2c6c9dff5f896c6b9d8f8657b7e2",
+              "bytes": 6975
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [
+              {
+                "target": "SYNTH_ORIGINAL_2",
+                "scope": "clauses",
+                "clauses": [
+                  "A10",
+                  "B20"
+                ]
+              }
+            ],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_ORIGINAL_DOC",
+            "title": "Synthetic separate target",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_Master_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "ba53fe1f3f4cf7434c21ab7d29a396a0dac3f6636ab61a43edea7946a6128915",
+              "bytes": 17982
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/sources/-",
+          "operation": "append",
+          "value": {
+            "source_id": "SYNTH_CORRECTION_DOC",
+            "title": "Synthetic second correction",
+            "source_type": "historical_taskpack",
+            "canonical": {
+              "kind": "external_input",
+              "input_id": "BOA-SKILL-SOURCEPACK-CHAT-HANDOFF-20261003",
+              "member": "originals/external/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md"
+            },
+            "origin_metadata": {
+              "source_path": "C:/Users/이도현/Downloads/BOA_P2-02_RF02-01_ReadOnly_Reaudit_CORRECTED_20260909.md",
+              "classification": "provenance_only_not_execution_dependency"
+            },
+            "digest": {
+              "kind": "raw_sha256",
+              "value": "16714b8f19bfe220ff59f2aaecdfc6988e3c2c6c9dff5f896c6b9d8f8657b7e2",
+              "bytes": 6975
+            },
+            "topics": [
+              "historical_candidate_validation"
+            ],
+            "task_modes": [
+              "PLAN",
+              "READ_ONLY_REVIEW"
+            ],
+            "read_when": "Only when analyzing this specific historical task or its documented correction/evidence pattern; original required for a clause-specific judgment",
+            "exclusions": [
+              "current approval",
+              "current product/API policy",
+              "past SHA/test counts/pixel/query thresholds as general rules"
+            ],
+            "authority": {
+              "basis": "Historical task input, not authority for the current task",
+              "approved_policy": false
+            },
+            "revision": {
+              "kind": "snapshot_raw_bytes",
+              "document_version": "20260909"
+            },
+            "checked_on": "2026-10-03",
+            "status": "historical",
+            "supersedes": [
+              {
+                "target": "SYNTH_ORIGINAL_DOC",
+                "scope": "document"
+              }
+            ],
+            "acceptance": [
+              "A08",
+              "A09"
+            ],
+            "eval_cases": [
+              "E05",
+              "E07",
+              "E08"
+            ],
+            "review": {
+              "owner_role": "BOA sourcepack maintainer; release owner for historical deployment context",
+              "last_review": "2026-10-03",
+              "depth": "specific conflict/correction text compared",
+              "recheck_trigger": "Historical pack is proposed for current reuse"
+            },
+            "reproduction": {
+              "license": "User-provided internal historical material; no public reproduction rights established",
+              "copied": false
+            },
+            "missing_input_action": "Identify exact missing member and restrict only the judgment requiring original; do not substitute an absolute personal PC path or invent a read."
+          }
+        },
+        {
+          "pointer": "/clause_overrides",
+          "operation": "set",
+          "value": [
+            {
+              "original": "HIST_RF02_MASTER",
+              "correction": "HIST_RF02_CORRECTED",
+              "scope": "D04/R06 only, historical RF02-01 task",
+              "clause_ids": [
+                "D04",
+                "R06"
+              ],
+              "retired_claim": "Public priorityContacts limit=60 or >50 success",
+              "selection": "Use CORRECTED for this clause, retain unaffected original context; do not apply globally"
+            },
+            {
+              "original": "SYNTH_ORIGINAL_2",
+              "correction": "SYNTH_CORRECTION_2",
+              "clause_ids": [
+                "B20",
+                "A10"
+              ],
+              "scope": "synthetic only"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null,
+        "clause_linkage": "VERIFIED"
+      },
+      "reverse_arrays": true
+    },
+    {
+      "fixture_id": "M09_INVALID_ORDER_INDEPENDENCE",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            },
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "document"
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      },
+      "reverse_arrays": true
+    },
+    {
+      "fixture_id": "S01_VALID_PAIR",
+      "register_mutations": [],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null,
+        "clause_linkage": "VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S02_MISSING_TARGET_NO_OVERRIDE",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes/0/target",
+          "operation": "set",
+          "value": "ABSENT"
+        },
+        {
+          "pointer": "/clause_overrides",
+          "operation": "set",
+          "value": []
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "REPLACEMENT_TARGET",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S03_MISSING_TARGET_WITH_OVERRIDE",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes/0/target",
+          "operation": "set",
+          "value": "ABSENT"
+        },
+        {
+          "pointer": "/clause_overrides/0/original",
+          "operation": "set",
+          "value": "ABSENT"
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "REPLACEMENT_TARGET",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S04_MISSING_RELATION",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": []
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S05_AMBIGUOUS_RELATION",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": [
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            },
+            {
+              "target": "HIST_RF02_MASTER",
+              "scope": "clauses",
+              "clauses": [
+                "D04",
+                "R06"
+              ],
+              "clause_description": "D04/R06: public limit=60 or >50 success requirement",
+              "replacement": "For this RF02-01 reaudit only: public 1/10/25/50 succeeds and 51/60 is BAD_REQUEST; internal independent full ordering fixture has at least 60 candidates; preserve original API cap. Not a whole-document replacement or global limit policy."
+            }
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_RELATION_AMBIGUOUS",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S06_CLAUSE_MISMATCH",
+      "register_mutations": [
+        {
+          "pointer": "/clause_overrides/0/clause_ids",
+          "operation": "set",
+          "value": [
+            "D04"
+          ]
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_SCOPE_MISMATCH",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S07_CLAUSE_UNVERIFIABLE",
+      "register_mutations": [
+        {
+          "pointer": "/clause_overrides/0/clause_ids",
+          "operation": "delete"
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "CLAUSE_UNVERIFIABLE",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S08_UNRELATED_ERROR",
+      "register_mutations": [],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "YAML",
+        "clause_linkage": "VERIFIED"
+      },
+      "file_mutations": [
+        {
+          "path": ".agents/skills/boa-crm-full-build/SKILL.md",
+          "old_text": "description: \"",
+          "new_text": "description: BOA CRM: \""
+        }
+      ]
+    },
+    {
+      "fixture_id": "S09_INVALID_SOURCE_ID",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/source_id",
+          "operation": "set",
+          "value": null
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "DUPLICATE_ID",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S10_EMPTY_SOURCE_ID",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/source_id",
+          "operation": "set",
+          "value": ""
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "DUPLICATE_ID",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S11_INVALID_TARGET_TYPE",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes/0/target",
+          "operation": "set",
+          "value": []
+        }
+      ],
+      "expected": {
+        "exit": 1,
+        "status": "FAIL",
+        "error": "REPLACEMENT_TARGET",
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    },
+    {
+      "fixture_id": "S12_NO_CLAUSE_EQUALITY",
+      "register_mutations": [
+        {
+          "pointer": "/sources/62/supersedes",
+          "operation": "set",
+          "value": []
+        },
+        {
+          "pointer": "/clause_overrides",
+          "operation": "set",
+          "value": []
+        }
+      ],
+      "expected": {
+        "exit": 0,
+        "status": "PASS",
+        "error": null,
+        "clause_linkage": "NOT_VERIFIED"
+      }
+    }
+  ]
+}
